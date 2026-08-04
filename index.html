@@ -26,7 +26,6 @@
   }
   .container { max-width: 1100px; margin: 0 auto; }
 
-  /* === 加载动效 === */
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(28px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -40,7 +39,6 @@
   .section:nth-of-type(3) { animation-delay: 0.45s; }
   .section:nth-of-type(4) { animation-delay: 0.60s; }
 
-  /* === 交替微背景 === */
   .section:nth-of-type(odd) { background: transparent; margin: 0; padding: 0; }
   .section.alt-bg {
     background: var(--color-alt);
@@ -56,7 +54,6 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px;
     text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
   }
-  .masthead .vol { color: var(--color-accent); font-weight: 500; }
   .lang-switch {
     display: flex; gap: 0;
     border: 1px solid var(--color-rule); border-radius: 8px; overflow: hidden;
@@ -117,13 +114,14 @@
   /* === skills === */
   .skills-grid { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .skills-list { display: grid; grid-template-columns: repeat(2, 1fr); border-left: 1px solid var(--color-rule); border-top: 1px solid var(--color-rule); }
-  .skill-item { padding: 24px 26px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 18px; align-items: flex-start; }
+  .skill-item { padding: 24px 26px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 18px; align-items: flex-start; transition: background 0.2s ease; }
+  .skill-item:hover { background: rgba(0,0,0,0.03); }
   .skill-icon { width: 28px; height: 28px; color: var(--color-ink); flex-shrink: 0; }
   .skill-name { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 18px; margin-bottom: 4px; }
   .skill-desc { font-size: 14px; color: var(--color-muted); line-height: 1.5; }
 
   /* === projects === */
-  .project { display: grid; grid-template-columns: 100px 1fr auto; gap: 32px; padding: 36px 0; border-bottom: 1px solid var(--color-rule); align-items: start; }
+  .project { display: grid; grid-template-columns: 100px 1fr; gap: 32px; padding: 36px 0; border-bottom: 1px solid var(--color-rule); align-items: start; }
   .project-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; padding-top: 8px; }
   .project-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 30px; margin-bottom: 10px; letter-spacing: -0.5px; }
   .project-desc { font-size: 16px; color: var(--color-muted); max-width: 620px; margin-bottom: 14px; }
@@ -159,6 +157,12 @@
     text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
   }
 
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9em; background: var(--color-alt);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
   @media (max-width: 768px) {
     body { padding: 32px 20px; font-size: 16px; }
     .masthead { flex-wrap: wrap; gap: 8px; }
@@ -177,19 +181,19 @@
 <div class="container">
 
   <header class="masthead">
-    <span><span class="vol">Vol. 01</span> &middot; Issue 01</span>
+    <span>andyttc05</span>
     <span>Verno</span>
+    <span>August 2026</span>
     <span class="lang-switch">
       <a href="index.html" class="active">En</a>
       <a href="zh.html">中文</a>
     </span>
-    <span>August 2026</span>
   </header>
 
   <section class="hero">
     <div>
       <h1 class="hero-title">Verno</h1>
-      <p class="hero-tagline">I&rsquo;m learning to code from zero. Git, Python, the terminal that still scares me a little &mdash; whatever I figure out, I write down here.</p>
+      <p class="hero-tagline">I&rsquo;m learning to code from zero. C++, Python, SQL, the terminal that still scares me a little &mdash; whatever I figure out, I write down here.</p>
       <p class="hero-date">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>
         First commit &middot; August 1, 2026
@@ -205,8 +209,8 @@
     <div class="about-body">
       <span></span>
       <div class="about-text">
-        <p>I&rsquo;m Verno. August 2026 was when I first opened a terminal. With a little helper named Momo keeping me company, I typed <code>git commit</code> having no idea what it meant, and somehow that became day one.</p>
-        <p>Since then I&rsquo;ve been fumbling through repos, breaking things, fixing them (mostly), and putting what I learn here. This isn&rsquo;t a tutorial site &mdash; it&rsquo;s my notebook. If you&rsquo;re learning too, especially the messy early parts, I&rsquo;d love to hear from you. Misery loves company, right?</p>
+        <p>I&rsquo;m Verno. August 2026 was when I first opened a terminal. With a little helper named Momo keeping me company, I typed <code>git commit</code> having no idea what it meant, and somehow that was the beginning.</p>
+        <p>Since then I&rsquo;ve been fumbling through repos, breaking things, fixing them (mostly). I write down whatever sticks. At some point my messy notes turned into an actual Git + GitHub guide &mdash; the kind I wish someone had handed me on day one. Still messy. Still honest. But turns out other beginners find it useful too. If you&rsquo;re in the middle of your own chaos, say hi.</p>
       </div>
     </div>
     <div class="pull-quote">
@@ -217,7 +221,7 @@
   <section class="section alt-bg">
     <header class="section-header">
       <span class="section-number">&sect; 02</span>
-      <h2 class="section-title">Skills I&rsquo;m learning</h2>
+      <h2 class="section-title">What I&rsquo;m learning</h2>
     </header>
     <div class="skills-grid">
       <span></span>
@@ -231,16 +235,24 @@
           <div><div class="skill-name">GitHub</div><div class="skill-desc">Hosting repos, reading other people&rsquo;s code, slowly learning open source</div></div>
         </div>
         <div class="skill-item">
-          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9l-3 9 4-2 3 4 6-14-10 3z"/></svg>
-          <div><div class="skill-name">Python</div><div class="skill-desc">My first real language. Still wrapping my head around classes</div></div>
+          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8 M12 18v3"/></svg>
+          <div><div class="skill-name">GitHub Desktop</div><div class="skill-desc">When I don&rsquo;t feel like touching the terminal</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18 M8 13l3 3 5-5"/></svg>
-          <div><div class="skill-name">PyCharm</div><div class="skill-desc">The IDE I live in. Debugger saved me more times than I can count</div></div>
+          <div><div class="skill-name">VSCode</div><div class="skill-desc">The editor I live in. Debugger saved me more times than I can count</div></div>
         </div>
         <div class="skill-item">
-          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8 M12 18v3"/></svg>
-          <div><div class="skill-name">GitHub Desktop</div><div class="skill-desc">When I don&rsquo;t feel like touching the terminal</div></div>
+          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+          <div><div class="skill-name">C++</div><div class="skill-desc">My first language. Pointers built the foundation (and most of the headaches)</div></div>
+        </div>
+        <div class="skill-item">
+          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9l-3 9 4-2 3 4 6-14-10 3z"/></svg>
+          <div><div class="skill-name">Python</div><div class="skill-desc">Where things started making sense. The language that finally felt like home</div></div>
+        </div>
+        <div class="skill-item">
+          <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 5v14c0 1.66-4.03 3-9 3s-9-1.34-9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+          <div><div class="skill-name">SQL</div><div class="skill-desc">Learning to talk to databases. There&rsquo;s more to life than SELECT *</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16 M4 12h16 M4 17h12"/></svg>
@@ -253,16 +265,15 @@
   <section class="section">
     <header class="section-header">
       <span class="section-number">&sect; 03</span>
-      <h2 class="section-title">Selected projects</h2>
+      <h2 class="section-title">Projects</h2>
     </header>
     <article class="project">
       <span class="project-number">N&deg; 01</span>
       <div>
         <h3 class="project-title">my-first-repo</h3>
-        <p class="project-desc">My first repo on GitHub. Every commit in there is a small milestone &mdash; you can literally watch me go from &ldquo;wait, what&rsquo;s a branch&rdquo; to pushing this website live.</p>
+        <p class="project-desc">My Git + GitHub notes, in English and Chinese. I wrote down everything that confused me &mdash; commits, branches, that four-zone thing, GitHub Desktop, GitHub Pages &mdash; and somehow it turned into a guide. There&rsquo;s even AI prompts in there, because honestly, that&rsquo;s how I work now.</p>
         <a class="project-link" href="https://github.com/andyttc05/my-first-repo" target="_blank">&rarr; View on GitHub</a>
       </div>
-      <span></span>
     </article>
     <article class="project">
       <span class="project-number">N&deg; 02</span>
@@ -271,7 +282,6 @@
         <p class="project-desc">Hand-written HTML &amp; CSS on GitHub Pages. When I started, I didn&rsquo;t know what a framework was. I still don&rsquo;t use one. The page you&rsquo;re reading is what came out the other end.</p>
         <a class="project-link" href="https://github.com/andyttc05/andyttc05.github.io" target="_blank">&rarr; View Source</a>
       </div>
-      <span></span>
     </article>
   </section>
 
@@ -292,7 +302,7 @@
   <footer class="footer">
     <span>&copy; 2026 Verno</span>
     <span>Set in IBM Plex Serif &amp; Sans</span>
-    <span>Continued on page 2 &rarr;</span>
+    <span>&#10086;</span>
   </footer>
 
 </div>
