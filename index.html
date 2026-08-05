@@ -23,7 +23,7 @@
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     line-height: 1.7; font-size: 17px;
-    padding: 0 0 64px;
+    padding: 0;
   }
   .container { max-width: 1040px; margin: 0 auto; padding: 0 48px; }
 
@@ -40,11 +40,10 @@
   .section:nth-of-type(3) { animation-delay: 0.45s; }
   .section:nth-of-type(4) { animation-delay: 0.60s; }
 
-  .section:nth-of-type(odd) { background: transparent; margin: 0; padding: 0; }
   .section.alt-bg {
     background: var(--color-alt);
     margin-left: -48px; margin-right: -48px;
-    padding: 48px 48px 80px;
+    padding: 48px 48px 32px;
     border-radius: 2px;
   }
 
@@ -76,7 +75,7 @@
     font-size: 14px; font-weight: 500;
     letter-spacing: 1px;
     color: var(--color-muted); text-decoration: none;
-    padding: 10px 16px; border-radius: 8px;
+    padding: 12px 16px; border-radius: 8px;
     transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; white-space: nowrap;
   }
   .nav-links a:hover {
@@ -88,10 +87,10 @@
   .nav-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
   .hamburger {
-    display: none; flex-direction: column; justify-content: center; gap: 5px;
+    display: none; flex-direction: column; justify-content: center; gap: 4px;
     width: 40px; height: 40px;
     background: none; border: none; cursor: pointer;
-    padding: 8px 6px; flex-shrink: 0; position: relative; z-index: 1;
+    padding: 8px; flex-shrink: 0; position: relative; z-index: 1;
     border-radius: 8px; transition: background 0.2s ease;
   }
   .hamburger:hover { background: #1a1a1a; }
@@ -99,9 +98,9 @@
     display: block; height: 2px; background: var(--color-ink);
     border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease;
   }
-  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
   .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .hamburger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
   .hamburger:hover span { background: #fff; }
   .nav-menu {
     visibility: hidden; opacity: 0;
@@ -177,7 +176,7 @@
     line-height: 1.55;
   }
   .hero-date {
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
     text-transform: uppercase; letter-spacing: 2px; margin-top: 36px;
     color: var(--color-muted); padding-top: 20px; border-top: 1px solid var(--color-rule);
     display: flex; align-items: center; gap: 8px;
@@ -185,7 +184,7 @@
 
   /* === section === */
   .section { margin-bottom: 96px; }
-  .section.alt-bg + .section { margin-top: 96px; }
+  .section:last-of-type { margin-bottom: 0; }
   .section-header {
     display: grid; grid-template-columns: 100px 1fr; gap: 32px; align-items: baseline;
     margin-bottom: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--color-ink);
@@ -196,7 +195,7 @@
   /* === about + pull quote === */
   .about-body { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .about-text { font-size: 19px; line-height: 1.85; }
-  .about-text p { margin-bottom: 22px; max-width: 720px; }
+  .about-text p { margin-bottom: 24px; max-width: 720px; }
   .about-text p:first-child::first-letter {
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 72px;
     float: left; line-height: 0.85; margin-right: 14px; margin-top: 10px; color: var(--color-accent);
@@ -213,7 +212,7 @@
   /* === skills === */
   .skills-grid { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .skills-list { display: grid; grid-template-columns: repeat(2, 1fr); border-left: 1px solid var(--color-rule); border-top: 1px solid var(--color-rule); }
-  .skill-item { padding: 24px 26px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 18px; align-items: flex-start; transition: background 0.2s ease; }
+  .skill-item { padding: 24px 24px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 16px; align-items: flex-start; transition: background 0.2s ease; }
   .skill-item:hover { background: rgba(0,0,0,0.03); }
   .skill-icon { width: 28px; height: 28px; color: var(--color-ink); flex-shrink: 0; }
   .skill-name { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 18px; margin-bottom: 4px; }
@@ -222,19 +221,19 @@
   /* === projects === */
   .project { display: grid; grid-template-columns: 100px 1fr; gap: 32px; padding: 0 0 36px 0; border-bottom: 1px solid var(--color-rule); align-items: start; }
   .project-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; padding-top: 8px; }
-  .project-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 30px; margin-bottom: 14px; letter-spacing: -0.5px; }
+  .project-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 30px; margin-bottom: 16px; letter-spacing: -0.5px; }
   .project-desc { font-size: 16px; color: var(--color-muted); max-width: 580px; margin-bottom: 14px; line-height: 1.65; }
   .project-link {
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--color-ink);
     text-decoration: none; text-transform: uppercase; letter-spacing: 1.5px;
     border-bottom: 1px solid var(--color-ink); padding-bottom: 2px;
-    display: inline-block; margin-top: 6px; transition: color 0.2s ease, border-color 0.2s ease;
+    display: inline-block; margin-top: 8px; transition: color 0.2s ease, border-color 0.2s ease;
   }
   .project-link:hover { color: var(--color-accent); border-bottom-color: var(--color-accent); }
 
   /* === contact === */
   .contact { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
-  .contact-list { list-style: none; display: flex; flex-direction: column; gap: 22px; }
+  .contact-list { list-style: none; display: flex; flex-direction: column; gap: 24px; }
   .contact-list a {
     font-family: 'IBM Plex Serif', serif; font-style: italic; font-size: 28px;
     color: var(--color-ink);
@@ -255,7 +254,7 @@
   }
 
   @media (max-width: 768px) {
-    body { padding: 0 0 32px; font-size: 16px; }
+    body { font-size: 16px; }
     .container { padding: 0 20px; }
     .hero { margin-bottom: 80px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
@@ -264,6 +263,7 @@
     .pull-quote { margin: 32px 0; }
     .project { padding: 28px 0; }
     .section { margin-bottom: 64px; }
+    .section:last-of-type { margin-bottom: 0; }
     .nav { width: calc(100% - 40px); max-width: 100%; margin: 0 auto 48px; padding: 8px 20px; justify-content: space-between; border-radius: 24px; }
     .nav-links { display: none; }
     .hamburger { display: flex; }
@@ -271,7 +271,7 @@
     .nav.scrolled { box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
     .section.alt-bg {
       margin-left: -20px; margin-right: -20px;
-      padding: 40px 20px 64px;
+      padding: 40px 20px 24px;
     }
     .nav-icon:hover { background: transparent; color: var(--color-ink); box-shadow: none; }
     .hamburger:hover { background: transparent; }
