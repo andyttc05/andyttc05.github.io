@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verno — Aspiring Developer</title>
+<meta name="description" content="Verno 的个人编程主页 — 从零开始学编程的旅程记录">
+<title>Verno — 编程学习者</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --color-ink: #1a1a1a;
     --color-paper: #f8f5f0;
-    --color-accent: #e8552e;
-    --color-secondary: #8b7355;
+    --color-accent: #c94a25;
+    --color-secondary: #6b5540;
     --color-rule: #d8d4ce;
-    --color-muted: #5c5852;
+    --color-muted: #4a4640;
     --color-alt: #f4f1ea;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,9 +23,9 @@
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     line-height: 1.7; font-size: 17px;
-    padding: 48px 0 64px;
+    padding: 0 0 64px;
   }
-  .container { max-width: 896px; margin: 0 auto; padding: 0 32px; }
+  .container { max-width: 1040px; margin: 0 auto; padding: 0 48px; }
 
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(28px); }
@@ -42,81 +43,127 @@
   .section:nth-of-type(odd) { background: transparent; margin: 0; padding: 0; }
   .section.alt-bg {
     background: var(--color-alt);
-    margin-left: -32px; margin-right: -32px;
-    padding: 48px 32px 80px;
+    margin-left: -48px; margin-right: -48px;
+    padding: 48px 48px 80px;
     border-radius: 2px;
   }
 
   /* === nav === */
-  html { scroll-padding-top: 100px; scroll-behavior: smooth; }
   .nav {
-    position: sticky; top: 24px; z-index: 100;
-    width: fit-content; max-width: calc(100% - 64px); margin: 0 auto 64px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(16px) saturate(200%);
-    -webkit-backdrop-filter: blur(16px) saturate(200%);
-    border-radius: 32px;
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.02),
-      0 6px 20px rgba(0, 0, 0, 0.03);
-    transition: box-shadow 0.5s ease, background 0.5s ease, border-color 0.5s ease;
-    overflow: hidden;
-  }
-  .nav::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.22) 0%,
-      rgba(255, 255, 255, 0.05) 40%,
-      rgba(255, 255, 255, 0) 100%
-    );
-    border-radius: 32px;
-    pointer-events: none;
-    z-index: 0;
+    position: sticky; top: 12px; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    width: fit-content; max-width: calc(100% - 48px);
+    margin: 0 auto 64px;
+    padding: 12px 32px; gap: 32px;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-radius: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0,0,0,0.02);
   }
   .nav.scrolled {
-    border-color: rgba(255, 255, 255, 0.60);
-    background: rgba(255, 255, 255, 0.45);
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.01),
-      0 10px 30px rgba(0, 0, 0, 0.05);
-  }
-  .nav-list { list-style: none; display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 0; }
-  .nav-list a {
-    font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
-    text-decoration: none; padding: 12px; border-radius: 20px;
-    position: relative; z-index: 1;
-    transition: color 0.35s ease, background 0.35s ease;
-    white-space: nowrap;
-  }
-  .nav-list a:hover {
-    color: var(--color-ink);
-    background: rgba(0, 0, 0, 0.06);
-  }
-  .nav-list a.active {
-    color: var(--color-paper);
-    background: var(--color-ink);
-    transition: color 0.35s ease, background 0.35s ease;
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.03);
   }
 
-  .lang-switch {
-    display: flex;
-    border: 1px solid var(--color-rule); border-radius: 8px; overflow: hidden;
-    flex-shrink: 0;
+  .nav-links {
+    display: flex; align-items: center; gap: 32px;
+    list-style: none; padding: 0; margin: 0;
   }
-  .lang-switch a {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-    text-transform: uppercase; letter-spacing: 1px;
-    padding: 6px 16px; color: var(--color-muted);
-    background: transparent; text-decoration: none;
-    transition: all 0.2s ease; min-width: 56px; text-align: center;
+  .nav-links a {
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 1px;
+    color: var(--color-muted); text-decoration: none;
+    padding: 10px 16px; border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; white-space: nowrap;
   }
-  .lang-switch a.active { background: var(--color-accent); color: var(--color-paper); }
-  .lang-switch a:not(.active):hover { background: rgba(232,85,46,0.08); }
+  .nav-links a:hover {
+    color: #fff;
+    background: #1a1a1a;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+  .hamburger {
+    display: none; flex-direction: column; justify-content: center; gap: 5px;
+    width: 40px; height: 40px;
+    background: none; border: none; cursor: pointer;
+    padding: 8px 6px; flex-shrink: 0; position: relative; z-index: 1;
+    border-radius: 8px; transition: background 0.2s ease;
+  }
+  .hamburger:hover { background: #1a1a1a; }
+  .hamburger span {
+    display: block; height: 2px; background: var(--color-ink);
+    border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .hamburger:hover span { background: #fff; }
+  .nav-menu {
+    visibility: hidden; opacity: 0;
+    transform: translateY(-6px);
+    position: absolute;
+    top: calc(100% + 8px); left: 0; right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
+    list-style: none; padding: 8px; z-index: 200;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s 0.2s;
+  }
+  .nav-menu.open {
+    visibility: visible; opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+  }
+  .nav-menu li {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .nav-menu li + li {
+    border-top: 1px solid var(--color-rule);
+  }
+  .nav-menu.open li:nth-child(1) { transition-delay: 0.04s; opacity: 1; transform: translateY(0); }
+  .nav-menu.open li:nth-child(2) { transition-delay: 0.10s; opacity: 1; transform: translateY(0); }
+  .nav-menu.open li:nth-child(3) { transition-delay: 0.16s; opacity: 1; transform: translateY(0); }
+  .nav-menu.open li:nth-child(4) { transition-delay: 0.22s; opacity: 1; transform: translateY(0); }
+  .nav-menu a {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 1px;
+    color: var(--color-muted); text-decoration: none;
+    border-radius: 8px; transition: background 0.2s ease, color 0.2s ease;
+  }
+  .nav-menu a::after {
+    content: '\2192';
+    font-size: 16px;
+    opacity: 0.25;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .nav-menu a:hover { background: #1a1a1a; color: #fff; }
+  .nav-menu a:hover::after { opacity: 1; transform: translateX(4px); }
+
+  .nav-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; flex-shrink: 0;
+    color: var(--color-ink); text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .nav-icon:hover {
+    background: #1a1a1a;
+    color: #fff;
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1);
+  }
+  .nav-icon svg { width: 22px; height: 22px; }
+  .nav-home { display: none; }
 
   /* === hero === */
   .hero { margin-bottom: 120px; }
@@ -181,7 +228,7 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--color-ink);
     text-decoration: none; text-transform: uppercase; letter-spacing: 1.5px;
     border-bottom: 1px solid var(--color-ink); padding-bottom: 2px;
-    display: inline-block; margin-top: 6px; transition: all 0.2s ease;
+    display: inline-block; margin-top: 6px; transition: color 0.2s ease, border-color 0.2s ease;
   }
   .project-link:hover { color: var(--color-accent); border-bottom-color: var(--color-accent); }
 
@@ -197,18 +244,8 @@
     text-underline-offset: 6px;
     transition: color 0.2s ease;
   }
-  .contact-list a:hover, .contact-list a:hover .arrow { color: var(--color-accent); }
+  .contact-list a:hover { color: var(--color-accent); }
   .arrow { color: inherit; display: inline-block; line-height: 1; }
-  .contact-list a:hover * { color: var(--color-accent); }
-
-  /* === footer === */
-  .footer {
-    margin-top: 120px; padding-top: 20px; border-top: 2px solid var(--color-ink);
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 16px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
-  }
 
   code {
     font-family: 'IBM Plex Mono', monospace;
@@ -217,7 +254,7 @@
   }
 
   @media (max-width: 768px) {
-    body { padding: 32px 0; font-size: 16px; }
+    body { padding: 0 0 32px; font-size: 16px; }
     .container { padding: 0 20px; }
     .hero { margin-bottom: 80px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
@@ -226,9 +263,10 @@
     .pull-quote { margin: 32px 0; }
     .project { padding: 28px 0; }
     .section { margin-bottom: 64px; }
-    .nav { width: fit-content; max-width: calc(100% - 32px); border-radius: 20px; top: 12px; padding: 8px; }
-    .nav-list { gap: 8px; overflow-x: auto; justify-content: center; -webkit-overflow-scrolling: touch; }
-    .nav-list a { font-size: 11px; letter-spacing: 1px; padding: 8px; white-space: nowrap; }
+    .nav { width: calc(100% - 40px); max-width: 100%; margin: 0 auto 48px; padding: 8px 20px; justify-content: space-between; border-radius: 24px; }
+    .nav-links { display: none; }
+    .hamburger { display: flex; }
+    .nav-home { display: flex; }
     .nav.scrolled { box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
     .section.alt-bg {
       margin-left: -20px; margin-right: -20px;
@@ -241,82 +279,98 @@
 <div class="container">
 
   <nav class="nav" id="nav">
-    <ul class="nav-list">
-      <li><a href="#hero" data-section="hero">Home</a></li>
-      <li><a href="#about" data-section="about">About</a></li>
-      <li><a href="#learning" data-section="learning">Skills</a></li>
-      <li><a href="#projects" data-section="projects">Projects</a></li>
-      <li><a href="#contact" data-section="contact">Contact</a></li>
+    <a href="index.html" class="nav-icon nav-home" aria-label="主页">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">主页</a></li>
+      <li><a href="coming-soon.html">项目</a></li>
+      <li><a href="coming-soon.html">动态</a></li>
+      <li><a href="coming-soon.html">关于</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="coming-soon.html" class="nav-icon" aria-label="语言">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+      </a>
+      <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <ul class="nav-menu" id="navMenu">
+      <li><a href="index.html">主页</a></li>
+      <li><a href="coming-soon.html">项目</a></li>
+      <li><a href="coming-soon.html">动态</a></li>
+      <li><a href="coming-soon.html">关于</a></li>
     </ul>
   </nav>
 
-  <section class="hero" id="hero">
+  <div class="hero" id="hero">
     <div>
       <h1 class="hero-title">Verno</h1>
-      <p class="hero-tagline">I&rsquo;m learning to code from zero. C++, Python, SQL, the terminal that still scares me a little &mdash; whatever I figure out, I write down here.</p>
+      <p class="hero-tagline">从零开始学编程。C++、Python、SQL、那个到现在还是有点怕的终端——搞懂一点，就记一点。</p>
       <p class="hero-date">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>
-        First commit &middot; August 1, 2026
+        初次 commit &middot; 2026.08.01
       </p>
     </div>
-  </section>
+  </div>
 
   <section class="section" id="about">
     <header class="section-header">
       <span class="section-number">&sect; 01</span>
-      <h2 class="section-title">About me</h2>
+      <h2 class="section-title">关于我</h2>
     </header>
     <div class="about-body">
       <span></span>
       <div class="about-text">
-        <p>I&rsquo;m Verno. August 2026 was when I first opened a terminal. With a little helper named Momo keeping me company, I typed <code>git commit</code> having no idea what it meant, and somehow that was the beginning.</p>
-        <p>Since then I&rsquo;ve been fumbling through repos, breaking things, fixing them (mostly). I write down whatever sticks. At some point my messy notes turned into an actual Git + GitHub guide &mdash; the kind I wish someone had handed me on day one. Still messy. Still honest. But turns out other beginners find it useful too. If you&rsquo;re in the middle of your own chaos, say hi.</p>
+        <p>我是 Verno，一个刚开始学编程的人。2026 年 8 月，我第一次打开终端，身边有个叫 Momo 的小伙伴陪着我，敲了人生第一条 <code>git commit</code>——当时完全不知道自己在干嘛，但那一天就是一切的开始。</p>
+        <p>从那以后就一直在瞎折腾：建仓库、搞崩东西、修好（大部分时候能修好）。弄明白一点就记一点。没想到这些随手记的东西，攒着攒着就成了本 Git + GitHub 指南——就是我第一天就想有人塞给我的那种说明书。还是乱，还是真，但真的有别的初学者说帮到他们了。如果你也在自己的坑里摸爬滚打，来打个招呼呗。</p>
       </div>
     </div>
     <div class="pull-quote">
-      <p>&ldquo;Every commit is a snapshot of a thought you almost forgot you had.&rdquo;</p>
+      <p>&ldquo;每一次 commit，都像给当时的自己拍一张快照。&rdquo;</p>
     </div>
   </section>
 
   <section class="section alt-bg" id="learning">
     <header class="section-header">
       <span class="section-number">&sect; 02</span>
-      <h2 class="section-title">What I&rsquo;m learning</h2>
+      <h2 class="section-title">正在学的技能</h2>
     </header>
     <div class="skills-grid">
       <span></span>
       <div class="skills-list">
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9v6a6 6 0 006 6h3"/><path d="M18 15V9a6 6 0 00-6-6h-3"/></svg>
-          <div><div class="skill-name">Git</div><div class="skill-desc">commit, push, branch &mdash; the daily muscle memory</div></div>
+          <div><div class="skill-name">Git</div><div class="skill-desc">commit、push、branch，每天必敲的几个命令</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
-          <div><div class="skill-name">GitHub</div><div class="skill-desc">Hosting repos, reading other people&rsquo;s code, slowly learning open source</div></div>
+          <div><div class="skill-name">GitHub</div><div class="skill-desc">托管代码，看别人的仓库，慢慢学开源是怎么一回事</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8 M12 18v3"/></svg>
-          <div><div class="skill-name">GitHub Desktop</div><div class="skill-desc">When I don&rsquo;t feel like touching the terminal</div></div>
+          <div><div class="skill-name">GitHub Desktop</div><div class="skill-desc">不想开终端的时候就用它，点几下就行</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18 M8 13l3 3 5-5"/></svg>
-          <div><div class="skill-name">VSCode</div><div class="skill-desc">The editor I live in. Debugger saved me more times than I can count</div></div>
+          <div><div class="skill-name">VSCode</div><div class="skill-desc">我天天泡在里面的编辑器，debugger 救了我无数次</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
-          <div><div class="skill-name">C++</div><div class="skill-desc">My first language. Pointers built the foundation (and most of the headaches)</div></div>
+          <div><div class="skill-name">C++</div><div class="skill-desc">我的第一门语言。指针打下了底子，也留下了阴影</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9l-3 9 4-2 3 4 6-14-10 3z"/></svg>
-          <div><div class="skill-name">Python</div><div class="skill-desc">Where things started making sense. The language that finally felt like home</div></div>
+          <div><div class="skill-name">Python</div><div class="skill-desc">真正上手的地方，class 也是在这儿搞明白的</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 5v14c0 1.66-4.03 3-9 3s-9-1.34-9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
-          <div><div class="skill-name">SQL</div><div class="skill-desc">Learning to talk to databases. There&rsquo;s more to life than SELECT *</div></div>
+          <div><div class="skill-name">SQL</div><div class="skill-desc">学着跟数据库聊天。SELECT * FROM 一切</div></div>
         </div>
         <div class="skill-item">
           <svg class="skill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16 M4 12h16 M4 17h12"/></svg>
-          <div><div class="skill-name">HTML / CSS</div><div class="skill-desc">I built this page. It&rsquo;s not much, but it&rsquo;s mine</div></div>
+          <div><div class="skill-name">HTML / CSS</div><div class="skill-desc">这个页面就是我一行一行写出来的</div></div>
         </div>
       </div>
     </div>
@@ -325,21 +379,21 @@
   <section class="section" id="projects">
     <header class="section-header">
       <span class="section-number">&sect; 03</span>
-      <h2 class="section-title">Projects</h2>
+      <h2 class="section-title">项目</h2>
     </header>
     <article class="project">
       <span class="project-number">N&deg; 01</span>
       <div>
         <h3 class="project-title">my-first-repo</h3>
-        <p class="project-desc">My Git + GitHub notes, in English and Chinese. I wrote down everything that confused me &mdash; commits, branches, that four-zone thing, GitHub Desktop, GitHub Pages &mdash; and somehow it turned into a guide. There&rsquo;s even AI prompts in there, because honestly, that&rsquo;s how I work now.</p>
+        <p class="project-desc">我的 Git + GitHub 学习笔记，中英双语。把自己搞不懂的东西全写下来了——commit、branch、那个四区模型、GitHub Desktop、GitHub Pages——攒着攒着就成了本指南。里面还塞了 AI 提示词，因为说实话，我现在就是这么干活的。</p>
         <a class="project-link" href="https://github.com/andyttc05/my-first-repo" target="_blank">&rarr; View on GitHub</a>
       </div>
     </article>
     <article class="project">
       <span class="project-number">N&deg; 02</span>
       <div>
-        <h3 class="project-title">Personal homepage (this page)</h3>
-        <p class="project-desc">Hand-written HTML &amp; CSS on GitHub Pages. When I started, I didn&rsquo;t know what a framework was. I still don&rsquo;t use one. The page you&rsquo;re reading is what came out the other end.</p>
+        <h3 class="project-title">个人主页（本页）</h3>
+        <p class="project-desc">纯手写的 HTML + CSS，挂在 GitHub Pages 上。刚开始连 framework 是什么都不知道，到现在也没用——你现在看到的这个页面，就是一路折腾出来的。</p>
         <a class="project-link" href="https://github.com/andyttc05/andyttc05.github.io" target="_blank">&rarr; View Source</a>
       </div>
     </article>
@@ -348,7 +402,7 @@
   <section class="section alt-bg" id="contact">
     <header class="section-header">
       <span class="section-number">&sect; 04</span>
-      <h2 class="section-title">Get in touch</h2>
+      <h2 class="section-title">找到我</h2>
     </header>
     <div class="contact">
       <span></span>
@@ -359,51 +413,37 @@
     </div>
   </section>
 
-  <footer class="footer">
-    <span>&copy; 2026 Verno</span>
-    <span class="lang-switch">
-      <a href="index.html" class="active">En</a>
-      <a href="zh.html">中文</a>
-    </span>
-  </footer>
-
 </div>
 <script>
     var navEl = document.getElementById('nav');
-    var linksArr = Array.prototype.slice.call(navEl.querySelectorAll('.nav-list a'));
-    var sectionIds = linksArr.map(function(a) { return a.getAttribute('data-section'); });
-    var current = '';
-    function apply(id) {
-      if (id === current) return;
-      current = id;
-      for (var i = 0; i < linksArr.length; i++) {
-        var isActive = linksArr[i].getAttribute('data-section') === id;
-        if (isActive) { linksArr[i].classList.add('active'); }
-        else { linksArr[i].classList.remove('active'); }
-      }
-    }
-    function refresh() {
-      var y = window.pageYOffset;
-      if (y > 8) { navEl.classList.add('scrolled'); }
-      else { navEl.classList.remove('scrolled'); }
-      var next = 'hero';
-      var limit = window.innerHeight * 0.4;
-      for (var i = 0; i < sectionIds.length; i++) {
-        var id = sectionIds[i];
-        if (id === 'hero') continue;
-        var el = document.getElementById(id);
-        if (!el) continue;
-        if (el.getBoundingClientRect().top < limit) { next = id; }
-      }
-      apply(next);
-    }
+    var btn = document.getElementById('hamburgerBtn');
+    var menu = document.getElementById('navMenu');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = !menu.classList.contains('open');
+      btn.classList.toggle('open');
+      menu.classList.toggle('open');
+      btn.setAttribute('aria-expanded', isOpen);
+    });
+    document.addEventListener('click', function() {
+      btn.classList.remove('open');
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+    menu.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
     var ticking = false;
     function onScroll() {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(function() { refresh(); ticking = false; });
+      requestAnimationFrame(function() {
+        if (window.scrollY > 8) { navEl.classList.add('scrolled'); }
+        else { navEl.classList.remove('scrolled'); }
+        ticking = false;
+      });
     }
-    refresh();
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
 </script>
 </body>

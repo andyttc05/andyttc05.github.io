@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建设中 — Verno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-ink: #1a1a1a;
+    --color-paper: #f8f5f0;
+    --color-accent: #c94a25;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: 'IBM Plex Serif', serif;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px;
+  }
+
+  .wrapper {
+    text-align: center;
+  }
+
+  .typewriter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(18px, 3vw, 26px);
+    font-weight: 400;
+    color: var(--color-ink);
+    letter-spacing: 0.5px;
+    min-height: 1.6em;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--color-accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 0.8s steps(1) infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .back-link {
+    margin-top: 56px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+  }
+  .back-link a {
+    color: var(--color-ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-ink);
+    padding-bottom: 2px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .back-link a:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <p class="typewriter"><span id="typewriter-text"></span><span class="cursor"></span></p>
+  <p class="back-link"><a href="index.html">&larr; 返回主页</a></p>
+</div>
+<script>
+(function() {
+  var el = document.getElementById('typewriter-text');
+  var texts = [
+    '页面正在建设中\u2026',
+    'Something wonderful is coming.',
+    'Stay tuned.',
+    '\u6bcf\u4e00\u4e2a\u50cf\u7d20\u90fd\u5728\u7cbe\u5fc3\u6253\u78e8\u3002'
+  ];
+  var textIdx = 0;
+  var charIdx = 0;
+  var isDeleting = false;
+  var typingSpeed = 80;
+  var deletingSpeed = 40;
+  var pauseAfterType = 2500;
+  var pauseAfterDelete = 400;
+
+  function tick() {
+    var currentText = texts[textIdx];
+
+    if (!isDeleting) {
+      charIdx++;
+      el.textContent = currentText.substring(0, charIdx);
+
+      if (charIdx === currentText.length) {
+        isDeleting = true;
+        setTimeout(tick, pauseAfterType);
+        return;
+      }
+      setTimeout(tick, typingSpeed);
+    } else {
+      charIdx--;
+      el.textContent = currentText.substring(0, charIdx);
+
+      if (charIdx === 0) {
+        isDeleting = false;
+        textIdx = (textIdx + 1) % texts.length;
+        setTimeout(tick, pauseAfterDelete);
+        return;
+      }
+      setTimeout(tick, deletingSpeed);
+    }
+  }
+
+  setTimeout(tick, 600);
+})();
+</script>
+</body>
+</html>
