@@ -48,44 +48,63 @@
   }
 
   /* === nav === */
-  html { scroll-padding-top: 64px; scroll-behavior: smooth; }
+  html { scroll-padding-top: 100px; scroll-behavior: smooth; }
   .nav {
-    position: sticky; top: 0; z-index: 100;
-    margin-bottom: 64px; margin-left: -32px; margin-right: -32px;
-    padding: 16px 32px;
-    background: rgba(248, 245, 240, 0.82);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+    position: sticky; top: 24px; z-index: 100;
+    width: fit-content; max-width: calc(100% - 64px); margin: 0 auto 64px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(16px) saturate(200%);
+    -webkit-backdrop-filter: blur(16px) saturate(200%);
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.02),
+      0 6px 20px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.5s ease, background 0.5s ease, border-color 0.5s ease;
+    overflow: hidden;
+  }
+  .nav::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.05) 40%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    border-radius: 32px;
+    pointer-events: none;
+    z-index: 0;
   }
   .nav.scrolled {
-    border-bottom-color: var(--color-rule);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    background: rgba(248, 245, 240, 0.94);
+    border-color: rgba(255, 255, 255, 0.60);
+    background: rgba(255, 255, 255, 0.45);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.01),
+      0 10px 30px rgba(0, 0, 0, 0.05);
   }
-  .nav-list { list-style: none; display: flex; align-items: center; justify-content: center; gap: 40px; }
+  .nav-list { list-style: none; display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 0; }
   .nav-list a {
-    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 3px; color: var(--color-muted);
-    text-decoration: none; padding: 6px 2px;
-    position: relative; transition: color 0.3s ease, text-shadow 0.3s ease;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
+    text-decoration: none; padding: 12px; border-radius: 20px;
+    position: relative; z-index: 1;
+    transition: color 0.35s ease, background 0.35s ease;
     white-space: nowrap;
-  }
-  .nav-list a::after {
-    content: ''; position: absolute; bottom: 0; left: 0; width: 100%;
-    height: 2px; background: var(--color-accent);
-    transform: scaleX(0); transform-origin: left;
-    transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
   .nav-list a:hover {
     color: var(--color-ink);
-    text-shadow: 0 0 20px rgba(232, 85, 46, 0.18);
+    background: rgba(0, 0, 0, 0.06);
   }
-  .nav-list a.active { color: var(--color-ink); }
-  .nav-list a.active::after { transform: scaleX(1); }
+  .nav-list a.active {
+    color: var(--color-paper);
+    background: var(--color-ink);
+    transition: color 0.35s ease, background 0.35s ease;
+  }
+
   .lang-switch {
-    display: flex; gap: 0;
+    display: flex;
     border: 1px solid var(--color-rule); border-radius: 8px; overflow: hidden;
     flex-shrink: 0;
   }
@@ -100,7 +119,7 @@
   .lang-switch a:not(.active):hover { background: rgba(232,85,46,0.08); }
 
   /* === hero === */
-  .hero { display: grid; grid-template-columns: 1fr; margin-bottom: 120px; }
+  .hero { margin-bottom: 120px; }
   .hero-title {
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
     font-size: clamp(64px, 9vw, 140px); line-height: 0.92; letter-spacing: -3px;
@@ -200,21 +219,21 @@
   @media (max-width: 768px) {
     body { padding: 32px 0; font-size: 16px; }
     .container { padding: 0 20px; }
-    .hero { grid-template-columns: 1fr; margin-bottom: 80px; }
+    .hero { margin-bottom: 80px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
     .skills-list { grid-template-columns: 1fr; border-left: none; }
     .skill-item { border-right: none; }
     .pull-quote { margin: 32px 0; }
     .project { padding: 28px 0; }
     .section { margin-bottom: 64px; }
-    .footer { flex-direction: row; gap: 16px; flex-wrap: wrap; }
-    .nav-list { gap: 20px; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
-    .nav-list a { font-size: 10px; letter-spacing: 1px; }
+    .nav { width: fit-content; max-width: calc(100% - 32px); border-radius: 20px; top: 12px; padding: 8px; }
+    .nav-list { gap: 8px; overflow-x: auto; justify-content: center; -webkit-overflow-scrolling: touch; }
+    .nav-list a { font-size: 11px; letter-spacing: 1px; padding: 8px; white-space: nowrap; }
+    .nav.scrolled { box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
     .section.alt-bg {
       margin-left: -20px; margin-right: -20px;
       padding: 40px 20px 64px;
     }
-    .nav { margin-left: -20px; margin-right: -20px; padding: 12px 20px; }
   }
 </style>
 </head>
@@ -350,61 +369,42 @@
 
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  var navEl = document.getElementById('nav');
-  var linksArr = Array.prototype.slice.call(navEl.querySelectorAll('.nav-list a'));
-  var sectionIds = linksArr.map(function(a) { return a.getAttribute('data-section'); });
-
-  var current = '';
-
-  function apply(id) {
-    if (id === current) return;
-    current = id;
-    for (var i = 0; i < linksArr.length; i++) {
-      var isActive = linksArr[i].getAttribute('data-section') === id;
-      if (isActive) {
-        linksArr[i].classList.add('active');
-      } else {
-        linksArr[i].classList.remove('active');
+    var navEl = document.getElementById('nav');
+    var linksArr = Array.prototype.slice.call(navEl.querySelectorAll('.nav-list a'));
+    var sectionIds = linksArr.map(function(a) { return a.getAttribute('data-section'); });
+    var current = '';
+    function apply(id) {
+      if (id === current) return;
+      current = id;
+      for (var i = 0; i < linksArr.length; i++) {
+        var isActive = linksArr[i].getAttribute('data-section') === id;
+        if (isActive) { linksArr[i].classList.add('active'); }
+        else { linksArr[i].classList.remove('active'); }
       }
     }
-  }
-
-  function refresh() {
-    var y = window.pageYOffset;
-    if (y > 8) {
-      navEl.classList.add('scrolled');
-    } else {
-      navEl.classList.remove('scrolled');
-    }
-
-    var next = 'hero';
-    var limit = window.innerHeight * 0.4;
-    for (var i = 0; i < sectionIds.length; i++) {
-      var id = sectionIds[i];
-      if (id === 'hero') continue;
-      var el = document.getElementById(id);
-      if (!el) continue;
-      if (el.getBoundingClientRect().top < limit) {
-        next = id;
+    function refresh() {
+      var y = window.pageYOffset;
+      if (y > 8) { navEl.classList.add('scrolled'); }
+      else { navEl.classList.remove('scrolled'); }
+      var next = 'hero';
+      var limit = window.innerHeight * 0.4;
+      for (var i = 0; i < sectionIds.length; i++) {
+        var id = sectionIds[i];
+        if (id === 'hero') continue;
+        var el = document.getElementById(id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top < limit) { next = id; }
       }
+      apply(next);
     }
-    apply(next);
-  }
-
-  var ticking = false;
-  function onScroll() {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(function() {
-      refresh();
-      ticking = false;
-    });
-  }
-
-  refresh();
-  window.addEventListener('scroll', onScroll, { passive: true });
-});
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function() { refresh(); ticking = false; });
+    }
+    refresh();
+    window.addEventListener('scroll', onScroll, { passive: true });
 </script>
 </body>
 </html>
