@@ -245,7 +245,8 @@
     transition: color 0.2s ease;
   }
   .contact-list a:hover { color: var(--color-accent); }
-  .arrow { color: inherit; display: inline-block; line-height: 1; }
+  .arrow { color: inherit; display: inline-block; line-height: 1; margin-left: 4px; vertical-align: -2px; }
+  .arrow svg { display: block; }
 
   code {
     font-family: 'IBM Plex Mono', monospace;
@@ -272,6 +273,11 @@
       margin-left: -20px; margin-right: -20px;
       padding: 40px 20px 64px;
     }
+    .nav-icon:hover { background: transparent; color: var(--color-ink); box-shadow: none; }
+    .hamburger:hover { background: transparent; }
+    .hamburger:hover span { background: var(--color-ink); }
+    .nav-menu a:hover { background: transparent; color: var(--color-muted); }
+    .nav-menu a:hover::after { opacity: 0.25; transform: translateX(0); }
   }
 </style>
 </head>
@@ -407,8 +413,8 @@
     <div class="contact">
       <span></span>
       <ul class="contact-list">
-        <li><a href="https://github.com/andyttc05" target="_blank">github.com/andyttc05 <span class="arrow">&nearr;</span></a></li>
-        <li><a href="mailto:andyttc2463@gmail.com">andyttc2463@gmail.com <span class="arrow">&nearr;</span></a></li>
+        <li><a href="https://github.com/andyttc05" target="_blank">github.com/andyttc05 <span class="arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></span></a></li>
+        <li><a href="mailto:andyttc2463@gmail.com">andyttc2463@gmail.com <span class="arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></span></a></li>
       </ul>
     </div>
   </section>
