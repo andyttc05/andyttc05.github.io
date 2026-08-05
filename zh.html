@@ -18,13 +18,13 @@
     --color-alt: #f4f1ea;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: var(--color-paper); color: var(--color-ink); overflow-x: hidden; }
+  html, body { background: var(--color-paper); color: var(--color-ink); }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     line-height: 1.7; font-size: 17px;
-    padding: 48px 32px 64px;
+    padding: 48px 0 64px;
   }
-  .container { max-width: 1100px; margin: 0 auto; }
+  .container { max-width: 896px; margin: 0 auto; padding: 0 32px; }
 
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(28px); }
@@ -47,16 +47,47 @@
     border-radius: 2px;
   }
 
-  /* === masthead === */
-  .masthead {
-    display: flex; justify-content: space-between; align-items: baseline;
-    border-bottom: 2px solid var(--color-ink); padding-bottom: 12px; margin-bottom: 72px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-    text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
+  /* === nav === */
+  html { scroll-padding-top: 64px; scroll-behavior: smooth; }
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    margin-bottom: 64px; margin-left: -32px; margin-right: -32px;
+    padding: 16px 32px;
+    background: rgba(248, 245, 240, 0.82);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
   }
+  .nav.scrolled {
+    border-bottom-color: var(--color-rule);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: rgba(248, 245, 240, 0.94);
+  }
+  .nav-list { list-style: none; display: flex; align-items: center; justify-content: center; gap: 40px; }
+  .nav-list a {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 3px; color: var(--color-muted);
+    text-decoration: none; padding: 6px 2px;
+    position: relative; transition: color 0.3s ease, text-shadow 0.3s ease;
+    white-space: nowrap;
+  }
+  .nav-list a::after {
+    content: ''; position: absolute; bottom: 0; left: 0; width: 100%;
+    height: 2px; background: var(--color-accent);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .nav-list a:hover {
+    color: var(--color-ink);
+    text-shadow: 0 0 20px rgba(232, 85, 46, 0.18);
+  }
+  .nav-list a.active { color: var(--color-ink); }
+  .nav-list a.active::after { transform: scaleX(1); }
   .lang-switch {
     display: flex; gap: 0;
     border: 1px solid var(--color-rule); border-radius: 8px; overflow: hidden;
+    flex-shrink: 0;
   }
   .lang-switch a {
     font-family: 'IBM Plex Mono', monospace; font-size: 12px;
@@ -75,8 +106,8 @@
     font-size: clamp(64px, 9vw, 140px); line-height: 0.92; letter-spacing: -3px;
   }
   .hero-tagline {
-    font-family: 'IBM Plex Serif', serif; font-style: italic; font-size: 22px;
-    margin-top: 28px; color: var(--color-secondary); max-width: 540px;
+    font-family: 'IBM Plex Serif', serif; font-style: italic; font-size: 20px;
+    margin-top: 28px; color: var(--color-secondary); max-width: 600px;
     line-height: 1.55;
   }
   .hero-date {
@@ -94,23 +125,23 @@
     margin-bottom: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--color-ink);
   }
   .section-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; }
-  .section-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic; font-size: 48px; letter-spacing: -1px; }
+  .section-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic; font-size: 42px; letter-spacing: -1px; }
 
   /* === about + pull quote === */
   .about-body { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .about-text { font-size: 19px; line-height: 1.85; }
-  .about-text p { margin-bottom: 24px; max-width: 740px; }
+  .about-text p { margin-bottom: 22px; max-width: 720px; }
   .about-text p:first-child::first-letter {
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 72px;
     float: left; line-height: 0.85; margin-right: 14px; margin-top: 10px; color: var(--color-accent);
   }
   .pull-quote {
-    margin: 40px 0 40px 100px; padding: 20px 0 20px 28px;
+    margin: 36px 0 36px 100px; padding: 18px 0 18px 28px;
     border-left: 3px solid var(--color-accent);
   }
   .pull-quote p {
     font-family: 'IBM Plex Serif', serif; font-style: italic;
-    font-size: 26px; line-height: 1.45; color: var(--color-secondary); max-width: 580px;
+    font-size: 24px; line-height: 1.45; color: var(--color-secondary); max-width: 580px;
   }
 
   /* === skills === */
@@ -126,7 +157,7 @@
   .project { display: grid; grid-template-columns: 100px 1fr; gap: 32px; padding: 0 0 36px 0; border-bottom: 1px solid var(--color-rule); align-items: start; }
   .project-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; padding-top: 8px; }
   .project-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 30px; margin-bottom: 14px; letter-spacing: -0.5px; }
-  .project-desc { font-size: 16px; color: var(--color-muted); max-width: 620px; margin-bottom: 14px; line-height: 1.65; }
+  .project-desc { font-size: 16px; color: var(--color-muted); max-width: 580px; margin-bottom: 14px; line-height: 1.65; }
   .project-link {
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--color-ink);
     text-decoration: none; text-transform: uppercase; letter-spacing: 1.5px;
@@ -154,7 +185,8 @@
   /* === footer === */
   .footer {
     margin-top: 120px; padding-top: 20px; border-top: 2px solid var(--color-ink);
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
     font-family: 'IBM Plex Mono', monospace; font-size: 11px;
     text-transform: uppercase; letter-spacing: 1.5px; color: var(--color-muted);
   }
@@ -166,8 +198,8 @@
   }
 
   @media (max-width: 768px) {
-    body { padding: 32px 20px; font-size: 16px; }
-    .masthead { flex-wrap: wrap; gap: 8px; }
+    body { padding: 32px 0; font-size: 16px; }
+    .container { padding: 0 20px; }
     .hero { grid-template-columns: 1fr; margin-bottom: 80px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
     .skills-list { grid-template-columns: 1fr; border-left: none; }
@@ -175,24 +207,31 @@
     .pull-quote { margin: 32px 0; }
     .project { padding: 28px 0; }
     .section { margin-bottom: 64px; }
-    .footer { flex-direction: column; gap: 8px; align-items: flex-start; }
+    .footer { flex-direction: row; gap: 16px; flex-wrap: wrap; }
+    .nav-list { gap: 20px; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+    .nav-list a { font-size: 10px; letter-spacing: 1px; }
+    .section.alt-bg {
+      margin-left: -20px; margin-right: -20px;
+      padding: 40px 20px 64px;
+    }
+    .nav { margin-left: -20px; margin-right: -20px; padding: 12px 20px; }
   }
 </style>
 </head>
 <body>
 <div class="container">
 
-  <header class="masthead">
-    <span>andyttc05</span>
-    <span>Verno</span>
-    <span>August 2026</span>
-    <span class="lang-switch">
-      <a href="index.html">En</a>
-      <a href="zh.html" class="active">中文</a>
-    </span>
-  </header>
+  <nav class="nav" id="nav">
+    <ul class="nav-list">
+      <li><a href="#hero" data-section="hero">主页</a></li>
+      <li><a href="#about" data-section="about">关于</a></li>
+      <li><a href="#learning" data-section="learning">技能</a></li>
+      <li><a href="#projects" data-section="projects">项目</a></li>
+      <li><a href="#contact" data-section="contact">联络</a></li>
+    </ul>
+  </nav>
 
-  <section class="hero">
+  <section class="hero" id="hero">
     <div>
       <h1 class="hero-title">Verno</h1>
       <p class="hero-tagline">从零开始学编程。C++、Python、SQL、那个到现在还是有点怕的终端——搞懂一点，就记一点。</p>
@@ -203,7 +242,7 @@
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" id="about">
     <header class="section-header">
       <span class="section-number">&sect; 01</span>
       <h2 class="section-title">关于我</h2>
@@ -220,7 +259,7 @@
     </div>
   </section>
 
-  <section class="section alt-bg">
+  <section class="section alt-bg" id="learning">
     <header class="section-header">
       <span class="section-number">&sect; 02</span>
       <h2 class="section-title">正在学的技能</h2>
@@ -264,7 +303,7 @@
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" id="projects">
     <header class="section-header">
       <span class="section-number">&sect; 03</span>
       <h2 class="section-title">项目</h2>
@@ -287,7 +326,7 @@
     </article>
   </section>
 
-  <section class="section alt-bg">
+  <section class="section alt-bg" id="contact">
     <header class="section-header">
       <span class="section-number">&sect; 04</span>
       <h2 class="section-title">找到我</h2>
@@ -303,10 +342,69 @@
 
   <footer class="footer">
     <span>&copy; 2026 Verno</span>
-    <span>Set in IBM Plex Serif &amp; Sans</span>
-    <span>&#10086;</span>
+    <span class="lang-switch">
+      <a href="index.html">En</a>
+      <a href="zh.html" class="active">中文</a>
+    </span>
   </footer>
 
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var navEl = document.getElementById('nav');
+  var linksArr = Array.prototype.slice.call(navEl.querySelectorAll('.nav-list a'));
+  var sectionIds = linksArr.map(function(a) { return a.getAttribute('data-section'); });
+
+  var current = '';
+
+  function apply(id) {
+    if (id === current) return;
+    current = id;
+    for (var i = 0; i < linksArr.length; i++) {
+      var isActive = linksArr[i].getAttribute('data-section') === id;
+      if (isActive) {
+        linksArr[i].classList.add('active');
+      } else {
+        linksArr[i].classList.remove('active');
+      }
+    }
+  }
+
+  function refresh() {
+    var y = window.pageYOffset;
+    if (y > 8) {
+      navEl.classList.add('scrolled');
+    } else {
+      navEl.classList.remove('scrolled');
+    }
+
+    var next = 'hero';
+    var limit = window.innerHeight * 0.4;
+    for (var i = 0; i < sectionIds.length; i++) {
+      var id = sectionIds[i];
+      if (id === 'hero') continue;
+      var el = document.getElementById(id);
+      if (!el) continue;
+      if (el.getBoundingClientRect().top < limit) {
+        next = id;
+      }
+    }
+    apply(next);
+  }
+
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function() {
+      refresh();
+      ticking = false;
+    });
+  }
+
+  refresh();
+  window.addEventListener('scroll', onScroll, { passive: true });
+});
+</script>
 </body>
 </html>
