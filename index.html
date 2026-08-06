@@ -31,6 +31,7 @@
     from { opacity: 0; transform: translateY(28px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
   .hero, .section {
     animation: fadeInUp 0.7s ease-out forwards;
     opacity: 0;
@@ -103,63 +104,94 @@
   .hamburger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
   .hamburger:hover span { background: #fff; }
   .nav-menu {
-    visibility: hidden; opacity: 0;
-    transform: translateY(-6px);
-    position: absolute;
-    top: calc(100% + 8px); left: 0; right: 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-radius: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
-    list-style: none; padding: 8px; z-index: 200;
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s 0.2s;
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex; flex-direction: column;
+    pointer-events: none;
   }
   .nav-menu.open {
-    visibility: visible; opacity: 1;
-    transform: translateY(0);
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+    transform: translateX(0);
+    pointer-events: auto;
   }
-  .nav-menu li {
-    opacity: 0;
-    transform: translateY(-4px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+  .nav-menu-header {
+    display: flex; justify-content: flex-end;
+    padding: 16px 20px;
   }
-  .nav-menu li + li {
-    border-top: 1px solid var(--color-rule);
+  .nav-menu-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
+    background: none; border: none; cursor: pointer;
+    border-radius: 8px; color: var(--color-ink);
+    transition: background 0.2s ease, color 0.2s ease;
+    padding: 8px;
   }
-  .nav-menu.open li:nth-child(1) { transition-delay: 0.04s; opacity: 1; transform: translateY(0); }
-  .nav-menu.open li:nth-child(2) { transition-delay: 0.10s; opacity: 1; transform: translateY(0); }
-  .nav-menu.open li:nth-child(3) { transition-delay: 0.16s; opacity: 1; transform: translateY(0); }
-  .nav-menu.open li:nth-child(4) { transition-delay: 0.22s; opacity: 1; transform: translateY(0); }
-  .nav-menu a {
+  .nav-menu-close svg {
+    width: 20px; height: 20px;
+    transition: transform 0.08s ease;
+  }
+  .nav-menu-close:active svg {
+    transform: scale(1.2);
+    transition: transform 0.08s ease;
+  }
+  .nav-menu-links {
+    list-style: none; padding: 0 32px; margin: 0;
+    flex: 1; display: flex; flex-direction: column;
+  }
+  .nav-menu-links li {
+    opacity: 0; transform: translateX(-24px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .nav-menu-links li + li { border-top: 1px solid var(--color-rule); }
+  .nav-menu.open .nav-menu-links li:nth-child(1) { transition-delay: 0.10s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(2) { transition-delay: 0.16s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(3) { transition-delay: 0.22s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(4) { transition-delay: 0.28s; opacity: 1; transform: translateX(0); }
+  .nav-menu-links a {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px;
-    font-size: 14px; font-weight: 500;
+    padding: 16px 0;
+    font-size: 20px; font-weight: 500;
     letter-spacing: 1px;
-    color: var(--color-muted); text-decoration: none;
-    border-radius: 8px; transition: background 0.2s ease, color 0.2s ease;
+    color: var(--color-ink); text-decoration: none;
+    transition: color 0.2s ease;
   }
-  .nav-menu a::after {
-    content: '\2192';
-    font-size: 16px;
-    opacity: 0.25;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+  .nav-menu-links a::after {
+    content: '\2192'; font-size: 20px;
+    opacity: 0.25; transition: opacity 0.2s ease, transform 0.2s ease;
   }
-  .nav-menu a:hover { background: #1a1a1a; color: #fff; }
-  .nav-menu a:hover::after { opacity: 1; transform: translateX(4px); }
+  .nav-menu-links a:active { color: var(--color-accent); }
+  .nav-menu-links a:active::after { opacity: 1; transform: translateX(4px); }
+
+  .nav-menu-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 32px 24px;
+  }
+  .nav-menu-action {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px;
+    background: none; border: none; cursor: pointer;
+    border-radius: 8px; color: var(--color-ink); text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .nav-menu-action svg { width: 20px; height: 20px; }
+
+  .icon-sun { display: none; }
+  .theme-dark .icon-moon { display: none; }
+  .theme-dark .icon-sun { display: block; }
 
   .nav-icon {
     display: flex; align-items: center; justify-content: center;
     width: 40px; height: 40px; flex-shrink: 0;
     color: var(--color-ink); text-decoration: none;
+    background: none; border: none; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
     border-radius: 8px;
-    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    transition: color 0.2s ease;
   }
   .nav-icon:hover {
-    background: #1a1a1a;
-    color: #fff;
-    box-shadow: 0 0 16px rgba(0, 0, 0, 0.1);
+    color: var(--color-accent);
   }
   .nav-icon svg { width: 22px; height: 22px; }
   .nav-home { display: none; }
@@ -266,6 +298,8 @@
     .section:last-of-type { margin-bottom: 0; }
     .nav { width: calc(100% - 40px); max-width: 100%; margin: 0 auto 48px; padding: 8px 20px; justify-content: space-between; border-radius: 24px; }
     .nav-links { display: none; }
+    .nav-actions .nav-icon[aria-label="语言"] { display: none; }
+    #themeToggleDesktop { display: none; }
     .hamburger { display: flex; }
     .nav-home { display: flex; }
     .nav.scrolled { box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
@@ -273,11 +307,19 @@
       margin-left: -20px; margin-right: -20px;
       padding: 40px 20px 24px;
     }
-    .nav-icon:hover { background: transparent; color: var(--color-ink); box-shadow: none; }
-    .hamburger:hover { background: transparent; }
-    .hamburger:hover span { background: var(--color-ink); }
-    .nav-menu a:hover { background: transparent; color: var(--color-muted); }
-    .nav-menu a:hover::after { opacity: 0.25; transform: translateX(0); }
+    .nav-icon:hover,
+    .nav-icon:active { background: transparent; color: var(--color-accent); box-shadow: none; }
+    .hamburger:hover { background: transparent; box-shadow: none; }
+    .hamburger:hover span,
+    .hamburger:active span { background: var(--color-accent); }
+    .nav-menu-action:hover,
+    .nav-menu-action:active { background: transparent; color: var(--color-accent); box-shadow: none; }
+    .nav-menu-links a:hover,
+    .nav-menu-links a:active { color: var(--color-accent); }
+    .nav-menu-links a:hover::after,
+    .nav-menu-links a:active::after { opacity: 1; transform: translateX(4px); }
+    .nav-menu-close:hover,
+    .nav-menu-close:active { background: transparent; color: var(--color-accent); box-shadow: none; }
   }
 </style>
 </head>
@@ -295,6 +337,10 @@
       <li><a href="coming-soon.html">关于</a></li>
     </ul>
     <div class="nav-actions">
+      <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+        <svg class="icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
       <a href="coming-soon.html" class="nav-icon" aria-label="语言">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
       </a>
@@ -302,13 +348,30 @@
         <span></span><span></span><span></span>
       </button>
     </div>
-    <ul class="nav-menu" id="navMenu">
+  </nav>
+
+  <div class="nav-menu" id="navMenu">
+    <div class="nav-menu-header">
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <ul class="nav-menu-links">
       <li><a href="index.html">主页</a></li>
       <li><a href="coming-soon.html">项目</a></li>
       <li><a href="coming-soon.html">动态</a></li>
       <li><a href="coming-soon.html">关于</a></li>
     </ul>
-  </nav>
+    <div class="nav-menu-footer">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
+        <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <a href="coming-soon.html" class="nav-menu-action" aria-label="语言">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+      </a>
+    </div>
+  </div>
 
   <div class="hero" id="hero">
     <div>
@@ -424,20 +487,54 @@
     var navEl = document.getElementById('nav');
     var btn = document.getElementById('hamburgerBtn');
     var menu = document.getElementById('navMenu');
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var isOpen = !menu.classList.contains('open');
-      btn.classList.toggle('open');
-      menu.classList.toggle('open');
-      btn.setAttribute('aria-expanded', isOpen);
-    });
-    document.addEventListener('click', function() {
+    var closeBtn = document.getElementById('navMenuClose');
+    var body = document.body;
+    var themeToggle = document.getElementById('themeToggle');
+    var themeToggleDesktop = document.getElementById('themeToggleDesktop');
+    var isDark = false;
+
+    function toggleTheme() {
+      isDark = !isDark;
+      if (isDark) {
+        menu.classList.add('theme-dark');
+        if (themeToggleDesktop) themeToggleDesktop.classList.add('theme-dark');
+      } else {
+        menu.classList.remove('theme-dark');
+        if (themeToggleDesktop) themeToggleDesktop.classList.remove('theme-dark');
+      }
+    }
+
+    themeToggle.addEventListener('click', toggleTheme);
+    if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
+    function openMenu() {
+      btn.classList.add('open');
+      menu.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+      body.style.overflow = 'hidden';
+    }
+    function closeMenu() {
       btn.classList.remove('open');
       menu.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');
+      body.style.overflow = '';
+    }
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (menu.classList.contains('open')) { closeMenu(); }
+      else { openMenu(); }
+    });
+    closeBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      closeMenu();
     });
     menu.addEventListener('click', function(e) {
-      e.stopPropagation();
+      if (e.target.tagName === 'A') { closeMenu(); }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && menu.classList.contains('open')) {
+        closeMenu();
+      }
     });
     var ticking = false;
     function onScroll() {
