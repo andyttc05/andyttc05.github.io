@@ -355,24 +355,36 @@
     border-top: 1px solid var(--color-rule);
     gap: 12px;
   }
+  /* 布局容器：flex:1 保持原布局（图标位置不变），自身不接收点击；
+     真正可点击热区收进 .nav-menu-action-hit（pointer-events: auto）→ 热区缩小但位置零移动 */
   .nav-menu-action {
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none;
+    color: var(--color-ink); text-decoration: none;
+    padding: 0;
+    border-radius: 10px;
+    flex: 1;
+    pointer-events: none;
+  }
+  .nav-menu-action-hit {
     display: flex; flex-direction: row; align-items: center; justify-content: center;
     gap: 10px;
-    background: none; border: none; cursor: pointer;
-    color: var(--color-ink); text-decoration: none;
-    padding: 8px 0;
+    min-width: 100px;              /* 两按钮热区等宽：须 > 较宽按钮的自然宽度（月亮 svg26+gap10+Dark36+padding24 ≈ 96px），否则内容会把热区重新撑开 */
+    padding: 8px 12px;               /* 热区 = 内容 + 舒适余量（水平 12px 为 hover pill 标准下限） */
     border-radius: 10px;
-    transition: color 0.2s ease, background 0.2s ease;
-    flex: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;      /* 移动端：只响应点击，无双击缩放延迟 */
+    transition: color 0.2s ease;
   }
-  .nav-menu-action svg { width: 26px; height: 26px; }
-  .nav-menu-action span {
+  .nav-menu-action-hit svg { width: 26px; height: 26px; flex-shrink: 0; }
+  .nav-menu-action-hit > span {
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 13px; font-weight: 500;
     letter-spacing: 1px;
   }
-  .nav-menu-action:hover,
-  .nav-menu-action:active { color: var(--color-accent); }
+  .nav-menu-action-hit:hover,
+  .nav-menu-action-hit:active { color: var(--color-accent); }
 
   @media (max-height: 600px) {
     .nav-menu-body { padding-top: 0; }
@@ -557,9 +569,9 @@
     .nav-menu-links li + li::before,
     .nav-menu-links li:last-child::after { left: 24px; right: 24px; }
     .nav-menu-footer { padding: 12px 24px 20px; gap: 12px; }
-    .nav-menu-action { padding: 8px 0; gap: 8px; flex-direction: column; }
-    .nav-menu-action svg { width: 26px; height: 26px; }
-    .nav-menu-action span { font-size: 13px; letter-spacing: 2px; }
+    .nav-menu-action-hit { min-width: 60px; padding: 6px 10px; gap: 8px; flex-direction: column; }
+    .nav-menu-action-hit svg { width: 26px; height: 26px; }
+    .nav-menu-action-hit > span { font-size: 13px; letter-spacing: 2px; }
   }
   @media (max-width: 380px) {
     .nav-menu-links a { font-size: 18px; padding: 16px 37px 16px 24px; gap: 12px; }
@@ -617,13 +629,17 @@
     </div>
     <footer class="nav-menu-footer">
       <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
-        <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        <span id="themeLabelMobile">Dark</span>
+        <span class="nav-menu-action-hit">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabelMobile">Dark</span>
+        </span>
       </button>
       <button class="nav-menu-action" id="langToggleMobile" aria-label="语言">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-        <span id="langLabelMobile">EN</span>
+        <span class="nav-menu-action-hit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span id="langLabelMobile">EN</span>
+        </span>
       </button>
     </footer>
   </nav>
@@ -831,7 +847,9 @@
       for (var i = 0; i < targets.length; i++) {
         var t = targets[i];
         if (!t) continue;
-        var r = t.getBoundingClientRect();
+        /* 命中检测用实际热区（.nav-menu-action-hit，若存在），与缩小后的可点击范围一致 */
+        var hitEl = t.querySelector ? t.querySelector('.nav-menu-action-hit') : null;
+        var r = (hitEl || t).getBoundingClientRect();
         if (e.clientX >= r.left && e.clientX <= r.right &&
             e.clientY >= r.top && e.clientY <= r.bottom) {
           var reachedButton = e.target === t || t.contains(e.target);
