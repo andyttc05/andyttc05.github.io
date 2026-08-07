@@ -96,7 +96,8 @@
     }
     .nav-menu-links li { transition-delay: 0s !important; }
   }
-  .container { max-width: 1040px; margin: 0 auto; padding: 0 48px; }
+  /* 页面内容容器 1040px：正文在 1fr 列内可填满、右侧不空（导航栏保持 1280 不动） */
+  .container { max-width: 1040px; margin: 0 auto; padding: 0 32px; }
 
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(28px); }
@@ -126,8 +127,9 @@
     /* 毛玻璃导航：半透明基底 + 高模糊 + 饱和度补偿。
        注意：单独 blur() 会让背景发灰（高斯模糊丢失色彩对比度），
        saturate(180%) 模拟 iOS 玻璃的色彩增强；
-       blur 和 saturate 必须写在同一行，拆行声明后者会覆盖前者 */
-    background: rgba(var(--color-paper-rgb), 0.58);
+       blur 和 saturate 必须写在同一行，拆行声明后者会覆盖前者。
+       透明度取浅色纯色背景推荐区间（50-70%）最高值 0.70 */
+    background: rgba(var(--color-paper-rgb), 0.70);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--color-rule);
@@ -434,12 +436,11 @@
   }
   .nav-icon svg { width: 24px; height: 24px; flex-shrink: 0; }
   /* 语言标签用 CN/EN（等宽两字符）+ 主题标签 Dark/Light（宽度差 ≤3px），
-     切换时按钮宽度几乎不变 → 无需固定 label 宽度，文字紧贴图标（gap 6px） */
+     切换时按钮宽度几乎不变 → 无需固定 label 宽度，文字紧贴图标（gap 6px）。
+     文字允许选中（主人要求，不做连点拦截） */
   .nav-icon-label {
     font-size: 14px; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap;
     line-height: 1.2;
-    user-select: none;
-    -webkit-user-select: none;
   }
 
   /* === hero === */
@@ -450,7 +451,7 @@
   }
   .hero-tagline {
     font-family: 'IBM Plex Serif', serif; font-style: italic; font-size: 20px;
-    margin-top: 28px; color: var(--color-secondary); max-width: 600px;
+    margin-top: 28px; color: var(--color-secondary); max-width: 660px;
     line-height: 1.55;
   }
   .hero-date {
@@ -473,7 +474,8 @@
   /* === about + pull quote === */
   .about-body { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .about-text { font-size: 19px; line-height: 1.85; }
-  .about-text p { margin-bottom: 24px; max-width: 720px; }
+  /* 800px ≈ 42 中文字符/行（中文舒适 30-45 字），右侧空减少 */
+  .about-text p { margin-bottom: 24px; max-width: 800px; }
   .about-text p:first-child::first-letter {
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 72px;
     float: left; line-height: 0.85; margin-right: 14px; margin-top: 10px; color: var(--color-accent);
@@ -484,12 +486,14 @@
   }
   .pull-quote p {
     font-family: 'IBM Plex Serif', serif; font-style: italic;
-    font-size: 24px; line-height: 1.45; color: var(--color-secondary); max-width: 580px;
+    font-size: 24px; line-height: 1.45; color: var(--color-secondary); max-width: 660px;
   }
 
   /* === skills === */
   .skills-grid { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
-  .skills-list { display: grid; grid-template-columns: repeat(2, 1fr); border-left: 1px solid var(--color-rule); border-top: 1px solid var(--color-rule); }
+  /* 自适应列数：auto-fit + minmax(320px,1fr) → 宽屏 3 列 / 中屏 2 列 / 窄屏 1 列，
+     卡片始终 ≥320px 不拥挤（2 列固定时 542px/张内容稀疏） */
+  .skills-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-left: 1px solid var(--color-rule); border-top: 1px solid var(--color-rule); }
   .skill-item { padding: 24px 24px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 16px; align-items: flex-start; transition: background 0.2s ease; }
   .skill-item:hover { background: var(--color-hover); }
   .skill-icon { width: 28px; height: 28px; color: var(--color-ink); flex-shrink: 0; }
@@ -500,7 +504,7 @@
   .project { display: grid; grid-template-columns: 100px 1fr; gap: 32px; padding: 0 0 36px 0; border-bottom: 1px solid var(--color-rule); align-items: start; }
   .project-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; padding-top: 8px; }
   .project-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 30px; margin-bottom: 16px; letter-spacing: -0.5px; }
-  .project-desc { font-size: 16px; color: var(--color-muted); max-width: 580px; margin-bottom: 14px; line-height: 1.65; }
+  .project-desc { font-size: 16px; color: var(--color-muted); max-width: 660px; margin-bottom: 14px; line-height: 1.65; }
   .project-link {
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--color-ink);
     text-decoration: none; text-transform: uppercase; letter-spacing: 1.5px;
@@ -533,7 +537,7 @@
 
   @media (max-width: 768px) {
     body { font-size: 16px; }
-    .container { padding: 0 20px; }
+    .container { padding: 0 16px; }  /* 与移动端导航栏 padding 对齐 */
     .hero { margin-top: 40px; margin-bottom: 64px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
     .skills-list { grid-template-columns: 1fr; border-left: none; }
