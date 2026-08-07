@@ -139,9 +139,10 @@
     .nav { background: var(--color-paper); }
   }
   .nav-inner {
-    max-width: 1136px; margin: 0 auto;
-    /* Material App Bar 标准：桌面左右内边距 24dp；取标准区间（24-32px）最高值 32px；
-       高度取桌面标准区间（64-80px）最高值 80px */
+    /* max-width 1280px = 内容宽度推荐区间（1140-1280px）最宽松值；
+       桌面左右间距 32px = Material App Bar 桌面 24dp 与推荐区间（24-32px）的最宽松值；
+       高度 80px = 桌面标准区间（64-80px）最宽松值 */
+    max-width: 1280px; margin: 0 auto;
     padding: 0 32px;
     display: flex; align-items: center;
     height: 80px;
@@ -181,13 +182,14 @@
     z-index: 0;
   }
   .nav-links a {
-    /* 20px = 主导航菜单字号标准区间（16~20px）的最大值，2026 大字趋势档 */
+    /* 20px = 主导航菜单字号标准区间（16~20px）的最宽松值；
+       行高 1.6 = 正文行高推荐区间（1.4~1.6）的最宽松值 */
     font-size: 20px; font-weight: 500;
     letter-spacing: 0;
     color: var(--color-muted); text-decoration: none;
     padding: 12px 20px; border-radius: 8px;
     transition: color 0.2s ease; white-space: nowrap;
-    line-height: 1.4;
+    line-height: 1.6;
     background: transparent;
     position: relative; z-index: 1;
   }
