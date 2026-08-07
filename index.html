@@ -53,6 +53,12 @@
     --color-glass-edge: rgba(255, 255, 255, 0.08);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* 移动端点击时去掉系统默认的灰色半透明高亮（iOS Safari/Android Chrome 的
+     tap-highlight），按压反馈交给站内自定义的 :active 样式（变色/背景） */
+  * { -webkit-tap-highlight-color: transparent; }
+  /* 全局禁用双击缩放（快速连点页面不再放大）与 300ms 点击延迟；
+     仍保留捏合缩放（pinch-zoom，无障碍必需）与滚动 */
+  * { touch-action: manipulation; }
   html, body { background: var(--color-paper); color: var(--color-ink); }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
@@ -374,7 +380,6 @@
     border-radius: 10px;
     cursor: pointer;
     pointer-events: auto;
-    touch-action: manipulation;      /* 移动端：只响应点击，无双击缩放延迟 */
     transition: color 0.2s ease;
   }
   .nav-menu-action-hit svg { width: 26px; height: 26px; flex-shrink: 0; }
