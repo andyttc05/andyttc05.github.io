@@ -140,7 +140,9 @@
   }
   .nav-inner {
     max-width: 1136px; margin: 0 auto;
-    padding: 0 40px;
+    /* Material App Bar 标准：桌面左右内边距 24dp；取标准区间（24-32px）最高值 32px；
+       高度取桌面标准区间（64-80px）最高值 80px */
+    padding: 0 32px;
     display: flex; align-items: center;
     height: 80px;
   }
@@ -179,7 +181,8 @@
     z-index: 0;
   }
   .nav-links a {
-    font-size: 18px; font-weight: 500;
+    /* 20px = 主导航菜单字号标准区间（16~20px）的最大值，2026 大字趋势档 */
+    font-size: 20px; font-weight: 500;
     letter-spacing: 0;
     color: var(--color-muted); text-decoration: none;
     padding: 12px 20px; border-radius: 8px;
@@ -270,6 +273,7 @@
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
     font-size: 26px; color: var(--color-ink); text-decoration: none;
     letter-spacing: -0.5px;
+    line-height: 1.3;  /* 与导航栏 .nav-brand 一致：行高 1.3 → rain.meow 渲染高度与时雨时猫相同（35px） */
   }
   .nav-menu-close {
     display: inline-flex; align-items: center; justify-content: center;
@@ -537,11 +541,11 @@
     .section { margin-bottom: 56px; }
     .section:last-of-type { margin-bottom: 0; }
     .nav { width: 100%; }
-    .nav-inner { padding: 0 24px; height: 60px; }
+    .nav-inner { padding: 0 16px; height: 64px; }
     .nav-links { display: none; }
     .nav-actions .nav-icon[aria-label="语言"] { display: none; }
     #themeToggleDesktop { display: none; }
-    .nav-brand { font-size: 27px; }
+    .nav-brand { font-size: 32px; }
     .nav-icon { width: 48px; height: 48px; }
     .nav-icon svg { width: 24px; height: 24px; }
     .hamburger { display: flex; width: 48px; height: 48px; }
@@ -561,27 +565,44 @@
     .hamburger:active span { background: var(--color-accent); }
 
     /* === drawer mobile === */
-    .nav-menu-header { padding: 36px 28px 15px; }
-    .nav-menu-brand { font-size: 27px; }
+    /* 左右间距取宽松档 24px：Material Design 平板抽屉 24dp / 桌面菜单左 padding 24px /
+       world.org 默认 padding 24px（"ample breathing room"）三处官方依据 */
+    .nav-menu-header { padding: 26px 24px 25px; }
+    .nav-menu-brand { font-size: 32px; }
     .nav-menu-close { padding: 0; width: 48px; height: 48px; }
     .nav-menu-close svg { width: 22px; height: 22px; }
     .nav-menu-links a {
       font-size: 20px;
-      /* 左 28px 与 brand 左缘对齐；右 41px = header 右 padding 28 + (48−22)/2 的 svg 居中余量 13
-         → 箭头右缘与 ✕ svg 右缘对齐（屏宽−41） */
-      padding: 18px 41px 18px 28px;
+      /* 左 24px 与 brand 左缘对齐；右 37px = header 右 padding 24 + (48−22)/2 的 svg 居中余量 13
+         → 箭头右缘与 ✕ svg 右缘对齐（屏宽−37） */
+      padding: 18px 37px 18px 24px;
       gap: 14px;
     }
     .nav-menu-links a .arrow { font-size: 18px; }
     .nav-menu-links li + li::before,
     .nav-menu-links li:last-child::after { left: 24px; right: 24px; }
-    .nav-menu-footer { padding: 12px 24px 20px; gap: 12px; }
+    .nav-menu-footer {
+      /* pt 21.5 + 内容 63 + pb 26.5 = 高 111 → 顶 733 → 线(顶-5)=728；
+         按钮中心 = 733+21.5+31.5 = 786 = (728+844)/2 底部区域居中 */
+      padding: 21.5px 24px 26.5px; gap: 12px;
+      position: relative;
+      border-top: none;               /* 线改为伪元素绘制，可独立于按钮上移 */
+    }
+    /* 底部独立分隔线（参考 Ethereum：距抽屉底 116px → y=728，左右缩进 24px）：
+       footer 顶 = 733，top:-5px → 线 y=728 */
+    .nav-menu-footer::before {
+      content: '';
+      position: absolute;
+      top: -5px; left: 24px; right: 24px;
+      height: 1px;
+      background: var(--color-rule);
+    }
     .nav-menu-action-hit { min-width: 60px; padding: 6px 10px; gap: 8px; flex-direction: column; }
     .nav-menu-action-hit svg { width: 26px; height: 26px; }
     .nav-menu-action-hit > span { font-size: 13px; letter-spacing: 2px; }
   }
   @media (max-width: 380px) {
-    .nav-menu-links a { font-size: 18px; padding: 16px 41px 16px 28px; gap: 12px; }
+    .nav-menu-links a { font-size: 18px; padding: 16px 37px 16px 24px; gap: 12px; }
     .nav-menu-links a .arrow { font-size: 16px; }
   }
 </style>
