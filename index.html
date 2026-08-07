@@ -561,13 +561,15 @@
     .hamburger:active span { background: var(--color-accent); }
 
     /* === drawer mobile === */
-    .nav-menu-header { padding: 6px 24px 18px; }
-    .nav-menu-brand { font-size: 26px; }
+    .nav-menu-header { padding: 14px 28px 26px; }
+    .nav-menu-brand { font-size: 27px; }
     .nav-menu-close { padding: 0; width: 48px; height: 48px; }
     .nav-menu-close svg { width: 22px; height: 22px; }
     .nav-menu-links a {
       font-size: 20px;
-      padding: 18px 37px 18px 24px;
+      /* 左 28px 与 brand 左缘对齐；右 41px = header 右 padding 28 + (48−22)/2 的 svg 居中余量 13
+         → 箭头右缘与 ✕ svg 右缘对齐（屏宽−41） */
+      padding: 18px 41px 18px 28px;
       gap: 14px;
     }
     .nav-menu-links a .arrow { font-size: 18px; }
@@ -579,7 +581,7 @@
     .nav-menu-action-hit > span { font-size: 13px; letter-spacing: 2px; }
   }
   @media (max-width: 380px) {
-    .nav-menu-links a { font-size: 18px; padding: 16px 37px 16px 24px; gap: 12px; }
+    .nav-menu-links a { font-size: 18px; padding: 16px 41px 16px 28px; gap: 12px; }
     .nav-menu-links a .arrow { font-size: 16px; }
   }
 </style>
