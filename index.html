@@ -3,20 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Verno 的个人编程主页 — 从零开始学编程的旅程记录">
-<title>Verno — 编程学习者</title>
+<meta name="description" content="时雨时猫的个人编程主页 — 从零开始学编程的旅程记录">
+<meta name="theme-color" content="#f8fafc">
+<title>时雨时猫 — 编程学习者</title>
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('rainmeow-theme'); } catch (e) {}
+    var dark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('theme-dark', dark);
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --color-ink: #1a1a1a;
-    --color-paper: #f8f5f0;
-    --color-accent: #c94a25;
-    --color-secondary: #6b5540;
-    --color-rule: #d8d4ce;
-    --color-muted: #4a4640;
-    --color-alt: #f4f1ea;
+    color-scheme: light;
+    --vt-x: 50vw;
+    --vt-y: 50vh;
+    --color-ink: #0f172a;
+    --color-paper: #f8fafc;
+    --color-accent: #2563eb;
+    --color-secondary: #475569;
+    --color-rule: #cbd5e1;
+    --color-muted: #475569;
+    --color-alt: #f1f5f9;
+    --color-paper-rgb: 248, 250, 252;
+    --color-accent-rgb: 37, 99, 235;
+    --color-hover: rgba(0, 0, 0, 0.03);
+    --color-shadow: rgba(0, 0, 0, 0.06);
+    /* 毛玻璃导航栏：玻璃边缘高光（亮色下明显） */
+    --color-glass-edge: rgba(255, 255, 255, 0.55);
+  }
+  :root.theme-dark {
+    color-scheme: dark;
+    --color-ink: #e2e8f0;
+    --color-paper: #0f172a;
+    --color-accent: #60a5fa;
+    --color-secondary: #94a3b8;
+    --color-rule: rgba(148, 163, 184, 0.16);
+    --color-muted: #94a3b8;
+    --color-alt: #1a2438;
+    --color-paper-rgb: 15, 23, 42;
+    --color-accent-rgb: 96, 165, 250;
+    --color-hover: rgba(255, 255, 255, 0.04);
+    --color-shadow: rgba(0, 0, 0, 0.45);
+    /* 毛玻璃导航栏：玻璃边缘高光（暗色下微妙，避免刺眼） */
+    --color-glass-edge: rgba(255, 255, 255, 0.08);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: var(--color-paper); color: var(--color-ink); }
@@ -24,6 +58,37 @@
     font-family: 'IBM Plex Sans', sans-serif;
     line-height: 1.7; font-size: 17px;
     padding: 0;
+  }
+  /* 过渡期间不拦截点击：伪元素树的每一层都要放行，
+     否则动画进行中连点会被 view-transition 快照层吃掉 */
+  ::view-transition,
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    pointer-events: none;
+  }
+  ::view-transition-old(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+  ::view-transition-new(root) {
+    clip-path: circle(0 at var(--vt-x) var(--vt-y));
+    animation: theme-reveal 0.5s ease-out;
+    /* 保持动画结束状态，防止 Chrome 140+ 清理时序导致的"闪回旧主题" */
+    animation-fill-mode: forwards;
+    mix-blend-mode: normal;
+  }
+  @keyframes theme-reveal {
+    to { clip-path: circle(150% at var(--vt-x) var(--vt-y)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-new(root) { animation-duration: 0.01ms; }
+    .nav-menu,
+    .nav-menu.open {
+      transition: transform 0.01ms, visibility 0s linear 0.01ms;
+    }
+    .nav-menu-links li { transition-delay: 0s !important; }
   }
   .container { max-width: 1040px; margin: 0 auto; padding: 0 48px; }
 
@@ -50,51 +115,115 @@
 
   /* === nav === */
   .nav {
-    position: sticky; top: 12px; z-index: 100;
-    display: flex; align-items: center; justify-content: center;
-    width: fit-content; max-width: calc(100% - 48px);
-    margin: 0 auto 64px;
-    padding: 12px 32px; gap: 32px;
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border-radius: 24px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0,0,0,0.02);
+    position: sticky; top: 0; z-index: 100;
+    width: 100%;
+    /* 毛玻璃导航：半透明基底 + 高模糊 + 饱和度补偿。
+       注意：单独 blur() 会让背景发灰（高斯模糊丢失色彩对比度），
+       saturate(180%) 模拟 iOS 玻璃的色彩增强；
+       blur 和 saturate 必须写在同一行，拆行声明后者会覆盖前者 */
+    background: rgba(var(--color-paper-rgb), 0.58);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--color-rule);
+    /* 玻璃边缘高光：一条极细的内顶高光，模拟光线打在玻璃上沿 */
+    box-shadow: inset 0 1px 0 var(--color-glass-edge);
   }
+  /* 不支持 backdrop-filter 的浏览器：降级为不透明实色背景，保证可读性 */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav { background: var(--color-paper); }
+  }
+  .nav-inner {
+    max-width: 1136px; margin: 0 auto;
+    padding: 0 40px;
+    display: flex; align-items: center;
+    height: 80px;
+  }
+  /* 滚动后：背景略微加深以保持可读性，但仍保持半透明，
+     让滚动内容继续从玻璃下透出（真正的毛玻璃导航） */
   .nav.scrolled {
-    background: rgba(255, 255, 255, 0.88);
-    border-color: rgba(0, 0, 0, 0.10);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.03);
+    background: rgba(var(--color-paper-rgb), 0.70);
+    box-shadow:
+      inset 0 1px 0 var(--color-glass-edge),
+      0 1px 12px var(--color-shadow);
   }
 
   .nav-links {
-    display: flex; align-items: center; gap: 32px;
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
     list-style: none; padding: 0; margin: 0;
   }
+  /* 滑动高亮指示器：单个光斑元素，跟随鼠标在链接之间平滑平移。
+     固定高度 + top:50% + margin-top 负值实现垂直居中（不能用 transform 做垂直居中，
+     因为 JS 会用 translateX 覆盖 transform，导致指示器上下偏移） */
+  .nav-hover-indicator {
+    position: absolute; left: 0;
+    top: 50%;
+    height: 48px;
+    margin-top: -24px;
+    border-radius: 12px;
+    background: rgba(var(--color-accent-rgb), 0.10);
+    opacity: 0;
+    transform: translateX(0);
+    transition:
+      transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      width 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 0.2s ease;
+    pointer-events: none;
+    will-change: transform, width;
+    z-index: 0;
+  }
   .nav-links a {
-    font-size: 14px; font-weight: 500;
-    letter-spacing: 1px;
+    font-size: 18px; font-weight: 500;
+    letter-spacing: 0;
     color: var(--color-muted); text-decoration: none;
-    padding: 12px 16px; border-radius: 8px;
-    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; white-space: nowrap;
+    padding: 12px 20px; border-radius: 8px;
+    transition: color 0.2s ease; white-space: nowrap;
+    line-height: 1.4;
+    background: transparent;
+    position: relative; z-index: 1;
   }
   .nav-links a:hover {
-    color: #fff;
-    background: #1a1a1a;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.12);
+    color: var(--color-accent);
   }
 
-  .nav-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .nav-brand {
+    font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
+    font-size: 32px; letter-spacing: -0.5px;
+    color: var(--color-ink); text-decoration: none;
+    margin-right: 44px; flex-shrink: 0;
+    transition: color 0.2s ease; line-height: 1.3;
+  }
+  .nav-brand:hover { color: var(--color-accent); }
+
+  .nav-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; position: relative; }
+  /* 右侧操作区滑动高亮：与目录同款单光斑方案，跟随月亮/地球按钮平移。
+     圆角/高度/背景与目录 .nav-hover-indicator 完全一致 */
+  .nav-actions-indicator {
+    position: absolute; left: 0;
+    top: 50%;
+    height: 48px;
+    margin-top: -24px;
+    border-radius: 12px;
+    background: rgba(var(--color-accent-rgb), 0.10);
+    opacity: 0;
+    transform: translateX(0);
+    transition:
+      transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      width 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 0.2s ease;
+    pointer-events: none;
+    will-change: transform, width;
+    z-index: 0;
+  }
 
   .hamburger {
-    display: none; flex-direction: column; justify-content: center; gap: 4px;
-    width: 40px; height: 40px;
+    display: none; flex-direction: column; justify-content: center; gap: 5px;
+    width: 48px; height: 48px;
     background: none; border: none; cursor: pointer;
-    padding: 8px; flex-shrink: 0; position: relative; z-index: 1;
+    padding: 14px; flex-shrink: 0; position: relative; z-index: 1;
     border-radius: 8px; transition: background 0.2s ease;
   }
-  .hamburger:hover { background: #1a1a1a; }
+  .hamburger:hover { background: var(--color-ink); }
   .hamburger span {
     display: block; height: 2px; background: var(--color-ink);
     border-radius: 2px; transition: transform 0.25s ease, opacity 0.25s ease;
@@ -102,80 +231,152 @@
   .hamburger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
   .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
   .hamburger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-  .hamburger:hover span { background: #fff; }
+  .hamburger:hover span { background: var(--color-paper); }
   .nav-menu {
     position: fixed; inset: 0; z-index: 300;
-    background: rgba(255, 255, 255, 0.97);
-    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    background: var(--color-alt);
     transform: translateX(-100%);
-    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    transition:
+      transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s linear 0.35s;
     display: flex; flex-direction: column;
     pointer-events: none;
+    visibility: hidden;
+    overflow-y: auto;
   }
   .nav-menu.open {
     transform: translateX(0);
     pointer-events: auto;
+    visibility: visible;
+    transition:
+      transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s;
   }
+  /* === drawer header === */
   .nav-menu-header {
-    display: flex; justify-content: flex-end;
-    padding: 16px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px;
+    height: auto;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .nav-menu-brand {
+    font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
+    font-size: 26px; color: var(--color-ink); text-decoration: none;
+    letter-spacing: -0.5px;
   }
   .nav-menu-close {
-    display: flex; align-items: center; justify-content: center;
-    width: 40px; height: 40px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink);
     background: none; border: none; cursor: pointer;
-    border-radius: 8px; color: var(--color-ink);
-    transition: background 0.2s ease, color 0.2s ease;
-    padding: 8px;
+    padding: 0;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    transition: color 0.2s ease;
   }
-  .nav-menu-close svg {
-    width: 20px; height: 20px;
-    transition: transform 0.08s ease;
+  .nav-menu-close svg { width: 22px; height: 22px; }
+  .nav-menu-close:hover,
+  .nav-menu-close:active {
+    color: var(--color-accent);
   }
-  .nav-menu-close:active svg {
-    transform: scale(1.2);
-    transition: transform 0.08s ease;
+  /* === drawer body: menu items === */
+  .nav-menu-body {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 0;
   }
   .nav-menu-links {
-    list-style: none; padding: 0 32px; margin: 0;
-    flex: 1; display: flex; flex-direction: column;
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column;
   }
   .nav-menu-links li {
-    opacity: 0; transform: translateX(-24px);
+    position: relative;
+    opacity: 0; transform: translateX(-16px);
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
-  .nav-menu-links li + li { border-top: 1px solid var(--color-rule); }
-  .nav-menu.open .nav-menu-links li:nth-child(1) { transition-delay: 0.10s; opacity: 1; transform: translateX(0); }
-  .nav-menu.open .nav-menu-links li:nth-child(2) { transition-delay: 0.16s; opacity: 1; transform: translateX(0); }
-  .nav-menu.open .nav-menu-links li:nth-child(3) { transition-delay: 0.22s; opacity: 1; transform: translateX(0); }
-  .nav-menu.open .nav-menu-links li:nth-child(4) { transition-delay: 0.28s; opacity: 1; transform: translateX(0); }
+  .nav-menu-links li + li::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 24px; right: 24px;
+    height: 1px;
+    background: var(--color-rule);
+  }
+  .nav-menu-links li:last-child::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 24px; right: 24px;
+    height: 1px;
+    background: var(--color-rule);
+  }
+  .nav-menu.open .nav-menu-links li:nth-child(1) { transition-delay: 0.08s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(2) { transition-delay: 0.14s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(3) { transition-delay: 0.20s; opacity: 1; transform: translateX(0); }
+  .nav-menu.open .nav-menu-links li:nth-child(4) { transition-delay: 0.26s; opacity: 1; transform: translateX(0); }
   .nav-menu-links a {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 0;
-    font-size: 20px; font-weight: 500;
-    letter-spacing: 1px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 24px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 19px; font-weight: 700;
+    letter-spacing: -0.3px;
     color: var(--color-ink); text-decoration: none;
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, background 0.2s ease;
   }
-  .nav-menu-links a::after {
-    content: '\2192'; font-size: 20px;
-    opacity: 0.25; transition: opacity 0.2s ease, transform 0.2s ease;
+  .nav-menu-links a .label {
+    flex: 1;
   }
-  .nav-menu-links a:active { color: var(--color-accent); }
-  .nav-menu-links a:active::after { opacity: 1; transform: translateX(4px); }
-
+  .nav-menu-links a .arrow {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 16px; font-weight: 500;
+    color: var(--color-ink);
+    opacity: 0.30;
+    flex-shrink: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  }
+  .nav-menu-links li:hover {
+    background: rgba(var(--color-accent-rgb), 0.10);
+  }
+  /* 触摸按压反馈：比 hover 略深，按下时更明显 */
+  .nav-menu-links li:active {
+    background: rgba(var(--color-accent-rgb), 0.16);
+  }
+  .nav-menu-links a:hover,
+  .nav-menu-links a:active {
+    color: var(--color-accent);
+  }
+  .nav-menu-links a:hover .arrow,
+  .nav-menu-links a:active .arrow {
+    opacity: 1; transform: translateX(4px);
+    color: var(--color-accent);
+  }
+  /* === drawer footer: theme + language === */
   .nav-menu-footer {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 32px 24px;
+    display: flex; align-items: stretch; justify-content: space-between;
+    padding: 12px 24px 20px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-rule);
+    gap: 12px;
   }
   .nav-menu-action {
-    display: flex; align-items: center; justify-content: center;
-    width: 44px; height: 44px;
+    display: flex; flex-direction: row; align-items: center; justify-content: center;
+    gap: 10px;
     background: none; border: none; cursor: pointer;
-    border-radius: 8px; color: var(--color-ink); text-decoration: none;
-    transition: color 0.2s ease;
+    color: var(--color-ink); text-decoration: none;
+    padding: 8px 0;
+    border-radius: 10px;
+    transition: color 0.2s ease, background 0.2s ease;
+    flex: 1;
   }
-  .nav-menu-action svg { width: 20px; height: 20px; }
+  .nav-menu-action svg { width: 26px; height: 26px; }
+  .nav-menu-action span {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 1px;
+  }
+  .nav-menu-action:hover,
+  .nav-menu-action:active { color: var(--color-accent); }
+
+  @media (max-height: 600px) {
+    .nav-menu-body { padding-top: 0; }
+  }
 
   .icon-sun { display: none; }
   .theme-dark .icon-moon { display: none; }
@@ -183,21 +384,43 @@
 
   .nav-icon {
     display: flex; align-items: center; justify-content: center;
-    width: 40px; height: 40px; flex-shrink: 0;
+    gap: 6px;
+    /* 两按钮等宽（内容最宽的月亮按钮 ≈90px 为基准）→ 月亮/地球的悬浮光斑长度一致；
+       内容整体居中 → 光斑中心 = 图标/文字中心，图标-文字间距保持恒 6px */
+    min-width: 90px; height: 48px; padding: 0 12px; flex-shrink: 0;
     color: var(--color-ink); text-decoration: none;
     background: none; border: none; cursor: pointer;
     -webkit-appearance: none; appearance: none;
-    border-radius: 8px;
+    border-radius: 10px;
     transition: color 0.2s ease;
+    position: relative; z-index: 1;
   }
   .nav-icon:hover {
     color: var(--color-accent);
+    background: transparent;
   }
-  .nav-icon svg { width: 22px; height: 22px; }
-  .nav-home { display: none; }
+  /* 键盘焦点可见样式：鼠标点击不显示，Tab 键导航时清晰高亮 */
+  .nav-links a:focus-visible,
+  .nav-icon:focus-visible,
+  .hamburger:focus-visible,
+  .nav-menu-links a:focus-visible,
+  .nav-menu-action:focus-visible,
+  .nav-menu-close:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .nav-icon svg { width: 24px; height: 24px; flex-shrink: 0; }
+  /* 语言标签用 CN/EN（等宽两字符）+ 主题标签 Dark/Light（宽度差 ≤3px），
+     切换时按钮宽度几乎不变 → 无需固定 label 宽度，文字紧贴图标（gap 6px） */
+  .nav-icon-label {
+    font-size: 14px; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap;
+    line-height: 1.2;
+    user-select: none;
+    -webkit-user-select: none;
+  }
 
   /* === hero === */
-  .hero { margin-bottom: 120px; }
+  .hero { margin-top: 80px; margin-bottom: 120px; }
   .hero-title {
     font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
     font-size: clamp(64px, 9vw, 140px); line-height: 0.92; letter-spacing: -3px;
@@ -219,7 +442,7 @@
   .section:last-of-type { margin-bottom: 0; }
   .section-header {
     display: grid; grid-template-columns: 100px 1fr; gap: 32px; align-items: baseline;
-    margin-bottom: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--color-ink);
+    margin-bottom: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--color-rule);
   }
   .section-number { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--color-accent); font-weight: 500; }
   .section-title { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic; font-size: 42px; letter-spacing: -1px; }
@@ -245,7 +468,7 @@
   .skills-grid { display: grid; grid-template-columns: 100px 1fr; gap: 32px; }
   .skills-list { display: grid; grid-template-columns: repeat(2, 1fr); border-left: 1px solid var(--color-rule); border-top: 1px solid var(--color-rule); }
   .skill-item { padding: 24px 24px; border-right: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); display: flex; gap: 16px; align-items: flex-start; transition: background 0.2s ease; }
-  .skill-item:hover { background: rgba(0,0,0,0.03); }
+  .skill-item:hover { background: var(--color-hover); }
   .skill-icon { width: 28px; height: 28px; color: var(--color-ink); flex-shrink: 0; }
   .skill-name { font-family: 'IBM Plex Serif', serif; font-weight: 700; font-size: 18px; margin-bottom: 4px; }
   .skill-desc { font-size: 14px; color: var(--color-muted); line-height: 1.5; }
@@ -288,21 +511,28 @@
   @media (max-width: 768px) {
     body { font-size: 16px; }
     .container { padding: 0 20px; }
-    .hero { margin-bottom: 80px; }
+    .hero { margin-top: 40px; margin-bottom: 64px; }
     .section-header, .about-body, .skills-grid, .project, .contact { grid-template-columns: 1fr; gap: 16px; }
     .skills-list { grid-template-columns: 1fr; border-left: none; }
     .skill-item { border-right: none; }
     .pull-quote { margin: 32px 0; }
     .project { padding: 28px 0; }
-    .section { margin-bottom: 64px; }
+    .section { margin-bottom: 56px; }
     .section:last-of-type { margin-bottom: 0; }
-    .nav { width: calc(100% - 40px); max-width: 100%; margin: 0 auto 48px; padding: 8px 20px; justify-content: space-between; border-radius: 24px; }
+    .nav { width: 100%; }
+    .nav-inner { padding: 0 24px; height: 60px; }
     .nav-links { display: none; }
     .nav-actions .nav-icon[aria-label="语言"] { display: none; }
     #themeToggleDesktop { display: none; }
-    .hamburger { display: flex; }
-    .nav-home { display: flex; }
-    .nav.scrolled { box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
+    .nav-brand { font-size: 27px; }
+    .nav-icon { width: 48px; height: 48px; }
+    .nav-icon svg { width: 24px; height: 24px; }
+    .hamburger { display: flex; width: 48px; height: 48px; }
+    .nav.scrolled {
+      box-shadow:
+        inset 0 1px 0 var(--color-glass-edge),
+        0 1px 8px var(--color-shadow);
+    }
     .section.alt-bg {
       margin-left: -20px; margin-right: -20px;
       padding: 40px 20px 24px;
@@ -312,70 +542,97 @@
     .hamburger:hover { background: transparent; box-shadow: none; }
     .hamburger:hover span,
     .hamburger:active span { background: var(--color-accent); }
-    .nav-menu-action:hover,
-    .nav-menu-action:active { background: transparent; color: var(--color-accent); box-shadow: none; }
-    .nav-menu-links a:hover,
-    .nav-menu-links a:active { color: var(--color-accent); }
-    .nav-menu-links a:hover::after,
-    .nav-menu-links a:active::after { opacity: 1; transform: translateX(4px); }
-    .nav-menu-close:hover,
-    .nav-menu-close:active { background: transparent; color: var(--color-accent); box-shadow: none; }
+
+    /* === drawer mobile === */
+    .nav-menu-header { padding: 6px 24px 18px; }
+    .nav-menu-brand { font-size: 26px; }
+    .nav-menu-close { padding: 0; width: 48px; height: 48px; }
+    .nav-menu-close svg { width: 22px; height: 22px; }
+    .nav-menu-links a {
+      font-size: 20px;
+      padding: 18px 37px 18px 24px;
+      gap: 14px;
+    }
+    .nav-menu-links a .arrow { font-size: 18px; }
+    .nav-menu-links li + li::before,
+    .nav-menu-links li:last-child::after { left: 24px; right: 24px; }
+    .nav-menu-footer { padding: 12px 24px 20px; gap: 12px; }
+    .nav-menu-action { padding: 8px 0; gap: 8px; flex-direction: column; }
+    .nav-menu-action svg { width: 26px; height: 26px; }
+    .nav-menu-action span { font-size: 13px; letter-spacing: 2px; }
+  }
+  @media (max-width: 380px) {
+    .nav-menu-links a { font-size: 18px; padding: 16px 37px 16px 24px; gap: 12px; }
+    .nav-menu-links a .arrow { font-size: 16px; }
   }
 </style>
 </head>
 <body>
-<div class="container">
 
   <nav class="nav" id="nav">
-    <a href="index.html" class="nav-icon nav-home" aria-label="主页">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </a>
-    <ul class="nav-links">
-      <li><a href="index.html">主页</a></li>
-      <li><a href="coming-soon.html">项目</a></li>
-      <li><a href="coming-soon.html">动态</a></li>
-      <li><a href="coming-soon.html">关于</a></li>
-    </ul>
-    <div class="nav-actions">
-      <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
-        <svg class="icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-      </button>
-      <a href="coming-soon.html" class="nav-icon" aria-label="语言">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-      </a>
-      <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand" aria-label="时雨时猫 主页">时雨时猫</a>
+      <ul class="nav-links">
+        <li class="nav-hover-indicator" aria-hidden="true"></li>
+        <li><a href="coming-soon.html">项目</a></li>
+        <li><a href="coming-soon.html">动态</a></li>
+        <li><a href="coming-soon.html">照片</a></li>
+        <li><a href="coming-soon.html">关于</a></li>
+      </ul>
+      <div class="nav-actions">
+        <span class="nav-actions-indicator" aria-hidden="true"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+        </button>
+        <button class="nav-icon" id="langToggleDesktop" aria-label="语言">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="nav-icon-label" id="langLabelDesktop">EN</span>
+        </button>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </div>
   </nav>
 
-  <div class="nav-menu" id="navMenu">
-    <div class="nav-menu-header">
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
+    <header class="nav-menu-header">
+      <span class="nav-menu-brand" aria-hidden="true">rain.meow</span>
       <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
+    </header>
+    <div class="nav-menu-body">
+      <ul class="nav-menu-links">
+        <li><a href="coming-soon.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+      </ul>
     </div>
-    <ul class="nav-menu-links">
-      <li><a href="index.html">主页</a></li>
-      <li><a href="coming-soon.html">项目</a></li>
-      <li><a href="coming-soon.html">动态</a></li>
-      <li><a href="coming-soon.html">关于</a></li>
-    </ul>
-    <div class="nav-menu-footer">
+    <footer class="nav-menu-footer">
       <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
-        <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <span id="themeLabelMobile">Dark</span>
       </button>
-      <a href="coming-soon.html" class="nav-menu-action" aria-label="语言">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-      </a>
-    </div>
-  </div>
+      <button class="nav-menu-action" id="langToggleMobile" aria-label="语言">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        <span id="langLabelMobile">EN</span>
+      </button>
+    </footer>
+  </nav>
+
+<div class="container">
 
   <div class="hero" id="hero">
     <div>
-      <h1 class="hero-title">Verno</h1>
+      <h1 class="hero-title">时雨时猫</h1>
       <p class="hero-tagline">从零开始学编程。C++、Python、SQL、那个到现在还是有点怕的终端——搞懂一点，就记一点。</p>
       <p class="hero-date">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>
@@ -392,7 +649,7 @@
     <div class="about-body">
       <span></span>
       <div class="about-text">
-        <p>我是 Verno，一个刚开始学编程的人。2026 年 8 月，我第一次打开终端，身边有个叫 Momo 的小伙伴陪着我，敲了人生第一条 <code>git commit</code>——当时完全不知道自己在干嘛，但那一天就是一切的开始。</p>
+        <p>我是 时雨时猫，一个刚开始学编程的人。2026 年 8 月，我第一次打开终端，身边有个叫 Momo 的小伙伴陪着我，敲了人生第一条 <code>git commit</code>——当时完全不知道自己在干嘛，但那一天就是一切的开始。</p>
         <p>从那以后就一直在瞎折腾：建仓库、搞崩东西、修好（大部分时候能修好）。弄明白一点就记一点。没想到这些随手记的东西，攒着攒着就成了本 Git + GitHub 指南——就是我第一天就想有人塞给我的那种说明书。还是乱，还是真，但真的有别的初学者说帮到他们了。如果你也在自己的坑里摸爬滚打，来打个招呼呗。</p>
       </div>
     </div>
@@ -491,32 +748,150 @@
     var body = document.body;
     var themeToggle = document.getElementById('themeToggle');
     var themeToggleDesktop = document.getElementById('themeToggleDesktop');
+    var themeLabelDesktop = document.getElementById('themeLabelDesktop');
+    var themeLabelMobile = document.getElementById('themeLabelMobile');
+    var langToggleDesktop = document.getElementById('langToggleDesktop');
+    var langToggleMobile = document.getElementById('langToggleMobile');
+    var langLabelDesktop = document.getElementById('langLabelDesktop');
+    var langLabelMobile = document.getElementById('langLabelMobile');
     var isDark = false;
+    var isEnglish = false;
+    var metaTheme = document.querySelector('meta[name="theme-color"]');
 
-    function toggleTheme() {
-      isDark = !isDark;
-      if (isDark) {
-        menu.classList.add('theme-dark');
-        if (themeToggleDesktop) themeToggleDesktop.classList.add('theme-dark');
-      } else {
-        menu.classList.remove('theme-dark');
-        if (themeToggleDesktop) themeToggleDesktop.classList.remove('theme-dark');
+    function applyTheme(dark, persist) {
+      isDark = dark;
+      document.documentElement.classList.toggle('theme-dark', dark);
+      var label = dark ? 'Light' : 'Dark';
+      if (themeLabelDesktop) themeLabelDesktop.textContent = label;
+      if (themeLabelMobile) themeLabelMobile.textContent = label;
+      if (metaTheme) metaTheme.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+      if (persist !== false) {
+        try { localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light'); } catch (e) {}
       }
+    }
+    var activeVt = null;
+    var rmQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+    var prefersReducedMotion = !!(rmQuery && rmQuery.matches);
+    if (rmQuery && rmQuery.addEventListener) {
+      rmQuery.addEventListener('change', function (e) { prefersReducedMotion = e.matches; });
+    }
+    function startThemeTransition(next, x, y) {
+      document.documentElement.style.setProperty('--vt-x', x + 'px');
+      document.documentElement.style.setProperty('--vt-y', y + 'px');
+      var vt = document.startViewTransition(function () { applyTheme(next); });
+      activeVt = vt;
+      if (vt.finished) {
+        vt.finished.catch(function () {}).then(function () {
+          if (activeVt === vt) { activeVt = null; }
+        });
+      }
+    }
+    var vtRestartPending = null;
+    var vtRestartScheduled = false;
+    function toggleTheme(e) {
+      var next = !isDark;
+      if (document.startViewTransition && !prefersReducedMotion) {
+        if (activeVt) {
+          /* 动画进行中再次点击：跳过当前动画，下一帧从新点击位置启动新动画接续。
+             不立即重启——旧过渡清理未完时新过渡会排队，期间点击会被浏览器吞掉；
+             rAF 合并连点，保证每次点击都响应、动画平滑接续不跳变 */
+          activeVt.skipTransition();
+          activeVt = null;
+          vtRestartPending = {
+            next: next,
+            x: (e && e.clientX != null) ? e.clientX : window.innerWidth / 2,
+            y: (e && e.clientY != null) ? e.clientY : window.innerHeight / 2
+          };
+          if (!vtRestartScheduled) {
+            vtRestartScheduled = true;
+            requestAnimationFrame(function () {
+              vtRestartScheduled = false;
+              if (vtRestartPending) {
+                var p = vtRestartPending;
+                vtRestartPending = null;
+                startThemeTransition(p.next, p.x, p.y);
+              }
+            });
+          }
+          return;
+        }
+        var x = (e && e.clientX != null) ? e.clientX : window.innerWidth / 2;
+        var y = (e && e.clientY != null) ? e.clientY : window.innerHeight / 2;
+        startThemeTransition(next, x, y);
+      } else {
+        applyTheme(next);
+      }
+    }
+    /* 过渡进行期间，浏览器会把整页的 hit-testing 跳过（root 参与快照所致），
+       落在主题按钮上的点击会丢失（target 变成 <html>）。
+       这里在 capture 阶段监听 + 坐标命中检测，把点击接管回来，保证连点跟手 */
+    document.addEventListener('click', function (e) {
+      if (!activeVt) return;
+      var targets = [themeToggleDesktop, themeToggle];
+      for (var i = 0; i < targets.length; i++) {
+        var t = targets[i];
+        if (!t) continue;
+        var r = t.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right &&
+            e.clientY >= r.top && e.clientY <= r.bottom) {
+          var reachedButton = e.target === t || t.contains(e.target);
+          if (!reachedButton) { toggleTheme(e); }
+          return;
+        }
+      }
+    }, true);
+
+    function toggleLanguage() {
+      isEnglish = !isEnglish;
+      var label = isEnglish ? 'CN' : 'EN';
+      if (langLabelDesktop) langLabelDesktop.textContent = label;
+      if (langLabelMobile) langLabelMobile.textContent = label;
+    }
+
+    (function initTheme() {
+      var dark = document.documentElement.classList.contains('theme-dark');
+      isDark = dark;
+      var label = dark ? 'Light' : 'Dark';
+      if (themeLabelDesktop) themeLabelDesktop.textContent = label;
+      if (themeLabelMobile) themeLabelMobile.textContent = label;
+      if (metaTheme) metaTheme.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+    })();
+
+    var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq && mq.addEventListener) {
+      mq.addEventListener('change', function (e) {
+        var saved = null;
+        try { saved = localStorage.getItem('rainmeow-theme'); } catch (err) {}
+        if (!saved) { applyTheme(e.matches, false); }
+      });
     }
 
     themeToggle.addEventListener('click', toggleTheme);
     if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
+    if (langToggleDesktop) langToggleDesktop.addEventListener('click', toggleLanguage);
+    if (langToggleMobile) langToggleMobile.addEventListener('click', toggleLanguage);
+    var container = document.querySelector('.container');
     function openMenu() {
       btn.classList.add('open');
       menu.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
+      menu.setAttribute('aria-hidden', 'false');
       body.style.overflow = 'hidden';
+      /* 背景内容 inert：键盘 Tab 与读屏器都无法进入（配合下方 focus trap） */
+      if ('inert' in HTMLElement.prototype && container) { container.inert = true; }
+      /* 焦点移入菜单首个可聚焦元素（关闭按钮） */
+      var firstFocusable = menu.querySelector('a[href], button:not([disabled])');
+      if (firstFocusable) { firstFocusable.focus(); }
     }
     function closeMenu() {
       btn.classList.remove('open');
       menu.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
       body.style.overflow = '';
+      if ('inert' in HTMLElement.prototype && container) { container.inert = false; }
+      /* 焦点还给汉堡按钮 */
+      btn.focus();
     }
 
     btn.addEventListener('click', function(e) {
@@ -531,11 +906,98 @@
     menu.addEventListener('click', function(e) {
       if (e.target.tagName === 'A') { closeMenu(); }
     });
+    /* Tab 焦点锁定在菜单内循环（打开状态下） */
+    menu.addEventListener('keydown', function(e) {
+      if (e.key !== 'Tab' || !menu.classList.contains('open')) return;
+      var focusables = menu.querySelectorAll('a[href], button:not([disabled])');
+      if (!focusables.length) return;
+      var first = focusables[0];
+      var last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    });
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && menu.classList.contains('open')) {
         closeMenu();
       }
     });
+    /* === 桌面导航滑动高亮 === */
+    (function () {
+      var navLinks = document.querySelector('.nav-links');
+      var indicator = document.querySelector('.nav-hover-indicator');
+      if (!navLinks || !indicator) return;
+      var links = navLinks.querySelectorAll('a');
+      var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reducedMotion) indicator.style.transition = 'none';
+
+      function moveTo(link) {
+        var navRect = navLinks.getBoundingClientRect();
+        var linkRect = link.getBoundingClientRect();
+        indicator.style.width = linkRect.width + 'px';
+        indicator.style.transform = 'translateX(' + (linkRect.left - navRect.left) + 'px)';
+        indicator.style.opacity = '1';
+      }
+
+      links.forEach(function (link) {
+        link.addEventListener('mouseenter', function () { moveTo(link); });
+        /* 键盘 Tab 聚焦时同样驱动光斑，与鼠标体验统一 */
+        link.addEventListener('focus', function () { moveTo(link); });
+      });
+      navLinks.addEventListener('mouseleave', function () {
+        indicator.style.opacity = '0';
+      });
+      /* 窗口尺寸变化时校正指示器位置（鼠标仍悬停在链接上时） */
+      var resizeTicking = false;
+      window.addEventListener('resize', function () {
+        if (resizeTicking) return;
+        resizeTicking = true;
+        requestAnimationFrame(function () {
+          resizeTicking = false;
+          var hovered = navLinks.querySelector('a:hover');
+          if (hovered) moveTo(hovered);
+        });
+      });
+    })();
+    /* === 桌面右侧操作区滑动高亮（月亮/地球，与目录同款） === */
+    (function () {
+      var actions = document.querySelector('.nav-actions');
+      var indicator = document.querySelector('.nav-actions-indicator');
+      if (!actions || !indicator) return;
+      var buttons = actions.querySelectorAll('.nav-icon');
+      var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reducedMotion) indicator.style.transition = 'none';
+
+      function moveTo(btn) {
+        var actionsRect = actions.getBoundingClientRect();
+        var btnRect = btn.getBoundingClientRect();
+        indicator.style.width = btnRect.width + 'px';
+        indicator.style.transform = 'translateX(' + (btnRect.left - actionsRect.left) + 'px)';
+        indicator.style.opacity = '1';
+      }
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener('mouseenter', function () { moveTo(btn); });
+        /* 键盘 Tab 聚焦时同样驱动光斑 */
+        btn.addEventListener('focus', function () { moveTo(btn); });
+      });
+      actions.addEventListener('mouseleave', function () {
+        indicator.style.opacity = '0';
+      });
+      /* 窗口尺寸变化时校正指示器位置（鼠标仍悬停在按钮上时） */
+      var resizeTicking = false;
+      window.addEventListener('resize', function () {
+        if (resizeTicking) return;
+        resizeTicking = true;
+        requestAnimationFrame(function () {
+          resizeTicking = false;
+          var hovered = actions.querySelector('.nav-icon:hover');
+          if (hovered) moveTo(hovered);
+        });
+      });
+    })();
     var ticking = false;
     function onScroll() {
       if (ticking) return;
