@@ -56,9 +56,13 @@
   /* 移动端点击时去掉系统默认的灰色半透明高亮（iOS Safari/Android Chrome 的
      tap-highlight），按压反馈交给站内自定义的 :active 样式（变色/背景） */
   * { -webkit-tap-highlight-color: transparent; }
-  /* 全局禁用双击缩放（快速连点页面不再放大）与 300ms 点击延迟；
-     仍保留捏合缩放（pinch-zoom，无障碍必需）与滚动 */
-  * { touch-action: manipulation; }
+  /* 双击缩放/300ms 延迟只对可交互元素禁用（按钮/链接等：连点不放大、点击更跟手）。
+     注意：touch-action 不能写在 * 或 html/body 上——根元素一旦声明手势归属，
+     iOS Safari 会放弃对滑动手势的接管，导致页面下滑时浏览器搜索栏不再自动收起。
+     （viewport 已是 device-width，现代浏览器本就无 300ms 延迟；正文文本保留双击缩放，属无障碍能力） */
+  button, a, [role="button"], input, select, textarea, label, summary {
+    touch-action: manipulation;
+  }
   html, body { background: var(--color-paper); color: var(--color-ink); }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
