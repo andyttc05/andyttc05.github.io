@@ -7,8 +7,9 @@
     var themeToggleDesktop = document.getElementById('themeToggleDesktop');
     var themeLabelDesktop = document.getElementById('themeLabelDesktop');
     var themeLabelMobile = document.getElementById('themeLabelMobile');
-    var isDark = false;
     var metaTheme = document.querySelector('meta[name="theme-color"]');
+    /* 从 head 同步过来的 theme-dark class 读出当前主题，供 toggleTheme 翻转 */
+    var isDark = document.documentElement.classList.contains('theme-dark');
 
     function applyTheme(dark, persist) {
       isDark = dark;
@@ -21,88 +22,9 @@
         try { localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light'); } catch (e) {}
       }
     }
-    var activeVt = null;
-    var rmQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
-    var prefersReducedMotion = !!(rmQuery && rmQuery.matches);
-    if (rmQuery && rmQuery.addEventListener) {
-      rmQuery.addEventListener('change', function (e) { prefersReducedMotion = e.matches; });
+    function toggleTheme() {
+      applyTheme(!isDark);
     }
-    function startThemeTransition(next, x, y) {
-      document.documentElement.style.setProperty('--vt-x', x + 'px');
-      document.documentElement.style.setProperty('--vt-y', y + 'px');
-      var vt = document.startViewTransition(function () { applyTheme(next); });
-      activeVt = vt;
-      if (vt.finished) {
-        vt.finished.catch(function () {}).then(function () {
-          if (activeVt === vt) { activeVt = null; }
-        });
-      }
-    }
-    var vtRestartPending = null;
-    var vtRestartScheduled = false;
-    function toggleTheme(e) {
-      var next = !isDark;
-      if (document.startViewTransition && !prefersReducedMotion) {
-        if (activeVt) {
-          /* 动画进行中再次点击：跳过当前动画，下一帧从新点击位置启动新动画接续。
-             不立即重启——旧过渡清理未完时新过渡会排队，期间点击会被浏览器吞掉；
-             rAF 合并连点，保证每次点击都响应、动画平滑接续不跳变 */
-          activeVt.skipTransition();
-          activeVt = null;
-          vtRestartPending = {
-            next: next,
-            x: (e && e.clientX != null) ? e.clientX : window.innerWidth / 2,
-            y: (e && e.clientY != null) ? e.clientY : window.innerHeight / 2
-          };
-          if (!vtRestartScheduled) {
-            vtRestartScheduled = true;
-            requestAnimationFrame(function () {
-              vtRestartScheduled = false;
-              if (vtRestartPending) {
-                var p = vtRestartPending;
-                vtRestartPending = null;
-                startThemeTransition(p.next, p.x, p.y);
-              }
-            });
-          }
-          return;
-        }
-        var x = (e && e.clientX != null) ? e.clientX : window.innerWidth / 2;
-        var y = (e && e.clientY != null) ? e.clientY : window.innerHeight / 2;
-        startThemeTransition(next, x, y);
-      } else {
-        applyTheme(next);
-      }
-    }
-    /* 过渡进行期间，浏览器会把整页的 hit-testing 跳过（root 参与快照所致），
-       落在主题按钮上的点击会丢失（target 变成 <html>）。
-       这里在 capture 阶段监听 + 坐标命中检测，把点击接管回来，保证连点跟手 */
-    document.addEventListener('click', function (e) {
-      if (!activeVt) return;
-      var targets = [themeToggleDesktop, themeToggle];
-      for (var i = 0; i < targets.length; i++) {
-        var t = targets[i];
-        if (!t) continue;
-        /* 命中检测用实际热区（.nav-menu-action-hit，若存在），与缩小后的可点击范围一致 */
-        var hitEl = t.querySelector ? t.querySelector('.nav-menu-action-hit') : null;
-        var r = (hitEl || t).getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right &&
-            e.clientY >= r.top && e.clientY <= r.bottom) {
-          var reachedButton = e.target === t || t.contains(e.target);
-          if (!reachedButton) { toggleTheme(e); }
-          return;
-        }
-      }
-    }, true);
-
-    (function initTheme() {
-      var dark = document.documentElement.classList.contains('theme-dark');
-      isDark = dark;
-      var label = dark ? 'Light' : 'Dark';
-      if (themeLabelDesktop) themeLabelDesktop.textContent = label;
-      if (themeLabelMobile) themeLabelMobile.textContent = label;
-      if (metaTheme) metaTheme.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
-    })();
 
     var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
     if (mq && mq.addEventListener) {
@@ -120,6 +42,8 @@
       menu.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
       menu.setAttribute('aria-hidden', 'false');
+      /* 锁 body 滚动：抽屉用 transform 覆盖，但 body scroll 仍能进行——加 class 锁住 */
+      document.body.classList.add('nav-open');
       body.style.overflow = 'hidden';
       /* 焦点移入菜单首个可聚焦元素（关闭按钮） */
       var firstFocusable = menu.querySelector('a[href], button:not([disabled])');
@@ -130,6 +54,8 @@
       menu.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');
       menu.setAttribute('aria-hidden', 'true');
+      /* 解锁 body 滚动 */
+      document.body.classList.remove('nav-open');
       body.style.overflow = '';
       /* 焦点还给汉堡按钮 */
       btn.focus();
