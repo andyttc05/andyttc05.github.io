@@ -7,12 +7,7 @@
     var themeToggleDesktop = document.getElementById('themeToggleDesktop');
     var themeLabelDesktop = document.getElementById('themeLabelDesktop');
     var themeLabelMobile = document.getElementById('themeLabelMobile');
-    var langToggleDesktop = document.getElementById('langToggleDesktop');
-    var langToggleMobile = document.getElementById('langToggleMobile');
-    var langLabelDesktop = document.getElementById('langLabelDesktop');
-    var langLabelMobile = document.getElementById('langLabelMobile');
     var isDark = false;
-    var isEnglish = false;
     var metaTheme = document.querySelector('meta[name="theme-color"]');
 
     function applyTheme(dark, persist) {
@@ -100,13 +95,6 @@
       }
     }, true);
 
-    function toggleLanguage() {
-      isEnglish = !isEnglish;
-      var label = isEnglish ? 'CN' : 'EN';
-      if (langLabelDesktop) langLabelDesktop.textContent = label;
-      if (langLabelMobile) langLabelMobile.textContent = label;
-    }
-
     (function initTheme() {
       var dark = document.documentElement.classList.contains('theme-dark');
       isDark = dark;
@@ -127,17 +115,12 @@
 
     themeToggle.addEventListener('click', toggleTheme);
     if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
-    if (langToggleDesktop) langToggleDesktop.addEventListener('click', toggleLanguage);
-    if (langToggleMobile) langToggleMobile.addEventListener('click', toggleLanguage);
-    var container = document.querySelector('.container');
     function openMenu() {
       btn.classList.add('open');
       menu.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
       menu.setAttribute('aria-hidden', 'false');
       body.style.overflow = 'hidden';
-      /* 背景内容 inert：键盘 Tab 与读屏器都无法进入（配合下方 focus trap） */
-      if ('inert' in HTMLElement.prototype && container) { container.inert = true; }
       /* 焦点移入菜单首个可聚焦元素（关闭按钮） */
       var firstFocusable = menu.querySelector('a[href], button:not([disabled])');
       if (firstFocusable) { firstFocusable.focus(); }
@@ -148,7 +131,6 @@
       btn.setAttribute('aria-expanded', 'false');
       menu.setAttribute('aria-hidden', 'true');
       body.style.overflow = '';
-      if ('inert' in HTMLElement.prototype && container) { container.inert = false; }
       /* 焦点还给汉堡按钮 */
       btn.focus();
     }
