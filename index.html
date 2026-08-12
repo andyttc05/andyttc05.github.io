@@ -5,15 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="时雨时猫的个人编程主页 — 从零开始学编程的旅程记录">
 <meta name="theme-color" content="#f8fafc">
-<title>时雨时猫 — 编程学习者</title>
+<title>rain.meow</title>
 <script>
   (function () {
     var saved = null;
     try { saved = localStorage.getItem('rainmeow-theme'); } catch (e) {}
     var dark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('theme-dark', dark);
+    /* 同步设好 meta theme-color，避免 dark 用户首屏看到亮色地址栏闪一下 */
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
   })();
 </script>
+<!-- 首屏防闪烁：把图标切换规则提前到内联 style，body 渲染前就生效，
+     不依赖外部 style.css（图标规则在第 367 行，CSS 没应用完时两个 SVG 会同时可见） -->
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -24,7 +35,7 @@
 
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a href="index.html" class="nav-brand" aria-label="时雨时猫 主页">时雨时猫</a>
+      <a href="index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
       <ul class="nav-links">
         <li class="nav-hover-indicator" aria-hidden="true"></li>
         <li><a href="pages/coming-soon.html">项目</a></li>
@@ -88,6 +99,19 @@
 <main>
   <!-- 主体内容已清空，仅保留导航栏 + 抽屉菜单 -->
 </main>
+
+<!-- nav 已解析完，立即设好主题文字 label，避免 dark 用户先看到"Dark"（深色背景深色文字）闪一下。
+     必须在 nav 之后、script.js 之前——同步执行，不依赖外部 JS 加载 -->
+<script>
+  (function () {
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    if (d) d.textContent = label;
+    if (m) m.textContent = label;
+  })();
+</script>
 
 <script src="script.js"></script>
 </body>
