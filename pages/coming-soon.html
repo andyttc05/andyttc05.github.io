@@ -12,18 +12,24 @@
     --color-ink: #0f172a;
     --color-paper: #f8fafc;
     --color-accent: #2563eb;
+    --color-accent-rgb: 37, 99, 235;
     --color-rule: #cbd5e1;
     --color-muted: #475569;
     --color-alt: #f1f5f9;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
+  /* 背景色只放 html（画布层），body 透明——否则不透明 body 背景会盖住全屏背景 canvas */
+  html {
     height: 100%;
     background: var(--color-paper);
     color: var(--color-ink);
     font-family: 'IBM Plex Serif', serif;
   }
   body {
+    height: 100%;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: 'IBM Plex Serif', serif;
     display: flex; align-items: center; justify-content: center;
     padding: 32px;
   }
@@ -128,5 +134,8 @@
   setTimeout(tick, 600);
 })();
 </script>
+<!-- 全屏背景动效（与主页同款）：几何粒子网络 + 动态几何飘带，单色 accent 版 -->
+<script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=3"></script>
+<script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=3"></script>
 </body>
 </html>
