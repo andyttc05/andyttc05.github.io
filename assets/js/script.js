@@ -26,6 +26,8 @@
         if (window.RainNest) { window.RainNest.setColor(rgb); }
         if (window.RainRibbons) { window.RainRibbons.setColor(rgb); }
       }
+      /* hero 粒子文字（particle-text.js）重采样，跟随 --color-ink/--color-accent 变色 */
+      if (window.RainParticleText) { window.RainParticleText.refresh(); }
       if (persist !== false) {
         try { localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light'); } catch (e) {}
       }
@@ -105,8 +107,6 @@
       var indicator = document.querySelector('.nav-hover-indicator');
       if (!navLinks || !indicator) return;
       var links = navLinks.querySelectorAll('a');
-      var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (reducedMotion) indicator.style.transition = 'none';
 
       function moveTo(link) {
         var navRect = navLinks.getBoundingClientRect();
@@ -142,8 +142,6 @@
       var indicator = document.querySelector('.nav-actions-indicator');
       if (!actions || !indicator) return;
       var buttons = actions.querySelectorAll('.nav-icon');
-      var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (reducedMotion) indicator.style.transition = 'none';
 
       function moveTo(btn) {
         var actionsRect = actions.getBoundingClientRect();
@@ -202,8 +200,9 @@
         var LINES = [
           '时雨时猫，雨落，码落。',
           '把淋湿的灵感，写成可运行的代码。',
-          '在雨里敲键盘，声音刚好。',
-          '收集每一次失败里学到的语法。'
+          '雨滴划过玻璃，灵感在代码里成型。',
+          '代码如诗，一写就是整个世界。',
+          '从零到一，每一步都算数。'
         ];
         var TYPE_MS = 90;        // 打字间隔
         var DELETE_MS = 42;      // 删除间隔
@@ -237,15 +236,21 @@
         timer = setTimeout(tick, 700);
       }
 
-      /* --- 时钟：时间 + 日期 + 安安问候（本地实时） --- */
+      /* --- 时钟：时间 + 日期 + 安安问候（本地实时）
+         中文页面（html lang 以 zh 开头）一律用中文日期时间格式（24h 制），
+         非中文页面才跟随设备语言；时区始终用设备本地时间 --- */
       var timeEl = document.getElementById('heroTime');
       var dateEl = document.getElementById('heroDate');
       var greetEl = document.getElementById('heroGreet');
       if (timeEl && dateEl) {
-        var timeFmt = new Intl.DateTimeFormat('zh-HK', {
-          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        var isZh = (document.documentElement.lang || '').toLowerCase().indexOf('zh') === 0;
+        var fmtLang = isZh ? 'zh-HK' : (navigator.language || 'zh-HK');
+        var timeFmt = new Intl.DateTimeFormat(fmtLang, {
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          /* 中文页强制 24h（zh locale 默认 12h 带"上午/下午"）；非中文页跟随 locale */
+          hour12: isZh ? false : undefined
         });
-        var dateFmt = new Intl.DateTimeFormat('zh-HK', {
+        var dateFmt = new Intl.DateTimeFormat(fmtLang, {
           year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
         });
         /* 安安问候按时段变化，句子长一点、带关心 */
@@ -266,21 +271,35 @@
         setInterval(tickClock, 1000);
       }
 
-      /* --- 天气：open-meteo 免费 API（香港 · 科大坐标），失败降级为 "--" --- */
+      /* --- 位置 + 天气：IP 定位（ipwho.is，网络出口城市，无需授权弹窗）
+         失败降级为香港坐标；天气用最终坐标查 open-meteo --- */
+      var locEl = document.getElementById('heroLoc');
       var weatherEl = document.getElementById('heroWeather');
-      if (weatherEl) {
-        var CODES = {
-          0: '晴', 1: '晴间多云', 2: '多云', 3: '阴',
-          45: '雾', 48: '雾凇',
-          51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨',
-          61: '小雨', 63: '中雨', 65: '大雨',
-          71: '小雪', 73: '中雪', 75: '大雪',
-          80: '阵雨', 81: '阵雨', 82: '强阵雨',
-          95: '雷阵雨', 96: '雷雨', 99: '雷雨'
-        };
+      var CODES = {
+        0: '晴', 1: '晴间多云', 2: '多云', 3: '阴',
+        45: '雾', 48: '雾凇',
+        51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨',
+        61: '小雨', 63: '中雨', 65: '大雨',
+        71: '小雪', 73: '中雪', 75: '大雪',
+        80: '阵雨', 81: '阵雨', 82: '强阵雨',
+        95: '雷阵雨', 96: '雷雨', 99: '雷雨'
+      };
+      var CITY_ZH = {
+        'Hong Kong': '香港', 'Beijing': '北京', 'Shanghai': '上海',
+        'Shenzhen': '深圳', 'Guangzhou': '广州', 'Macao': '澳门',
+        'Taipei': '台北', 'Hangzhou': '杭州', 'Chengdu': '成都',
+        'Nanjing': '南京', 'Wuhan': '武汉', 'Xian': '西安',
+        'Singapore': '新加坡', 'Tokyo': '东京', 'Osaka': '大阪',
+        'Seoul': '首尔', 'London': '伦敦', 'Paris': '巴黎',
+        'Berlin': '柏林', 'New York': '纽约', 'Los Angeles': '洛杉矶',
+        'San Francisco': '旧金山', 'Sydney': '悉尼', 'Melbourne': '墨尔本',
+        'Toronto': '多伦多', 'Vancouver': '温哥华'
+      };
+      function fetchWeather(lat, lon) {
+        if (!weatherEl) return;
         var ctrl = new AbortController();
         var guard = setTimeout(function () { ctrl.abort(); }, 6000);
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=22.337&longitude=114.263&current=temperature_2m,weather_code', {
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code', {
           signal: ctrl.signal
         })
           .then(function (r) { return r.json(); })
@@ -295,6 +314,27 @@
             clearTimeout(guard);
             weatherEl.textContent = '天气 --';
           });
+      }
+      if (locEl && weatherEl) {
+        var ctrl = new AbortController();
+        var guard = setTimeout(function () { ctrl.abort(); }, 5000);
+        fetch('https://ipwho.is/', { signal: ctrl.signal })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            clearTimeout(guard);
+            if (d && d.success && d.city) {
+              locEl.textContent = CITY_ZH[d.city] || d.city;
+              fetchWeather(d.latitude, d.longitude);
+            } else {
+              fetchWeather(22.337, 114.263);
+            }
+          })
+          .catch(function () {
+            clearTimeout(guard);
+            fetchWeather(22.337, 114.263);
+          });
+      } else if (weatherEl) {
+        fetchWeather(22.337, 114.263);
       }
 
       /* --- 照片按压反馈（mousedown 压扁 / mouseup 弹簧回弹）：
