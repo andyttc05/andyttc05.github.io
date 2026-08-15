@@ -29,7 +29,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="favicon.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=36">
 </head>
 <body>
 
@@ -97,7 +97,37 @@
   </nav>
 
 <main>
-  <!-- 主体内容已清空，仅保留导航栏 + 抽屉菜单 -->
+  <!-- === Hero 区：二次元风格 · 左内容 + 右立绘 · 电影感转场 === -->
+  <section class="hero" id="hero">
+    <!-- 左：内容 -->
+    <div class="hero-text">
+      <p class="hero-welcome">WELCOME</p>
+      <h1 class="hero-title">时雨时猫</h1>
+      <p class="hero-sub">在雨里编程，在代码里听雨。记录从零到一的成长，也收藏每一次失败里学到的语法。</p>
+      <p class="hero-type" aria-label="循环播放的句子">
+        <span class="hero-type-text" id="typewriter" aria-live="off"></span><span class="hero-type-caret" aria-hidden="true"></span>
+      </p>
+      <div class="hero-meta" id="heroMeta">
+        <p class="hero-meta-line">
+          <span id="heroTime">--:--:--</span>
+          <span class="hero-greet" id="heroGreet">安安</span>
+        </p>
+        <p class="hero-meta-line">
+          <span id="heroDate">----年--月--日</span><span class="hero-meta-sep" aria-hidden="true">·</span>
+          <span id="heroLoc">香港</span><span class="hero-meta-sep" aria-hidden="true">·</span>
+          <span id="heroWeather">天气 --</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，图在 assets/images/hero-art.png） -->
+    <div class="hero-art">
+      <div class="hero-art-base" aria-hidden="true"></div>
+      <div class="hero-art-card">
+        <img class="hero-art-img" src="assets/images/hero-art.png" alt="二次元立绘：雨中的少女" onerror="this.classList.add('img-missing')">
+      </div>
+    </div>
+  </section>
 </main>
 
 <!-- nav 已解析完，立即设好主题文字 label，避免 dark 用户先看到"Dark"（深色背景深色文字）闪一下。
@@ -113,6 +143,12 @@
   })();
 </script>
 
-<script src="script.js"></script>
+<script src="script.js?v=19"></script>
+<!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
+     不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
+<script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=3"></script>
+<!-- 动态几何飘带背景（源自 bistutzyy.github.io 的 canvas-fluttering-ribbon / Ribbons 效果）。
+     单色 accent 版，全屏滚动视差；切换主题时由 script.js 联动更新 -->
+<script id="fluttering_ribbon" defer="defer" src="assets/js/canvas-ribbons.js?v=3"></script>
 </body>
 </html>
