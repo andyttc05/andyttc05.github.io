@@ -544,7 +544,7 @@
     color: var(--color-muted);
     /* 左起 accent 短横线点睛：与英文间留 10px，竖排对齐 */
     display: flex; align-items: center; gap: 10px;
-    margin-bottom: 28px;
+    margin-bottom: 32px;  /* 之前 28：与粒子标题间距太紧 */
   }
   .hero-welcome::before {
     content: '';
@@ -555,12 +555,12 @@
   }
   .hero-title {
     /* 粒子文字容器：font-family/font-weight 供 particle-text.js 采样读取（inherit）
-       高度 = 粒子散开空间（字号 clamp(52px,8vw,104px) × ~2.3，容纳 gather 散布余量） */
+       高度 = 粒子散开空间（字号 clamp(40px,7vw,88px) × ~2.3，容纳 gather 散布余量） */
     font-family: 'IBM Plex Serif', serif;
     font-weight: 700;
     position: relative;
-    height: clamp(140px, 18vw, 272px);
-    margin-bottom: 24px;
+    height: clamp(120px, 14vw, 220px);  /* 之前 18vw/272：桌面上下白太多，"漂浮"在 WELCOME TO 与副标题之间 */
+    margin-bottom: 32px;                /* 之前 24：太小，与副标题粘连 */
   }
   /* === ParticleText（React Bits vanilla 移植） ===
      容器内 canvas 由 assets/js/particle-text.js 创建 */
@@ -572,6 +572,11 @@
     overflow: hidden;
     /* 不用 touch-action:none：会让移动端手指在标题上无法滚动页面（bug） */
     isolation: isolate;
+    /* 触碰体验：长按标题不弹 iOS 文本选择/放大镜（粒子画布是装饰，无需选中文本）。
+       touch-action 保留默认——手指在标题上仍可正常滚动页面 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .particle-text canvas {
     position: absolute;
@@ -591,7 +596,7 @@
     border: 0;
   }
   .hero-sub {
-    font-size: 18px; line-height: 1.8;
+    font-size: 18px; line-height: 1.7;  /* 之前 1.8：略松 */
     color: var(--color-muted);
     max-width: 46ch;
     margin-bottom: 20px;
@@ -665,7 +670,9 @@
        JS 按压动画读取同一变量，保证按压/回弹期间不产生额外位移（之前 keyframes 缺位移导致动画后跳变） */
     --lift: 0px;
     --scale: 1;
-    transform: rotate(-2deg) translateY(var(--lift)) scale(var(--scale));
+    /* 旋转角变量化：桌面 -2° / 移动端 -1°（script.js 按压动画读同一变量，保证动画与 CSS 一致） */
+    --tilt: -2deg;
+    transform: rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale));
     /* 入场 clip-path 过渡 + hover 过渡（transform 无 delay，clip-path 保留 0.1s） */
     transition:
       clip-path 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s,
@@ -682,6 +689,13 @@
     object-fit: cover;
     object-position: top center;
     transition: opacity 0.5s ease;
+    /* 长按防系统菜单：iOS 长按弹"存储图像/拷贝"、Android 弹"保存图片"、浏览器拖拽，
+       都会跟按压动画抢响应 → 全部禁用（长按冲突 2026-08-17 修）。
+       注意 -webkit-touch-callout 必须写在 img 元素上才生效 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
   .hero-art-img.img-missing { visibility: hidden; }
 
@@ -739,26 +753,72 @@
   @media (max-width: 768px) {
     .hero {
       grid-template-columns: 1fr;
-      gap: 40px;
-      /* 移动端不强制首屏高度，随内容自然撑开 */
+      /* 之前 gap 40px：视觉过疏，改 28px；上下 padding 8vw 过宽，改 7vw */
+      gap: 28px;
       min-height: auto;
-      padding: clamp(40px, 8vw, 64px) 16px clamp(40px, 8vw, 64px);
+      padding: clamp(32px, 7vw, 56px) 16px clamp(32px, 7vw, 56px);
     }
     .hero-text { order: 1; }
-    .hero-art  { order: 2; }
+    .hero-art  {
+      order: 2;
+      /* 移动端：图片居中定宽。grid 1fr 列默认把 item 拉满全宽 + rotate 让卡片水平投影
+         超出容器（视觉"太大/贴边"）→ 定宽 + justify-self 居中，卡片/衬底同宽同居中。
+         width 78vw（之前 84vw）+ max-width 380px：给小屏留更多呼吸（2026-08-17 修） */
+      justify-self: center;
+      width: 78vw;
+      max-width: 380px;
+    }
+    /* scroll 指示器 order=3：放在 hero-art 之后。
+       之前漏了 → grid 自动 order=0 反而排到了最顶部（WELCOME TO 之前），
+       用户在图片下面找就以为"消失了"（2026-08-17 修） */
+    .hero-scroll { order: 3; }
+    /* 移动端去掉 overflow:clip——card rotate + base translate 会让水平投影
+       比容器宽，clip 把旋转后的右边缘裁掉 = "图片框部分在显示屏外"。
+       桌面端保留 clip（防背景 canvas 溢出）。 */
+    .hero { overflow: visible; }
     .hero-art-card {
       aspect-ratio: 5 / 4;
       max-height: none;
-      max-width: 560px;
-      margin: 0 auto;
+      width: 100%;           /* 跟随 .hero-art 定宽（Safari aspect-ratio 会用 img intrinsic 撑开） */
+      max-width: none;
+      margin: 0;
+      /* --tilt 不覆盖：继承桌面 -2deg，与底片/桌面端视觉完全一致（2026-08-17 修）。
+         图片已缩到 78vw，-2° 旋转投影 + base 偏移不再溢出（左缘 5px、右缘 49px 余量） */
     }
-    /* 衬底与卡片同宽居中，保持叠层对齐 */
+    /* 衬底：与桌面完全同值（rotate -2° + translate -18/20），保证"底片"位置两端一致 */
     .hero-art-base {
-      max-width: 560px;
-      margin: 0 auto;
+      max-width: none;
+      margin: 0;
+      transform: rotate(-2deg) translate(-18px, 20px);
     }
-    .hero-sub { font-size: 16px; }
-    .hero-meta { font-size: 13px; gap: 8px; }
-    .hero-meta-line { gap: 10px; }
+    .hero-title {
+      height: clamp(100px, 26vw, 150px);  /* 移动端：粒子标题容器紧凑（桌面 120-220 在小屏过大） */
+    }
+    .hero-welcome {
+      font-size: 14px;          /* 之前 15：移动端留白比例不需要那么显眼 */
+      margin-bottom: 24px;
+    }
+    .hero-sub { font-size: 17px; }   /* 之前 16：可读性提升 */
+    .hero-meta {
+      font-size: 14px;          /* 之前 13：太挤，错误可读性差 */
+      gap: 10px;
+    }
+    .hero-meta-line { gap: 12px; }
+    .hero-scroll {
+      position: static;
+      transform: none;
+      left: auto;
+      bottom: auto;
+      width: max-content;
+      margin: 40px auto 0;      /* 之前 28px：与图片更近，移动端 40px 留呼吸 */
+    }
+  }
+  /* 触摸/无悬停设备：去掉 :hover 引起的"上浮 -6px + 放大 1.02"。
+     移动端 tap 后 :hover 会粘住，导致卡片卡在放大态不回去——"图片动画异常"的根因（2026-08-17 修） */
+  @media (hover: none) {
+    .hero-art:hover .hero-art-card {
+      --lift: 0px;
+      --scale: 1;
+    }
   }
 
