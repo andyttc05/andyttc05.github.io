@@ -355,7 +355,8 @@
         }
         function tfAt(scaleVal) {
           var lift = readVar('--lift', '0px');
-          return 'rotate(-2deg) translateY(' + lift + ') scale(' + scaleVal + ')';
+          var tilt = readVar('--tilt', '-2deg');
+          return 'rotate(' + tilt + ') translateY(' + lift + ') scale(' + scaleVal + ')';
         }
         function tfBase() {
           return tfAt(readVar('--scale', '1'));
@@ -371,8 +372,23 @@
             { transform: tfBase(), offset: 0 },
             { transform: tfAt(0.97), offset: 1 }
           ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
+          /* 长按检测只对触摸（touchstart）启用：鼠标按住是正常按压交互，没有系统长按菜单
+             冲突，若也计时会出现"鼠标按住 300ms 未松开就弹回"（v29 回归，2026-08-17 修）。
+             触摸长按：300ms 后取消压扁动画，交还系统长按行为。pressAnim.cancel() 后元素
+             transform 自动回到 CSS 值（rotate var(--tilt) + hover 变量） */
+          if (e && e.type === 'touchstart') {
+            clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(cancelPressAnimation, 300);
+          }
+        }
+        function cancelPressAnimation() {
+          if (!pressed) return;
+          pressed = false;
+          if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
+          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
         }
         function releaseUp() {
+          clearTimeout(longPressTimer);
           if (!pressed) return;
           pressed = false;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
@@ -383,9 +399,20 @@
           ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
-        artCard.addEventListener('mousedown', pressDown);
-        window.addEventListener('mouseup', releaseUp);
-        artCard.addEventListener('mouseleave', releaseUp);
+        var longPressTimer = null;
+        /* 粗指针（手机/平板）跳过鼠标监听——iOS Safari tap 后会发合成 mousedown，
+           触发压扁动画二次执行，造成图片"动画异常"（卡在 0.97 缩放态不回去）。
+           触摸设备本来就没有 hover 概念，press 反馈交给 touchstart/touchend 就够（2026-08-17 修） */
+        var isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        if (!isCoarsePointer) {
+          artCard.addEventListener('mousedown', pressDown);
+          window.addEventListener('mouseup', releaseUp);
+          artCard.addEventListener('mouseleave', releaseUp);
+        } else {
+          /* Android Chrome 长按图片会弹"保存图片/搜索"系统菜单（-webkit-touch-callout 管不到），
+             与按压动画冲突 → 触摸设备上阻止 contextmenu，长按行为统一交给 300ms 取消逻辑 */
+          artCard.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        }
         artCard.addEventListener('touchstart', pressDown, { passive: true });
         artCard.addEventListener('touchend', releaseUp, { passive: true });
         artCard.addEventListener('touchcancel', releaseUp, { passive: true });

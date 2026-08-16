@@ -28,8 +28,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/images/catgirl_sailor.webp" type="image/webp">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=49">
+<link rel="stylesheet" href="assets/css/style.css?v=55">
 </head>
 <body>
 
@@ -123,11 +124,14 @@
       </div>
     </div>
 
-    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，图在 assets/images/catgirl_sailor.png） -->
+    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，图在 assets/images/catgirl_sailor.{webp,jpg}） -->
     <div class="hero-art">
       <div class="hero-art-base" aria-hidden="true"></div>
       <div class="hero-art-card">
-        <img class="hero-art-img" src="assets/images/catgirl_sailor.png" alt="二次元立绘：雨中的少女" onerror="this.classList.add('img-missing')">
+        <picture>
+          <source type="image/webp" srcset="assets/images/catgirl_sailor.webp?v=1">
+          <img class="hero-art-img" src="assets/images/catgirl_sailor.jpg?v=1" alt="二次元立绘：雨中的少女" width="1280" height="1024" decoding="async" fetchpriority="high" draggable="false" onerror="this.classList.add('img-missing')">
+        </picture>
       </div>
     </div>
 
@@ -152,8 +156,8 @@
   })();
 </script>
 
-<script src="assets/js/particle-text.js?v=10"></script>
-<script src="assets/js/script.js?v=27"></script>
+<script src="assets/js/particle-text.js?v=14"></script>
+<script src="assets/js/script.js?v=30"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=3"></script>

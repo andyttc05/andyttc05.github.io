@@ -60,10 +60,21 @@
     return size;
   };
 
-  var waitForFonts = async function (font) {
-    if (!('fonts' in document)) return;
-    try { await document.fonts.load(font); } catch (e) {}
-    await document.fonts.ready;
+  /* 字体等待：加 2.5s 兜底超时 + 永不 reject。
+     document.fonts.load 在弱网/被墙的 Google Fonts 上可能 hang 或 reject，
+     旧版用 await 会卡死首帧渲染数秒——移动端「时雨时猫」加载空白的根因（2026-08-17 修复） */
+  var FONT_WAIT_MS = 2500;
+  var waitForFonts = function (font) {
+    return new Promise(function (resolve) {
+      if (!('fonts' in document)) { resolve(); return; }
+      var done = false;
+      var finish = function () { if (!done) { done = true; resolve(); } };
+      try {
+        var p = document.fonts.load(font);
+        if (p && typeof p.then === 'function') { p.then(finish, finish); }
+      } catch (e) { finish(); }
+      setTimeout(finish, FONT_WAIT_MS);
+    });
   };
 
   /* 从 CSS 变量解析 hex 颜色（--color-ink / --color-accent 均为 #rrggbb） */
@@ -108,7 +119,7 @@
       /* mount：登场特效只在首次加载播一次；hover 仅保留粒子被推开（repel），
          不再重复"散开→重组"（主人反馈 hover 重复登场特效烦） */
       trigger: options.trigger || 'mount',
-      fontSize: options.fontSize || 'clamp(52px, 8vw, 104px)',
+      fontSize: options.fontSize || 'clamp(40px, 7vw, 88px)',  // 桌面 88 / 平板 56-72 / 手机 40-48（之前 104 太大）
       /* 800：更粗字形 → 粒子采样覆盖更完整，笔画不"散"（原 700 衬线横画细、粒子断） */
       fontWeight: options.fontWeight != null ? options.fontWeight : 800,
       fontFamily: options.fontFamily || 'inherit',
@@ -124,6 +135,10 @@
     var width = 0;
     var height = 0;
     var dpr = 1;
+    /* 字体重采样一次性守卫：waitForFonts resolve 后会 queueSample → sampleText 再跑，
+       若不设 flag，每次 sampleText 都注册新 waitForFonts → 无限重采样循环 → 每帧重置
+       canvas → 粒子闪烁/消失（v11 引入的回归，2026-08-17 修） */
+    var fontRetryDone = false;
 
     var pointer = { active: false, x: 0, y: 0, smoothX: 0, smoothY: 0 };
 
@@ -234,7 +249,7 @@
       }
     };
 
-    var sampleText = async function () {
+    var sampleText = function () {
       var currentBuild = ++buildId;
       var rect = container.getBoundingClientRect();
       width = Math.floor(rect.width);
@@ -260,9 +275,6 @@
       var resolvedSize = resolveFontSize(cfg.fontSize, container, cfg.fontWeight, resolvedFamily);
       var font = cfg.fontWeight + ' ' + resolvedSize + 'px ' + resolvedFamily;
 
-      await waitForFonts(font);
-      if (currentBuild !== buildId) return;
-
       var offscreen = document.createElement('canvas');
       var offCtx = offscreen.getContext('2d', { willReadFrequently: true });
       if (!offCtx) return;
@@ -275,8 +287,7 @@
       if (measuredWidth > maxTextWidth) {
         resolvedSize = Math.max(18, resolvedSize * (maxTextWidth / measuredWidth));
         font = cfg.fontWeight + ' ' + resolvedSize + 'px ' + resolvedFamily;
-        await waitForFonts(font);
-        if (currentBuild !== buildId) return;
+        /* 字号压缩直接用现有 font（不等字体加载——首帧渲染优先） */
         offCtx.font = font;
         metrics = offCtx.measureText(content);
       }
@@ -359,6 +370,16 @@
 
       startGather(false);
       ensureRenderLoop();
+
+      /* 字体到达（最多 2.5s）后再采一次，字形更精——首帧不等字体，避免移动端弱网下标题长时间空白。
+         只重采样一次（fontRetryDone 守卫）：fonts.load 每次 resolve 都会触发 queueSample，
+         若每次 sampleText 都重新注册，就是无限循环 + 每帧重置 canvas（v11 回归，2026-08-17 修） */
+      if (!fontRetryDone) {
+        fontRetryDone = true;
+        waitForFonts(font).then(function () {
+          if (currentBuild === buildId) { queueSample(); }
+        });
+      }
     };
 
     var queueSample = function () {
@@ -366,15 +387,44 @@
       resizeFrame = window.requestAnimationFrame(sampleText);
     };
 
+    var lastTouchPoint = null;
+
     var handlePointerMove = function (event) {
       var rect = canvas.getBoundingClientRect();
-      pointer.x = event.clientX - rect.left;
-      pointer.y = event.clientY - rect.top;
+      var x = event.clientX - rect.left;
+      var y = event.clientY - rect.top;
+
+      /* 触碰体验：触摸时判断手势方向——以垂直滚动为主（|dy| 明显大于 |dx|）就关闭
+         粒子排斥，让页面滚动优先，避免手指在标题上滑动页面时粒子被乱推成一片。
+         轻点 / 水平拨动才保留"推开粒子"的互动（2026-08-17 修） */
+      if (event.pointerType === 'touch') {
+        if (lastTouchPoint) {
+          var dx = x - lastTouchPoint.x;
+          var dy = y - lastTouchPoint.y;
+          if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+            pointer.active = false;
+            lastTouchPoint = { x: x, y: y };
+            return;
+          }
+        }
+        lastTouchPoint = { x: x, y: y };
+      }
+
+      pointer.x = x;
+      pointer.y = y;
       pointer.active = true;
     };
 
     var handlePointerLeave = function () {
       pointer.active = false;
+      lastTouchPoint = null;
+    };
+
+    var handlePointerCancel = function () {
+      /* iOS 触摸结束不一定发 pointerleave（可能直接 pointercancel）→ 兜底重置，
+         否则粒子会一直跟着最后位置排斥，直到下次触摸 */
+      pointer.active = false;
+      lastTouchPoint = null;
     };
 
     var handlePointerEnter = function (event) {
@@ -389,6 +439,7 @@
     canvas.addEventListener('pointerenter', handlePointerEnter);
     canvas.addEventListener('pointermove', handlePointerMove);
     canvas.addEventListener('pointerleave', handlePointerLeave);
+    canvas.addEventListener('pointercancel', handlePointerCancel);
     canvas.addEventListener('click', handleClick);
 
     var resizeObserver = new ResizeObserver(queueSample);
@@ -405,6 +456,7 @@
         canvas.removeEventListener('pointerenter', handlePointerEnter);
         canvas.removeEventListener('pointermove', handlePointerMove);
         canvas.removeEventListener('pointerleave', handlePointerLeave);
+        canvas.removeEventListener('pointercancel', handlePointerCancel);
         canvas.removeEventListener('click', handleClick);
         if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
         if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
