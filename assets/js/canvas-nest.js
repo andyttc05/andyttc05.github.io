@@ -32,6 +32,20 @@
     count: parseInt(getAttr('count', '99'), 10)
   };
 
+  /* 视觉密度自适应：count 写死会让移动端（视口面积只有桌面 1/5~1/6）出现粒子堆叠成"密网"，
+     桌面 99 个粒子摊在 1440×900≈130 万 px² 是"刚刚好"的稀疏感，移动端同样的 99 个塞进
+     390×844≈33 万 px² 看起来就是密密麻麻一团"花哨"。
+     解法：以桌面 1440×900（主人实际测试尺寸）为基准，按当前视口面积等比缩放 count，
+     并设上下限防极端值。这样桌面 → 移动端切换（或手机旋转）resize 时粒子数会自动增减，
+     视觉密度（每像素连接数）保持一致。 */
+  var REF_W = 1440, REF_H = 900, REF_AREA = REF_W * REF_H;
+  var MIN_COUNT = 14, MAX_COUNT = 200;
+  function targetCount() {
+    if (!w || !h) return config.count;
+    var ratio = (w * h) / REF_AREA;
+    return Math.max(MIN_COUNT, Math.min(MAX_COUNT, Math.round(config.count * ratio)));
+  }
+
   var canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:' + config.zIndex + ';opacity:' + config.opacity + ';pointer-events:none;';
   document.body.appendChild(canvas);
@@ -47,12 +61,37 @@
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    /* 视口变了（如手机旋转、桌面切窗口）→ 同步调整粒子数到当前目标值，
+       保持视觉密度恒定。trim 尾部多余粒子；不足时按当前视口随机补点 */
+    syncPoints();
   }
 
   var points = [];
   var mouse = { x: null, y: null, max: 20000 };
   /* 鼠标最后移动时刻：静止超过 60ms 即视为"鼠标静止"，停止驱逐粒子 */
   var lastMoveAt = 0;
+
+  /* 制造一个随机粒子：速度下限避免 |v|≈0 的极慢漂移产生"卡顿/抖动"感 */
+  function makePoint() {
+    var vx = 2 * Math.random() - 1;
+    var vy = 2 * Math.random() - 1;
+    var MIN_V = 0.3;
+    if (Math.abs(vx) < MIN_V) vx = vx >= 0 ? MIN_V : -MIN_V;
+    if (Math.abs(vy) < MIN_V) vy = vy >= 0 ? MIN_V : -MIN_V;
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      xa: vx,
+      ya: vy,
+      max: 6000
+    };
+  }
+  /* 把 points 数组长度对齐到 targetCount()：多了截尾，少了按当前视口随机补 */
+  function syncPoints() {
+    var target = targetCount();
+    while (points.length > target) points.pop();
+    while (points.length < target) points.push(makePoint());
+  }
 
   function step() {
     ctx.clearRect(0, 0, w, h);
@@ -99,21 +138,8 @@
   });
   window.addEventListener('touchend', function () { mouse.x = null; mouse.y = null; });
 
-  for (var i = 0; i < config.count; i++) {
-    var vx = 2 * Math.random() - 1;
-    var vy = 2 * Math.random() - 1;
-    /* 速度下限：避免 |v|≈0 的粒子极慢漂移产生"卡顿/抖动"感 */
-    var MIN_V = 0.3;
-    if (Math.abs(vx) < MIN_V) vx = vx >= 0 ? MIN_V : -MIN_V;
-    if (Math.abs(vy) < MIN_V) vy = vy >= 0 ? MIN_V : -MIN_V;
-    points.push({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      xa: vx,
-      ya: vy,
-      max: 6000
-    });
-  }
+  /* 用目标粒子数初始化（桌面 99，移动按视口面积等比缩），不再写死 config.count */
+  syncPoints();
   setTimeout(step, 100);
 
   /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb) */

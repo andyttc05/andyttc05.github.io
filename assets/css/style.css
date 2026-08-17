@@ -3,32 +3,91 @@
     --color-ink: #0f172a;
     --color-paper: #f8fafc;
     --color-accent: #2563eb;
-    --color-secondary: #475569;
     --color-rule: #cbd5e1;
     --color-muted: #475569;
     --color-alt: #f1f5f9;
+    /* greet 专属"sub-accent"：介于 --color-accent 与 --color-muted 之间的中间蓝 —
+       在 meta 行内给「安安」一档视觉重音，但不破坏 v99 audit 后
+       <2% 屏幅的 accent 密度（hero 标题 + eyebrow 短线 + caret 三处保留） */
+    --hero-greet: #3b82f6;  /* blue-500 比 accent(blue-600) 提亮 1 档 */
     --color-paper-rgb: 248, 250, 252;
     --color-accent-rgb: 37, 99, 235;
     --color-hover: rgba(0, 0, 0, 0.03);
     --color-shadow: rgba(0, 0, 0, 0.06);
     /* 毛玻璃导航栏：玻璃边缘高光（亮色下明显） */
     --color-glass-edge: rgba(255, 255, 255, 0.55);
+    /* 五字蓝调（story-intro）：每个字一个 token，hue 跨 190-240° 在冷色调家族内，
+       light 走 deep blue（沉凝），dark 在 :root.theme-dark 里升 2 阶确保深底可读。 */
+    --glyph-fall:  #1e3a8a;  /* 落 — blue-900 海蓝 */
+    --glyph-focus: #1e40af;  /* 眸 — blue-800 中海蓝 */
+    --glyph-bloom: #0369a1;  /* 笑 — sky-700 晴蓝 */
+    --glyph-swing: #312e81;  /* 歌 — indigo-900 靛紫 */
+    --glyph-reach: #0e7490;  /* 触 — cyan-700 青蓝 */
   }
   :root.theme-dark {
     color-scheme: dark;
     --color-ink: #e2e8f0;
     --color-paper: #0f172a;
     --color-accent: #60a5fa;
-    --color-secondary: #94a3b8;
     --color-rule: rgba(148, 163, 184, 0.16);
     --color-muted: #94a3b8;
     --color-alt: #1a2438;
+    --hero-greet: #7dd3fc;  /* sky-300 — dark 下浅亮蓝，meta 行内仍能跳出来 */
     --color-paper-rgb: 15, 23, 42;
     --color-accent-rgb: 96, 165, 250;
     --color-hover: rgba(255, 255, 255, 0.04);
     --color-shadow: rgba(0, 0, 0, 0.45);
     /* 毛玻璃导航栏：玻璃边缘高光（暗色下微妙，避免刺眼） */
     --color-glass-edge: rgba(255, 255, 255, 0.08);
+    /* 五字蓝调（同 hue 升 2 阶，深 paper 上读得清） */
+    --glyph-fall:  #93c5fd;  /* blue-300 */
+    --glyph-focus: #60a5fa;  /* blue-400 */
+    --glyph-bloom: #38bdf8;  /* sky-400 */
+    --glyph-swing: #a5b4fc;  /* indigo-300 */
+    --glyph-reach: #22d3ee;  /* cyan-400 */
+  }
+  /* OKLCH 升级层 — 第八批 audit 优化：
+     现代浏览器（Chrome 111+/Safari 15.4+/Firefox 113+）走 oklch()，
+     老浏览器 / 无 @supports 环境走上方 hex fallback（行内双语法）。
+     为什么用 OKLCH：
+     1. 感知一致的 lightness/chroma — hex 调暗/调亮时 hue 飘移，
+        OKLCH 的 L/C 三轴独立可控，调色更稳。
+     2. dark/light 主题切换时 hue 268°↔275° 这种微漂移肉眼不可见。
+     3. 未来加新 token 直接对齐 Tailwind v4 OKLCH 色板，无需手算 hex。
+     注意：--color-paper-rgb / --color-accent-rgb 是给 RGBA 调用用的三元组，
+     canvas-nest.js / canvas-ribbons.js / script.js 都通过 getComputedStyle 读它们作为 rgba 参数，
+     这两枚 token 必须继续以 R,G,B 整数形式保留（不能用 OKLCH 替代）。 */
+  @supports (color: oklch(0% 0 0)) {
+    :root {
+      --color-ink:     oklch(20.77% 0.040 265.8);   /* slate-900 */
+      --color-paper:   oklch(98.42% 0.003 247.9);   /* slate-50  */
+      --color-accent:  oklch(54.61% 0.215 262.9);   /* blue-600  */
+      --color-muted:   oklch(44.55% 0.037 257.3);   /* slate-600 */
+      --color-rule:    oklch(86.90% 0.020 252.9);   /* slate-300 */
+      --color-alt:     oklch(96.83% 0.007 247.9);   /* slate-100 */
+      --hero-greet:    oklch(62.31% 0.188 259.8);   /* blue-500 sub-accent */
+      --glyph-fall:    oklch(37.91% 0.138 265.5);   /* 落 — 海蓝 */
+      --glyph-focus:   oklch(42.44% 0.181 265.6);   /* 眸 — 中海蓝 */
+      --glyph-bloom:   oklch(50.00% 0.119 242.7);   /* 笑 — 晴蓝 */
+      --glyph-swing:   oklch(35.88% 0.135 278.7);   /* 歌 — 靛紫 */
+      --glyph-reach:   oklch(51.98% 0.094 223.1);   /* 触 — 青蓝 */
+    }
+    :root.theme-dark {
+      --color-ink:     oklch(92.88% 0.013 255.5);   /* slate-200 */
+      --color-paper:   oklch(20.77% 0.040 265.8);   /* slate-900 */
+      --color-accent:  oklch(71.37% 0.143 254.6);   /* blue-400  */
+      --color-muted:   oklch(71.07% 0.035 256.8);   /* slate-400 */
+      /* --color-rule  dark 用 rgba(148,163,184,0.16) 半透明叠加，保持文字层
+         上的 hairline 细节；OKLCH 等价表达：oklch(71% 0.035 257 / 16%) */
+      --color-rule:    oklch(71.07% 0.035 256.8 / 0.16);
+      --color-alt:     oklch(26.12% 0.040 263.5);   /* 深蓝灰 */
+      --hero-greet:    oklch(82.76% 0.101 230.3);   /* sky-300 */
+      --glyph-fall:    oklch(80.91% 0.096 251.8);   /* 落 — 浅蓝 */
+      --glyph-focus:   oklch(71.37% 0.143 254.6);   /* 眸 — 亮蓝 */
+      --glyph-bloom:   oklch(75.35% 0.139 232.7);   /* 笑 — 天蓝 */
+      --glyph-swing:   oklch(78.53% 0.104 274.7);   /* 歌 — 浅靛 */
+      --glyph-reach:   oklch(79.71% 0.134 211.5);   /* 触 — 亮青 */
+    }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 移动端点击时去掉系统默认的灰色半透明高亮（iOS Safari/Android Chrome 的
@@ -454,7 +513,6 @@
     }
     .nav-links { display: none; }
     /* 移动端只留主题切换；语言按钮（链接到 coming-soon）隐藏——它在抽屉里有等价入口 */
-    .nav-actions .nav-icon[aria-label="语言"],
     .nav-actions .nav-icon[aria-label="语言（建设中）"] { display: none; }
     #themeToggleDesktop { display: none; }
     /* 触摸目标 48x48：base .nav-icon 高度已经是 48，只强制 width=48 让按钮
@@ -527,27 +585,51 @@
     max-width: 1200px; margin: 0 auto;
     /* 文字列靠上 + 顶部留白适中（不贴顶不居中，留出呼吸） */
     padding: clamp(48px, 8vh, 96px) 16px clamp(48px, 7vh, 88px);
-    min-height: calc(100vh - 80px);
+    /* 第六十批：恢复 min-height 撑满首屏（nav 高 + hero 高 = 100svh），图片垂直居中在页面上下的中间。
+       第五十七批"移除 min-height"的折中（当时 hero 内容高 = 图片高才对齐）被 JS 锚点方案取代：
+       hero-text 底部 padding = --hero-anchor（JS 实测 (内容高-图高)/2），
+       把 layer-3 的 margin-top:auto 落点从 hero 底抬到图片底 → 图片居中 + 第三层跟图片底部对齐。
+       nav 高度公式与 .nav-inner 的 height clamp 完全一致，hero 恰好补满首屏剩余空间 */
+    min-height: calc(100vh - clamp(56px, 9.375vw - 16px, 80px));
+    min-height: calc(100svh - clamp(56px, 9.375vw - 16px, 80px));
     display: grid;
     /* 立绘列略宽于文字列：立绘是视觉主角（v35 前为 1.08fr/0.92fr，照片偏小） */
     grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
     gap: clamp(40px, 5vw, 72px);
-    align-items: start;
+    /* stretch：行高 = 首屏剩余高度，两列都撑满（图片列内部用 align-self:center 居中） */
+    align-items: stretch;
     overflow: clip;
   }
-  /* 左右列非对称对齐：文字靠上（内容锚点）、立绘垂直居中（视觉锚点） */
-  .hero-text { align-self: start; }
+  /* 左右列非对称对齐：文字列 stretch（占满首屏高）+ 图片列 center（垂直居中，页面上下的中间）。
+     layer-3 的 margin-top: auto 落点 = hero-text 内容盒底部，该底部被 hero-text 的
+     padding-bottom（--hero-anchor，JS 实测）垫到图片底部 → 第三层精准锚在图片底部。
+     2026-08-17 第六十批：JS 锚点方案（替代第五十七批"移除 min-height"的折中） */
+  .hero-text { align-self: stretch; }
   .hero-art  { align-self: center; }
 
   /* === 左：内容 === */
-  .hero-text { position: relative; z-index: 1; }
+  /* hero-text 改 flex column 容器：内部三层 .hero-layer 用 margin-top 阶梯管理间距（第六十批）。
+     层间间距不对称：gap(1→2) = clamp(32,5vw,56) 较小；gap(2→3) = margin-top:auto 吸收全部
+     剩余空间（≈ 首屏高 - 内容高）→ 恒大于 gap(1→2)，第三层被推到图片底部。
+     2026-08-17 第五十三批：原分散 margin-bottom(32/32/20/36/0) 无分组；第六十批改 margin 阶梯 */
+  .hero-text {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    /* 底部锚点：JS 实测 (内容高-图高)/2 写入 --hero-anchor，把 layer-3 的 margin-top:auto
+       落点从 hero 底抬到图片底（配合 .hero-layer-3） */
+    padding-bottom: var(--hero-anchor, 0px);
+  }
+  /* 第一层→第二层：小间距（紧凑，视觉上"标题+副题"成一组） */
+  .hero-layer-2 { margin-top: clamp(32px, 5vw, 56px); }
+  /* hero-layer 三层：每层是一个独立视觉单元，内部紧密、层间宽松。
+     gap: 14 是层内推荐值——比原分散 20-36 更紧凑，让"层"成为更强单元 */
+  .hero-layer { display: flex; flex-direction: column; gap: 14px; }
   .hero-welcome {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 15px; letter-spacing: 2.5px; text-transform: uppercase;
     color: var(--color-muted);
     /* 左起 accent 短横线点睛：与英文间留 10px，竖排对齐 */
     display: flex; align-items: center; gap: 10px;
-    margin-bottom: 32px;  /* 之前 28：与粒子标题间距太紧 */
   }
   .hero-welcome::before {
     content: '';
@@ -561,7 +643,6 @@
     font-family: 'IBM Plex Serif', serif;
     font-weight: 700;
     position: relative;
-    margin-bottom: 32px;
   }
   /* 标题文字：accent → 混白 45% 渐变（background-clip:text），普通 DOM 文本可选中/复制。
      inline-flex 包裹逐字 span：消除 inline-block 间隙（2026-08-17） */
@@ -597,28 +678,16 @@
     background: var(--color-accent);
     color: var(--color-paper);
   }
-  /* 屏幕阅读器专用文本（粒子画布是装饰，h1 语义文本靠它保留） */
-  .sr-only {
-    position: absolute;
-    width: 1px; height: 1px;
-    padding: 0; margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
   .hero-sub {
     font-size: 18px; line-height: 1.7;  /* 之前 1.8：略松 */
     color: var(--color-muted);
     max-width: 46ch;
-    margin-bottom: 20px;
   }
   .hero-type {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 17px;
     color: var(--color-ink);
     min-height: 30px; /* 打字过程中行高稳定，不跳动；字级 < 副标题(18px) */
-    margin-bottom: 36px;
   }
   .hero-type-caret {
     display: inline-block;
@@ -629,23 +698,47 @@
     animation: caret-blink 1s step-end infinite;
   }
   @keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-  .hero-meta {
-    display: flex; flex-direction: column; gap: 12px;
+  /* 第三层 hero-layer-3：原 .hero-meta 容器已合并到 hero-layer（继承 flex+gap）。
+     自有样式只保留字体（IBM Plex Mono 14px muted + 0.3px tracking）——
+     这是 meta 信息的视觉特征：辅助层、灰色 mono。
+     margin-top: auto 让第三层在 hero-text（align-self: stretch）内被推到 hero-text
+     内容盒底部；该底部被 hero-text 的 padding-bottom（--hero-anchor，JS 实测 (内容高-图高)/2）
+     抬到图片底部 → 第三层跟图片底部精准对齐。同时吸收全部剩余空间 → gap(2→3) > gap(1→2)。
+     2026-08-17 第六十批：JS 锚点方案（替代第五十七批"min-height:auto 靠运气对齐"） */
+  .hero-layer-3 {
     font-family: 'IBM Plex Mono', monospace;
     /* 辅助信息：明显小于副标题(18)/打字机(17)，拉开层级 */
     font-size: 14px; letter-spacing: 0.3px;
     color: var(--color-muted);
-    margin-bottom: 0;
+    margin-top: auto;
+    /* 第六十一批：主人反馈 meta 贴图片底太下 → margin-bottom 抬起固定距离
+       （margin-top:auto 先吸余量落到底部，再被 margin-bottom 抬升） */
+    margin-bottom: clamp(28px, 4vw, 48px);
   }
   .hero-meta-line {
     display: flex; align-items: center; gap: 12px;
     margin: 0;
   }
   .hero-meta-sep { color: var(--color-rule); }
-  /* 安安问候：按时间变化（早安/午安/晚安等），accent 点缀 */
+  /* 安安问候：按时间变化（早安/午安/晚安等）。
+     主人的反馈："时间后的 greet 加颜色" — 用 --hero-greet（sub-accent，
+     介于 accent 与 muted 之间）让 greet 在 meta 行有视觉重音，但不破坏 v99 audit
+     后 accent 严格 <2% 屏幅的密度（accent 仍只 3 处：hero 标题渐变 + eyebrow 短线 + caret）。
+     hero-greet 是 sub-accent，归类跟 accent 同族但定量克制（不去争 accent token）。 */
   .hero-greet {
-    color: var(--color-accent);
     font-weight: 500;
+    color: var(--hero-greet);
+  }
+  /* 时钟作为 meta 区视觉锚点：换 IBM Plex Serif 编辑式字体、加大字号 + 等宽数字 +
+     略大 letter-spacing 拉节奏感。跟日期/地点/天气（IBM Plex Mono 14px）形成
+     字体+字号双重区分，编辑式细节。
+     2026-08-17 第五十二批：原 IBM Plex Mono 14px（无差异化） */
+  #heroTime {
+    font-family: 'IBM Plex Serif', serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 1.5px;
+    font-variant-numeric: tabular-nums;
   }
 
   /* === 右：立绘卡片 === */
@@ -660,7 +753,10 @@
     border-radius: 20px;
     background: var(--color-alt);
     border: 1px solid var(--color-rule);
-    transform: rotate(-2deg) translate(-18px, 20px);
+    /* 外露偏移用百分比：底衬与卡片同尺寸，百分比会跟卡片尺寸缩放——
+       桌面端 ~540px 宽卡片时实际 ≈ 18×20px（原值），移动端 78vw 卡片时
+       自动缩到 ~9-11px，外露比例两端完全一致（2026-08-17 修） */
+    transform: rotate(-2deg) translate(-3.3%, 4.5%);
     z-index: 0;
     pointer-events: none;
     /* 入场：衬底先淡入露出纸边，照片随后斜切擦入（.entered 触发）。
@@ -705,18 +801,13 @@
     object-fit: cover;
     object-position: top center;
     transition: opacity 0.5s ease;
-    /* 长按防系统菜单：iOS 长按弹"存储图像/拷贝"、Android 弹"保存图片"、浏览器拖拽，
-       都会跟按压动画抢响应 → 全部禁用（长按冲突 2026-08-17 修）。
-       注意 -webkit-touch-callout 必须写在 img 元素上才生效 */
-    -webkit-touch-callout: none;
+    /* 移动端：长按出系统菜单（保存/拷贝/分享），点击无视觉反馈——浏览器原生接管。
+       保留 user-select/drag 禁用，避免文本选择 + 图片拖出。
+       2026-08-17 第五十一批：移除 -webkit-touch-callout 让 iOS 长按菜单恢复 */
     -webkit-user-select: none;
     user-select: none;
     -webkit-user-drag: none;
   }
-  .hero-art-img.img-missing { visibility: hidden; }
-  /* video 默认 inline → 强制 block 防基线间隙（与 img 行为一致） */
-  .hero-art-video { display: block; }
-
   /* 按压/回弹动画在 script.js 用 Web Animations API（element.animate）实现：
      mousedown 压扁 → mouseup 曲线回弹（back 缓动自带过冲）。
      --lift/--scale 变量由 hover 提供，动画读取同一套值保持一致 */
@@ -742,39 +833,49 @@
   .hero.entered .hero-art-card {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   }
-  /* poster 图始终 opacity 1，作为 LCP 元素；视频 opacity 0 藏在下面，
-     跨过解码后 JS 加 .ready → 0.3s 淡入覆盖 poster。clip-path 是卡片遮罩，
-     poster 和 video 都在卡片里 → 一同淡入。
-     2026-08-17 改为 poster-first：不再让视频是 LCP 候选 */
+  /* poster 图（现在静态图）始终 opacity 1，作为 LCP 元素；clip-path 是卡片遮罩，
+     静态图在卡片里一同淡入。
+     2026-08-17 晚：视频已移除，poster-first 双层结构改为单图结构 */
   .hero.entered .hero-art-base { opacity: 1; }
-  /* 视频解码闪烁屏蔽：首帧解码完成（canplay）后 JS 加 .ready，
-     0.3s 淡入——避免黑帧闪烁被肉眼感知 */
-  .hero-art-video { opacity: 0; transition: opacity 0.3s ease; }
-  .hero-art-video.ready { opacity: 1; }
 
   /* === Hero 底部滚动指示：SCROLL TO EXPLORE + 向下箭头 ===
-     底部居中、纯静态无动画（主人对动效敏感，hover 仅纯颜色切换） */
+     底部居中、纯静态无动画、纯展示不可点击（2026-08-17 取消点击功能：去掉 hover 颜色变化与 cursor:pointer） */
   .hero-scroll {
     position: absolute;
-    bottom: 24px;
+    /* 第五十八批：bottom 24→32px，让 SCROLL 跟 hero 底部距离更明确（"中心"位置）。
+       之前 24px 太贴底，看起来像 hero 区边缘的"装饰"。32px 让 SCOLL 视觉上是
+       hero 底部的独立视觉锚点 */
+    bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
     color: var(--color-muted);
-    text-decoration: none;
     z-index: 1;
-    transition: color 0.2s ease;
+    cursor: default;
   }
-  .hero-scroll:hover { color: var(--color-accent); }
+  /* 箭头是装饰：不可选中复制（保留纯展示语义），让 "SCROLL TO EXPLORE" 文字可选。
+     第八批 audit — 箭头原本用 accent 蓝，但它是纯装饰、不暗示可点击；改 muted 与正文同色，
+     让 accent 集中在 hero 标题渐变 + eyebrow 短线 + caret 三处，比例守住 <2% 屏幅。 */
   .hero-scroll-arrow {
     font-size: 16px; line-height: 1;
-    color: var(--color-accent);
+    color: var(--color-muted);
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* === 移动端（≤768px）：单列，文字上 / 立绘下 === */
   @media (max-width: 768px) {
+    /* 单列布局下"底部对齐"会让 meta 跑到图片之前——重置为默认 start 流式布局。
+       2026-08-17 第五十五批：继承自基线 .hero-text stretch + .hero-art end 会乱序 */
+    .hero-text { align-self: start; }
+    .hero-art  { align-self: start; }
+    /* 第六十批：移动端 hero-text 非 stretch，--hero-anchor 无意义（JS 置 0），
+       层间距改显式 margin 阶梯：gap(2→3) > gap(1→2) 在移动端也成立
+       第六十一批：margin-bottom 归零（桌面抬起逻辑只服务锚点布局，移动端流式不需要） */
+    .hero-layer-2 { margin-top: 28px; }
+    .hero-layer-3 { margin-top: 40px; margin-bottom: 0; }
     .hero {
       grid-template-columns: 1fr;
       /* 之前 gap 40px：视觉过疏，改 28px；上下 padding 8vw 过宽，改 7vw */
@@ -809,22 +910,19 @@
       /* --tilt 不覆盖：继承桌面 -2deg，与底片/桌面端视觉完全一致（2026-08-17 修）。
          图片已缩到 78vw，-2° 旋转投影 + base 偏移不再溢出（左缘 5px、右缘 49px 余量） */
     }
-    /* 衬底：与桌面完全同值（rotate -2° + translate -18/20），保证"底片"位置两端一致 */
-    .hero-art-base {
-      max-width: none;
-      margin: 0;
-      transform: rotate(-2deg) translate(-18px, 20px);
-    }
+    /* 衬底：translate 用百分比后自动跟卡片尺寸走（桌面 540px 时 ≈18×20px，
+       移动 78vw 时 ≈10×11px），无需再覆盖（2026-08-17 修外露比例不一致） */
     .hero-welcome {
       font-size: 14px;          /* 之前 15：移动端留白比例不需要那么显眼 */
-      margin-bottom: 24px;
     }
     .hero-sub { font-size: 17px; }   /* 之前 16：可读性提升 */
-    .hero-meta {
+    .hero-layer { gap: 10px; }      /* 移动端层内紧凑（2026-08-17 第五十三批） */
+    .hero-layer-3 {
       font-size: 14px;          /* 之前 13：太挤，错误可读性差 */
       gap: 10px;
     }
     .hero-meta-line { gap: 12px; }
+    #heroTime { font-size: 18px; letter-spacing: 1px; }   /* 时钟缩到 18px、tracking 收紧（2026-08-17 第五十二批） */
     .hero-scroll {
       position: static;
       transform: none;
@@ -848,13 +946,17 @@
            .story-intro-eyebrow(章节眉标) + 五字 + .story-intro-sub(副文案)
      交互：滚到过渡带 → sticky 钉住（页面视觉不动）→ 滚动只驱动字滑出/滑入
      → --pin-scroll 滚完（字全部滑出）→ sticky 释放 → 进入下一区域。
+     2026-08-17（第五十九批）：--pin-scroll 2000（移动 1600）；
+     pin 开始后前 30%（600px / 移动 480px）为"停留观看"区——五字完整静止，快滚也看得到；
+     滑出起/终缓冲 0.3/0.15 解耦 → 五字每字 220px 慢滑出（移动 176px）。
      背景透明：露出全屏 canvas 粒子背景（canvas-nest / ribbons）。
      排版：eyebrow 呼应 hero 的 WELCOME TO 模式（mono + accent 短线），
      五字 Serif 加大为视觉主角，副文案小号收尾——三行层级靠字号与留白。 */
   .story-pin {
     position: relative;
-    /* 100vh 可视区 + 滚动动画区（--pin-scroll，JS 同步读取同一变量） */
-    --pin-scroll: 1200px;
+    /* 100vh 可视区 + 滚动动画区（--pin-scroll，JS 同步读取同一变量）。
+       2000px = 全显驻留 600px（停留观看）+ 五字滑出 1100px（每字 220px）+ 眉标/副题 300px */
+    --pin-scroll: 2000px;
     height: calc(100vh + var(--pin-scroll));
   }
   .story-intro {
@@ -866,8 +968,6 @@
     text-align: center;
     padding: clamp(48px, 8vh, 96px) 16px;
     /* 背景透明：与 hero 完全一致，露出全屏 canvas 粒子背景 */
-    /* sticky nav (80px) 遮挡锚点目标顶部 → 滚动定位留出余量 */
-    scroll-margin-top: 80px;
     overflow: hidden;
   }
   /* 章节眉标：mono + accent 短线，与 hero-welcome 同款设计语言 */
@@ -880,6 +980,7 @@
     text-transform: uppercase;
     color: var(--color-muted);
     margin-bottom: clamp(24px, 4vh, 40px);
+    will-change: transform; /* 逐帧 transform（丝滑跟随）→ 提前合成层，防抖动 */
   }
   .story-intro-eyebrow::before,
   .story-intro-eyebrow::after {
@@ -891,7 +992,10 @@
   }
   .story-intro-glyphs {
     display: flex; align-items: baseline; justify-content: center;
+    flex-wrap: nowrap; /* 强制一行；窄屏字体回退时也不换行（第六十六批修移动端溢出） */
     gap: clamp(16px, 2.5vw, 36px);
+    white-space: nowrap;
+    max-width: 100%;
     font-family: 'IBM Plex Serif', serif;
     font-weight: 700;
     font-size: clamp(40px, 6vw, 64px);
@@ -904,13 +1008,25 @@
   .story-intro-glyphs .gi {
     display: inline-block;
     will-change: transform;
+    flex-shrink: 0; /* 字体回退时禁止收缩换位（第六十六批修移动端） */
   }
+  /* 五字不同色调 — 主人要「全不同蓝调、不能有黑有彩」——
+     light 走 deep blue 系（沉凝）, dark 走 light blue 对应（同 hue 升 2 阶确保深底可读）。
+     hue 跨 190-240°（blue / sky / indigo / cyan），全在冷色调家族内，没破坏站规气质。 */
+  .story-intro-glyphs .gi[data-anim="fall"]  { color: var(--glyph-fall); }
+  .story-intro-glyphs .gi[data-anim="focus"] { color: var(--glyph-focus); }
+  .story-intro-glyphs .gi[data-anim="bloom"] { color: var(--glyph-bloom); }
+  .story-intro-glyphs .gi[data-anim="swing"] { color: var(--glyph-swing); }
+  .story-intro-glyphs .gi[data-anim="reach"] { color: var(--glyph-reach); }
   .story-intro-glyphs .gi-sep {
     font-weight: 400;
+    flex-shrink: 0;
     font-size: 0.6em;
     color: var(--color-rule);
     letter-spacing: 0;
     transform: translateY(0.2em);
+    will-change: transform;
+    /* 进场/滑出时由 JS 写 inline transform（跟左边字同进退），默认样式仅在 JS 未接管时生效 */
   }
   .story-intro-sub {
     font-size: 15px;
@@ -926,7 +1042,8 @@
       height: 100svh;
     }
     .story-pin {
-      --pin-scroll: 960px;
+      /* 1600px = 驻留 480px + 五字滑出 880px（每字 176px）+ 眉标/副题 240px */
+      --pin-scroll: 1600px;
       height: calc(100svh + var(--pin-scroll));
     }
     .story-intro-eyebrow {
@@ -934,8 +1051,9 @@
       margin-bottom: 20px;
     }
     .story-intro-glyphs {
-      font-size: clamp(30px, 10vw, 44px);
-      gap: 12px;
+      /* 收紧字号+间距：390px 视口下 5字+4·+gap 不再溢出（第六十六批修） */
+      font-size: clamp(28px, 9vw, 40px);
+      gap: 8px;
       letter-spacing: 0.12em;
       margin-bottom: 18px;
     }
@@ -943,3 +1061,44 @@
   }
 
 
+
+  /* === Lenis 平滑滚动（第六十三批试用）===
+     Lenis 官方推荐 CSS：防止 scroll-behavior:smooth 干扰惯性、触屏滚动边界正确。
+     本站未设 scroll-behavior，此处主要是兜底 + overscroll 行为正确性 */
+  html.lenis, html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  /* === 落眸笑歌触 增强（第七十批）→ 第七十一批移除 ===
+     主人反馈：文字悬浮（悬停下划线/强调色）、首访 halo、底部进度条都不需要——
+     保持纯滑动触发，不加额外特效。已删除 .gi 的 ::before/::after、is-resting、is-revealed、
+     .story-intro-progress 全套；保留 .nav-brand 悬停下划线（非本区域、未反馈问题）。 */
+
+  /* === 整体 UI 增强 === */
+  /* Brand 微妙下划线（与 .nav-hover-indicator 同款风格：accent 色细线） */
+  .nav-brand { position: relative; }
+  .nav-brand::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 2px;
+    width: 0;
+    height: 2px;
+    background: var(--color-accent);
+    border-radius: 1px;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  .nav-brand:hover::after { width: 100%; }
+
+  /* Hero 标题：恢复纯色（第七十一批移除 125° ink 渐变——background-clip:text + color:transparent
+     在刷新/字体加载瞬间会闪出整块黑影，且与逐字 accent 渐变重叠。标题现在走 .hero-title-char 的 accent 渐变） */

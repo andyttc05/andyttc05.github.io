@@ -28,9 +28,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/images/hero-poster.webp?v=3" type="image/webp" fetchpriority="high">
+<link rel="preload" as="image" href="assets/images/catgirl_sailor.webp?v=5" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=82">
+<link rel="stylesheet" href="assets/css/style.css?v=101">
 </head>
 <body>
 
@@ -102,15 +102,22 @@
   <section class="hero" id="hero">
     <!-- 左：内容 -->
     <div class="hero-text">
-      <p class="hero-welcome">WELCOME TO</p>
-      <h1 class="hero-title">
-        <span class="hero-title-text" aria-label="时雨时猫"><span class="hero-title-char">时</span><span class="hero-title-char">雨</span><span class="hero-title-char">时</span><span class="hero-title-char">猫</span></span>
-      </h1>
-      <p class="hero-sub">在雨里编程，在代码里听雨。记录从零到一的成长，也分享每一个晴朗的日常。</p>
-      <p class="hero-type" aria-label="循环播放的句子">
-        <span class="hero-type-text" id="typewriter" aria-live="off"></span><span class="hero-type-caret" aria-hidden="true"></span>
-      </p>
-      <div class="hero-meta" id="heroMeta">
+      <!-- 第一层：眉标 + 主标题（最重，品牌层） -->
+      <div class="hero-layer hero-layer-1">
+        <p class="hero-welcome">WELCOME TO</p>
+        <h1 class="hero-title">
+          <span class="hero-title-text" aria-label="时雨时猫"><span class="hero-title-char">时</span><span class="hero-title-char">雨</span><span class="hero-title-char">时</span><span class="hero-title-char">猫</span></span>
+        </h1>
+      </div>
+      <!-- 第二层：副标题 + 打字机（中等，内容层） -->
+      <div class="hero-layer hero-layer-2">
+        <p class="hero-sub">在雨里编程，在代码里听雨。记录从零到一的成长，也分享每一个晴朗的日常。</p>
+        <p class="hero-type" aria-label="循环播放的句子">
+          <span class="hero-type-text" id="typewriter" aria-live="off"></span><span class="hero-type-caret" aria-hidden="true"></span>
+        </p>
+      </div>
+      <!-- 第三层：meta（最轻，状态层）—— 时钟 + 问候 + 日期/位置/天气 -->
+      <div class="hero-layer hero-layer-3">
         <p class="hero-meta-line">
           <span id="heroTime">--:--:--</span>
           <span class="hero-greet" id="heroGreet">安安</span>
@@ -123,34 +130,24 @@
       </div>
     </div>
 
-    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，视频在 assets/videos/hero-{desktop,mobile}.{webm,mp4}，webp/jpg 作 poster） -->
+    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底）
+         2026-08-17：经多批视频优化在移动端仍卡，最终落地为 catgirl_sailor.webp 静态图 -->
     <div class="hero-art">
       <div class="hero-art-base" aria-hidden="true"></div>
       <div class="hero-art-card">
-        <!-- poster 图（LCP 元素）：fetchpriority=high + webp 100KB，先于视频 paint，
-             让 LCP 落在静态图而非视频首帧（2026-08-17 性能优化：poster-first lazy video） -->
-        <img class="hero-art-img hero-art-poster"
-          src="assets/images/hero-poster.webp?v=3"
-          width="1112" height="834" alt=""
+        <img class="hero-art-img"
+          src="assets/images/catgirl_sailor.webp?v=5"
+          width="1280" height="1024"
+          alt="雨中的少女立绘"
           decoding="async" fetchpriority="high">
-        <!-- 视频：preload=none 不预取，由 script.js IntersectionObserver 进入视口后 load+play，
-             解码完成（canplay）淡入覆盖在 poster 之上 -->
-        <video class="hero-art-img hero-art-video"
-          muted loop playsinline
-          preload="none"
-          width="1112" height="834"
-          aria-label="动态立绘：雨中的少女，循环播放">
-          <source src="assets/videos/hero-desktop.webm?v=12" type="video/webm">
-          <source src="assets/videos/hero-desktop.mp4?v=12" type="video/mp4">
-        </video>
       </div>
     </div>
 
-    <!-- 底部滚动指示：SCROLL TO EXPLORE + 向下箭头（纯静态，无动画） -->
-    <a class="hero-scroll" href="#explore" aria-label="向下滚动探索">
+    <!-- 底部滚动指示：SCROLL TO EXPLORE + 向下箭头（纯静态、无动画、不可点击，2026-08-17 移除点击功能） -->
+    <div class="hero-scroll" aria-hidden="true">
       <span class="hero-scroll-text">SCROLL TO EXPLORE</span>
       <span class="hero-scroll-arrow" aria-hidden="true">&darr;</span>
-    </a>
+    </div>
   </section>
 
   <!-- === 过渡带：落眸笑歌触 五字目录（hero → 内容流 的 pinned 门） ===
@@ -186,10 +183,11 @@
   })();
 </script>
 
-<script src="assets/js/script.js?v=61"></script>
+<script src="assets/js/lenis.min.js"></script>
+<script src="assets/js/script.js?v=83"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
-<script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=3"></script>
+<script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=4"></script>
 <!-- 动态几何飘带背景（源自 bistutzyy.github.io 的 canvas-fluttering-ribbon / Ribbons 效果）。
      单色 accent 版，全屏滚动视差；切换主题时由 script.js 联动更新 -->
 <script id="fluttering_ribbon" defer="defer" src="assets/js/canvas-ribbons.js?v=3"></script>
