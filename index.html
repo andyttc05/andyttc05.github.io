@@ -28,11 +28,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/images/hero-poster.webp?v=2" type="image/webp">
-<link rel="preload" as="video" href="assets/videos/hero-desktop.webm?v=11" type="video/webm" media="(min-width: 769px)">
-<link rel="preload" as="video" href="assets/videos/hero-mobile.webm?v=11" type="video/webm" media="(max-width: 768px)">
+<link rel="preload" as="image" href="assets/images/hero-poster.webp?v=3" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=81">
+<link rel="stylesheet" href="assets/css/style.css?v=82">
 </head>
 <body>
 
@@ -129,14 +127,21 @@
     <div class="hero-art">
       <div class="hero-art-base" aria-hidden="true"></div>
       <div class="hero-art-card">
+        <!-- poster 图（LCP 元素）：fetchpriority=high + webp 100KB，先于视频 paint，
+             让 LCP 落在静态图而非视频首帧（2026-08-17 性能优化：poster-first lazy video） -->
+        <img class="hero-art-img hero-art-poster"
+          src="assets/images/hero-poster.webp?v=3"
+          width="1112" height="834" alt=""
+          decoding="async" fetchpriority="high">
+        <!-- 视频：preload=none 不预取，由 script.js IntersectionObserver 进入视口后 load+play，
+             解码完成（canplay）淡入覆盖在 poster 之上 -->
         <video class="hero-art-img hero-art-video"
           muted loop playsinline
-          preload="metadata"
-          poster="assets/images/hero-poster.webp?v=2"
+          preload="none"
           width="1112" height="834"
           aria-label="动态立绘：雨中的少女，循环播放">
-          <source src="assets/videos/hero-desktop.webm?v=11" type="video/webm">
-          <source src="assets/videos/hero-desktop.mp4?v=11" type="video/mp4">
+          <source src="assets/videos/hero-desktop.webm?v=12" type="video/webm">
+          <source src="assets/videos/hero-desktop.mp4?v=12" type="video/mp4">
         </video>
       </div>
     </div>
@@ -181,7 +186,7 @@
   })();
 </script>
 
-<script src="assets/js/script.js?v=60"></script>
+<script src="assets/js/script.js?v=61"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=3"></script>
