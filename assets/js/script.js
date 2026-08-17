@@ -4,9 +4,12 @@
     var closeBtn = document.getElementById('navMenuClose');
     var body = document.body;
 
-    /* === hero 视频移动端降级（2026-08-17 加）===
+    /* === hero 视频播放统一由 JS 接管（v60：修复移动端加载）===
        桌面加载 1112×834 (2MB) 视频；移动端 (≤768px) 改用 720p (708KB) 版本，省流量。
-       通过替换 source.src 实现，video.load() 重新解码。 */
+       HTML 已去 autoplay：video 元素不会在 source 替换前抢先下载 desktop 2MB（移动端白下）。
+       preload 由 head 的 <link rel=preload media=...> 分流：桌面预取 desktop，移动端预取 mobile。
+       iOS Safari 坑：load() 后 autoplay 属性不会重新触发播放（只在初始加载评估一次），
+       必须显式 play()；muted+playsinline 无手势限制。 */
     (function () {
       var v = document.querySelector('.hero-art-video');
       if (!v) return;
@@ -16,12 +19,17 @@
         for (var i = 0; i < sources.length; i++) {
           sources[i].src = sources[i].src.replace('hero-desktop', 'hero-mobile');
         }
-        v.load();
       }
+      v.load();
+      /* 任何平台都显式 play()（muted 自动播放无手势要求）；失败静默 */
+      var p = v.play();
+      if (p && p.catch) { p.catch(function () {}); }
       /* 等视频可播后淡入，屏蔽首帧解码闪烁（2026-08-17 加） */
       function reveal() { v.classList.add('ready'); }
       if (v.readyState >= 2) { reveal(); }
       else { v.addEventListener('canplay', reveal, { once: true }); }
+      /* 兜底：iOS 上 load() 后 canplay 偶发不触发，playing 一定触发 */
+      v.addEventListener('playing', reveal, { once: true });
     })();
     var themeToggle = document.getElementById('themeToggle');
     var themeToggleDesktop = document.getElementById('themeToggleDesktop');
