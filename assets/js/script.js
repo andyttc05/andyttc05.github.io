@@ -26,8 +26,7 @@
         if (window.RainNest) { window.RainNest.setColor(rgb); }
         if (window.RainRibbons) { window.RainRibbons.setColor(rgb); }
       }
-      /* hero 粒子文字（particle-text.js）重采样，跟随 --color-ink/--color-accent 变色 */
-      if (window.RainParticleText) { window.RainParticleText.refresh(); }
+      /* hero 标题颜色走 CSS 变量 --color-accent，主题切换自动变色，无需 JS 联动 */
       if (persist !== false) {
         try { localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light'); } catch (e) {}
       }
@@ -416,5 +415,8 @@
         artCard.addEventListener('touchstart', pressDown, { passive: true });
         artCard.addEventListener('touchend', releaseUp, { passive: true });
         artCard.addEventListener('touchcancel', releaseUp, { passive: true });
+        /* 滑动即取消按压：手指在图片上滑动（想滚页面）时立即恢复，不卡在 scale(0.97)。
+           passive 保留——不阻止默认滚动（2026-08-17 修） */
+        artCard.addEventListener('touchmove', releaseUp, { passive: true });
       }
     })();
