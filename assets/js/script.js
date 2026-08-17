@@ -3,6 +3,26 @@
     var menu = document.getElementById('navMenu');
     var closeBtn = document.getElementById('navMenuClose');
     var body = document.body;
+
+    /* === hero 视频移动端降级（2026-08-17 加）===
+       桌面加载 1112×834 (2MB) 视频；移动端 (≤768px) 改用 720p (708KB) 版本，省流量。
+       通过替换 source.src 实现，video.load() 重新解码。 */
+    (function () {
+      var v = document.querySelector('.hero-art-video');
+      if (!v) return;
+      var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+      if (isMobile) {
+        var sources = v.querySelectorAll('source');
+        for (var i = 0; i < sources.length; i++) {
+          sources[i].src = sources[i].src.replace('hero-desktop', 'hero-mobile');
+        }
+        v.load();
+      }
+      /* 等视频可播后淡入，屏蔽首帧解码闪烁（2026-08-17 加） */
+      function reveal() { v.classList.add('ready'); }
+      if (v.readyState >= 2) { reveal(); }
+      else { v.addEventListener('canplay', reveal, { once: true }); }
+    })();
     var themeToggle = document.getElementById('themeToggle');
     var themeToggleDesktop = document.getElementById('themeToggleDesktop');
     var themeLabelDesktop = document.getElementById('themeLabelDesktop');
@@ -419,4 +439,107 @@
            passive 保留——不阻止默认滚动（2026-08-17 修） */
         artCard.addEventListener('touchmove', releaseUp, { passive: true });
       }
+    })();
+
+    /* === 过渡带：pinned 门（sticky pin + 滚动 scrub） ===
+       交互（主人诉求）：
+         - hero 区：无动画，字在视口外自然不可见（CSS 默认显示，无需隐藏）
+         - 滚到过渡带 → .story-intro sticky 钉住 → 页面视觉不动
+         - 在 pin 内滚动：向下滚 → 字依次向下滑出；向上滚 → 字依次从下方滑入
+         - 全部字 + 眉标 + 副标题滑出（--pin-scroll 滚完）→ sticky 释放 → 进入下一区域
+       算法：
+         p = (scrollY - heroBottom) / PIN_SCROLL  ∈ [0, 1]
+         heroBottom = hero 底部文档坐标（JS 动态测量，兼容 nav/hero 高度变化）
+         PIN_SCROLL 从 CSS 变量 --pin-scroll 读取（与 .story-pin 高度保持同步）
+         字 i 滑出进度 prog_i = clamp((p - start_i) / slot, 0, 1)
+           start_i = MARGIN + i*slot，slot = (1 - 2*MARGIN) / n
+         字 opacity = 1 - prog_i；translateY = prog_i * HIDDEN_OFFSET（向下滑出）
+         眉标 + 副标题最后滑出（p ∈ [MARGIN+slot*n, 1]） */
+    (function () {
+      var hero = document.getElementById('hero');
+      var intro = document.getElementById('explore');
+      var pin = document.querySelector('.story-pin');
+      var glyphs = document.querySelector('.story-intro-glyphs');
+      var eyebrow = document.querySelector('.story-intro-eyebrow');
+      var sub = document.querySelector('.story-intro-sub');
+      if (!intro || !glyphs) return;
+      var chars = Array.prototype.slice.call(glyphs.querySelectorAll('.gi'));
+      var ticking = false;
+      var HIDDEN_OFFSET = 120;   /* 字进场/滑出的最大位移（px），从下方来、往下方去 */
+      var ENTRY_MARGIN = 0.1;    /* 进场缓冲：过渡带进入视口的前后各留 10% */
+      var MARGIN = 0.12;         /* 滑出缓冲：开头/结尾各留 12% 不触发动画 */
+
+      /* 与 .story-pin 高度配套：读 CSS 变量，改 CSS 一处即可（桌面 900px / 移动 720px） */
+      function pinScroll() {
+        var v = 900;
+        if (pin) {
+          try {
+            var raw = getComputedStyle(pin).getPropertyValue('--pin-scroll').trim();
+            if (raw) v = parseFloat(raw) || 900;
+          } catch (e) {}
+        }
+        return v;
+      }
+
+      function heroBottomY() {
+        if (!hero) return 0;
+        var r = hero.getBoundingClientRect();
+        return r.bottom + (window.scrollY || window.pageYOffset);
+      }
+
+      function update() {
+        ticking = false;
+        var sy = window.scrollY || window.pageYOffset;
+        var hb = heroBottomY();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var ps = pinScroll();
+
+        /* 进场进度 e：五字真正进入视口的窗口（字组中心从视口底到视口中部）
+           窗口 = 0.6*vh（约 480px）——字进入视口时才开跑，前几字动画全程可见
+           scrollY 从 hb-0.6vh 到 hb：e 从 0 → 1（pin 开始） */
+        var entryWindow = vh * 0.6;
+        var e = Math.min(1, Math.max(0, (sy - (hb - entryWindow)) / entryWindow));
+        /* 滑出进度 p：pin 内滚动（scrollY 从 hb 到 hb+ps）
+           p=0 全显示 → p=1 全滑出（sticky 释放） */
+        var p = Math.min(1, Math.max(0, (sy - hb) / ps));
+
+        var n = chars.length;
+        var slotE = (1 - 2 * ENTRY_MARGIN) / n; /* 进场每字窗口 0.16 */
+        var slotX = (1 - 2 * MARGIN) / n;       /* 滑出每字窗口 0.152 */
+
+        for (var i = 0; i < n; i++) {
+          var startE = ENTRY_MARGIN + i * slotE;
+          var startX = MARGIN + i * slotX;
+          /* 进场：字从下方 120px 浮现（左先右后）；滑出：字往下方走（左先右后） */
+          var en = Math.min(1, Math.max(0, (e - startE) / slotE));
+          var ex = Math.min(1, Math.max(0, (p - startX) / slotX));
+          var opacity = en * (1 - ex);
+          var offset = HIDDEN_OFFSET * ((1 - en) + ex);
+          chars[i].style.transform = 'translate3d(0, ' + offset.toFixed(1) + 'px, 0)';
+          chars[i].style.opacity = opacity.toFixed(2);
+        }
+        /* 眉标 + 副标题：最后进场（e 尾段），最后滑出（p 尾段），最后离场 */
+        var tailEStart = ENTRY_MARGIN + slotE * n;
+        var tailXStart = MARGIN + slotX * n;
+        var tEn = Math.min(1, Math.max(0, (e - tailEStart) / ENTRY_MARGIN));
+        var tEx = Math.min(1, Math.max(0, (p - tailXStart) / MARGIN));
+        var tOpacity = (tEn * (1 - tEx)).toFixed(2);
+        var tOffset = HIDDEN_OFFSET * 0.5 * ((1 - tEn) + tEx);
+        if (eyebrow) {
+          eyebrow.style.transform = 'translate3d(0, ' + tOffset.toFixed(1) + 'px, 0)';
+          eyebrow.style.opacity = tOpacity;
+        }
+        if (sub) {
+          sub.style.transform = 'translate3d(0, ' + tOffset.toFixed(1) + 'px, 0)';
+          sub.style.opacity = tOpacity;
+        }
+      }
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll);
+      update();
     })();
