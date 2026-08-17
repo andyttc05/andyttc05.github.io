@@ -261,8 +261,12 @@
         }
       }
 
-      /* --- 打字机：几句雨猫主题句子循环播放 --- */
+      /* --- 打字机：几句雨猫主题句子循环播放 ---
+         暂停/恢复接口（stopTypewriter/startTypewriter）：hero 滚出视口时停掉 setTimeout 链
+         （DOM 不再每 90ms 重排），滚回时从当前 ci/li 接着打（保留播放进度）。
+         pause 时清掉排队中的 timer、状态变量不动 → resume 时 tick() 自然续接 */
       var typeEl = document.getElementById('typewriter');
+      var typeTimer = null;
       if (typeEl) {
         var LINES = [
           '时雨时猫，雨落，码落。',
@@ -275,7 +279,7 @@
         var DELETE_MS = 42;      // 删除间隔
         var PAUSE_AFTER = 4000;  // 打完整句停顿（主人要求间隔增加）
         var PAUSE_BEFORE = 800;  // 删完到下一句停顿
-        var li = 0, ci = 0, deleting = false, timer = null;
+        var li = 0, ci = 0, deleting = false;
 
         function tick() {
           var line = LINES[li];
@@ -284,31 +288,42 @@
             typeEl.textContent = line.slice(0, ci);
             if (ci >= line.length) {
               deleting = true;
-              timer = setTimeout(tick, PAUSE_AFTER);
+              typeTimer = setTimeout(tick, PAUSE_AFTER);
               return;
             }
-            timer = setTimeout(tick, TYPE_MS);
+            typeTimer = setTimeout(tick, TYPE_MS);
           } else {
             ci -= 1;
             typeEl.textContent = line.slice(0, ci);
             if (ci <= 0) {
               deleting = false;
               li = (li + 1) % LINES.length;
-              timer = setTimeout(tick, PAUSE_BEFORE);
+              typeTimer = setTimeout(tick, PAUSE_BEFORE);
               return;
             }
-            timer = setTimeout(tick, DELETE_MS);
+            typeTimer = setTimeout(tick, DELETE_MS);
           }
         }
-        timer = setTimeout(tick, 700);
+        typeTimer = setTimeout(tick, 700);
+      }
+      function stopTypewriter() {
+        if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+      }
+      function startTypewriter() {
+        if (!typeEl || typeTimer) return;
+        typeTimer = setTimeout(tick, 200);
       }
 
       /* --- 时钟：时间 + 日期 + 安安问候（本地实时）
          中文页面（html lang 以 zh 开头）一律用中文日期时间格式（24h 制），
-         非中文页面才跟随设备语言；时区始终用设备本地时间 --- */
+         非中文页面才跟随设备语言；时区始终用设备本地时间
+         暂停/恢复接口（stopClock/startClock）：hero 滚出视口时停掉 setInterval
+         （DOM 不再每秒重排 + Intl 格式化 + greet 字符串运算），滚回时立即刷一次并恢复计时 */
       var timeEl = document.getElementById('heroTime');
       var dateEl = document.getElementById('heroDate');
       var greetEl = document.getElementById('heroGreet');
+      var clockTimer = null;
+      var tickClock = null;
       if (timeEl && dateEl) {
         var isZh = (document.documentElement.lang || '').toLowerCase().indexOf('zh') === 0;
         var fmtLang = isZh ? 'zh-HK' : (navigator.language || 'zh-HK');
@@ -328,14 +343,22 @@
           if (hour >= 18 && hour < 23) return '晚上好呀，今天也辛苦了。';
           return '夜深了，早点休息，照顾好自己。';
         }
-        function tickClock() {
+        tickClock = function () {
           var now = new Date();
           timeEl.textContent = timeFmt.format(now);
           dateEl.textContent = dateFmt.format(now);
           if (greetEl) greetEl.textContent = greetFor(now.getHours());
-        }
+        };
         tickClock();
-        setInterval(tickClock, 1000);
+        clockTimer = setInterval(tickClock, 1000);
+      }
+      function stopClock() {
+        if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+      }
+      function startClock() {
+        if (!tickClock || clockTimer) return;
+        tickClock();
+        clockTimer = setInterval(tickClock, 1000);
       }
 
       /* --- 位置 + 天气：IP 定位（ipwho.is，网络出口城市，无需授权弹窗）
@@ -466,6 +489,69 @@
           window.addEventListener('mouseup', releaseUp);
         }
       }
+
+      /* === 性能：hero 滚出视口 → 暂停打字机 + 时钟 + 全屏 canvas 背景 ===
+         IntersectionObserver 只观察 hero（不是 watch 全文档 scroll），开销 O(1)。
+         hero 整体在视口内（isIntersecting=true）→ 起动画；整体离开视口 → 全停。
+         滚回视口时打字机从上次停下的 ci/li 接着打（进度保留）；
+         时钟立即刷一次并恢复每秒更新；canvas 解除暂停恢复粒子动效。
+         故事带 story-pin 滚完（页面无装饰区）→ canvas 也暂停 */
+      if (hero && 'IntersectionObserver' in window) {
+        var perfIO = new IntersectionObserver(function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            if (e.target === hero) {
+              /* hero IO 控 typewriter/clock + 兜底 canvas（hero 不在视野则这两个必停） */
+              if (e.isIntersecting) {
+                startTypewriter();
+                startClock();
+                if (window.RainNest) window.RainNest.resume();
+                if (window.RainRibbons) window.RainRibbons.resume();
+              } else {
+                stopTypewriter();
+                stopClock();
+                if (window.RainNest) window.RainNest.pause();
+                if (window.RainRibbons) window.RainRibbons.pause();
+              }
+            } else if (sentinel && e.target === sentinel) {
+              /* sentinel IO 仅控 canvas：滚过 story-pin bottom + 1 屏后 →
+                 页面末尾无装饰区，画布纯浪费 */
+              if (e.isIntersecting) {
+                if (window.RainNest) window.RainNest.pause();
+                if (window.RainRibbons) window.RainRibbons.pause();
+              } else {
+                /* 滚回 sentinel 上方（用户回看 story-pin 或 hero）→ 解暂停。
+                   不检查 hero 状态：sentinel 离开视口意味着用户没到底，
+                   canvas 该跑就跑（hero IO 会同时触发，正好 double-resume 幂等） */
+                if (window.RainNest) window.RainNest.resume();
+                if (window.RainRibbons) window.RainRibbons.resume();
+              }
+            }
+          }
+        }, { threshold: 0 });
+
+        perfIO.observe(hero);
+
+        /* sentinel 放在 story-pin 底部 + 1 屏外 —— IO 在用户向下滚到 story-pin
+           底部以下 1 屏时触发 isIntersecting=true（页面末尾态）。
+           1px 元素 absolute 定位不影响布局；opacity:0 完全不可见 */
+        var sentinel = null;
+        var storyPin = document.querySelector('.story-pin');
+        if (storyPin) {
+          sentinel = document.createElement('div');
+          sentinel.setAttribute('aria-hidden', 'true');
+          sentinel.style.cssText = 'position:absolute;left:0;width:1px;height:1px;pointer-events:none;opacity:0;';
+          var placeSentinel = function () {
+            var r = storyPin.getBoundingClientRect();
+            var ab = r.bottom + (window.scrollY || 0);
+            sentinel.style.top = (ab + window.innerHeight) + 'px';
+          };
+          placeSentinel();
+          document.body.appendChild(sentinel);
+          window.addEventListener('resize', placeSentinel);
+          perfIO.observe(sentinel);
+        }
+      }
     })();
 
     /* === 过渡带：pinned 门（sticky pin + 滚动 scrub） ===
@@ -538,9 +624,30 @@
       }
 
       function heroBottomY() {
+        if (cachedHbY >= 0) return cachedHbY;
         if (!hero) return 0;
         var r = hero.getBoundingClientRect();
-        return r.bottom + (window.scrollY || window.pageYOffset);
+        cachedHbY = r.bottom + (window.scrollY || window.pageYOffset);
+        return cachedHbY;
+      }
+      /* hero 文档底部坐标 = r.bottom(viewport) + scrollY(window)。
+         hero 高度由 CSS + 字体加载 + 立绘图片决定，文档坐标在三种事件外保持不变：
+         1) window.resize（视口变化 → 字号/折行变 → hero 高度变）
+         2) document.fonts.ready（字体到达 → 重排）
+         3) 立绘图片 onload（intrinsic 尺寸确定 → aspect-ratio 生效）
+         缓存消除"每帧 getBoundingClientRect 强制同步布局"（热路径，桌面/移动均受益）。
+         不为打字机更新加 invalidate：文字长度相近，行数变化概率低；
+         即使 hero 高 1-2px，p/e 偏差 <1%，视觉无感（远小于 vh×0.45 的 entryWindow） */
+      var cachedHbY = -1;
+      function invalidateHbY() { cachedHbY = -1; }
+      window.addEventListener('resize', invalidateHbY);
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(invalidateHbY);
+      }
+      var hbImg = hero ? hero.querySelector('img') : null;
+      if (hbImg) {
+        if (hbImg.complete) invalidateHbY();
+        else hbImg.addEventListener('load', invalidateHbY);
       }
 
       function update() {

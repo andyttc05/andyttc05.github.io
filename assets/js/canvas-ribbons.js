@@ -15,16 +15,23 @@
     return fallback;
   }
 
+  var isMobileUA = /Android|webOS|iPhone|iPod|iPad|BlackBerry/i.test(navigator.userAgent);
   var config = {
     color: getCSSVar('--color-accent-rgb', '37,99,235'),
     colorAlpha: 0.22,         // 飘带整体透明度（降低：避免色块遮挡文字）
     verticalPosition: 'random',
     horizontalSpeed: 200,
-    ribbonCount: 2,           // 减少条数：弱化存在感
+    /* 移动端降 ribbonCount 到 1：2 条飘带 × 每条 ~500 section × 每帧 1 fillStyle
+       = 1000 fillStyle/frame。降到 1 → 500/frame（移动 GPU 省一半）。
+       单条飘带在 390×844 屏上仍能铺满视觉，存在感不丢 */
+    ribbonCount: isMobileUA ? 1 : 2,
     strokeSize: 0,
     parallaxAmount: -0.2,     // 滚动视差（原站调用值）
     animateSections: true
   };
+  /* DPR 上限：移动端 dpr=3 时物理像素 9×，单 fill 调用代价同步放大约 9×。
+     cap 在 2 → 像素面积降至 4/9（约 44% 开销下降），飘带仍肉眼锐利 */
+  var MAX_DPR = 2;
 
   function rand(min, max) { return Math.random() * (max - min) + min; }
   function viewport() {
@@ -66,13 +73,15 @@
     return points;
   }
 
-  /* 绘制一个 section；返回 true 表示已播完（淡出）可移除 */
-  function drawSection(ctx, section, scrollY) {
+  /* 绘制一个 section；返回 true 表示已播完（淡出）可移除。
+     视差 translate 是全局常量（所有 section 共用 scrollY*parallaxAmount），
+     由 animate() 在外层 save/translate → restore，省掉每 section 两次 GPU 状态变更 */
+  function drawSection(ctx, section) {
     if (section.phase >= 1 && section.alpha <= 0) return true;
     if (section.delay <= 0) {
       section.phase += 0.02;
-      section.alpha = Math.sin(section.phase);
-      section.alpha = Math.max(0, Math.min(section.alpha, 1));
+      var sinP = Math.sin(section.phase);
+      section.alpha = sinP < 0 ? 0 : (sinP > 1 ? 1 : sinP);
       if (config.animateSections) {
         var t = 0.1 * Math.sin(1 + section.phase * Math.PI / 2);
         var dx = section.dir === 'right' ? t : -t;
@@ -84,8 +93,6 @@
     }
     var a = section.alpha * config.colorAlpha;
     if (a <= 0) return false;
-    ctx.save();
-    if (config.parallaxAmount !== 0) ctx.translate(0, scrollY * config.parallaxAmount);
     ctx.beginPath();
     ctx.moveTo(section.point1.x, section.point1.y);
     ctx.lineTo(section.point2.x, section.point2.y);
@@ -98,7 +105,6 @@
       ctx.lineCap = 'round';
       ctx.stroke();
     }
-    ctx.restore();
     return false;
   }
 
@@ -112,36 +118,77 @@
   function resize() {
     var v = viewport();
     dpr = window.devicePixelRatio || 1;
+    var useDpr = Math.min(dpr, MAX_DPR);
     /* 高清：物理像素 = CSS 像素 × dpr，setTransform 保持逻辑坐标（Retina 下飘带锐利） */
     W = v.width; H = v.height;
-    canvas.width = Math.round(v.width * dpr);
-    canvas.height = Math.round(v.height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.width = Math.round(v.width * useDpr);
+    canvas.height = Math.round(v.height * useDpr);
+    ctx.setTransform(useDpr, 0, 0, useDpr, 0, 0);
   }
   function onScroll() { scrollY = viewport().scrollY; }
 
   var sections = [];
+  /* 暂停/恢复（移动端性能：滚到页底/页面切到后台 → 暂停飘带动画） */
+  var rafId = null;
+  var paused = false;
   function animate() {
+    if (paused) { rafId = null; return; }
     ctx.clearRect(0, 0, W, H);
-    sections.forEach(function (list, idx) {
-      if (!list) return;
-      list = list.filter(function (sec) { return !drawSection(ctx, sec, scrollY); });
-      sections[idx] = list.length ? list : null;
-    });
-    sections.forEach(function (list, idx) {
-      if (!list) sections[idx] = createSection(W, H);
-    });
-    requestAnimationFrame(animate);
+    /* 视差 translate 是全局常量（所有 section 共用同一偏移）—— 提到外层 save/restore，
+       省 ~500 section × 2 save/translate/restore = 1500 GPU 状态变更/帧 */
+    ctx.save();
+    if (config.parallaxAmount !== 0) ctx.translate(0, scrollY * config.parallaxAmount);
+    var needRecreate = false;
+    for (var i = 0; i < sections.length; i++) {
+      var list = sections[i];
+      if (!list) { needRecreate = true; continue; }
+      var next = null;
+      for (var j = 0; j < list.length; j++) {
+        /* drawSection 返回 true = 该 section 已淡完，从链上移除；
+           等同于原 filter(keep where !drawSection) 语义 */
+        if (!drawSection(ctx, list[j])) {
+          if (!next) next = [];
+          next.push(list[j]);
+        }
+      }
+      sections[i] = (next && next.length) ? next : null;
+      if (!sections[i]) needRecreate = true;
+    }
+    ctx.restore();
+    if (needRecreate) {
+      for (var k = 0; k < sections.length; k++) {
+        if (!sections[k]) sections[k] = createSection(W, H);
+      }
+    }
+    rafId = requestAnimationFrame(animate);
+  }
+  function pause() {
+    if (paused) return;
+    paused = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (ctx && W && H) ctx.clearRect(0, 0, W, H);
+  }
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    rafId = requestAnimationFrame(animate);
   }
 
   resize();
   window.addEventListener('resize', resize);
   window.addEventListener('scroll', onScroll, { passive: true });
+  /* 页面切到后台 → 自动暂停，节省移动端 CPU/电量 */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) pause(); else resume();
+  });
   for (var i = 0; i < config.ribbonCount; i++) sections.push(createSection(W, H));
-  animate();
+  if (!paused) rafId = requestAnimationFrame(animate);
 
-  /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb) */
+  /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb)
+     + 跨页滚到非装饰区时调用 pause()/resume() 节能 */
   window.RainRibbons = {
-    setColor: function (rgb) { config.color = rgb; }
+    setColor: function (rgb) { config.color = rgb; },
+    pause: pause,
+    resume: resume
   };
 })();
