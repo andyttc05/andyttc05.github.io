@@ -133,8 +133,12 @@
        桌面端取推荐区间最宽松值：blur 16px（8-16 上限）、saturate 120%（1.15-1.2 上限）、
        背景透明度 0.70（0.7-0.85 下限 = 最通透且文字可读） */
     background: rgba(var(--color-paper-rgb), 0.70);
-    -webkit-backdrop-filter: blur(16px) saturate(120%);
-    backdrop-filter: blur(16px) saturate(120%);
+    /* 性能（移动端）：backdrop-filter 是 sticky 元素的固定开销——每帧 GPU 重
+       合成背景采样。未滚动时 nav 下方只是页面背景（与 nav 自身同色），模糊无
+       视觉价值；只在 .scrolled 态启用模糊（移动端 blur 还降到 10px + 去 saturate）。
+       这是 mobile 主要 CPU/GPU 减负项之一 */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     border-bottom: 1px solid var(--color-rule);
     /* 玻璃边缘高光：一条极细的内顶高光，模拟光线打在玻璃上沿 */
     box-shadow: inset 0 1px 0 var(--color-glass-edge);
@@ -142,9 +146,21 @@
        主体 main 是空的，导航栏是用户首先看到的元素，这个"先声夺人"的开场合适。 */
     animation: nav-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+  /* 滚动后：背景保持半透明，启用毛玻璃（此时 nav 下方真有内容值得模糊）；
+     用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
+  .nav.scrolled {
+    background: rgba(var(--color-paper-rgb), 0.70);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(16px) saturate(120%);
+    box-shadow:
+      inset 0 1px 0 var(--color-glass-edge),
+      0 1px 12px var(--color-shadow);
+    will-change: backdrop-filter;
+  }
   /* 不支持 backdrop-filter 的浏览器：降级为不透明实色背景，保证可读性 */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .nav { background: var(--color-paper); }
+    .nav.scrolled { background: var(--color-paper); }
   }
   .nav-inner {
     /* max-width 1200px：介于 Bootstrap container-xl(1140) 和 container-xxl(1320) 之间的中间值，
@@ -505,11 +521,15 @@
      此处只覆盖 ≤768 时的：hamburger 接管 + nav-links 隐藏 + 桌面主题按钮隐藏 */
   @media (max-width: 768px) {
     body { font-size: 16px; }
-    .nav { width: 100%;
-      /* 移动端毛玻璃：blur 降到 12px（推荐 8-16 中位）+ saturate 120%，
-         减轻移动端 GPU 模糊开销，避免滚动卡顿 */
-      -webkit-backdrop-filter: blur(12px) saturate(120%);
-      backdrop-filter: blur(12px) saturate(120%);
+    .nav { width: 100%; }
+    /* 移动端 .scrolled 毛玻璃（性能）：
+       - 去 saturate(120%)：saturate 是昂贵色相滤镜，在 sticky 元素常驻
+         触发 GPU 重采样，对移动 GPU 是双倍开销（相比纯 blur）。
+       - blur 12 → 10px：毛玻璃感保留，移动 GPU blur 开销 ≈ 像素 × 模糊半径。
+       未滚动态继承基线 .nav 的 backdrop-filter: none（不模糊、纯半透色块） */
+    .nav.scrolled {
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
     }
     .nav-links { display: none; }
     /* 移动端只留主题切换；语言按钮（链接到 coming-soon）隐藏——它在抽屉里有等价入口 */
