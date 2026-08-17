@@ -28,9 +28,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/images/catgirl_sailor.webp?v=2" type="image/webp">
+<link rel="preload" as="image" href="assets/images/hero-poster.webp?v=2" type="image/webp">
+<link rel="preload" as="video" href="assets/videos/hero-desktop.webm?v=10" type="video/webm">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=67">
+<link rel="stylesheet" href="assets/css/style.css?v=81">
 </head>
 <body>
 
@@ -123,14 +124,19 @@
       </div>
     </div>
 
-    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，图在 assets/images/catgirl_sailor.{webp,jpg}） -->
+    <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底，视频在 assets/videos/hero-{desktop,mobile}.{webm,mp4}，webp/jpg 作 poster） -->
     <div class="hero-art">
       <div class="hero-art-base" aria-hidden="true"></div>
       <div class="hero-art-card">
-        <picture>
-          <source type="image/webp" srcset="assets/images/catgirl_sailor.webp?v=2">
-          <img class="hero-art-img" src="assets/images/catgirl_sailor.jpg?v=2" alt="二次元立绘：雨中的少女" width="1280" height="1024" decoding="async" fetchpriority="high" draggable="false" onerror="this.classList.add('img-missing')">
-        </picture>
+        <video class="hero-art-img hero-art-video"
+          autoplay muted loop playsinline
+          preload="auto"
+          poster="assets/images/hero-poster.webp?v=2"
+          width="1112" height="834"
+          aria-label="动态立绘：雨中的少女，循环播放">
+          <source src="assets/videos/hero-desktop.webm?v=10" type="video/webm">
+          <source src="assets/videos/hero-desktop.mp4?v=10" type="video/mp4">
+        </video>
       </div>
     </div>
 
@@ -140,6 +146,25 @@
       <span class="hero-scroll-arrow" aria-hidden="true">&darr;</span>
     </a>
   </section>
+
+  <!-- === 过渡带：落眸笑歌触 五字目录（hero → 内容流 的 pinned 门） ===
+       外层 .story-pin 高 = 100vh + 900px 滚动区（--pin-scroll，JS 同步读取）：
+       滚到过渡带 → sticky 钉住（页面视觉不动）→ 向下滚字依次滑出 / 向上滚字依次滑入
+       → 全部字+副标题滑出后（900px 滚完）sticky 释放，才进入下一区域 -->
+  <section class="story-pin">
+    <section class="story-intro" id="explore" aria-label="五个瞬间：落眸笑歌触">
+      <p class="story-intro-eyebrow">五 · 幕 · 雨</p>
+      <p class="story-intro-glyphs">
+        <span class="gi" data-anim="fall">落</span><span class="gi-sep" aria-hidden="true">·</span>
+        <span class="gi" data-anim="focus">眸</span><span class="gi-sep" aria-hidden="true">·</span>
+        <span class="gi" data-anim="bloom">笑</span><span class="gi-sep" aria-hidden="true">·</span>
+        <span class="gi" data-anim="swing">歌</span><span class="gi-sep" aria-hidden="true">·</span>
+        <span class="gi" data-anim="reach">触</span>
+      </p>
+      <p class="story-intro-sub">五个瞬间，一场雨</p>
+    </section>
+  </section>
+
 </main>
 
 <!-- nav 已解析完，立即设好主题文字 label，避免 dark 用户先看到"Dark"（深色背景深色文字）闪一下。
@@ -155,7 +180,7 @@
   })();
 </script>
 
-<script src="assets/js/script.js?v=34"></script>
+<script src="assets/js/script.js?v=59"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=3"></script>

@@ -714,6 +714,8 @@
     -webkit-user-drag: none;
   }
   .hero-art-img.img-missing { visibility: hidden; }
+  /* video 默认 inline → 强制 block 防基线间隙（与 img 行为一致） */
+  .hero-art-video { display: block; }
 
   /* 按压/回弹动画在 script.js 用 Web Animations API（element.animate）实现：
      mousedown 压扁 → mouseup 曲线回弹（back 缓动自带过冲）。
@@ -743,6 +745,10 @@
   .hero-art-img { opacity: 0; }
   .hero.entered .hero-art-img { opacity: 1; }
   .hero.entered .hero-art-base { opacity: 1; }
+  /* 视频解码闪烁屏蔽：首帧解码完成（canplay）后 JS 加 .ready，
+     0.3s 淡入——避免黑帧闪烁被肉眼感知（2026-08-17 加） */
+  .hero-art-video { opacity: 0; transition: opacity 0.3s ease; }
+  .hero-art-video.ready { opacity: 1; }
 
   /* === Hero 底部滚动指示：SCROLL TO EXPLORE + 向下箭头 ===
      底部居中、纯静态无动画（主人对动效敏感，hover 仅纯颜色切换） */
@@ -834,4 +840,104 @@
       --scale: 1;
     }
   }
+
+  /* === 过渡带：落眸笑歌触 五字目录（hero → 内容流 的 pinned 门） ===
+     结构：.story-pin(滚动区) > .story-intro(sticky 全屏) >
+           .story-intro-eyebrow(章节眉标) + 五字 + .story-intro-sub(副文案)
+     交互：滚到过渡带 → sticky 钉住（页面视觉不动）→ 滚动只驱动字滑出/滑入
+     → --pin-scroll 滚完（字全部滑出）→ sticky 释放 → 进入下一区域。
+     背景透明：露出全屏 canvas 粒子背景（canvas-nest / ribbons）。
+     排版：eyebrow 呼应 hero 的 WELCOME TO 模式（mono + accent 短线），
+     五字 Serif 加大为视觉主角，副文案小号收尾——三行层级靠字号与留白。 */
+  .story-pin {
+    position: relative;
+    /* 100vh 可视区 + 滚动动画区（--pin-scroll，JS 同步读取同一变量） */
+    --pin-scroll: 1200px;
+    height: calc(100vh + var(--pin-scroll));
+  }
+  .story-intro {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: clamp(48px, 8vh, 96px) 16px;
+    /* 背景透明：与 hero 完全一致，露出全屏 canvas 粒子背景 */
+    /* sticky nav (80px) 遮挡锚点目标顶部 → 滚动定位留出余量 */
+    scroll-margin-top: 80px;
+    overflow: hidden;
+  }
+  /* 章节眉标：mono + accent 短线，与 hero-welcome 同款设计语言 */
+  .story-intro-eyebrow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: clamp(24px, 4vh, 40px);
+  }
+  .story-intro-eyebrow::before,
+  .story-intro-eyebrow::after {
+    content: '';
+    width: 24px; height: 2px;
+    border-radius: 2px;
+    background: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .story-intro-glyphs {
+    display: flex; align-items: baseline; justify-content: center;
+    gap: clamp(16px, 2.5vw, 36px);
+    font-family: 'IBM Plex Serif', serif;
+    font-weight: 700;
+    font-size: clamp(40px, 6vw, 64px);
+    letter-spacing: 0.16em;
+    line-height: 1.1;
+    color: var(--color-ink);
+    margin-bottom: clamp(20px, 3.5vh, 32px);
+  }
+  /* 每字独立 span：JS 写 translate3d，will-change 预声明避免滚动抖动 */
+  .story-intro-glyphs .gi {
+    display: inline-block;
+    will-change: transform;
+  }
+  .story-intro-glyphs .gi-sep {
+    font-weight: 400;
+    font-size: 0.6em;
+    color: var(--color-rule);
+    letter-spacing: 0;
+    transform: translateY(0.2em);
+  }
+  .story-intro-sub {
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    color: var(--color-muted);
+    will-change: transform;
+  }
+
+  /* === 过渡带 移动端（≤768px） === */
+  @media (max-width: 768px) {
+    .story-intro {
+      /* 全屏 + iOS 地址栏兜底：svh 比 vh 稳 */
+      height: 100svh;
+    }
+    .story-pin {
+      --pin-scroll: 960px;
+      height: calc(100svh + var(--pin-scroll));
+    }
+    .story-intro-eyebrow {
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .story-intro-glyphs {
+      font-size: clamp(30px, 10vw, 44px);
+      gap: 12px;
+      letter-spacing: 0.12em;
+      margin-bottom: 18px;
+    }
+    .story-intro-sub { font-size: 14px; }
+  }
+
 
