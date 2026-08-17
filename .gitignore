@@ -13,3 +13,6 @@ __pycache__/
 
 # Reference / inspiration images (local only)
 inspo/
+
+# Local video re-encode backups (not for repo)
+assets/videos/*.bak

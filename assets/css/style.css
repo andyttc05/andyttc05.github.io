@@ -742,11 +742,13 @@
   .hero.entered .hero-art-card {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
   }
-  .hero-art-img { opacity: 0; }
-  .hero.entered .hero-art-img { opacity: 1; }
+  /* poster 图始终 opacity 1，作为 LCP 元素；视频 opacity 0 藏在下面，
+     跨过解码后 JS 加 .ready → 0.3s 淡入覆盖 poster。clip-path 是卡片遮罩，
+     poster 和 video 都在卡片里 → 一同淡入。
+     2026-08-17 改为 poster-first：不再让视频是 LCP 候选 */
   .hero.entered .hero-art-base { opacity: 1; }
   /* 视频解码闪烁屏蔽：首帧解码完成（canplay）后 JS 加 .ready，
-     0.3s 淡入——避免黑帧闪烁被肉眼感知（2026-08-17 加） */
+     0.3s 淡入——避免黑帧闪烁被肉眼感知 */
   .hero-art-video { opacity: 0; transition: opacity 0.3s ease; }
   .hero-art-video.ready { opacity: 1; }
 
