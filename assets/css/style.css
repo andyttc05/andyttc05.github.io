@@ -885,6 +885,21 @@
     user-select: none;
   }
 
+  /* === 矮视口兜底（2026-08-18 第六十四批）：缩放/DevTools 模拟小高度时 ===
+     根因：card 高 = min(列宽×0.8, 72vh)，矮视口被 72vh 限制变矮 → card 居中后
+     底缘离 hero 底越来越近；base 纸边固定下沉 4.5%（≈21px）直接侵入 bottom:32px 的
+     SCROLL 文字区（H≈685 起重叠）。SCROLL 抬升反而更糟（更靠近 base 底），
+     正解 = 按高度档位压缩纸边下沉量 + SCROLL 贴底。正常电脑/手机显示（高视口）
+     不受影响，纸边设计意图保留。 */
+  @media (max-height: 700px) {
+    .hero-art-base { transform: rotate(-2deg) translate(-3.3%, 1.5%); }
+    .hero-scroll { bottom: 24px; }
+  }
+  @media (max-height: 610px) {
+    .hero-art-base { transform: rotate(-2deg) translate(-3.3%, 0.5%); }
+    .hero-scroll { bottom: 20px; }
+  }
+
   /* === 移动端（≤768px）：单列，文字上 / 立绘下 === */
   @media (max-width: 768px) {
     /* 单列布局下"底部对齐"会让 meta 跑到图片之前——重置为默认 start 流式布局。
