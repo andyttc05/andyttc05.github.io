@@ -1143,8 +1143,10 @@
     contain: layout paint style;
     position: relative;
     --nav-h: 80px; /* 桌面 nav 高度(nav-inner height clamp 上限),给 .vslide sticky 让位 */
-    /* 每屏滚动行程:100vh = 过渡带(--pin-scroll 900px ≈ 100vh)同量级,滚动慢一拍、动画从容铺开 */
-    --pin-ext: 100vh;
+    /* 每屏滚动行程:222.2vh(2026-08-19 精确达标版,原 220vh)——Apple 风格 scrollytelling 标准:
+       每屏场景 150-400vh ✓ / 文字屏 1500-2000px ✓ / 1000px ≈ 1s ✓ / 5 段总 10000-20000px ✓。
+       222.2vh × 900px 视口 = 2000px/屏 = 文字屏上限;5 屏 = 10000px = 5 段页下限,双标精确命中 */
+    --pin-ext: 222.2vh;
   }
   /* 滚动区:100vh 屏 + --pin-ext 额外行程。sticky 释放点 = wrap 底部 */
   .vslide-wrap {
@@ -1408,10 +1410,11 @@
      visual(透明 WebP 立绘)统一自下滑入 / 向上滑出;sub 副文案延迟淡入淡出。 */
 
   /* === 移动端(≤768px)===
-     svh 兜底 + 短行程(--pin-ext 48vh,滚动快一点)+ 单列布局(巨字 + 副文案 + AI 图 垂直堆叠) */
+     svh 兜底 + 加长行程(--pin-ext 150vh,2026-08-19 依业界惯例调,原 130vh;移动端业界建议
+     简化/短行程,但主人反馈滚动快,故仍给足;~1265px/屏(390×844))+ 单列布局(巨字 + 副文案 + AI 图 垂直堆叠) */
   @media (max-width: 768px) {
     .vs-slides {
-      --pin-ext: 80vh;
+      --pin-ext: 150vh;
       --nav-h: 56px; /* 移动端 nav 高度(nav-inner height clamp 下限) */
     }
     .vslide {
