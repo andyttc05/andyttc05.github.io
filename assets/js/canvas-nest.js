@@ -18,12 +18,10 @@
     return v === null ? fallback : v;
   }
   /* 当前主题的 accent 色（CSS 变量 --color-accent-rgb），读不到则回退蓝 #2563eb */
+  /* 现代浏览器 getComputedStyle 总返回有效值,无 try/catch 兜底 */
   function accentRGB() {
-    try {
-      var v = getComputedStyle(document.documentElement).getPropertyValue('--color-accent-rgb').trim();
-      if (v) return v.replace(/\s+/g, '');
-    } catch (e) {}
-    return '37,99,235';
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--color-accent-rgb').trim();
+    return v ? v.replace(/\s+/g, '') : '37,99,235';
   }
 
   var config = {

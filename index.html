@@ -7,15 +7,14 @@
 <meta name="theme-color" content="#f8fafc">
 <title>rain.meow</title>
 <script>
-  (function () {
-    var saved = null;
-    try { saved = localStorage.getItem('rainmeow-theme'); } catch (e) {}
-    var dark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle('theme-dark', dark);
-    /* 同步设好 meta theme-color，避免 dark 用户首屏看到亮色地址栏闪一下 */
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
-  })();
+  /* 首屏防闪烁（2026-08-19 第三批：现代浏览器专属）
+     直接用 localStorage + matchMedia,无 typeof/try-catch 兜底
+     localStorage 在所有现代浏览器(隐私模式除外)都可用 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  /* 同步设好 meta theme-color,避免 dark 用户首屏看到亮色地址栏闪一下 */
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
 </script>
 <!-- 首屏防闪烁：把图标切换规则提前到内联 style，body 渲染前就生效，
      不依赖外部 style.css（图标规则在第 367 行，CSS 没应用完时两个 SVG 会同时可见） -->
@@ -30,7 +29,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/images/catgirl_sailor.webp?v=5" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=102">
+<link rel="stylesheet" href="assets/css/style.css?v=134">
+
 </head>
 <body>
 
@@ -168,28 +168,114 @@
     </section>
   </section>
 
+  <!-- === 落眸笑歌触 · 全屏钉住滑动(5 屏) · 统一全局背景 ===
+       结构:.vs-slides(普通块) > 5 × .vslide-wrap(滚动区,高 = 100vh + --pin-ext 行程) > .vslide(sticky 钉住,全屏)
+       机制(2026-08-18 由 scroll-snap 改 sticky pin):
+         - 每屏外层 .vslide-wrap 提供额外滚动行程;内层 .vslide position:sticky top:0 → 滚动时页面不移动,钉在视口
+         - JS 按局部进度 p = (scrollY - wrapTop) / ext ∈ [0,1] scrub 字和图片:
+             入场 p∈[0, .34] 巨字/副文案/图 各自 data-anim 位移滑入 + 淡入
+             驻留 p∈[.34, .66] 全元素静止(完整观看)
+             离场 p∈[.66, 1] 元素向另一方向滑出 + 淡出 → 行程滚完 sticky 释放 → 下一屏钉住
+             最后一屏「触」例外:主页终点无交接对象,p clamp 在 .66(全显钉住收官,不播离场)
+         - 动画语义:01 落 fall(坠入) / 02 眸 focus(对焦) / 03 笑 bloom(云涌) / 04 歌 swing(摇摆) / 05 触 reach(试探)
+         - 位置对角律动:01 mr / 02 cb / 03 ml / 04 bl(2026-08-19 镜像:字左图右) / 05 cb(避免同位节奏单调)
+         - 背景透明 → 露出全屏 canvas-nest 粒子 + ribbons 飘带(全局背景统一)
+         - 字体:巨字 IBM Plex Serif / 副文案 IBM Plex Sans(与 hero 同族,不引新字体)
+         - 文字三层:巨字 .vslide-glyph + 引子 .vslide-sub + 两行诗 .vslide-poem(2026-08-18 加,
+           填充版面留白;诗行复用 sub 的 scrub 延迟淡入锚点,见 script.js el 缓存)
+         - 章节号 .vslide-meta(2026-08-19 加 scrub):Mono 数字+横线+英文 kind,随滚动自上
+           滑入/上滑出,与巨字同拍(编辑式目录编号);底部图注 .vslide-note 已移除(主人要求)
+         - 视觉图:.vslide-visual 放透明 WebP 角色立绘(assets/images/vslide-{anim}.webp),
+                  object-fit:contain + align-self:end 统一底部对齐(每张图在页面底部);不引新字体 -->
+  <section class="vs-slides" id="vs-slides" aria-label="落眸笑歌触">
+    <div class="vslide-wrap">
+      <article class="vslide" data-anim="fall"  data-pos="mr" aria-labelledby="vs-glyph-0">
+        <div class="vslide-inner">
+          <div class="vslide-meta" aria-hidden="true"><span class="vslide-no">01</span><span class="vslide-rule"></span><span class="vslide-kind">fall</span></div>
+          <h2 class="vslide-glyph" id="vs-glyph-0"><span class="vslide-glyph-char">落</span></h2>
+          <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>雨滴落下的瞬间，心里也跟着静了</p>
+          <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>檐角的雨，数着心跳<br><span class="vslide-poem-line" aria-hidden="true"></span>一滴，就是一整夜</p>
+          <figure class="vslide-visual" data-visual="fall" aria-hidden="true">
+            <img class="vslide-img" src="assets/images/vslide-fall.webp?v=1" alt="" width="1200" height="1032" decoding="async" loading="lazy">
+          </figure>
+        </div>
+      </article>
+    </div>
+    <div class="vslide-wrap">
+      <article class="vslide" data-anim="focus" data-pos="cb" aria-labelledby="vs-glyph-1">
+        <div class="vslide-inner">
+          <div class="vslide-meta" aria-hidden="true"><span class="vslide-no">02</span><span class="vslide-rule"></span><span class="vslide-kind">focus</span></div>
+          <h2 class="vslide-glyph" id="vs-glyph-1"><span class="vslide-glyph-char">眸</span></h2>
+          <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>第一次抬眼看你，你也在看吗</p>
+          <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>目光穿过雨幕<br><span class="vslide-poem-line" aria-hidden="true"></span>落下来时，连呼吸都轻了</p>
+          <figure class="vslide-visual" data-visual="focus" aria-hidden="true">
+            <img class="vslide-img" src="assets/images/vslide-focus.webp?v=1" alt="" width="1200" height="1221" decoding="async" loading="lazy">
+          </figure>
+        </div>
+      </article>
+    </div>
+    <div class="vslide-wrap">
+      <article class="vslide" data-anim="bloom" data-pos="ml" aria-labelledby="vs-glyph-2">
+        <div class="vslide-inner">
+          <div class="vslide-meta" aria-hidden="true"><span class="vslide-no">03</span><span class="vslide-rule"></span><span class="vslide-kind">bloom</span></div>
+          <h2 class="vslide-glyph" id="vs-glyph-2"><span class="vslide-glyph-char">笑</span></h2>
+          <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>嘴角先于心事，扬了起来</p>
+          <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>笑意像水面上的光<br><span class="vslide-poem-line" aria-hidden="true"></span>一圈，一圈，荡开晴天</p>
+          <figure class="vslide-visual" data-visual="bloom" aria-hidden="true">
+            <img class="vslide-img" src="assets/images/vslide-bloom.webp?v=1" alt="" width="1200" height="989" decoding="async" loading="lazy">
+          </figure>
+        </div>
+      </article>
+    </div>
+    <div class="vslide-wrap">
+      <article class="vslide" data-anim="swing" data-pos="bl" aria-labelledby="vs-glyph-3">
+        <div class="vslide-inner">
+          <div class="vslide-meta" aria-hidden="true"><span class="vslide-no">04</span><span class="vslide-rule"></span><span class="vslide-kind">swing</span></div>
+          <h2 class="vslide-glyph" id="vs-glyph-3"><span class="vslide-glyph-char">歌</span></h2>
+          <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>走在路上，嘴里哼着没名字的调</p>
+          <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>脚步踩着节拍<br><span class="vslide-poem-line" aria-hidden="true"></span>风把旋律，捎去下一个路口</p>
+          <figure class="vslide-visual" data-visual="swing" aria-hidden="true">
+            <img class="vslide-img" src="assets/images/vslide-swing.webp?v=1" alt="" width="1200" height="856" decoding="async" loading="lazy">
+          </figure>
+        </div>
+      </article>
+    </div>
+    <div class="vslide-wrap">
+      <article class="vslide" data-anim="reach" data-pos="cb" aria-labelledby="vs-glyph-4">
+        <div class="vslide-inner">
+          <div class="vslide-meta" aria-hidden="true"><span class="vslide-no">05</span><span class="vslide-rule"></span><span class="vslide-kind">reach</span></div>
+          <h2 class="vslide-glyph" id="vs-glyph-4"><span class="vslide-glyph-char">触</span></h2>
+          <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>伸出手，想碰一下，又缩回来</p>
+          <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>指尖悬在半空<br><span class="vslide-poem-line" aria-hidden="true"></span>差一寸的距离，是全部的勇敢</p>
+          <figure class="vslide-visual" data-visual="reach" aria-hidden="true">
+            <img class="vslide-img" src="assets/images/vslide-reach.webp?v=1" alt="" width="1200" height="1033" decoding="async" loading="lazy">
+          </figure>
+        </div>
+      </article>
+    </div>
+  </section>
+
 </main>
 
 <!-- nav 已解析完，立即设好主题文字 label，避免 dark 用户先看到"Dark"（深色背景深色文字）闪一下。
      必须在 nav 之后、script.js 之前——同步执行，不依赖外部 JS 加载 -->
 <script>
-  (function () {
-    var dark = document.documentElement.classList.contains('theme-dark');
-    var label = dark ? 'Light' : 'Dark';
-    var d = document.getElementById('themeLabelDesktop');
-    var m = document.getElementById('themeLabelMobile');
-    if (d) d.textContent = label;
-    if (m) m.textContent = label;
-  })();
+  /* nav theme label 同步(2026-08-19):modern browsers 都支持 querySelector/textContent */
+  var dark = document.documentElement.classList.contains('theme-dark');
+  var label = dark ? 'Light' : 'Dark';
+  var d = document.getElementById('themeLabelDesktop');
+  var m = document.getElementById('themeLabelMobile');
+  d && (d.textContent = label);
+  m && (m.textContent = label);
 </script>
 
 <script src="assets/js/lenis.min.js"></script>
-<script src="assets/js/script.js?v=85"></script>
+<script src="assets/js/script.js?v=99"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=6"></script>
 <!-- 动态几何飘带背景（源自 bistutzyy.github.io 的 canvas-fluttering-ribbon / Ribbons 效果）。
      单色 accent 版，全屏滚动视差；切换主题时由 script.js 联动更新 -->
-<script id="fluttering_ribbon" defer="defer" src="assets/js/canvas-ribbons.js?v=5"></script>
+<script id="fluttering_ribbon" defer="defer" src="assets/js/canvas-ribbons.js?v=6"></script>
 </body>
 </html>
