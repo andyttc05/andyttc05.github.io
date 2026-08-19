@@ -29,10 +29,13 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/images/catgirl_sailor.webp?v=5" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=137">
+<link rel="stylesheet" href="assets/css/style.css?v=140">
 
 </head>
 <body>
+
+  <!-- 页面滑动进度条：固定在最顶部，压在 nav 上沿；宽度由 JS 按滚动进度 scaleX 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
   <nav class="nav" id="nav">
     <div class="nav-inner">
@@ -270,7 +273,7 @@
 </script>
 
 <script src="assets/js/lenis.min.js"></script>
-<script src="assets/js/script.js?v=99"></script>
+<script src="assets/js/script.js?v=102"></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=6"></script>

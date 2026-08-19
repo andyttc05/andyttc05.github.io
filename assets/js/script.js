@@ -17,6 +17,7 @@
     }
 
     var navEl = document.getElementById('nav');
+    var scrollProgressEl = document.getElementById('scrollProgress');
     var btn = document.getElementById('hamburgerBtn');
     var menu = document.getElementById('navMenu');
     var closeBtn = document.getElementById('navMenuClose');
@@ -192,11 +193,19 @@
       requestAnimationFrame(function() {
         if (window.scrollY > 8) { navEl.classList.add('scrolled'); }
         else { navEl.classList.remove('scrolled'); }
+        /* 顶部滑动进度条：scaleX(0→1)，分母 = 可滚动总高度（文档高 - 视口高） */
+        if (scrollProgressEl) {
+          var max = document.documentElement.scrollHeight - window.innerHeight;
+          var p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+          scrollProgressEl.style.transform = 'scaleX(' + p + ')';
+        }
         ticking = false;
       });
     }
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+    /* 视口高度变化（svh/地址栏）会改可滚动总高度 → resize 时重算进度 */
+    window.addEventListener('resize', onScroll, { passive: true });
 
     /* === Hero 区：入场动画 + 打字机 + 时钟 + 天气 ===
        注意：不做 prefers-reduced-motion 降级（主人系统开「减弱动态效果」，
@@ -610,15 +619,30 @@
       var vh = window.innerHeight || document.documentElement.clientHeight;
       var sy = 0;
 
-      /* 测量每屏滚动区几何:top = wrap 文档坐标,ext = 行程 = wrap高 - 屏高。
-         读实测(不读 CSS 变量)→ 改 --pin-ext 无需改 JS。 */
+      /* 测量每屏滚动区几何:top = 钉住起点(pin start),ext = 行程 = wrap高 - 屏高。
+         读实测(不读 CSS 变量)→ 改 --pin-ext 无需改 JS。
+         2026-08-19 修移动端"滑动内容闪没"(两处):
+         (1) ext 用 sticky 屏实测高,不用 wrapH - innerHeight —— 屏高是 100svh - navH,
+             真实钉住行程比 wrapH - innerHeight 长 navH px;旧公式少算 → p=1 提前到,
+             离场播完屏还钉着 → 交接缝空带。
+         (2) top 用钉住起点 = wrapTop - navH —— sticky 的 top 让位 navH,屏在 wrap 顶
+             进入视口前 navH px 就开始钉住;旧公式用 wrapTop → 每屏开头 navH px
+             钉住但 p=0(全隐)的"锁屏空带",且 p=1 比释放晚 navH px。
+         几何实测后 ext/top 与 URL 栏状态无关(iOS 收起/展开不重算,节奏稳定)。 */
       function measure() {
-        vh = window.innerHeight || document.documentElement.clientHeight;
+        var w = window.innerWidth;
+        if (w !== lastW) {
+          lastW = w;
+          vh = window.innerHeight || document.documentElement.clientHeight;
+        }
         for (var i = 0; i < slides.length; i++) {
           var d = slides[i];
           var r = d.wrap.getBoundingClientRect();
-          d.top = r.top + sy;
-          d.ext = Math.max(1, r.height - vh);
+          var st = d.wrap.querySelector('.vslide');
+          var sh = st ? st.getBoundingClientRect().height : vh;
+          var off = st ? (parseFloat(getComputedStyle(st).top) || 0) : 0;
+          d.top = r.top + sy - off;   /* 钉住起点 = wrap 顶 - nav 让位 */
+          d.ext = Math.max(1, r.height - sh);
         }
       }
 
@@ -689,6 +713,7 @@
 
       /* 几何失效:视口/字体/hero 图尺寸变化 → 重测 top/ext。
          hero 在 vslides 之前,hero 高度变化会平移所有 wrap 的文档坐标 */
+      var lastW = window.innerWidth;
       function invalidate() { measure(); scheduleUpdate(); }
       window.addEventListener('resize', invalidate);
       if (document.fonts && document.fonts.ready) {
