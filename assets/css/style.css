@@ -91,6 +91,13 @@
      全屏背景 canvas（负 z-index 绘制在 body 盒之下，只能在 body 盒外/页面下方露出） */
   html { background: var(--color-paper); color: var(--color-ink); }
   body { background: transparent; color: var(--color-ink); }
+  /* 隐藏浏览器原生滚动条（侧栏）：保留滚动能力，仅视觉隐藏。
+     - Firefox：scrollbar-width: none（标准）
+     - Chrome/Safari/Edge：::-webkit-scrollbar { display: none }
+     注意：scrollbar-gutter 不强制 stable，避免在隐藏滚动条后留出 15px 死空白
+     —— 主人偏好"内容贴边 + 用顶部进度条替代侧栏指示" */
+  html { scrollbar-width: none; }
+  ::-webkit-scrollbar { width: 0; height: 0; display: none; }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     line-height: 1.7; font-size: 17px;
@@ -101,6 +108,43 @@
      抽屉用 transform translateX 覆盖全屏，但 body 仍可滚动（position:fixed 不锁 scroll）。
      JS 在 openMenu 时加 .nav-open，closeMenu 时移除。 */
   body.nav-open { overflow: hidden; }
+
+  /* === 页面滑动进度条 ===
+     固定视口最顶部，压在 sticky nav 上沿（导航栏上方一条 3px 细线）。
+     scaleX 由 JS 按滚动进度驱动：transform 不触发重排，rAF 下零布局开销。
+     z-index 高于 nav(100)；pointer-events: none 不拦截任何点击。
+     色调与 5 段 glyph 律动同源（落/眸/笑/歌/触 L 阶梯 27→48→63→60→60，
+     hue 287°→263°→230°→285°→200°），做一个 270° 横向 conic 渐变。
+     浅色主题：左 indigo-700 → 右 sky-500，深色主题：两端各提亮 10-15%；
+     5 个色锚点扁平穿插，更像"章节色"而非单色 accent。
+     0.5alpha 让深底上不刺眼、浅底上不沉重；不用 transparent 端——两端深色
+     收尾更俐落，符合"进度条"语义。 */
+  .scroll-progress {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg,
+      oklch(45% 0.190 287) 0%,
+      oklch(50% 0.200 263) 30%,
+      oklch(63% 0.150 230) 55%,
+      oklch(60% 0.180 285) 78%,
+      oklch(60% 0.130 200) 100%);
+    transform: scaleX(0);
+    transform-origin: left center;
+    z-index: 200;
+    pointer-events: none;
+    will-change: transform;
+  }
+  :root.theme-dark .scroll-progress {
+    background: linear-gradient(90deg,
+      oklch(80% 0.110 275) 0%,
+      oklch(75% 0.180 260) 30%,
+      oklch(82% 0.140 225) 55%,
+      oklch(82% 0.130 285) 78%,
+      oklch(84% 0.130 200) 100%);
+  }
+  @media (max-width: 768px) {
+    .scroll-progress { height: 2px; }
+  }
 
   /* 导航栏登场动画：完全从屏幕外滑入 + 轻微缩放 + 淡入（hero motion）
      视觉上像是"导航栏从页面顶部外侧降下来盖住内容"，并伴随从 96% 缩放到 100% 的"近大远小"透视感。
@@ -1147,6 +1191,8 @@
        每屏场景 150-400vh ✓ / 文字屏 1500-2000px ✓ / 1000px ≈ 1s ✓ / 5 段总 10000-20000px ✓。
        222.2vh × 900px 视口 = 2000px/屏 = 文字屏上限;5 屏 = 10000px = 5 段页下限,双标精确命中 */
     --pin-ext: 222.2vh;
+    /* 屏间重叠(2026-08-19):下一屏提前 ov 进场,与上屏离场交叉淡化,消灭交接空带 */
+    --pin-ov: 180px;
   }
   /* 滚动区:100vh 屏 + --pin-ext 额外行程。sticky 释放点 = wrap 底部 */
   .vslide-wrap {
@@ -1157,10 +1203,18 @@
      下一屏 p=0(入场开始)原本在 wrapTop+vh+ext —— 中间隔一整屏 vh 空白滚动(主人反馈
      "空白页面过渡")。负 margin 把下一屏起点拉到本屏 p=1 处:
        上一屏字图移出完毕 → 下一屏字图即刻移入,过渡 = 纯字图移动,零空白。
-     公式:M = 屏高(= wrap高 - ext),不是 --pin-ext —— 移动端 --pin-ext:80vh ≠ 屏高,
-     用 -pin-ext 会残留 gap;svh 兜底(vh 在 iOS 地址栏收起/展开时不可靠)。 */
+     2026-08-19 修移动端"交接缝空带"(两处):
+       (1) 屏高必须是 sticky 屏实测高(100svh - navH,屏顶被 nav 让位 top:56/80),
+           不是 100svh —— 旧公式把下一屏提前 navH px 拉进,本屏离场未完且下一屏
+           刚进场(都不可见)的 ~56px 空带,手机滑动时两屏都不可见只露背景。
+       (2) 再加 --pin-ov 屏间重叠:下一屏提前 ov 进场,与上屏离场尾段交叉淡化 ——
+           上屏 easeOut 拖尾(p∈[.8,1] 时已近乎透明)期间下一屏已开始淡入,
+           连续滚动时永远有内容在换场,无空帧。重叠区两屏同时钉住:
+           下屏(DOM 靠后)叠在上屏之上,视觉 = 交叉淡化,双向滚动对称。
+     公式:M = 屏高 + 重叠 = (100svh - navH) + ov。navH/ov 变量继承自 .vs-slides
+     (mobile 56/120, desktop 80/180)。 */
   .vslide-wrap:not(:last-child) {
-    margin-bottom: calc(-1 * 100svh);
+    margin-bottom: calc(-1 * (100svh - var(--nav-h, 80px) + var(--pin-ov, 0px)));
   }
   /* 钉住的全屏卡:sticky 在 wrap 滚动区间内固定于视口顶部(页面不移动)。
      top 设为 nav 高度 → vslide 钉在 nav 下方,内容不被浮 nav 遮。 */
@@ -1416,6 +1470,7 @@
     .vs-slides {
       --pin-ext: 150vh;
       --nav-h: 56px; /* 移动端 nav 高度(nav-inner height clamp 下限) */
+      --pin-ov: 120px; /* 移动端屏间重叠(2026-08-19):与上屏离场交叉淡化 */
     }
     .vslide {
       height: calc(100svh - var(--nav-h, 56px));
