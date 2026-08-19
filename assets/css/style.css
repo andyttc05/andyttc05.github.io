@@ -1,50 +1,27 @@
+  /* 设计系统 token（2026-08-19 第三批：现代浏览器专属）
+     全部用 OKLCH 表达 ———
+     现代浏览器基准：Chrome 111+/Safari 15.4+/Firefox 113+
+     OKLCH 在 :root 默认定义(无 @supports gate),现代浏览器原生支持,
+     老浏览器读不到 OKLCH 会回退到 inherit (页面背景/文字非优雅但布局不受影响)
+     真正的 token 集中在下方 @supports oklch 块(已在前一轮加入)
+     此处只放 color-scheme + 基础兜底 */
   :root {
     color-scheme: light;
-    --color-ink: #0f172a;
-    --color-paper: #f8fafc;
-    --color-accent: #2563eb;
-    --color-rule: #cbd5e1;
-    --color-muted: #475569;
-    --color-alt: #f1f5f9;
-    /* greet 专属"sub-accent"：介于 --color-accent 与 --color-muted 之间的中间蓝 —
-       在 meta 行内给「安安」一档视觉重音，但不破坏 v99 audit 后
-       <2% 屏幅的 accent 密度（hero 标题 + eyebrow 短线 + caret 三处保留） */
-    --hero-greet: #3b82f6;  /* blue-500 比 accent(blue-600) 提亮 1 档 */
+    /* RGBA 调用的整数三元组（canvas/JS 读）—— 兜底用 hex,
+       现代浏览器在 @supports 块内被 OKLCH 替换为精确值 */
     --color-paper-rgb: 248, 250, 252;
     --color-accent-rgb: 37, 99, 235;
     --color-hover: rgba(0, 0, 0, 0.03);
     --color-shadow: rgba(0, 0, 0, 0.06);
-    /* 毛玻璃导航栏：玻璃边缘高光（亮色下明显） */
     --color-glass-edge: rgba(255, 255, 255, 0.55);
-    /* 五字蓝调（story-intro）：每个字一个 token，hue 跨 190-240° 在冷色调家族内，
-       light 走 deep blue（沉凝），dark 在 :root.theme-dark 里升 2 阶确保深底可读。 */
-    --glyph-fall:  #1e3a8a;  /* 落 — blue-900 海蓝 */
-    --glyph-focus: #1e40af;  /* 眸 — blue-800 中海蓝 */
-    --glyph-bloom: #0369a1;  /* 笑 — sky-700 晴蓝 */
-    --glyph-swing: #312e81;  /* 歌 — indigo-900 靛紫 */
-    --glyph-reach: #0e7490;  /* 触 — cyan-700 青蓝 */
   }
   :root.theme-dark {
     color-scheme: dark;
-    --color-ink: #e2e8f0;
-    --color-paper: #0f172a;
-    --color-accent: #60a5fa;
-    --color-rule: rgba(148, 163, 184, 0.16);
-    --color-muted: #94a3b8;
-    --color-alt: #1a2438;
-    --hero-greet: #7dd3fc;  /* sky-300 — dark 下浅亮蓝，meta 行内仍能跳出来 */
     --color-paper-rgb: 15, 23, 42;
     --color-accent-rgb: 96, 165, 250;
     --color-hover: rgba(255, 255, 255, 0.04);
     --color-shadow: rgba(0, 0, 0, 0.45);
-    /* 毛玻璃导航栏：玻璃边缘高光（暗色下微妙，避免刺眼） */
     --color-glass-edge: rgba(255, 255, 255, 0.08);
-    /* 五字蓝调（同 hue 升 2 阶，深 paper 上读得清） */
-    --glyph-fall:  #93c5fd;  /* blue-300 */
-    --glyph-focus: #60a5fa;  /* blue-400 */
-    --glyph-bloom: #38bdf8;  /* sky-400 */
-    --glyph-swing: #a5b4fc;  /* indigo-300 */
-    --glyph-reach: #22d3ee;  /* cyan-400 */
   }
   /* OKLCH 升级层 — 第八批 audit 优化：
      现代浏览器（Chrome 111+/Safari 15.4+/Firefox 113+）走 oklch()，
@@ -66,11 +43,18 @@
       --color-rule:    oklch(86.90% 0.020 252.9);   /* slate-300 */
       --color-alt:     oklch(96.83% 0.007 247.9);   /* slate-100 */
       --hero-greet:    oklch(62.31% 0.188 259.8);   /* blue-500 sub-accent */
-      --glyph-fall:    oklch(37.91% 0.138 265.5);   /* 落 — 海蓝 */
-      --glyph-focus:   oklch(42.44% 0.181 265.6);   /* 眸 — 中海蓝 */
-      --glyph-bloom:   oklch(50.00% 0.119 242.7);   /* 笑 — 晴蓝 */
-      --glyph-swing:   oklch(35.88% 0.135 278.7);   /* 歌 — 靛紫 */
-      --glyph-reach:   oklch(51.98% 0.094 223.1);   /* 触 — 青蓝 */
+      /* 5 段色调 OKLCH（2026-08-19 优化）：L/C/h 三轴独立可控,
+         落 18% 最沉 / 眸 54% 沉 / 笑 63% 亮 / 歌 58% 中 / 触 64% 亮 ——
+         L 节奏:沉-中-亮,跨 27-63%(原 36-52% 太密);
+         hue 200°/230°/263°/282°/285° = 85° 跨度,5 段均匀分布 */
+      /* 5 段色调 OKLCH(2026-08-19 第二轮：拉宽 L 节奏,落不再接近黑):
+         L 阶梯 27→48→60→60→63 = 落最暗 / 眸沉 / 笑亮 / 歌中 / 触亮
+         hue 200°→230°→263°→282°→285° = 85° 跨度 */
+      --glyph-fall:    oklch(27.00% 0.130 282.0);   /* 落 — indigo-900 深紫蓝 */
+      --glyph-focus:   oklch(48.00% 0.200 263.0);   /* 眸 — blue-700   海蓝 */
+      --glyph-bloom:   oklch(63.00% 0.150 230.0);   /* 笑 — sky-500    晴朗天蓝 */
+      --glyph-swing:   oklch(60.00% 0.180 285.0);   /* 歌 — violet-500 紫罗兰 */
+      --glyph-reach:   oklch(60.00% 0.130 200.0);   /* 触 — cyan-600   清透青蓝 */
     }
     :root.theme-dark {
       --color-ink:     oklch(92.88% 0.013 255.5);   /* slate-200 */
@@ -82,17 +66,20 @@
       --color-rule:    oklch(71.07% 0.035 256.8 / 0.16);
       --color-alt:     oklch(26.12% 0.040 263.5);   /* 深蓝灰 */
       --hero-greet:    oklch(82.76% 0.101 230.3);   /* sky-300 */
-      --glyph-fall:    oklch(80.91% 0.096 251.8);   /* 落 — 浅蓝 */
-      --glyph-focus:   oklch(71.37% 0.143 254.6);   /* 眸 — 亮蓝 */
-      --glyph-bloom:   oklch(75.35% 0.139 232.7);   /* 笑 — 天蓝 */
-      --glyph-swing:   oklch(78.53% 0.104 274.7);   /* 歌 — 浅靛 */
-      --glyph-reach:   oklch(79.71% 0.134 211.5);   /* 触 — 亮青 */
+      /* 5 段 dark OKLCH（2026-08-19 同步优化）：L 提到 70-85% 区间,
+         hue 维持与 light 一致,仅提亮 2-3 阶;chroma 微降避免深底刺眼 */
+      --glyph-fall:    oklch(75.00% 0.110 275.0);   /* 落 — indigo-300 浅紫蓝 */
+      --glyph-focus:   oklch(70.00% 0.180 260.0);   /* 眸 — blue-400   亮蓝 */
+      --glyph-bloom:   oklch(76.00% 0.140 225.0);   /* 笑 — sky-400    天蓝 */
+      --glyph-swing:   oklch(78.00% 0.130 285.0);   /* 歌 — violet-300 浅紫 */
+      --glyph-reach:   oklch(80.00% 0.130 200.0);   /* 触 — cyan-400   亮青 */
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 移动端点击时去掉系统默认的灰色半透明高亮（iOS Safari/Android Chrome 的
-     tap-highlight），按压反馈交给站内自定义的 :active 样式（变色/背景） */
-  * { -webkit-tap-highlight-color: transparent; }
+     tap-highlight），按压反馈交给站内自定义的 :active 样式（变色/背景）
+     tap-highlight-color 是 webkit 私有属性但标准属性所有现代浏览器都支持 */
+  * { tap-highlight-color: transparent; }
   /* 双击缩放/300ms 延迟只对可交互元素禁用（按钮/链接等：连点不放大、点击更跟手）。
      注意：touch-action 不能写在 * 或 html/body 上——根元素一旦声明手势归属，
      iOS Safari 会放弃对滑动手势的接管，导致页面下滑时浏览器搜索栏不再自动收起。
@@ -137,7 +124,6 @@
        合成背景采样。未滚动时 nav 下方只是页面背景（与 nav 自身同色），模糊无
        视觉价值；只在 .scrolled 态启用模糊（移动端 blur 还降到 10px + 去 saturate）。
        这是 mobile 主要 CPU/GPU 减负项之一 */
-    -webkit-backdrop-filter: none;
     backdrop-filter: none;
     border-bottom: 1px solid var(--color-rule);
     /* 玻璃边缘高光：一条极细的内顶高光，模拟光线打在玻璃上沿 */
@@ -150,18 +136,14 @@
      用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
   .nav.scrolled {
     background: rgba(var(--color-paper-rgb), 0.70);
-    -webkit-backdrop-filter: blur(16px) saturate(120%);
     backdrop-filter: blur(16px) saturate(120%);
     box-shadow:
       inset 0 1px 0 var(--color-glass-edge),
       0 1px 12px var(--color-shadow);
     will-change: backdrop-filter;
   }
-  /* 不支持 backdrop-filter 的浏览器：降级为不透明实色背景，保证可读性 */
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .nav { background: var(--color-paper); }
-    .nav.scrolled { background: var(--color-paper); }
-  }
+  /* backdrop-filter 降级已移除(2026-08-19 第三批:现代浏览器专属)
+     现代浏览器 Chrome 76+/Safari 18+/Firefox 103+ 全支持 backdrop-filter */
   .nav-inner {
     /* max-width 1200px：介于 Bootstrap container-xl(1140) 和 container-xxl(1320) 之间的中间值，
        导航栏 / 未来正文统一用这个宽度，1920 屏两侧各留 360px，比例舒服不空荡。
@@ -482,7 +464,7 @@
     height: 48px; padding: 0 12px; flex-shrink: 0;
     color: var(--color-ink); text-decoration: none;
     background: none; border: none; cursor: pointer;
-    -webkit-appearance: none; appearance: none;
+    appearance: none;
     border-radius: 8px;             /* 圆角统一：8px（之前 10px，跟 hamburger / nav-links a 一致） */
     transition: color 0.2s ease;
     position: relative; z-index: 1;
@@ -528,7 +510,7 @@
        - blur 12 → 10px：毛玻璃感保留，移动 GPU blur 开销 ≈ 像素 × 模糊半径。
        未滚动态继承基线 .nav 的 backdrop-filter: none（不模糊、纯半透色块） */
     .nav.scrolled {
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
     }
     .nav-links { display: none; }
@@ -610,7 +592,6 @@
        hero-text 底部 padding = --hero-anchor（JS 实测 (内容高-图高)/2），
        把 layer-3 的 margin-top:auto 落点从 hero 底抬到图片底 → 图片居中 + 第三层跟图片底部对齐。
        nav 高度公式与 .nav-inner 的 height clamp 完全一致，hero 恰好补满首屏剩余空间 */
-    min-height: calc(100vh - clamp(56px, 9.375vw - 16px, 80px));
     min-height: calc(100svh - clamp(56px, 9.375vw - 16px, 80px));
     display: grid;
     /* 立绘列略宽于文字列：立绘是视觉主角（v35 前为 1.08fr/0.92fr，照片偏小） */
@@ -676,7 +657,6 @@
   .hero-title-char {
     display: inline-block;
     background: linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent), #ffffff 45%) 100%);
-    -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -824,7 +804,6 @@
     /* 移动端：长按出系统菜单（保存/拷贝/分享），点击无视觉反馈——浏览器原生接管。
        保留 user-select/drag 禁用，避免文本选择 + 图片拖出。
        2026-08-17 第五十一批：移除 -webkit-touch-callout 让 iOS 长按菜单恢复 */
-    -webkit-user-select: none;
     user-select: none;
     -webkit-user-drag: none;
   }
@@ -876,12 +855,12 @@
     cursor: default;
   }
   /* 箭头是装饰：不可选中复制（保留纯展示语义），让 "SCROLL TO EXPLORE" 文字可选。
-     第八批 audit — 箭头原本用 accent 蓝，但它是纯装饰、不暗示可点击；改 muted 与正文同色，
-     让 accent 集中在 hero 标题渐变 + eyebrow 短线 + caret 三处，比例守住 <2% 屏幅。 */
+     2026-08-18 第六十五批：箭头恢复 accent 主色（之前是 muted 灰），给底部滚动指示一个
+     明确的视觉锚点；文字仍 muted 让"主语 + 装饰"层级清晰。accent 总占比仍 <2% 屏幅
+     （箭头 16px 在 hero 区可视范围里 ≈ 0.01%），不破坏"克制点睛"规则。 */
   .hero-scroll-arrow {
     font-size: 16px; line-height: 1;
-    color: var(--color-muted);
-    -webkit-user-select: none;
+    color: var(--color-accent);
     user-select: none;
   }
 
@@ -987,17 +966,24 @@
      背景透明：露出全屏 canvas 粒子背景（canvas-nest / ribbons）。
      排版：eyebrow 呼应 hero 的 WELCOME TO 模式（mono + accent 短线），
      五字 Serif 加大为视觉主角，副文案小号收尾——三行层级靠字号与留白。 */
+  /* story-pin 是独立 section,加 contain 防止 sticky 字滑出影响其他区域 */
   .story-pin {
+    contain: layout paint;
     position: relative;
     /* 100vh 可视区 + 滚动动画区（--pin-scroll，JS 同步读取同一变量）。
        2000px = 全显驻留 600px（停留观看）+ 五字滑出 1100px（每字 220px）+ 眉标/副题 300px */
     --pin-scroll: 2000px;
-    height: calc(100vh + var(--pin-scroll));
+    height: calc(100svh + var(--pin-scroll));
+    /* 与落页无缝交接(2026-08-18):五字全部滑出(p=1)在 pinTop+--pin-scroll,
+       而 .vs-slides 起点原在 pinTop+100vh+--pin-scroll —— 中间隔一整屏空白。
+       负 margin = 屏高,把落页起点拉到五字滑出完成点,过渡 = 字图移动,零空白。
+       与 .vslide-wrap 段间负 margin 同公式(M = 屏高 = wrap高 - ext)。 */
+    margin-bottom: calc(-1 * 100svh);
   }
   .story-intro {
     position: sticky;
     top: 0;
-    height: 100vh;
+    height: 100svh;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     text-align: center;
@@ -1137,3 +1123,373 @@
 
   /* Hero 标题：恢复纯色（第七十一批移除 125° ink 渐变——background-clip:text + color:transparent
      在刷新/字体加载瞬间会闪出整块黑影，且与逐字 accent 渐变重叠。标题现在走 .hero-title-char 的 accent 渐变） */
+
+  /* === 落眸笑歌触 · 全屏钉住滑动(5 屏) · 统一全局背景 ===
+     结构:.vs-slides(普通块) > 5 × .vslide-wrap(滚动区) > .vslide(sticky 钉住,全屏)
+     机制(2026-08-18 由 scroll-snap 改 sticky pin):
+       - wrap 高 = 100vh + --pin-ext 额外行程;vslide position:sticky top:0
+         → 滚动时页面不移动,屏钉在视口;行程滚完 sticky 释放 → 下一屏钉住
+      - JS 按 p∈[0,1] scrub 字和图片(transform/opacity/filter 全内联),CSS 只负责布局
+      - 元素初始 opacity:0(防 JS 首帧前 FOUC;JS 每帧写入覆盖,驻留段=1)
+      - 最后一屏「触」:JS clamp p∈[0,.66](不播离场,滚动到底全显钉住收官,
+        避免离场后露出 wrap 空尾 = 空白页;2026-08-18 修)
+     背景透明 → 露出全屏 canvas-nest 粒子 + ribbons 飘带(全局背景统一)。
+     位置对角律动:01 mr / 02 cb / 03 ml / 04 bl / 05 cb(避免同位节奏单调)。
+     字体:巨字 IBM Plex Serif / 副文案 IBM Plex Sans / 章节号 IBM Plex Mono。
+     章节号(01-05)参与滚动 scrub 自上滑入/上滑出(与巨字同拍)。
+     移动端:单列堆叠 + 短行程(--pin-ext 移动 80vh)。 */
+  /* vs-slides 5 屏是大块,加 contain 让 sticky 屏变化不影响其他屏 */
+  .vs-slides {
+    contain: layout paint style;
+    position: relative;
+    --nav-h: 80px; /* 桌面 nav 高度(nav-inner height clamp 上限),给 .vslide sticky 让位 */
+    /* 每屏滚动行程:100vh = 过渡带(--pin-scroll 900px ≈ 100vh)同量级,滚动慢一拍、动画从容铺开 */
+    --pin-ext: 100vh;
+  }
+  /* 滚动区:100vh 屏 + --pin-ext 额外行程。sticky 释放点 = wrap 底部 */
+  .vslide-wrap {
+    position: relative;
+    height: calc(100svh + var(--pin-ext, 100svh));
+  }
+  /* 相邻屏无缝交接(2026-08-18):wrap 高 = vh + ext,本屏 p=1(内容淡出完)在 wrapTop+ext,
+     下一屏 p=0(入场开始)原本在 wrapTop+vh+ext —— 中间隔一整屏 vh 空白滚动(主人反馈
+     "空白页面过渡")。负 margin 把下一屏起点拉到本屏 p=1 处:
+       上一屏字图移出完毕 → 下一屏字图即刻移入,过渡 = 纯字图移动,零空白。
+     公式:M = 屏高(= wrap高 - ext),不是 --pin-ext —— 移动端 --pin-ext:80vh ≠ 屏高,
+     用 -pin-ext 会残留 gap;svh 兜底(vh 在 iOS 地址栏收起/展开时不可靠)。 */
+  .vslide-wrap:not(:last-child) {
+    margin-bottom: calc(-1 * 100svh);
+  }
+  /* 钉住的全屏卡:sticky 在 wrap 滚动区间内固定于视口顶部(页面不移动)。
+     top 设为 nav 高度 → vslide 钉在 nav 下方,内容不被浮 nav 遮。 */
+  .vslide {
+    position: sticky;
+    top: var(--nav-h, 80px);
+    height: calc(100svh - var(--nav-h, 80px));
+    background: transparent;
+    overflow: hidden;
+  }
+  /* 2 列网格,文字左列 / 图右列(默认 middle-right)。
+     grid-template-rows 3 行 auto/1fr/auto = 3 个垂直锚点把整屏铺满(少留白):
+     glyph row1 顶部 / sub row2 中上(end 贴行底) / poem row3 中下(start 贴行顶) /
+     visual row1-3 右列全高底部对齐 —— 竖向从顶到低均匀分布,不再堆在左上角
+     (2026-08-19 底部图注移除后 4 行 → 3 行,poem 下留白更透气) */
+  .vslide-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: clamp(48px, 7vh, 72px) clamp(16px, 4vw, 48px) 6vh; /* 顶部加大,给 .vslide-meta 绝对定位让位 */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    column-gap: clamp(24px, 4vw, 56px);
+    row-gap: clamp(8px, 1.5vh, 16px);
+    align-items: stretch;
+  }
+  /* 章节号行(2026-08-19 重构):左上角小角标 — Mono 数字 + 横线 + 英文 kind
+     编辑式排版元素,给每段"目录编号",让 5 段像杂志章节而非孤立卡片。
+     默认 absolute 左上;cb(眸/触)居中顶部 —— 与大字"正下"对齐。
+     不参与 grid,绝对定位避免破坏现有 4 行 grid 节奏。
+     2026-08-19 加入滚动 scrub:JS spec.meta 驱动,随滚动自上滑入/上滑出(与巨字同拍),
+     transform 由 JS 覆写(故 cb 居中不用 translateX)。 */
+  .vslide-meta {
+    position: absolute;
+    top: clamp(20px, 3.2vh, 32px);
+    left: clamp(16px, 4vw, 48px);
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1.2vw, 14px);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(10.5px, 1.25vh, 12.5px);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0.22em; /* 宽字距小字 = 编辑/印刷感 */
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 2;
+    will-change: opacity, transform;
+  }
+  .vslide-no { font-weight: 500; opacity: 0.9; }
+  .vslide-rule { display: block; width: 22px; height: 1px; background: currentColor; opacity: 0.45; flex: none; }
+  .vslide-kind { font-weight: 400; opacity: 0.72; }
+  /* 5 段 meta 色调 —— 用各自主色,小标比大字略暗 */
+  .vslide[data-anim="fall"]  .vslide-meta { color: color-mix(in oklab, var(--glyph-fall)  85%, var(--color-ink) 15%); }
+  .vslide[data-anim="focus"] .vslide-meta { color: color-mix(in oklab, var(--glyph-focus) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="bloom"] .vslide-meta { color: color-mix(in oklab, var(--glyph-bloom) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="swing"] .vslide-meta { color: color-mix(in oklab, var(--glyph-swing) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="reach"] .vslide-meta { color: color-mix(in oklab, var(--glyph-reach) 85%, var(--color-ink) 15%); }
+  /* 巨字居中(cb 眸/触)时,meta 跟大字对位 → 顶居中。
+     不用 translateX(-50%) 居中 —— JS 滚动 scrub 每帧覆写 transform,translateX 会被挤掉;
+     left+right+margin auto 纯静态居中,与 JS 位移(translate3d)共存 */
+  .vslide[data-pos="cb"] .vslide-meta {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+  }
+  /* 巨字右上(ml 笑)时,meta 跟大字对位 → 右上(顶右) */
+  .vslide[data-pos="ml"] .vslide-meta {
+    left: auto;
+    right: clamp(16px, 4vw, 48px);
+  }
+  /* 巨字:5 段独立色调(2026-08-19 重构,基于主人"帮文字上色"+ 编辑式排版思路)
+     —— 落 海蓝/眸 中海蓝/笑 晴蓝/歌 靛紫/触 青蓝,五色同源蓝色家族,微差 hue 跨 ~60°
+     配合"小字彩/大字彩更深"的双层彩策略,屏幅 accent 占比从原 ~2% 升到 ~3-4% —— 更编辑。
+     字号放大上限 184,字距收紧到 -0.04em,line-height 0.92 —— 更紧凑的"标题大字" */
+  .vslide-glyph {
+    margin: 0;
+    grid-column: 1;
+    grid-row: 1;
+    font-family: 'IBM Plex Serif', serif;
+    font-weight: 700;
+    font-size: clamp(96px, 16.5vh, 184px);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: var(--glyph-fall); /* 默认值;每段被下面 5 段独立选择器覆盖 */
+    align-self: start;
+    justify-self: start;
+    will-change: transform, opacity, filter;
+  }
+  /* 5 段独立色调 —— 每段一个情绪色 */
+  .vslide[data-anim="fall"]  .vslide-glyph { color: var(--glyph-fall); }
+  .vslide[data-anim="focus"] .vslide-glyph { color: var(--glyph-focus); }
+  .vslide[data-anim="bloom"] .vslide-glyph { color: var(--glyph-bloom); }
+  .vslide[data-anim="swing"] .vslide-glyph { color: var(--glyph-swing); }
+  .vslide[data-anim="reach"] .vslide-glyph { color: var(--glyph-reach); }
+  .vslide-glyph-char {
+    display: inline-block;
+  }
+  /* 副文案:巨字下方,row2 中上部(end 贴行底 → 屏幕 ~1/3 处,与诗行拉开)
+     2026-08-19 02:35:字级优化(层级分明:glyph 168 / sub 24 / poem 19 / note 14) */
+  /* 引子(2026-08-19 重构):
+     - 前置 .vslide-sub-mark 短破折号,作为"开场白"标志(视觉开场感,非纯文字);
+     - 颜色改用"主色降阶" color-mix(主色 72% + ink 28%)—— 5 段各自微妙色偏;
+       不再纯灰,保留每段色调识别度,屏幅仍克制(主色不再 100% 饱和);
+     - 字号/字距微调,给诗行让位;max-width 拉到 44ch(呼吸更宽) */
+  .vslide-sub {
+    margin: 0;
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    justify-self: start;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 500;
+    font-size: clamp(17px, 2.3vh, 24px);
+    line-height: 1.55;
+    letter-spacing: 0.04em;
+    color: var(--color-muted); /* 默认;5 段独立覆写 */
+    max-width: 44ch;
+    will-change: transform, opacity, filter;
+  }
+  /* 引子前短破折号(2026-08-19):em-dash 字符,字号同副文案,字距 0;
+     渲染成"—— "效果但更紧凑;只占一格字宽,呼吸感强 */
+  .vslide-sub-mark {
+    display: inline-block;
+    width: clamp(20px, 2.2vw, 30px);
+    height: 1px;
+    margin-right: clamp(10px, 1.2vw, 16px);
+    margin-bottom: clamp(4px, 0.5vh, 7px);
+    background: currentColor;
+    opacity: 0.55;
+    vertical-align: middle;
+  }
+  /* 5 段引子色调 —— 主色 72% + ink 28%(亮色主题:柔和色调;暗色主题:降阶彩色) */
+  .vslide[data-anim="fall"]  .vslide-sub { color: color-mix(in oklab, var(--glyph-fall)  72%, var(--color-ink) 28%); }
+  .vslide[data-anim="focus"] .vslide-sub { color: color-mix(in oklab, var(--glyph-focus) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="bloom"] .vslide-sub { color: color-mix(in oklab, var(--glyph-bloom) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="swing"] .vslide-sub { color: color-mix(in oklab, var(--glyph-swing) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="reach"] .vslide-sub { color: color-mix(in oklab, var(--glyph-reach) 72%, var(--color-ink) 28%); }
+  /* 两行诗:row3 中下部(start 贴行顶 + margin-top 拉开与引子的距离 → 屏幕 ~65% 处),
+     字号更小 + 行距更开(编辑式留白感);2026-08-18 加,scrub 锚点复用 sub(见 script.js el 缓存) */
+  /* 诗行(2026-08-19 重构):
+     - 每行前加 .vslide-poem-line 细竖线(编辑式分行,杂志感);
+     - 颜色主色 50% + ink 50%(比引子更柔,符合"诗句 ≤ 引子"的视觉权重);
+     - 字号微调,字距拉到 0.16em(更"诗"的呼吸);max-width 22ch 更紧凑(短行诗感) */
+  .vslide-poem {
+    margin: clamp(56px, 8vh, 96px) 0 0;
+    grid-column: 1;
+    grid-row: 3;
+    align-self: start;
+    justify-self: start;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    font-size: clamp(14.5px, 1.85vh, 19px);
+    line-height: 2.05;
+    letter-spacing: 0.16em; /* 更诗感 */
+    color: var(--color-muted); /* 默认;5 段独立覆写 */
+    max-width: 22ch;
+    will-change: transform, opacity, filter;
+  }
+  /* 诗行前细竖线(2026-08-19):CSS border-left 不好跨 br 控制,改 inline-block span + 背景;
+     高度 1em 跟当前行字高同步,自动随 line-height 缩放;左间距 0.5em */
+  .vslide-poem-line {
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    margin-right: 0.7em;
+    background: currentColor;
+    opacity: 0.32;
+    vertical-align: middle;
+    transform: translateY(-0.1em);
+  }
+  /* 5 段诗句色调 —— 主色 50% + ink 50%(比引子更柔) */
+  .vslide[data-anim="fall"]  .vslide-poem { color: color-mix(in oklab, var(--glyph-fall)  50%, var(--color-ink) 50%); }
+  .vslide[data-anim="focus"] .vslide-poem { color: color-mix(in oklab, var(--glyph-focus) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="bloom"] .vslide-poem { color: color-mix(in oklab, var(--glyph-bloom) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="swing"] .vslide-poem { color: color-mix(in oklab, var(--glyph-swing) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="reach"] .vslide-poem { color: color-mix(in oklab, var(--glyph-reach) 50%, var(--color-ink) 50%); }
+
+  /* AI 图:透明 WebP 角色立绘,统一底部对齐(align-self:end 覆盖默认 center)。
+     盒子不设 aspect-ratio → 高度跟随 img 自身比例(width 100% / height auto),
+     所有图显示宽度一致 = 落的大小(640);方图(眸 1:1)自然更高,不再 letterbox 留边变小
+     (2026-08-18 晚:从固定 3/2 盒子改图自身比例,解决 5 图大小不一致) */
+  .vslide-visual {
+    margin: 0;
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: end;
+    justify-self: center;
+    position: relative;
+    width: min(42vw, 500px); /* 2026-08-18 晚:主人定稿"全部改为 500" */
+    display: block;
+    overflow: hidden;
+    will-change: transform;
+  }
+  .vslide-img {
+    width: 100%;
+    height: auto; /* 高度跟随自身纵横比(落 1.4:1 横 / 眸 1:1 方 / 其余 ~1.16-1.21) */
+    display: block;
+    pointer-events: none;
+  }
+  /* data-pos 5 段位置对角律动 —— glyph + sub + visual 的 grid 列偏移
+     默认:glyph/sub 左列,visual 右列垂直居中(middle-right = mr)
+     2026-08-19 09:15 优化横向留白(主人反馈"有些段右边空/左边空/中间空",手机版单列无此问题):
+       字列位置 左/中/右/左/中,图位置 右/中/左/右/中 —— 每屏字+图覆盖左右两侧,消灭空侧 */
+  /* mr (落,2026-08-19 改):字左图右 — 原"字中右+图右"左半屏全空,改字左列+图右列(同 bl 式);
+     09:19 再优化"中间空":sub/poem 左列居中(sub 垂直上移行中),填 glyph-图 之间竖带 */
+  .vslide[data-pos="mr"] .vslide-glyph  { grid-column: 1; justify-self: start; }
+  .vslide[data-pos="mr"] .vslide-sub    { grid-column: 1; justify-self: center; text-align: center; align-self: center; }
+  .vslide[data-pos="mr"] .vslide-poem   { grid-column: 1; justify-self: center; text-align: center; }
+  .vslide[data-pos="mr"] .vslide-visual { grid-column: 2; align-self: end; justify-self: center; }
+  /* cb (眸/触):visual 整段居中+底部(眸 focus 无驻留放大,同宽 500) —— glyph 居中(大字"中"),
+     sub/poem 移到图右侧(2026-08-19 改):原左对齐图左半空 → 移右列右对齐填右半空。
+     图居中跨两列侵入右列左半区 → sub/poem justify-self:end 贴 padding 右 + 响应式 max-width
+     (图右缘到屏右 - 24px),任意视口不撞图。移动端单列已覆写回 start/left */
+  .vslide[data-pos="cb"] .vslide-glyph { justify-self: center; text-align: center; }
+  .vslide[data-pos="cb"] .vslide-sub   { grid-column: 2; justify-self: end;  text-align: right; max-width: min(32ch, calc((100vw - min(42vw, 500px)) / 2 - clamp(16px, 4vw, 48px) - 24px)); }
+  .vslide[data-pos="cb"] .vslide-poem  { grid-column: 2; justify-self: end;  text-align: right; max-width: min(22ch, calc((100vw - min(42vw, 500px)) / 2 - clamp(16px, 4vw, 48px) - 24px)); }
+  .vslide[data-pos="cb"] .vslide-visual {
+    grid-column: 1 / -1; align-self: end; justify-self: center;
+    transform-origin: center bottom;
+  }
+  /* 02 眸 · focus 视觉 REST 原尺寸(无驻留放大),与其他屏同宽 500 —— JS scrub 配置持有 */
+  /* ml (中左):glyph/sub 整列跑到右,visual 整列移到左(垂直居中) */
+  .vslide[data-pos="ml"] .vslide-glyph  { grid-column: 2; justify-self: start; }
+  .vslide[data-pos="ml"] .vslide-sub    { grid-column: 2; justify-self: start; }
+  .vslide[data-pos="ml"] .vslide-poem   { grid-column: 2; justify-self: start; }
+  .vslide[data-pos="ml"] .vslide-visual { grid-column: 1; justify-self: start; }
+  /* bl (歌,2026-08-19 02:42 镜像):字左图右 — 主人要求"文字和图片镜像左右反转"
+     (原:字右列左对齐 + 图左列底部;现:字左列左对齐 + 图右列居中底部)
+     09:19 同落屏:sub/poem 左列居中 + sub 垂直上移,填中间竖带 */
+  .vslide[data-pos="bl"] .vslide-glyph  { grid-column: 1; justify-self: start; }
+  .vslide[data-pos="bl"] .vslide-sub    { grid-column: 1; justify-self: center; text-align: center; align-self: center; }
+  .vslide[data-pos="bl"] .vslide-poem   { grid-column: 1; justify-self: center; text-align: center; }
+  .vslide[data-pos="bl"] .vslide-visual { grid-column: 2; align-self: end; justify-self: center; }
+
+  /* === 滚动 scrub 动画(2026-08-18 起由 JS 全权接管)===
+     元素初始 opacity:0 防 JS 首帧前 FOUC(首屏是 hero,vs-slides 在视口外,无闪现风险;
+     但滚动瞬间 JS 已接管,每帧写入 inline transform/opacity/filter,驻留段=全显)。
+     各屏 data-anim 语义(与 JS SPEC 表一一对应):
+       01 落 fall  : 巨字自上坠入,离场向上滑出(雨)
+       02 眸 focus : 巨字 scale(2.4)+blur(14px) → 对焦归位,离场再失焦
+       03 笑 bloom : 巨字 scale(0.3)+blur(8px) 云涌涨开,离场涨散
+       04 歌 swing : 巨字 rotate(-7deg) 摆入,离场向另一侧摆出
+       05 触 reach : 巨字自下伸近 + 缩回 scale(0.96) 定格,离场再缩远
+     visual(透明 WebP 立绘)统一自下滑入 / 向上滑出;sub 副文案延迟淡入淡出。 */
+
+  /* === 移动端(≤768px)===
+     svh 兜底 + 短行程(--pin-ext 48vh,滚动快一点)+ 单列布局(巨字 + 副文案 + AI 图 垂直堆叠) */
+  @media (max-width: 768px) {
+    .vs-slides {
+      --pin-ext: 80vh;
+      --nav-h: 56px; /* 移动端 nav 高度(nav-inner height clamp 下限) */
+    }
+    .vslide {
+      height: calc(100svh - var(--nav-h, 56px));
+    }
+    .vslide-inner {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto auto 1fr;
+      row-gap: clamp(12px, 2vh, 20px);
+      padding: clamp(48px, 7vh, 64px) clamp(16px, 5vw, 28px) 5vh; /* 顶部加大,给 meta 让位(与桌面同步) */
+    }
+    /* 移动端 meta:跟移动 padding 重对齐;cb 仍居中,ml 仍右上 */
+    .vslide-meta {
+      top: clamp(14px, 2.4vh, 22px);
+      left: clamp(16px, 5vw, 28px);
+      gap: clamp(8px, 2vw, 12px);
+      font-size: clamp(9.5px, 2.4vw, 11.5px);
+      letter-spacing: 0.18em;
+    }
+    .vslide-rule { width: 18px; }
+    .vslide[data-pos="ml"] .vslide-meta {
+      left: auto;
+      right: clamp(16px, 5vw, 28px);
+    }
+    .vslide-glyph {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: clamp(64px, 20vw, 112px);
+    }
+    .vslide-sub {
+      grid-column: 1;
+      grid-row: 2;
+      align-self: start;
+      font-size: clamp(15px, 3.8vw, 19px);
+    }
+    .vslide-poem {
+      grid-column: 1;
+      grid-row: 3;
+      align-self: start;
+      margin: 0;
+      font-size: clamp(14px, 3.2vw, 16px);
+    }
+    /* 移动端单列:sub/poem 在 row2/3、vis 在 row4,垂直分离永不相碰,恢复 44ch/22ch 默认
+       限宽避免响应式 calc 把文字压成几字宽、折 4 行;cb 桌面在右列(end+right)必须覆回左列左对齐 */
+    .vslide[data-pos="cb"] .vslide-sub,
+    .vslide[data-pos="cb"] .vslide-poem {
+      grid-column: 1;
+      justify-self: start;
+      text-align: left;
+      max-width: revert;
+    }
+    .vslide-visual {
+      grid-column: 1;
+      grid-row: 4;
+      width: min(72vw, 320px); /* 还原放大前移动端大小 */
+      align-self: end;
+      justify-self: center;
+    }
+    /* 移动端 data-pos 全部归一为默认顺序布局(对角律动为桌面设计语言,移动端单列不再区分) */
+    .vslide[data-pos="mr"] .vslide-glyph,
+    .vslide[data-pos="ml"] .vslide-glyph,
+    .vslide[data-pos="bl"] .vslide-glyph { justify-self: start; text-align: left; }
+    .vslide[data-pos="mr"] .vslide-sub,
+    .vslide[data-pos="ml"] .vslide-sub,
+    .vslide[data-pos="bl"] .vslide-sub   { justify-self: start; text-align: left; align-self: auto; }
+    .vslide[data-pos="mr"] .vslide-poem,
+    .vslide[data-pos="ml"] .vslide-poem,
+    .vslide[data-pos="bl"] .vslide-poem  { justify-self: start; text-align: left; }
+    .vslide[data-pos="mr"] .vslide-visual,
+    .vslide[data-pos="ml"] .vslide-visual,
+    .vslide[data-pos="bl"] .vslide-visual { grid-column: 1; grid-row: 4; }
+  }
+
+  /* 矮视口兜底(<600px 高度):字号 + AI 图 缩 */
+  @media (max-height: 600px) {
+    .vslide-glyph { font-size: clamp(56px, 12vh, 96px); }
+    .vslide-sub { font-size: clamp(13px, 1.8vh, 16px); }
+    .vslide-poem { font-size: clamp(12px, 1.5vh, 14px); margin-top: clamp(24px, 4vh, 48px); }
+    .vslide-visual { width: min(36vw, 360px); }
+  }
+

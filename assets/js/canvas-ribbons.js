@@ -4,15 +4,13 @@
  * 本地化改造（rain.meow）：
  *   1. 颜色由 HSLA 彩色循环改为本站 accent 单色（默认读 --color-accent-rgb）
  *   2. 主题切换通过 window.RainRibbons.setColor(rgb) 联动（由 script.js 调用）
- *   3. 保留全部动画：飘带逐段淡入扫过全屏、animateSections 波动、滚动视差、播完自动再生
+ *   3. 保留全部动画：飘带逐段淡入扫过全屏、animateSections 波动、播完自动再生
+ *      （滚动视差 2026-08-18 归零：14 屏长页面下 -0.2 视差把飘带滚出视口，见 config 注释）
  */
 (function () {
   function getCSSVar(name, fallback) {
-    try {
-      var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-      if (v) return v.replace(/\s+/g, '');
-    } catch (e) {}
-    return fallback;
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v ? v.replace(/\s+/g, '') : fallback;
   }
 
   var isMobileUA = /Android|webOS|iPhone|iPod|iPad|BlackBerry/i.test(navigator.userAgent);
@@ -26,7 +24,10 @@
        单条飘带在 390×844 屏上仍能铺满视觉，存在感不丢 */
     ribbonCount: isMobileUA ? 1 : 2,
     strokeSize: 0,
-    parallaxAmount: -0.2,     // 滚动视差（原站调用值）
+    /* 滚动视差归零（2026-08-18）：本页高 ~14 屏，原站 -0.2 视差 = translate(0, scrollY*-0.2)，
+       滚动 ~5 屏后飘带整体平移出视口（实测 y>4500 ribbons 全 0 像素）→ 下方页面动态背景缺失、
+       滑动中无背景动效。归零后飘带恒定在视口内逐段扫过 + 波动，hero → 落眸笑歌触 全程在动 */
+    parallaxAmount: 0,
     animateSections: true
   };
   /* DPR 上限：移动端 dpr=3 时物理像素 9×，单 fill 调用代价同步放大约 9×。

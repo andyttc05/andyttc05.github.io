@@ -3,22 +3,18 @@
        门控方式：滚动位置 sy >= hb（过渡带顶进入视口顶）→ smoothWheel 开，否则关。
        （prevent 回调逐元素检查，路径含 MAIN/BODY 等祖先会误拦截，弃用）
        touch 保持原生（syncTouch:false）；lenisOn 时过渡带自研 lerp 让位（防双重平滑）。 */
+    /* Lenis 平滑滚动（仅桌面启用）——
+       matchMedia 检测是核心条件,Lenis 库本身通过 <script> 引入必然存在 */
     var lenisOn = false;
-    (function () {
-      /* 仅桌面（hover + fine pointer）启用：Lenis 惯性滚动面向 wheel/触控板；
-         触屏保持原生 + 过渡带自研 lerp（syncTouch:false 时 Lenis 不管触屏，硬启用会让移动端快滚失去拖尾保护） */
-      if (typeof window.Lenis === 'undefined') return;
-      try {
-        if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-        var l = new window.Lenis({ lerp: 0.1, syncTouch: false, smoothWheel: false });
-        window.__lenis = l;
-        lenisOn = true;
-        (function raf(t) {
-          l.raf(t);
-          requestAnimationFrame(raf);
-        })(0);
-      } catch (e) { lenisOn = false; }
-    })();
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      var l = new window.Lenis({ lerp: 0.1, syncTouch: false, smoothWheel: false });
+      window.__lenis = l;
+      lenisOn = true;
+      (function raf(t) {
+        l.raf(t);
+        requestAnimationFrame(raf);
+      })(0);
+    }
 
     var navEl = document.getElementById('nav');
     var btn = document.getElementById('hamburgerBtn');
@@ -45,30 +41,23 @@
       if (themeLabelMobile) themeLabelMobile.textContent = label;
       if (metaTheme) metaTheme.setAttribute('content', dark ? '#0f172a' : '#f8fafc');
       /* 背景动效跟随主题 accent 色：粒子网络（canvas-nest）+ 几何飘带（canvas-ribbons） */
-      var accent = null;
-      try { accent = getComputedStyle(document.documentElement).getPropertyValue('--color-accent-rgb').trim(); } catch (e) {}
-      if (accent) {
-        var rgb = accent.replace(/\s+/g, '');
-        if (window.RainNest) { window.RainNest.setColor(rgb); }
-        if (window.RainRibbons) { window.RainRibbons.setColor(rgb); }
-      }
+      var accent = getComputedStyle(document.documentElement).getPropertyValue('--color-accent-rgb').trim();
+      var rgb = accent.replace(/\s+/g, '');
+      window.RainNest && window.RainNest.setColor(rgb);
+      window.RainRibbons && window.RainRibbons.setColor(rgb);
       /* hero 标题颜色走 CSS 变量 --color-accent，主题切换自动变色，无需 JS 联动 */
       if (persist !== false) {
-        try { localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light'); } catch (e) {}
+        localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light');
       }
     }
     function toggleTheme() {
       applyTheme(!isDark);
     }
 
-    var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-    if (mq && mq.addEventListener) {
-      mq.addEventListener('change', function (e) {
-        var saved = null;
-        try { saved = localStorage.getItem('rainmeow-theme'); } catch (err) {}
-        if (!saved) { applyTheme(e.matches, false); }
-      });
-    }
+    /* 现代浏览器 matchMedia.addEventListener 是标准 API(Safari 14+ / Chrome 39+) */
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+      if (!localStorage.getItem('rainmeow-theme')) { applyTheme(e.matches, false); }
+    });
 
     themeToggle.addEventListener('click', toggleTheme);
     if (themeToggleDesktop) themeToggleDesktop.addEventListener('click', toggleTheme);
@@ -483,76 +472,247 @@
            让 iOS 长按菜单恢复。
            桌面端保留 mousedown 压扁/回弹：鼠标 hover/click 是桌面交互的核心反馈。
            2026-08-17 第五十一批 */
-        var isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        var isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
         if (!isCoarsePointer) {
           artCard.addEventListener('mousedown', pressDown);
           window.addEventListener('mouseup', releaseUp);
         }
       }
 
-      /* === 性能：hero 滚出视口 → 暂停打字机 + 时钟 + 全屏 canvas 背景 ===
+      /* === 性能：hero 滚出视口 → 暂停打字机 + 时钟（canvas 背景不暂停）===
          IntersectionObserver 只观察 hero（不是 watch 全文档 scroll），开销 O(1)。
-         hero 整体在视口内（isIntersecting=true）→ 起动画；整体离开视口 → 全停。
-         滚回视口时打字机从上次停下的 ci/li 接着打（进度保留）；
-         时钟立即刷一次并恢复每秒更新；canvas 解除暂停恢复粒子动效。
-         故事带 story-pin 滚完（页面无装饰区）→ canvas 也暂停 */
+         hero 整体在视口内（isIntersecting=true）→ 起动画；整体离开视口 → 停打字机/时钟。
+         滚回视口时打字机从上次停下的 ci/li 接着打（进度保留）；时钟立即刷一次并恢复。
+         canvas 背景全程运行（粒子/飘带是 hero → 落眸笑歌触 全站的统一背景）：
+         hero/sentinel 双 IO 控同一资源在"向下滚"路径会死锁——hero 先 pause，
+         resume 永不触发 → 5 屏全程无粒子（2026-08-18 实测 canvas 全 0 像素）。
+         节能只靠各 canvas 自己的 visibilitychange 切后台暂停，单源控制最稳。 */
       if (hero && 'IntersectionObserver' in window) {
         var perfIO = new IntersectionObserver(function (entries) {
           for (var i = 0; i < entries.length; i++) {
             var e = entries[i];
             if (e.target === hero) {
-              /* hero IO 控 typewriter/clock + 兜底 canvas（hero 不在视野则这两个必停） */
+              /* hero IO 只控 typewriter/clock，不碰 canvas */
               if (e.isIntersecting) {
                 startTypewriter();
                 startClock();
-                if (window.RainNest) window.RainNest.resume();
-                if (window.RainRibbons) window.RainRibbons.resume();
               } else {
                 stopTypewriter();
                 stopClock();
-                if (window.RainNest) window.RainNest.pause();
-                if (window.RainRibbons) window.RainRibbons.pause();
-              }
-            } else if (sentinel && e.target === sentinel) {
-              /* sentinel IO 仅控 canvas：滚过 story-pin bottom + 1 屏后 →
-                 页面末尾无装饰区，画布纯浪费 */
-              if (e.isIntersecting) {
-                if (window.RainNest) window.RainNest.pause();
-                if (window.RainRibbons) window.RainRibbons.pause();
-              } else {
-                /* 滚回 sentinel 上方（用户回看 story-pin 或 hero）→ 解暂停。
-                   不检查 hero 状态：sentinel 离开视口意味着用户没到底，
-                   canvas 该跑就跑（hero IO 会同时触发，正好 double-resume 幂等） */
-                if (window.RainNest) window.RainNest.resume();
-                if (window.RainRibbons) window.RainRibbons.resume();
               }
             }
           }
         }, { threshold: 0 });
 
         perfIO.observe(hero);
-
-        /* sentinel 放在 story-pin 底部 + 1 屏外 —— IO 在用户向下滚到 story-pin
-           底部以下 1 屏时触发 isIntersecting=true（页面末尾态）。
-           1px 元素 absolute 定位不影响布局；opacity:0 完全不可见 */
-        var sentinel = null;
-        var storyPin = document.querySelector('.story-pin');
-        if (storyPin) {
-          sentinel = document.createElement('div');
-          sentinel.setAttribute('aria-hidden', 'true');
-          sentinel.style.cssText = 'position:absolute;left:0;width:1px;height:1px;pointer-events:none;opacity:0;';
-          var placeSentinel = function () {
-            var r = storyPin.getBoundingClientRect();
-            var ab = r.bottom + (window.scrollY || 0);
-            sentinel.style.top = (ab + window.innerHeight) + 'px';
-          };
-          placeSentinel();
-          document.body.appendChild(sentinel);
-          window.addEventListener('resize', placeSentinel);
-          perfIO.observe(sentinel);
-        }
+        /* sentinel 已移除（2026-08-18）：它锚在 main 底部 + 1 屏，向下滚从不触发 resume
+           （hero pause 后 canvas 永久暂停），且末尾触发 pause+clearRect 清屏 → 触 之后
+           整屏无粒子。canvas 持续绘制，切后台暂停由 canvas 各自的 visibilitychange 兜底 */
       }
     })();
+
+    /* === 落眸笑歌触 · 全屏钉住滑动(5 屏)· 滚动 scrub 引擎 ===
+     机制(2026-08-18 由 scroll-snap 改 sticky pin,主人诉求):
+       - 每屏 .vslide-wrap 提供滚动行程(100vh + --pin-ext),内层 .vslide sticky 钉住
+         → 滚动时页面不移动,屏钉在视口;行程滚完 sticky 释放 → 下一屏钉住
+       - JS 按局部进度 p = clamp((scrollY - wrapTop) / ext) ∈ [0,1] 驱动字和图片:
+           入场 p∈[0, .34]  巨字/副文案/图从 IN 锚点滑入(各 data-anim 语义)
+           驻留 p∈[.34, .66] 全显静止(完整观看,滚动经过时字和图都停稳)
+           离场 p∈[.66, 1]  元素滑向 OUT 锚点 + 淡出 → 下一屏接力
+       - 最后一屏(触)例外:主页终点,无交接对象 → p clamp 在 0.66(REST 末端),
+         离场不播,滚动到底 触 全显钉住收官(2026-08-18 修"下方空白页")
+       - 锚点插值:IN → REST(easeOutCubic) → OUT(easeOutCubic 拖尾),transform/opacity/filter 全内联
+       - 性能:wrap top/ext 缓存,resize / fonts / hero 图 load 失效重测;rAF 节流
+       - 背景透明 → 露出全屏 canvas-nest 粒子 + ribbons 飘带(全局背景统一)
+       - 字体复用:与 hero 同族 IBM Plex Serif / Sans / Mono,不引新字体 */
+    (function () {
+      var wraps = document.querySelectorAll('.vslide-wrap');
+      if (!wraps.length) return;
+
+      /* 每屏动画规格:元素三锚点 IN(入场起点)/ REST(驻留全显)/ OUT(离场终点)。
+         字段:y = 位移(vh 单位),s = scale,rot = rotate(deg),blur = blur(px),op = opacity。
+         省略字段取默认 y0 / s1 / rot0 / blur0 / op1(REST 天然全显)。
+         语义:01 落 fall(自上坠入) / 02 眸 focus(对焦) / 03 笑 bloom(云涌) /
+              04 歌 swing(摇摆) / 05 触 reach(试探伸近 + 缩回定格)。
+         2026-08-19 02:50 优化:visual 按屏语义定制入场(雨坠/对焦/云涌/微摆/伸近),
+         离场微调;入场错峰见 setFrame(delayMap)
+         2026-08-19 07:58:新增 meta 键(章节号 01-05,5 屏统一)—— 自上滑入/上滑出,
+         与巨字同拍(delay 0),数字先落位、大字跟上,编辑式"目录编号"动效;
+         底部图注 .vslide-note 已移除,el/SPEC 同步清理 */
+      var SPEC = {
+        fall: {
+          meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          glyph:  { IN: { y: -32, op: 0 }, REST: {}, OUT: { y: -18, op: 0 } },
+          sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          visual: { IN: { y: -14, op: 0 }, REST: {}, OUT: { y: -16, op: 0 } } /* 雨:自上坠入,离场继续坠 */
+        },
+        focus: {
+          meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          glyph:  { IN: { s: 2.4, blur: 14, op: 0 }, REST: {}, OUT: { s: 0.82, blur: 6, op: 0 } },
+          sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          /* REST {} = 原尺寸(2026-08-18 晚):眸 1:1 方图不再驻留放大(主人嫌大);
+             2026-08-18 22:00 主人定稿"全部改为 500"→ 眸 500x509,取消 focus 限宽;
+             IN s:1.3 入场失焦放大保留(对焦语义),OUT 跟随 */
+          visual: { IN: { y: 12, s: 1.3, op: 0 }, REST: {}, OUT: { y: -10, s: 1.05, op: 0 } }
+        },
+        bloom: {
+          meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          glyph:  { IN: { s: 0.3, blur: 8, op: 0 }, REST: {}, OUT: { s: 1.12, blur: 4, op: 0 } },
+          sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          visual: { IN: { y: 8, s: 0.88, op: 0 }, REST: {}, OUT: { y: -10, s: 1.05, op: 0 } } /* 云涌:微缩涨开 */
+        },
+        swing: {
+          meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          glyph:  { IN: { rot: -7, op: 0 }, REST: {}, OUT: { rot: 7, op: 0 } },
+          sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          visual: { IN: { y: 8, rot: -4, op: 0 }, REST: {}, OUT: { y: -10, rot: 3, op: 0 } } /* 摇摆:微摆入 */
+        },
+        reach: {
+          meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          glyph:  { IN: { y: 26, s: 1, op: 0 }, REST: { s: 0.96 }, OUT: { y: -14, s: 0.9, op: 0 } },
+          sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
+          visual: { IN: { y: 24, op: 0 }, REST: { y: -0.8 }, OUT: { y: -12, op: 0 } }
+        }
+      };
+
+      /* 阶段窗口(占行程比例):入场 [0, IN_END] / 驻留 [IN_END, OUT_START] / 离场 [OUT_START, 1] */
+      var IN_END = 0.34, OUT_START = 0.66;
+
+      function easeOutCubic(t) { var u = 1 - t; return 1 - u * u * u; }
+      function lerp(a, b, t)   { return a + (b - a) * t; }
+
+      /* 缓存每屏:wrap/slide/元素引用/动画规格/几何(top+ext 待测量) */
+      var slides = [];
+      for (var i = 0; i < wraps.length; i++) {
+        var w = wraps[i];
+        var s = w.querySelector('.vslide');
+        if (!s) continue;
+        var anim = s.dataset.anim || 'fall';
+        slides.push({
+          wrap: w,
+          spec: SPEC[anim] || SPEC.fall,
+          el: {
+            meta:   s.querySelector('.vslide-meta'), /* 章节号(2026-08-19 加 scrub):01-05 + 横线 + kind,自上滑入/上滑出,与巨字同拍 */
+            glyph:  s.querySelector('.vslide-glyph'),
+            sub:    s.querySelector('.vslide-sub'),
+            poem:   s.querySelector('.vslide-poem'), /* 两行诗(2026-08-18 加):SPEC 无 poem 键 → setFrame fallback 到 spec.sub 锚点(延迟淡入淡出,与副文案同拍) */
+            visual: s.querySelector('.vslide-visual')
+          },
+          top: 0, ext: 0
+        });
+      }
+      if (!slides.length) return;
+      /* 最后一屏(触)是主页终点:没有下一页可交接,离场动画只会把屏淡出后滚出视口,
+         露出 wrap 底部的 ~1 屏空白尾(主人反馈"下方空白页")。isLast 标记 → update 里
+         clamp 进度在 REST 末端,滚动到底 触 保持全显钉住 = 主页以触 收官 */
+      slides[slides.length - 1].isLast = true;
+
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      var sy = 0;
+
+      /* 测量每屏滚动区几何:top = wrap 文档坐标,ext = 行程 = wrap高 - 屏高。
+         读实测(不读 CSS 变量)→ 改 --pin-ext 无需改 JS。 */
+      function measure() {
+        vh = window.innerHeight || document.documentElement.clientHeight;
+        for (var i = 0; i < slides.length; i++) {
+          var d = slides[i];
+          var r = d.wrap.getBoundingClientRect();
+          d.top = r.top + sy;
+          d.ext = Math.max(1, r.height - vh);
+        }
+      }
+
+      /* (旧 IO 触发 .is-in 入场 + animationend 收尾已随 scroll-snap 机制移除;
+         现由下方滚动 scrub 引擎按进度驱动,无一次性入场动画) */
+
+      /* === 每屏 scrub:按局部进度 p 插值三锚点,写 inline transform/opacity/filter ===
+         入场 easeOutCubic / 离场 easeOutCubic(2026-08-18 改:对齐过渡带 easeOut 语义,
+         滑出先快后慢的拖尾,配合长行程更从容;原 easeInCubic 末段加速闪出偏急)
+         入场错峰:glyph → visual → sub → poem 依次延迟(见 setFrame delayMap);
+         blur 阈值 <0.01px 时写 none(避免无谓 filter 层)。 */
+      function setFrame(d, p) {
+        var spec = d.spec;
+        for (var k in d.el) {
+          var el = d.el[k];
+          if (!el) continue;
+          var a = spec[k] || spec.sub;
+          var IN = a.IN || {}, REST = a.REST || {}, OUT = a.OUT || {};
+          var t, from, to, e;
+          if (p <= IN_END) {
+            /* 入场错峰(2026-08-19 02:50):glyph 0 → visual 0.22 → sub 0.45 → poem 0.6,
+               四元素先后递进(巨字先动,图跟上,引子,诗句最后);各自窗口在 IN_END 前完成
+               2026-08-19 07:58:meta 加 delay 0 —— 章节号与巨字同拍,数字先落位、大字跟上 */
+            var delayMap = { meta: 0, glyph: 0, visual: IN_END * 0.22, sub: IN_END * 0.45, poem: IN_END * 0.6 };
+            var winMap   = { meta: IN_END * 0.55, visual: IN_END * 0.55, sub: IN_END * 0.5, poem: IN_END * 0.4 };
+            var start = delayMap[k] || 0;
+            var win = winMap[k] || IN_END;
+            t = p <= start ? 0 : Math.min(1, (p - start) / win);
+            from = IN; to = REST; e = easeOutCubic(t);
+          } else if (p >= OUT_START) {
+            t = Math.min(1, (p - OUT_START) / (1 - OUT_START));
+            from = REST; to = OUT; e = easeOutCubic(t);
+          } else {
+            t = 1; from = REST; to = REST; e = 1;
+          }
+          var y   = lerp(from.y   || 0, to.y   || 0, e);
+          var s   = lerp(from.s   || 1, to.s   || 1, e);
+          var rot = lerp(from.rot || 0, to.rot || 0, e);
+          var blur = lerp(from.blur || 0, to.blur || 0, e);
+          var op   = lerp(from.op === undefined ? 1 : from.op,
+                          to.op   === undefined ? 1 : to.op, e);
+          el.style.transform = 'translate3d(0, ' + ((y * vh) / 100).toFixed(2) + 'px, 0) rotate(' +
+            rot.toFixed(2) + 'deg) scale(' + s.toFixed(3) + ')';
+          el.style.filter = blur > 0.01 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
+          el.style.opacity = op.toFixed(3);
+        }
+      }
+
+      var vsTicking = false;
+      function update() {
+        vsTicking = false;
+        sy = window.scrollY || window.pageYOffset || 0;
+        for (var i = 0; i < slides.length; i++) {
+          var d = slides[i];
+          var p = (sy - d.top) / d.ext;
+          if (p < 0) p = 0; else if (p > 1) p = 1;
+          /* 最后一屏(触)clamp 在 REST 末端:它是页面终点,离场后视口会露出 wrap
+             空尾(空白页)。clamp 后滚动到底,触 仍全显钉在视口,主页以它收官 */
+          if (d.isLast && p > OUT_START) p = OUT_START;
+          setFrame(d, p);
+        }
+      }
+      function scheduleUpdate() {
+        if (vsTicking) return;
+        vsTicking = true;
+        requestAnimationFrame(update);
+      }
+
+      /* 几何失效:视口/字体/hero 图尺寸变化 → 重测 top/ext。
+         hero 在 vslides 之前,hero 高度变化会平移所有 wrap 的文档坐标 */
+      function invalidate() { measure(); scheduleUpdate(); }
+      window.addEventListener('resize', invalidate);
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(invalidate);
+      }
+      var vsHero = document.getElementById('hero');
+      var vsImg = vsHero ? vsHero.querySelector('img') : null;
+      if (vsImg) {
+        if (vsImg.complete) invalidate();
+        else vsImg.addEventListener('load', invalidate);
+      }
+      /* 2026-08-19 修复"Cmd+R 刷新部分显示丢失":
+         刷新时浏览器静默恢复 scrollY(恢复滚动位置不触发 scroll 事件),首帧若 hero 区
+         高度未就绪(立绘图/字体),wrap top 测得偏小 → p 偏大 → 各屏被算进离场段(全 opacity 0),
+         且 hero img complete(缓存秒开)后 load 监听不再触发 → 错误状态永久固化。
+         window load 是资源终态:滚动位置已恢复 + 布局已稳定 → 重测 top/ext + 刷一帧,必修正。
+         setTimeout 兜底布局异步稳定(如字体重排)的极端场景,一次性无副作用。 */
+      window.addEventListener('load', invalidate);
+      setTimeout(invalidate, 500);
+      window.addEventListener('scroll', scheduleUpdate, { passive: true });
+      /* 首帧:立即测量 + 刷一帧(p=0 全 IN 态,元素 opacity 0 防 FOUC;滚动后接管) */
+      invalidate();
+    })();
+
 
     /* === 过渡带：pinned 门（sticky pin + 滚动 scrub） ===
        交互（主人诉求）：
@@ -612,13 +772,12 @@
       var scrollDir = 0;
 
       /* 与 .story-pin 高度配套：读 CSS 变量，改 CSS 一处即可（桌面 900px / 移动 720px） */
+      /* pinScroll 直接读 CSS 变量;modern browsers getComputedStyle 总返回有效值 */
       function pinScroll() {
         var v = 900;
         if (pin) {
-          try {
-            var raw = getComputedStyle(pin).getPropertyValue('--pin-scroll').trim();
-            if (raw) v = parseFloat(raw) || 900;
-          } catch (e) {}
+          var raw = getComputedStyle(pin).getPropertyValue('--pin-scroll').trim();
+          if (raw) v = parseFloat(raw) || 900;
         }
         return v;
       }
@@ -835,5 +994,13 @@
       }
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', onScroll);
+      /* 2026-08-19 修复"Cmd+R 刷新丢失"(同 vslides):
+         刷新静默恢复 scrollY 不触发 scroll → 首帧 cachedHbY 若在 hero 未就绪时测量则偏小
+         → p 偏大 → 过渡带五字全滑出/眉标副题消失,且 hbImg complete 后 invalidateHbY 只清缓存
+         不重测 → 永久卡错位。window load(资源终态) → 失效缓存 + 立即重算一帧修正。 */
+      window.addEventListener('load', function () {
+        invalidateHbY();
+        update();
+      });
       update();
     })();
