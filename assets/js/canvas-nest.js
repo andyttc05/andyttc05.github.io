@@ -78,6 +78,24 @@
   var mouse = { x: null, y: null, max: 20000 };
   /* 鼠标最后移动时刻：静止超过 60ms 即视为"鼠标静止"，停止驱逐粒子 */
   var lastMoveAt = 0;
+  /* mousemove 节流 (2026-08-20): 浏览器原生 mousemove 事件高频 (60-200/s),
+     每事件都跑 d² 比较 + 写入 mouse.x/y → 浪费。rAF 节流到每帧最多 1 次写入,
+     step() 内同步读 mouse.x/y(每帧 1 次)而非每事件 1 次, 桌面性能略改善。
+     移动端无 mousemove 只走 touchmove, 节流同样有效 */
+  var pendingMouseX = null, pendingMouseY = null, mouseRafScheduled = false;
+  function flushMouse() {
+    mouseRafScheduled = false;
+    if (pendingMouseX === null) return;
+    mouse.x = pendingMouseX;
+    mouse.y = pendingMouseY;
+    pendingMouseX = pendingMouseY = null;
+  }
+  function onMouse(x, y) {
+    pendingMouseX = x; pendingMouseY = y;
+    if (mouseRafScheduled) return;
+    mouseRafScheduled = true;
+    requestAnimationFrame(flushMouse);
+  }
 
   /* 制造一个随机粒子：速度下限避免 |v|≈0 的极慢漂移产生"卡顿/抖动"感 */
   function makePoint() {
@@ -180,15 +198,15 @@
   resize();
   window.addEventListener('resize', resize);
   window.addEventListener('mousemove', function (e) {
-    mouse.x = e.clientX; mouse.y = e.clientY;
     lastMoveAt = Date.now();
+    onMouse(e.clientX, e.clientY);
   });
-  window.addEventListener('mouseout', function () { mouse.x = null; mouse.y = null; });
+  window.addEventListener('mouseout', function () { mouse.x = null; mouse.y = null; pendingMouseX = pendingMouseY = null; });
   window.addEventListener('touchmove', function (e) {
     var t = e.touches && e.touches[0];
-    if (t) { mouse.x = t.clientX; mouse.y = t.clientY; lastMoveAt = Date.now(); }
+    if (t) { lastMoveAt = Date.now(); onMouse(t.clientX, t.clientY); }
   });
-  window.addEventListener('touchend', function () { mouse.x = null; mouse.y = null; });
+  window.addEventListener('touchend', function () { mouse.x = null; mouse.y = null; pendingMouseX = pendingMouseY = null; });
 
   /* 页面切到后台（标签切换/息屏）→ 自动暂停画布，节省移动端 CPU/电量；
      visibilitychange 在所有现代浏览器稳定支持（iOS Safari 7+/Android Chrome 56+）。
