@@ -77,15 +77,82 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 移动端点击时去掉系统默认的灰色半透明高亮（iOS Safari/Android Chrome 的
-     tap-highlight），按压反馈交给站内自定义的 :active 样式（变色/背景）
-     tap-highlight-color 是 webkit 私有属性但标准属性所有现代浏览器都支持 */
-  * { tap-highlight-color: transparent; }
+     tap-highlight）。冲突点：2026-08-20 主人反馈 "按钮背景有黑影，与原版特效冲突"
+     —— 系统原生 tap-highlight 会盖在自定义 :active（变色/scale）之上，把视觉反馈遮住。
+     之前只写 unprefixed tap-highlight-color + transparent，部分 Android ROM 只认 -webkit-
+     前缀、且 transparent 在某些 WebKit 版本下解析成有色值导致残留灰影。
+     修法：双前缀（-webkit- + 标准）+ 显式 rgba(0,0,0,0) 而非 transparent 关键字，
+     并在每个按钮类上重复声明（兜底 universal selector 不生效的边缘场景） */
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    tap-highlight-color: rgba(0, 0, 0, 0);
+  }
+  .nav-icon, .hamburger, .nav-menu-close, .nav-menu-action-hit, .nav-links a, .nav-menu-links a, .skip-link {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    tap-highlight-color: rgba(0, 0, 0, 0);
+  }
   /* 双击缩放/300ms 延迟只对可交互元素禁用（按钮/链接等：连点不放大、点击更跟手）。
      注意：touch-action 不能写在 * 或 html/body 上——根元素一旦声明手势归属，
      iOS Safari 会放弃对滑动手势的接管，导致页面下滑时浏览器搜索栏不再自动收起。
      （viewport 已是 device-width，现代浏览器本就无 300ms 延迟；正文文本保留双击缩放，属无障碍能力） */
   button, a, [role="button"], input, select, textarea, label, summary {
     touch-action: manipulation;
+  }
+  /* === Skip link (a11y 2026-08-20): 键盘 / 屏读用户跳过 nav 直接到内容。
+     平时 sr-only 隐藏 (绝对定位 + 顶部 -100px, 视觉不见但屏读可达),
+     :focus-visible 时跳到屏幕左上让用户看到并激活跳转。
+     WCAG 2.4.1 Bypass Blocks — 单页 + 简单 nav 也建议保留, 屏读 + 键盘用户的底线。 */
+  .skip-link {
+    position: absolute;
+    left: 8px; top: -100px;
+    z-index: 500;
+    padding: 10px 16px;
+    background: var(--color-accent);
+    color: var(--color-paper);
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
+    font-size: 14px; font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top 0.2s ease;
+  }
+  .skip-link:focus,
+  .skip-link:focus-visible {
+    top: 8px;
+    outline: 2px solid var(--color-paper);
+    outline-offset: 2px;
+  }
+  /* === 字体 swap CLS 兜底 (2026-08-20):
+     IBM Plex 字体 Google Fonts CSS 默认 font-display: swap,
+     字体加载前浏览器用 fallback (serif/sans-serif/monospace = Times/Arial/Courier),
+     这些字宽/x-height 跟 IBM Plex 差异大 → swap 时文字位置跳动 = CLS 评分扣分。
+     写 size-adjust + ascent/descent-override 把 fallback 字号调到跟 IBM Plex 接近 → swap 几乎无 layout shift。
+     写法: 新建 3 个 fallback @font-face, 借用本地字体 (local()) 避免额外下载。
+     兼容性: size-adjust 等描述符需 Chrome 92+/Safari 16.4+/Firefox 92+ (2022+),
+     老浏览器忽略描述符直接用本地 fallback 字体, 仍 swap 但有 CLS — 主线已是现代浏览器, 接受。
+     font-family 引用时在 IBM Plex 后加 ' FB' 别名即生效 (body 已改, 标题/时钟后续可补)。 */
+  @font-face {
+    font-family: 'Plex Serif FB';
+    src: local('Georgia');
+    size-adjust: 100%;
+    ascent-override: 92%;
+    descent-override: 24%;
+    line-gap-override: 0%;
+  }
+  @font-face {
+    font-family: 'Plex Sans FB';
+    src: local('-apple-system'), local('BlinkMacSystemFont'), local('Segoe UI');
+    size-adjust: 100%;
+    ascent-override: 95%;
+    descent-override: 25%;
+    line-gap-override: 0%;
+  }
+  @font-face {
+    font-family: 'Plex Mono FB';
+    src: local('ui-monospace'), local('Menlo'), local('Consolas');
+    size-adjust: 90%;
+    ascent-override: 100%;
+    descent-override: 25%;
+    line-gap-override: 0%;
   }
   /* 背景色只放在 html（画布层），body 必须透明——否则 body 的不透明背景会盖住
      全屏背景 canvas（负 z-index 绘制在 body 盒之下，只能在 body 盒外/页面下方露出） */
@@ -99,7 +166,7 @@
   html { scrollbar-width: none; }
   ::-webkit-scrollbar { width: 0; height: 0; display: none; }
   body {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     line-height: 1.7; font-size: 17px;
     padding: 0;
   }
@@ -192,9 +259,11 @@
     /* max-width 1200px：介于 Bootstrap container-xl(1140) 和 container-xxl(1320) 之间的中间值，
        导航栏 / 未来正文统一用这个宽度，1920 屏两侧各留 360px，比例舒服不空荡。
        屏幕 < 1200 时实际为 100% 宽（容器被屏宽兜住）。
-       height 用 clamp() 让 768-1024px 之间从 56 渐变到 80，避免断崖式跳变。 */
+       height 用 clamp() 让 768-1024px 之间从 56 渐变到 80，避免断崖式跳变。
+       safe-area-inset-* (2026-08-20): iPhone 灵动岛/底部 home indicator 适配,
+       viewport-fit=cover 时浏览器把 safe-area-inset 暴露给 CSS, nav 内容贴到屏幕物理边缘但不贴 home indicator */
     max-width: 1200px; margin: 0 auto;
-    padding: 0 16px;
+    padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
     display: flex; align-items: center;
     height: clamp(56px, calc(9.375vw - 16px), 80px);
   }
@@ -526,6 +595,21 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+  /* 2026-08-20: 触摸设备隐藏焦点环 —— 部分 Android Chrome 旧版 / iOS Safari 在 <button>
+     上把轻触误判成键盘焦点,导致 :focus-visible outline (蓝色圆圈/方块) 在 tap 时闪现。
+     用 @media (hover: none) and (pointer: coarse) 严格限定触摸设备 → 键盘用户(用方向键/
+     Tab 键 + hover-capable 设备)仍能看到,无障碍合规不受影响。
+     skip-link 不在此列 —— 屏读/键盘用户需要它全程可见 */
+  @media (hover: none) and (pointer: coarse) {
+    .nav-links a:focus-visible,
+    .nav-icon:focus-visible,
+    .hamburger:focus-visible,
+    .nav-menu-links a:focus-visible,
+    .nav-menu-action:focus-visible,
+    .nav-menu-close:focus-visible {
+      outline: none;
+    }
+  }
   /* svg / label 字号用 clamp() 让 768-1024px 之间从 24/14 渐变到 28/16 */
   .nav-icon svg {
     width: clamp(24px, calc(2vw), 28px);
@@ -629,8 +713,9 @@
   .hero {
     position: relative;
     max-width: 1200px; margin: 0 auto;
-    /* 文字列靠上 + 顶部留白适中（不贴顶不居中，留出呼吸） */
-    padding: clamp(48px, 8vh, 96px) 16px clamp(48px, 7vh, 88px);
+    /* 文字列靠上 + 顶部留白适中（不贴顶不居中，留出呼吸）
+       safe-area-inset (2026-08-20): iPhone 灵动岛让 hero 左右不贴边 */
+    padding: clamp(48px, 8vh, 96px) max(16px, env(safe-area-inset-right)) clamp(48px, 7vh, 88px) max(16px, env(safe-area-inset-left));
     /* 第六十批：恢复 min-height 撑满首屏（nav 高 + hero 高 = 100svh），图片垂直居中在页面上下的中间。
        第五十七批"移除 min-height"的折中（当时 hero 内容高 = 图片高才对齐）被 JS 锚点方案取代：
        hero-text 底部 padding = --hero-anchor（JS 实测 (内容高-图高)/2），
@@ -695,6 +780,7 @@
     display: inline-flex;
     font-size: clamp(44px, 7vw, 96px);
     font-weight: 800;
+    font-family: 'IBM Plex Serif', 'Plex Serif FB', serif;
   }
   /* 逐字弹出：页面加载时每个字依次弹跳出现（scale 0.4→1.15→1 + opacity）。
      延迟 0.15s/字错开；fill both 让动画前保持隐藏、结束后保持原位（2026-08-17 新增） */
@@ -778,7 +864,7 @@
      字体+字号双重区分，编辑式细节。
      2026-08-17 第五十二批：原 IBM Plex Mono 14px（无差异化） */
   #heroTime {
-    font-family: 'IBM Plex Serif', serif;
+    font-family: 'IBM Plex Serif', 'Plex Serif FB', serif;
     font-weight: 500;
     font-size: 22px;
     letter-spacing: 1.5px;
