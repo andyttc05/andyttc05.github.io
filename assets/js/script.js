@@ -1130,8 +1130,9 @@
        两个 canvas 早已内置 pause()/resume() 接口（注释写明"跨页滚到非装饰区时
        调用节能"），但从未接线。这里补上：
        滚动期间暂停背景 canvas（每次 scroll 幂等调用 pause，canvas 内部自检），
-       滚动停止 200ms 后恢复 —— 滚动时背景静止几乎无感知（用户在看内容），
-       GPU 全部让给滚动/scrub 动画 → 滑动顺滑；停止后背景动效恢复，视觉零损失。
+       滚动停止 200ms 后恢复 —— GPU 全部让给滚动/scrub 动画 → 滑动顺滑。
+       第一百三十五批：pause 不再 clearRect（保留最后一帧画面）→ 滚动中背景
+       只是静止、不会"突然消失"（见 canvas-nest.js / canvas-ribbons.js 的 pause）。
        注意 script.js 在 index 页先于 canvas 脚本加载（about 页相反），
        window.RainNest/RainRibbons 需在 load 事件后才可用，故绑定延迟到 load。 */
     window.addEventListener('load', function () {

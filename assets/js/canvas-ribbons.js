@@ -167,7 +167,9 @@
     if (paused) return;
     paused = true;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    if (ctx && W && H) ctx.clearRect(0, 0, W, H);
+    /* 第一百三十五批（2026-08-21 主人"滑动时背景 canvas 突然消失"）：
+       不再 clearRect 清空画面 —— 暂停时保留最后一帧（飘带静止），
+       滚动中背景只是"停住"而非"消失"，观感连续；resume 后继续动画。 */
   }
   function resume() {
     if (!paused) return;
