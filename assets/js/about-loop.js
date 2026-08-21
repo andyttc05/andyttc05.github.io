@@ -155,12 +155,39 @@
       if (v > DRAG_VMAX) v = DRAG_VMAX;
       if (v < -DRAG_VMAX) v = -DRAG_VMAX;
       velocity = v;
-      /* 鼠标释放：指针仍在 loop 上 → 恢复 hover 减速；触摸：无 hover */
-      hovered = e.pointerType !== 'touch' && hover !== undefined;
+      /* 鼠标释放：指针仍在 loop 上 → 恢复 hover 减速；已拖出 loop（兜底场景）
+         → matches(':hover') 为 false → 恢复全速；触摸：无 hover */
+      hovered = e.pointerType !== 'touch' && root.matches(':hover') && hover !== undefined;
       if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
+    }
+    /* 无事件对象可用的强制结束（blur/visibilitychange 兜底）：
+       没有松手速度可参考 → 惯性置 0 直接停，hover 按指针实际位置恢复 */
+    function forceEndDrag() {
+      if (!dragging) return;
+      dragging = false;
+      velocity = 0;
+      hovered = hover !== undefined && root.matches(':hover');
     }
     root.addEventListener('pointerup', endDrag);
     root.addEventListener('pointercancel', endDrag);
+    /* 第一百三十批（2026-08-21 主人"拖出卡片区域后松开，卡片仍跟随鼠标"）：
+       根因 = 拖拽结束只监听 root 的 pointerup/pointercancel，依赖 setPointerCapture
+       把松手事件重定向回 root —— 但指针拖出 loop 后松开时，capture 失效/未重定向的
+       场景下 root 收不到 pointerup，dragging 卡死为 true，之后鼠标任何移动
+       （包括 loop 外）都会继续驱动卡片。
+       修复 ①：window 级补监听 pointerup/pointercancel —— 指针在 loop 外但页面内
+       松开时兜底结束拖拽。endDrag 幂等（dragging 已 false 时直接返回），
+       root 与 window 双监听不冲突；指针在 loop 外松开时 hovered 按 matches(':hover')
+       判 false，自动滚动恢复全速。
+       修复 ②：window blur / visibilitychange 兜底 —— 指针拖出浏览器窗口后松手时，
+       页面收不到任何 pointerup/pointercancel（事件序列中断），dragging 会一直卡着；
+       失焦/切后台时强制结束拖拽（forceEndDrag 无惯性直接停）。 */
+    window.addEventListener('pointerup', function (e) { if (dragging) endDrag(e); });
+    window.addEventListener('pointercancel', function (e) { if (dragging) endDrag(e); });
+    window.addEventListener('blur', forceEndDrag);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) forceEndDrag();
+    });
 
     var resizeTimer = null;
     window.addEventListener('resize', function () {
