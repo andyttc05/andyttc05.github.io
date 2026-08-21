@@ -24,7 +24,13 @@
 
   /* 2026-08-20 主人"上下两个 loop 卡片大小一样 + 宽一点点"：全局统一测宽。
      遍历所有 loop 的 chip 取全局最大宽 + 8px 缓冲，写到每个 loop 的 --chip-w →
-     工具/语言两 loop 全部等宽，克隆自动继承。字体加载 / resize 后重测。 */
+     工具/语言两 loop 全部等宽，克隆自动继承。字体加载 / resize 后重测。
+     第一百三十一批（2026-08-21 主人"移动端滚动到技能区卡片瞬移"）：
+     测宽改用 offsetWidth（布局宽度）——原 getBoundingClientRect().width 受
+     卡片滚动驱动 scale 动画（scroll-fade-move 0.96→1）影响：移动端滚动/
+     地址栏收起导致视口高度变化 → scale 变化 → 测宽漂移 → --chip-w 横跳 →
+     chip 宽度跳变 + track offset 取模跳变 = 视觉瞬移。offsetWidth 不含
+     transform，任何视口/滚动位置下测值稳定。 */
   function setAllChipWidth() {
     var max = 0;
     for (var i = 0; i < loops.length; i++) {
@@ -32,7 +38,7 @@
       if (!first) continue;
       var chips = first.querySelectorAll('.skills-chip');
       for (var j = 0; j < chips.length; j++) {
-        var w = chips[j].getBoundingClientRect().width;
+        var w = chips[j].offsetWidth; /* 布局宽，不受滚动 scale 动画影响 */
         if (w > max) max = w;
       }
     }
@@ -96,7 +102,10 @@
         velocity += (target - velocity) * ease;
       }
       offset += velocity * dt;
-      var seqW = first.getBoundingClientRect().width;
+      /* 第一百三十一批：seqW 改用 offsetWidth（布局宽）——原 getBoundingClientRect
+         受卡片滚动 scale 动画影响，滚动/视口变化时 seqW 漂移 → offset 取模结果跳变
+         → track 瞬移。布局宽在滚动全程稳定。 */
+      var seqW = first.offsetWidth;
       if (seqW > 0) offset = ((offset % seqW) + seqW) % seqW;
       track.style.transform = 'translate3d(' + (-offset) + 'px, 0, 0)';
       raf = requestAnimationFrame(frame);
@@ -190,12 +199,20 @@
     });
 
     var resizeTimer = null;
+    var lastViewW = window.innerWidth;
     window.addEventListener('resize', function () {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function () {
-        setAllChipWidth();
-        syncCopies();
-        last = null;
+        /* 第一百三十一批：只在视口宽度变化时重测/重排 —— 移动端滚动时地址栏
+           收起/展开只改高度（innerWidth 不变），若照旧重测会无谓触发 chip 宽度
+           重排与复制数调整，造成卡片瞬移（测宽已改用 offsetWidth 不受 scale 影响） */
+        var w = window.innerWidth;
+        if (w !== lastViewW) {
+          setAllChipWidth();
+          syncCopies();
+          last = null;
+        }
+        lastViewW = w;
       }, 120);
     });
 

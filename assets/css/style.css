@@ -2482,7 +2482,10 @@
     .skills-loop { --loop-gap: 12px; }                      /* 第四十四批：20→12 紧凑 */
     .skills-loop-viewport { padding-block: 8px; }
     .skills-chip {
-      padding: 12px 10px;                                   /* 第五十五批：16px 8px → 12px 10px —— 主人"loop card 太大了"，mobile chip 同步缩小 */
+      /* 第一百三十一批：移动端尺寸改回"高瘦"（主人"横向过宽、纵向过矮，形状要和电脑版差不多"）——
+         纵向 padding 12→18px（接近桌面 22px 比例）、横向 10→8px 收窄；
+         桌面 chip 比例约 2.3:1，移动端约 131/54 ≈ 2.4:1，观感一致 */
+      padding: 18px 8px;
       gap: 8px;                                             /* 第四十四批：16→8 紧凑 */
       border-radius: 12px;                                  /* 第四十四批：14→12 移动端 */
     }
