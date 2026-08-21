@@ -1082,13 +1082,22 @@
     /* 外露偏移用百分比：底衬与卡片同尺寸，百分比会跟卡片尺寸缩放——
        桌面端 ~540px 宽卡片时实际 ≈ 18×20px（原值），移动端 78vw 卡片时
        自动缩到 ~9-11px，外露比例两端完全一致（2026-08-17 修） */
-    transform: rotate(-2deg) translate(-3.3%, 4.5%);
+    --base-y: 4.5%; /* 常驻纵向外露量；矮视口媒体查询覆盖（1206/1210 行） */
+    transform: rotate(-2deg) translate(-3.3%, calc(var(--base-y) + 24px));
     z-index: 0;
     pointer-events: none;
-    /* 入场：衬底先淡入露出纸边，照片随后斜切擦入（.entered 触发）。
-       衬底常驻静态不动（主人要求），只保留入场 opacity 过渡 */
+    /* 入场（第一百二十八批 2026-08-21 主人"照片底衬加入登场动画"）：
+       初始再下移 24px + 透明，.entered 时淡入上浮回常驻位（先于照片 clip-path 擦入）；
+       衬底常驻静态不动（主人要求），只保留入场 opacity + transform 过渡 */
     opacity: 0;
-    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: 0.05s;
+  }
+  .hero.entered .hero-art-base {
+    opacity: 1;
+    transform: rotate(-2deg) translate(-3.3%, var(--base-y));
   }
   .hero-art-card {
     position: relative;
@@ -1166,11 +1175,14 @@
   }
   /* poster 图（现在静态图）始终 opacity 1，作为 LCP 元素；clip-path 是卡片遮罩，
      静态图在卡片里一同淡入。
-     2026-08-17 晚：视频已移除，poster-first 双层结构改为单图结构 */
-  .hero.entered .hero-art-base { opacity: 1; }
+     2026-08-17 晚：视频已移除，poster-first 双层结构改为单图结构
+     （hero-art-base 的 .entered 恢复规则在 base 定义内，见上） */
 
   /* === Hero 底部滚动指示：SCROLL TO EXPLORE + 向下箭头 ===
-     底部居中、纯静态无动画、纯展示不可点击（2026-08-17 取消点击功能：去掉 hover 颜色变化与 cursor:pointer） */
+     底部居中、纯展示不可点击（2026-08-17 取消点击功能）。
+     第一百二十八批（2026-08-21 主人"SCROLL TO EXPLORE 加入登场动画"）：
+     初始透明 + 下移 24px，.entered 时淡入上浮到位；
+     错峰 delay 0.45s（hero-text 五层 + CTA 之后，最后出现） */
   .hero-scroll {
     position: absolute;
     /* 第五十八批：bottom 24→32px，让 SCROLL 跟 hero 底部距离更明确（"中心"位置）。
@@ -1178,13 +1190,22 @@
        hero 底部的独立视觉锚点 */
     bottom: 32px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(24px);
     display: flex; align-items: center; gap: 10px;
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
     color: var(--color-muted);
     z-index: 1;
     cursor: default;
+    opacity: 0;
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: 0.45s;
+  }
+  .hero.entered .hero-scroll {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
   /* 箭头是装饰：不可选中复制（保留纯展示语义），让 "SCROLL TO EXPLORE" 文字可选。
      2026-08-18 第六十五批：箭头恢复 accent 主色（之前是 muted 灰），给底部滚动指示一个
@@ -1203,11 +1224,11 @@
      正解 = 按高度档位压缩纸边下沉量 + SCROLL 贴底。正常电脑/手机显示（高视口）
      不受影响，纸边设计意图保留。 */
   @media (max-height: 700px) {
-    .hero-art-base { transform: rotate(-2deg) translate(-3.3%, 1.5%); }
+    .hero-art-base { --base-y: 1.5%; }
     .hero-scroll { bottom: 24px; }
   }
   @media (max-height: 610px) {
-    .hero-art-base { transform: rotate(-2deg) translate(-3.3%, 0.5%); }
+    .hero-art-base { --base-y: 0.5%; }
     .hero-scroll { bottom: 20px; }
   }
 
