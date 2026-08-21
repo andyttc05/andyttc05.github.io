@@ -123,19 +123,11 @@
      rafId 跟踪当前帧；paused 时取消 rAF 并 clearRect 清空画面（避免暂停前最后一帧"残留"） */
   var rafId = null;
   var paused = false;
-  /* 第一百三十六批（2026-08-21 主人"有没有不暂停动画又可以优化性能的方法"）：
-     低功耗帧跳过 —— 滚动时 setLowPower(true) 帧率降半（60→30fps），动画始终在跑
-     （不暂停），渲染开销减半；静止恢复 60fps。30fps 对慢速粒子几乎无感。
-     跳帧时保留上一帧画面（不清空），rAF 链保持。 */
-  var frameSkip = 1;
-  var frameCount = 0;
   /* 距离阈值取常量（粒子 max=6000 / 鼠标 max=20000），原代码每对读 o.max 多一次属性查找 */
   var POINT_MAX = 6000;
   var MOUSE_MAX = 20000;
   function step() {
     if (paused) { rafId = null; return; }
-    rafId = requestAnimationFrame(step);
-    if (++frameCount % frameSkip !== 0) return; /* 跳帧：不绘制，保留上一帧 */
     ctx.clearRect(0, 0, w, h);
     var n = points.length;
     var mouseMoving = (Date.now() - lastMoveAt) < 60;
@@ -186,17 +178,16 @@
         }
       }
     }
+    rafId = requestAnimationFrame(step);
   }
 
   function pause() {
     if (paused) return;
     paused = true;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    /* 第一百三十五批（2026-08-21 主人"滑动时背景 canvas 突然消失"）：
-       不再 clearRect 清空画面 —— 暂停时保留最后一帧（粒子静止在当前位置），
-       滚动中背景只是"停住"而非"消失"，观感连续；resume 后继续动画。
-       原注释"清空避免冻屏残留"的担忧在滚动暂停场景不成立：
-       冻结画面比空白画布更自然（背景一直存在）。 */
+    /* 清空画面：避免暂停前最后一帧（停止在某个状态）"冻屏"残留；
+       暂停时仍想看底色 = canvas 透明 = 看 html 背景，clearRect 不影响视觉 */
+    if (ctx && w && h) ctx.clearRect(0, 0, w, h);
   }
   function resume() {
     if (!paused) return;
@@ -229,11 +220,10 @@
   setTimeout(function () { if (!paused) rafId = requestAnimationFrame(step); }, 100);
 
   /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb)
-     + 跨页滚到非装饰区时调用 setLowPower(true/false) 降帧率节能（第一百三十六批） */
+     + 跨页滚到非装饰区时调用 pause()/resume() 节能 */
   window.RainNest = {
     setColor: function (rgb) { config.color = rgb; },
     pause: pause,
-    resume: resume,
-    setLowPower: function (v) { frameSkip = v ? 2 : 1; }
+    resume: resume
   };
 })();
