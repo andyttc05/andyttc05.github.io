@@ -33,7 +33,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/images/hero/catgirl_sailor.webp?v=5" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
-<link rel="stylesheet" href="assets/css/style.css?v=242">
+<link rel="stylesheet" href="assets/css/style.css?v=253">
 
 </head>
 <body>
@@ -74,7 +74,9 @@
 
   <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
     <header class="nav-menu-header">
-      <span class="nav-menu-brand" aria-hidden="true">rain.meow</span>
+      <!-- 第一百零九批（2026-08-21）：从 span 改为 a —— 手机版抽屉的 rain.meow 可点击：
+           其他页 → 跳转首页；首页 → 拦截导航只关抽屉并滚回顶部 -->
+      <a class="nav-menu-brand" id="navMenuBrand" href="index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
       <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"/>
@@ -126,7 +128,23 @@
           <span class="hero-type-text" id="typewriter" aria-live="off"></span><span class="hero-type-caret" aria-hidden="true"></span>
         </p>
       </div>
-      <!-- 第三层：meta（最轻，状态层）—— 时钟 + 问候 + 日期/位置/天气 -->
+      <!-- 第三层：CTA（来认识本猫）—— 实色按钮，紧接叙事内容，承接阅读冲动
+           第一百二十批（2026-08-21）：位置从 meta 之后上移到打字机之后、meta 之前。
+             原顺序：标题→副标题→打字机→meta→按钮
+             新顺序：标题→副标题→打字机→按钮→meta
+             理由：(1) CTA 是「叙事型引导」（来认识本猫），承接副标题的情绪最自然；
+                   (2) F 型阅读流中按钮落在第一焦距区，无需滚到 meta 才看到；
+                   (3) meta（时钟/天气）属状态信息，与 CTA 在视觉层级上不竞争权重。 -->
+      <a class="hero-cta" href="pages/about.html">
+        <span class="hero-cta-flip">
+          <span class="hero-cta-face hero-cta-front">来认识本猫</span>
+          <span class="hero-cta-face hero-cta-back" aria-hidden="true">来认识本猫</span>
+        </span>
+        <span class="hero-cta-arrow" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </span>
+      </a>
+      <!-- 第四层：meta（最轻，状态层）—— 时钟 + 问候 + 日期/位置/天气 -->
       <div class="hero-layer hero-layer-3">
         <p class="hero-meta-line">
           <span id="heroTime">--:--:--</span>
@@ -280,7 +298,7 @@
 </script>
 
 <script src="assets/js/lenis.min.js" defer></script>
-<script src="assets/js/script.js?v=104" defer></script>
+<script src="assets/js/script.js?v=109" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=6"></script>

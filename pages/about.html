@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
-<link rel="stylesheet" href="../assets/css/style.css?v=242">
+<link rel="stylesheet" href="../assets/css/style.css?v=253">
 </head>
 <body>
 
@@ -62,7 +62,9 @@
 
   <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
     <header class="nav-menu-header">
-      <span class="nav-menu-brand" aria-hidden="true">rain.meow</span>
+      <!-- 第一百零九批（2026-08-21）：从 span 改为 a —— 手机版抽屉的 rain.meow 可点击：
+           其他页 → 跳转首页；首页 → 拦截导航只关抽屉并滚回顶部 -->
+      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
       <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"/>
@@ -100,9 +102,11 @@
          主标题「关于」居中 + accent 色调；副标题「我是谁」在卡片区顶部紧贴卡片。
          第十二批：加回小站卡(site)；删除 Play/Now/Contact 卡；页面 = 我是谁 + 技能 两区。 -->
     <header class="about-hero">
-      <h1 class="about-title" aria-label="关于本猫"><span class="about-title-char">关</span><span class="about-title-char">于</span><span class="about-title-char hl">本</span><span class="about-title-char hl">猫</span></h1>
-      <!-- 第四十九批：主标题描述（不放卡里）；第五十四批：文案优化 -->
-      <p class="about-hero-desc">住在香港的猫，听雨，写码，慢慢长大</p>
+      <!-- 第一百零三批（2026-08-21）：标题/描述改活泼元气版 ——「本猫来啦」开场；
+           第一百零四批（2026-08-21）：描述结尾去掉「一步一步好好长大」，改「欢迎来逛逛」；
+           第一百零五批（2026-08-21）：描述去掉「住在香港」，改以「爱折腾」开场 -->
+      <h1 class="about-title" aria-label="本猫来啦"><span class="about-title-char hl">本</span><span class="about-title-char hl">猫</span><span class="about-title-char">来</span><span class="about-title-char">啦</span></h1>
+      <p class="about-hero-desc">一只爱折腾的猫，听雨、写码、打游戏，欢迎来逛逛</p>
     </header>
 
     <!-- === 自我介绍区（第四十六批 2026-08-20 主人重设计）：
@@ -112,18 +116,24 @@
          - 新增 .about-card-poem 诗意卡（右半 span 6），与 intro 等宽成对
          - 第五十四批：移除全部副标题描述（.about-sub-line + .about-sub-desc） -->
     <section class="about-bento" id="about-intro" aria-labelledby="about-sub-0">
-      <p class="about-sub" id="about-sub-0"><span class="hl">自我</span>介绍</p>
+      <!-- 第一百零三批：副标题改为邀请语「来认识本猫」 -->
+      <p class="about-sub" id="about-sub-0">来认识<span class="hl">本猫</span></p>
       <div class="about-grid">
-        <!-- 自我介绍卡（左半）：第七十三批重构 —— "四行自我介绍"式短句，主题 雨/水/编程（参考 taozhiyy.top/about 结构，内容原创不重复） -->
+        <!-- 自我介绍卡（左半）：第一百零三批（2026-08-21）名字加"我是"；
+             第一百零四批（2026-08-21）：正文再改 —— 去破折号/冒号、去"靠独处充电"等 AI 味表达，
+             口语短句贴近主人原话（香港/HKUST大二/数据科学/INTJ·I人/游戏游泳/冲浪自学/vibe coding）；
+             第一百零五批（2026-08-21）：「住在香港」→「生活在香港」 -->
         <div class="about-card about-card-intro">
-          <p class="about-card-name">时雨时猫</p>
-          <p class="about-card-text">雨落在键盘上，就成了<span class="hl">代码</span>。<br>HKUST Data Science 二年级，INTJ，喜欢把东西拆开再装回去。<br>这个角落放我的作品——最近在玩 vibe coding：<br>脑子里模糊的点子，交给 AI，一起搭成真的。</p>
+          <p class="about-card-name"><span class="about-card-name-me">我是</span>时雨时猫</p>
+          <p class="about-card-text">在 HKUST 读大二，专业是<span class="hl">数据科学</span>。MBTI 之前测过，是 INTJ，标准的 I 人。<br>平时喜欢打游戏和游泳，也爱在网上冲浪，研究杂七杂八的东西，自学点有意思的内容。<br>最近在学 <span class="hl">vibe coding</span>，把自己的想法说给 AI 听，让它帮我实现出来。</p>
         </div>
-        <!-- 诗意卡（右半）：第七十三批重构 —— 雨替天空写代码（水声存进名字，扣"时雨"），主题 雨/水/编程 -->
+        <!-- 诗意卡（右半）：第一百零四批（2026-08-21）主题回归 雨/水/编程 ——
+             雨替天空写代码（转瞬即逝）vs 我替自己写代码（把想法变成真的），
+             与左卡 vibe coding 呼应，去掉励志套话 -->
         <div class="about-card about-card-poem">
           <p>雨替<span class="poem-hl">天空</span>写<span class="poem-hl">代码</span>
 <span class="poem-hl">一行</span>落下，<span class="poem-hl">一行</span>蒸发
-我把<span class="poem-hl">水声</span>存进名字，等下一场<span class="poem-hl">雨</span>来敲门</p>
+我替自己写代码，把想法一行一行变成<span class="poem-hl">真的</span></p>
         </div>
 
         <!-- 技能/游戏 Section 标题通用类 about-sub-section（grid 内 span 12 满行靠左） -->
@@ -131,19 +141,21 @@
 
         <!-- Skills 卡：logo loop 双向（上方 工具 右→左 / 下方 语言 左→右）
              引擎 about-loop.js：rAF + 平滑速度 + 动态复制份数 + hover 减速 + 边缘 fade
+             + 第一百二十三批（2026-08-21 主人"循环卡片支持拖拽拉动"）：pointer 拖拽跟随 +
+             松手惯性衰减回自动滚动；触摸纵向翻页不受影响（touch-action: pan-y）
              (2026-08-20 主人：Tools/Languages 中文；描述加长；Harness = DeepSeek Harness(开源的 Agent 框架)；
-             VS Code 换 devicon 彩色图标(原 simpleicons visualstudiocode 404 破图)；图标 assets/images/skills/ 本地化) -->
+             VS Code 换 devicon 彩色图标(原 simpleicons visualstudiocode 404 破图)；图标 assets/icons/skills/ 本地化) -->
         <div class="about-card about-card-skills">
           <p class="skills-label">工具</p>
           <div class="skills-loop" data-direction="left" data-speed="55" data-hover="12" aria-label="工具循环">
             <div class="skills-loop-viewport">
               <div class="skills-loop-track">
                 <ul class="skills-loop-list">
-                  <li class="skills-chip"><img src="../assets/images/skills/deepseek.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DeepSeek</span><span class="skills-chip-desc">国产大模型，写码问答</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/deepseek-harness.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DSH</span><span class="skills-chip-desc">开源 Agent 框架</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/workbuddy.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">WorkBuddy</span><span class="skills-chip-desc">腾讯 AI 搭子，办公全能</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/vscode.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">VS Code</span><span class="skills-chip-desc">主力代码编辑器</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/git.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Git</span><span class="skills-chip-desc">代码版本与协作</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/deepseek.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DeepSeek</span><span class="skills-chip-desc">国产大模型，写码问答</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/deepseek-harness.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DSH</span><span class="skills-chip-desc">开源 Agent 框架</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/workbuddy.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">WorkBuddy</span><span class="skills-chip-desc">腾讯 AI 搭子，办公全能</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/vscode.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">VS Code</span><span class="skills-chip-desc">主力代码编辑器</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/git.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Git</span><span class="skills-chip-desc">代码版本与协作</span></span></li>
                 </ul>
               </div>
             </div>
@@ -153,75 +165,59 @@
             <div class="skills-loop-viewport">
               <div class="skills-loop-track">
                 <ul class="skills-loop-list">
-                  <li class="skills-chip"><img src="../assets/images/skills/cplusplus.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">C++</span><span class="skills-chip-desc">系统级性能语言</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/python.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Python</span><span class="skills-chip-desc">数据科学与脚本主力</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/sql.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">SQL</span><span class="skills-chip-desc">关系型数据库查询</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/html5.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">HTML</span><span class="skills-chip-desc">网页内容与结构</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/css.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">CSS</span><span class="skills-chip-desc">网页视觉与布局</span></span></li>
-                  <li class="skills-chip"><img src="../assets/images/skills/javascript.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">JavaScript</span><span class="skills-chip-desc">网页交互与逻辑</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/cplusplus.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">C++</span><span class="skills-chip-desc">系统级性能语言</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/python.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Python</span><span class="skills-chip-desc">数据科学与脚本主力</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/sql.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">SQL</span><span class="skills-chip-desc">关系型数据库查询</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/html5.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">HTML</span><span class="skills-chip-desc">网页内容与结构</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/css.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">CSS</span><span class="skills-chip-desc">网页视觉与布局</span></span></li>
+                  <li class="skills-chip"><img src="../assets/icons/skills/javascript.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">JavaScript</span><span class="skills-chip-desc">网页交互与逻辑</span></span></li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 游戏 Section（2026-08-20 主人"做个游戏区"→ 第三十三批"去掉框、加标签、重设计"→ 第四十三批"账号和服务器换位+优化排版"）
-             layout:logo + 三值横排（第五十五批：移除"游戏名字/服务器/游戏账号"标签文字，只留内容值；
-             名字 700 ink / 服务器 muted / 账号 accent 高亮） -->
+        <!-- 游戏 Section（2026-08-20 主人"做个游戏区"→ 第三十三批"去掉框、加标签、重设计"→ 第四十三批"账号和服务器换位+优化排版"
+             → 第一百二十二批 2026-08-21 主人"错落式散落布局，打破网格呆板感"：三张游戏贴纸卡
+             各自 rotate + 垂直错位，像随意散落在桌上的卡片，替代原大卡内三行列表；
+             hover 上浮回正 + accent 边框/阴影 + 名字变色（明确交互反馈）） -->
         <p class="about-sub about-sub-section" id="about-sub-games">游戏<span class="hl">窝</span></p>
-
-        <div class="about-card about-card-games">
-          <ul class="game-list">
-            <li class="game-row">
-              <img class="game-logo" src="../assets/images/games/wzry.webp" alt="王者荣耀" width="160" height="160" decoding="async">
-              <div class="game-info">
-                <span class="game-info-value game-info-name">王者荣耀</span>
-                <span class="game-info-value game-info-server">国服</span>
-                <span class="game-info-value game-info-account">残梦若归鸿</span>
-              </div>
-            </li>
-            <li class="game-row">
-              <img class="game-logo" src="../assets/images/games/hsr.webp" alt="崩坏：星穹铁道" width="160" height="160" decoding="async">
-              <div class="game-info">
-                <span class="game-info-value game-info-name">星穹铁道</span>
-                <span class="game-info-value game-info-server">亚服</span>
-                <span class="game-info-value game-info-account">839386225</span>
-              </div>
-            </li>
-            <li class="game-row">
-              <img class="game-logo" src="../assets/images/games/zzz.webp" alt="绝区零" width="160" height="160" decoding="async">
-              <div class="game-info">
-                <span class="game-info-value game-info-name">绝区零</span>
-                <span class="game-info-value game-info-server">亚服</span>
-                <span class="game-info-value game-info-account">1314904716</span>
-              </div>
-            </li>
-          </ul>
+        <div class="game-stack">
+          <div class="game-tile game-tile-1">
+            <img class="game-logo" src="../assets/icons/games/wzry.webp" alt="王者荣耀" width="160" height="160" decoding="async" loading="lazy">
+            <p class="game-tile-name">王者荣耀</p>
+            <p class="game-tile-server">国服</p>
+            <p class="game-tile-account">残梦若归鸿</p>
+          </div>
+          <div class="game-tile game-tile-2">
+            <img class="game-logo" src="../assets/icons/games/hsr.webp" alt="崩坏：星穹铁道" width="160" height="160" decoding="async" loading="lazy">
+            <p class="game-tile-name">星穹铁道</p>
+            <p class="game-tile-server">亚服</p>
+            <p class="game-tile-account">839386225</p>
+          </div>
+          <div class="game-tile game-tile-3">
+            <img class="game-logo" src="../assets/icons/games/zzz.webp" alt="绝区零" width="160" height="160" decoding="async" loading="lazy">
+            <p class="game-tile-name">绝区零</p>
+            <p class="game-tile-server">亚服</p>
+            <p class="game-tile-account">1314904716</p>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- === 联系方式（第九十八批 2026-08-21 主人"网上搜搜联系区卡片排版设计/彩色logo/大小参考favicon预览图/微信跳转官网"）
          副标题:同款 .about-sub about-sub-section(第九十七批定型);
-         卡片:4 张 bento 卡 —— 彩色品牌 logo(官网原版:Gmail 四色 M / 微信绿 #07C160 / IG 渐变 / GitHub 黑猫,
+         卡片:4 张 bento 卡 —— 彩色品牌 logo(官网原版:微信绿 #07C160 / IG 渐变 / GitHub 黑猫 / Gmail 四色 M,
          单色剪影弃用),白底 hairline tile 48px,去掉小号 mono 平台标签(图标即平台名),只留 handle;
+         顺序(第一百二十一批 2026-08-21 主人"从左到右微信/IG/GitHub/Email"):微信 → IG → GitHub → Email;
          SVG 文件 width=600 height=600(与 favicon.svg 预览图同规格);
          微信卡:点击 → 跳转微信官网 weixin.qq.com(不再复制微信号) -->
     <section class="about-bento about-bento-contact" id="about-contact" aria-labelledby="about-contact-title">
       <div class="about-grid about-grid-contact">
         <p class="about-sub about-sub-section" id="about-contact-title">联系<span class="hl">我</span></p>
-        <a class="about-card contact-card" href="mailto:andyttc2463@gmail.com" aria-label="邮箱 andyttc2463 at gmail.com">
-          <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/email.svg?v=2" alt="Gmail" width="34" height="34" loading="lazy" decoding="async"></span>
-            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
-          </span>
-          <span class="contact-card-body">
-            <span class="contact-card-handle">andyttc2463@gmail.com</span>
-          </span>
-        </a>
         <a class="about-card contact-card" href="https://weixin.qq.com" target="_blank" rel="noopener noreferrer" aria-label="微信官网">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/wechat.svg?v=2" alt="WeChat" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="../assets/icons/contact/wechat.svg?v=3" alt="WeChat" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -230,7 +226,7 @@
         </a>
         <a class="about-card contact-card" href="https://www.instagram.com/_andy_ttc" target="_blank" rel="noopener noreferrer" aria-label="Instagram _andy_ttc">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/instagram.svg?v=2" alt="Instagram" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="../assets/icons/contact/instagram.svg?v=3" alt="Instagram" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -239,11 +235,20 @@
         </a>
         <a class="about-card contact-card" href="https://github.com/andyttc05" target="_blank" rel="noopener noreferrer" aria-label="GitHub andyttc05">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/github.svg?v=2" alt="GitHub" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="../assets/icons/contact/github.svg?v=3" alt="GitHub" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
             <span class="contact-card-handle">andyttc05</span>
+          </span>
+        </a>
+        <a class="about-card contact-card" href="mailto:andyttc2463@gmail.com" aria-label="邮箱 andyttc2463 at gmail.com">
+          <span class="contact-card-head">
+            <span class="contact-card-icon"><img src="../assets/icons/contact/email.svg?v=3" alt="Gmail" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
+          </span>
+          <span class="contact-card-body">
+            <span class="contact-card-handle">andyttc2463@gmail.com</span>
           </span>
         </a>
       </div>
@@ -266,8 +271,8 @@
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=6"></script>
 
   <script src="../assets/js/lenis.min.js" defer></script>
-  <script src="../assets/js/script.js?v=106" defer></script>
+  <script src="../assets/js/script.js?v=110" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
-  <script src="../assets/js/about-loop.js?v=4" defer></script>
+  <script src="../assets/js/about-loop.js?v=7" defer></script>
 </body>
 </html>
