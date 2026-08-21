@@ -19,8 +19,15 @@
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!fine) return;
       var target = null, raf = null;
-      var K_MIN = 0.15, K_MAX = 0.6; /* 平滑系数范围：慢滚 0.15 平滑 / 快滚 0.6 跟手 */
+      /* 第一百四十批（主人"滑动一些页面时很笨重"）：
+         笨重来源 = 慢速滚动/触摸板细调也被 lerp 插值拖慢（每帧只走 15%，
+         感觉"推不动"）。修复：
+         ① 小步输入（|deltaY| < 30px，触摸板细调/慢滚）直接落地，不插值 → 轻盈跟手；
+         ② 平滑路径下限 K_MIN 0.15 → 0.2（中速滚动更跟手）；
+         ③ 快速滚动 K_MAX 0.6 + 距离饱和 1200px 保持不变。 */
+      var K_MIN = 0.2, K_MAX = 0.6; /* 平滑系数范围：慢滚 0.2 / 快滚 0.6 */
       var DIST_SAT = 1200;           /* 距离饱和值（px）：≥ 用 K_MAX */
+      var DIRECT_DELTA = 30;         /* |deltaY| < 30 → 直通不插值 */
       function maxScroll() {
         return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       }
@@ -43,11 +50,22 @@
       window.addEventListener('wheel', function (e) {
         if (!e.deltaY) return;
         e.preventDefault();
+        var delta = e.deltaY;
+        var max = maxScroll();
+        if (Math.abs(delta) < DIRECT_DELTA) {
+          /* 小步直通：无插值滞后（触摸板细调 / 慢滚微调） */
+          if (target === null) {
+            window.scrollTo(0, Math.max(0, Math.min(max, window.scrollY + delta)));
+          } else {
+            target = Math.max(0, Math.min(max, target + delta));
+          }
+          return;
+        }
         if (target === null) {
           target = window.scrollY;
           raf = requestAnimationFrame(frame);
         }
-        target = Math.max(0, Math.min(maxScroll(), target + e.deltaY));
+        target = Math.max(0, Math.min(max, target + delta));
       }, { passive: false });
       window.__wheelPause = function () {
         target = null;
