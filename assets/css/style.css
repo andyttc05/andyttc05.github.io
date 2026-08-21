@@ -2264,6 +2264,16 @@
      第十一批：chip 放大 + 名字下方加描述 + logo 彩色 + hover 边框不被裁剪（viewport padding）。
      第十二批：删 Play/Now/Contact 后卡内小标题 .about-card-h 已无使用，整块移除。 */
   .about-card-skills { grid-column: span 12; }
+  /* 第一百二十九批（2026-08-21 主人"'会的本事'的卡片也加个动效"）：
+     hover 反馈与 intro/poem 大卡一致 —— accent 边框加深 + 阴影扩散（不上浮，
+     尊重第九十四批"移除大卡 hover 浮动"）；卡内 chip 保留各自的上浮动效 */
+  .about-card.about-card-skills {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .about-card.about-card-skills:hover {
+    border-color: rgba(var(--color-accent-rgb), 0.45);
+    box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
+  }
   /* 分组名（2026-08-20 主人"工具/语言字体太小"：12→15px、muted→ink 更清晰）
      间距对齐 4pt 网格（Material/HIG）：label→desc 8px */
   .skills-label {
