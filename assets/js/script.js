@@ -5,6 +5,50 @@
        分支已移除，始终走自研帧率无关 + 速度自适应平滑），吸附回弹用自研 rAF 补间
        （smoothScrollTo，duration + easeInOut 可控，维持原 Lenis 吸附质感）。 */
 
+    /* 第一百三十八批（2026-08-21 主人"优化一下滑动效果"）：
+       桌面滚轮平滑（轻量自研，弥补 Lenis 移除后鼠标滚轮逐格跳动的质感损失）——
+       拦截 wheel（passive:false + preventDefault）→ 目标位置累加 → rAF lerp 逼近 →
+       window.scrollTo 逐帧落地。只对"鼠标滚轮/触摸板"（hover:hover + pointer:fine）
+       启用，触摸设备保持原生滚动（原生已流畅）。
+       平滑系数 LERP 0.13 ≈ 0.5s 收敛（介于 Lenis lerp 0.1 与跟手之间）；
+       任意程序化滚动（过渡带吸附 / 抽屉关后滚顶）前调用 window.__wheelPause()
+       取消进行中的 wheel 插值，避免两套滚动打架。 */
+    (function () {
+      var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!fine) return;
+      var target = null, raf = null;
+      var LERP = 0.13;
+      function maxScroll() {
+        return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      }
+      function frame() {
+        if (target === null) { raf = null; return; }
+        var cur = window.scrollY;
+        var next = cur + (target - cur) * LERP;
+        if (Math.abs(target - cur) < 0.5) {
+          next = target;
+          target = null;
+          raf = null;
+        } else {
+          raf = requestAnimationFrame(frame);
+        }
+        window.scrollTo(0, next);
+      }
+      window.addEventListener('wheel', function (e) {
+        if (!e.deltaY) return;
+        e.preventDefault();
+        if (target === null) {
+          target = window.scrollY;
+          raf = requestAnimationFrame(frame);
+        }
+        target = Math.max(0, Math.min(maxScroll(), target + e.deltaY));
+      }, { passive: false });
+      window.__wheelPause = function () {
+        target = null;
+        if (raf !== null) { cancelAnimationFrame(raf); raf = null; }
+      };
+    })();
+
     var navEl = document.getElementById('nav');
     var scrollProgressEl = document.getElementById('scrollProgress');
     var btn = document.getElementById('hamburgerBtn');
@@ -96,6 +140,8 @@
         if (onHome) {
           e.preventDefault();
           closeMenu();
+          /* 第一百三十八批：滚顶前取消 wheel 平滑插值（避免程序化滚动被插值拉回） */
+          if (window.__wheelPause) window.__wheelPause();
           window.scrollTo({ top: 0, behavior: 'smooth' }); /* 第一百三十七批：Lenis 移除，恒原生平滑 */
         }
         /* 其他页：让 href 正常跳转；menu 上的 A-click handler 会顺带关抽屉 */
@@ -1083,6 +1129,8 @@
         var curY = window.scrollY || window.pageYOffset;
         var dist = Math.abs(target - curY);
         var dur = Math.max(0.25, Math.min(0.7, dist / 1600));
+        /* 第一百三十八批：吸附前取消进行中的 wheel 平滑插值（避免两套滚动打架） */
+        if (window.__wheelPause) window.__wheelPause();
         /* 第一百三十七批：Lenis 移除 —— 自研 rAF 补间吸附（duration + easeInOut
            可控，维持原 Lenis scrollTo 的吸附质感；原生 scrollTo smooth 无时长控制） */
         smoothScrollTo(target, dur);
