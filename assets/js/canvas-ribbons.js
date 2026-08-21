@@ -132,13 +132,8 @@
   /* 暂停/恢复（移动端性能：滚到页底/页面切到后台 → 暂停飘带动画） */
   var rafId = null;
   var paused = false;
-  /* 第一百三十六批：低功耗帧跳过（滚动时 30fps，动画不暂停，渲染减半） */
-  var frameSkip = 1;
-  var frameCount = 0;
   function animate() {
     if (paused) { rafId = null; return; }
-    rafId = requestAnimationFrame(animate);
-    if (++frameCount % frameSkip !== 0) return; /* 跳帧：不绘制，保留上一帧 */
     ctx.clearRect(0, 0, W, H);
     /* 视差 translate 是全局常量（所有 section 共用同一偏移）—— 提到外层 save/restore，
        省 ~500 section × 2 save/translate/restore = 1500 GPU 状态变更/帧 */
@@ -166,14 +161,13 @@
         if (!sections[k]) sections[k] = createSection(W, H);
       }
     }
+    rafId = requestAnimationFrame(animate);
   }
   function pause() {
     if (paused) return;
     paused = true;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    /* 第一百三十五批（2026-08-21 主人"滑动时背景 canvas 突然消失"）：
-       不再 clearRect 清空画面 —— 暂停时保留最后一帧（飘带静止），
-       滚动中背景只是"停住"而非"消失"，观感连续；resume 后继续动画。 */
+    if (ctx && W && H) ctx.clearRect(0, 0, W, H);
   }
   function resume() {
     if (!paused) return;
@@ -192,11 +186,10 @@
   if (!paused) rafId = requestAnimationFrame(animate);
 
   /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb)
-     + 跨页滚到非装饰区时调用 setLowPower(true/false) 降帧率节能（第一百三十六批） */
+     + 跨页滚到非装饰区时调用 pause()/resume() 节能 */
   window.RainRibbons = {
     setColor: function (rgb) { config.color = rgb; },
     pause: pause,
-    resume: resume,
-    setLowPower: function (v) { frameSkip = v ? 2 : 1; }
+    resume: resume
   };
 })();

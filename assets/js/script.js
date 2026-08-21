@@ -1,20 +1,9 @@
-    /* === Lenis 平滑滚动（第六十三批接入 / 第六十七批限定区域）===
-       仅 .story-pin（落眸笑歌触）区域启用 Lenis 惯性；hero 等区域保持原生滚动触感。
-       门控方式：滚动位置 sy >= hb（过渡带顶进入视口顶）→ smoothWheel 开，否则关。
-       （prevent 回调逐元素检查，路径含 MAIN/BODY 等祖先会误拦截，弃用）
-       touch 保持原生（syncTouch:false）；lenisOn 时过渡带自研 lerp 让位（防双重平滑）。 */
-    /* Lenis 平滑滚动（仅桌面启用）——
-       matchMedia 检测是核心条件,Lenis 库本身通过 <script> 引入必然存在 */
-    var lenisOn = false;
-    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      var l = new window.Lenis({ lerp: 0.1, syncTouch: false, smoothWheel: false });
-      window.__lenis = l;
-      lenisOn = true;
-      (function raf(t) {
-        l.raf(t);
-        requestAnimationFrame(raf);
-      })(0);
-    }
+    /* 第一百三十七批（2026-08-21 主人"移除 Lenis 平滑滚动库，改用原生滚动 + 自行优化"）：
+       Lenis 平滑滚动已移除（lenis.min.js 引入同步删除）——桌面/移动端统一原生滚动。
+       原生滚动本身带系统惯性（macOS/iOS 触摸板/触摸），移动端天然流畅；
+       过渡带（落眸笑歌触五字目录）的丝滑跟随由下方自研 lerp 承担（原 lenisOn 让位
+       分支已移除，始终走自研帧率无关 + 速度自适应平滑），吸附回弹用自研 rAF 补间
+       （smoothScrollTo，duration + easeInOut 可控，维持原 Lenis 吸附质感）。 */
 
     var navEl = document.getElementById('nav');
     var scrollProgressEl = document.getElementById('scrollProgress');
@@ -107,7 +96,7 @@
         if (onHome) {
           e.preventDefault();
           closeMenu();
-          window.scrollTo({ top: 0, behavior: lenisOn ? 'auto' : 'smooth' });
+          window.scrollTo({ top: 0, behavior: 'smooth' }); /* 第一百三十七批：Lenis 移除，恒原生平滑 */
         }
         /* 其他页：让 href 正常跳转；menu 上的 A-click handler 会顺带关抽屉 */
       });
@@ -833,6 +822,29 @@
     })();
 
 
+    /* 第一百三十七批：自研 rAF 平滑滚动补间（替代 Lenis scrollTo）——
+       逐帧 window.scrollTo + duration + easeInOutCubic，吸附质感与 Lenis 一致；
+       新调用会取消进行中的补间（不叠加）。 */
+    var smoothScrollTo = (function () {
+      var rafId = null;
+      return function (targetY, dur) {
+        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        var startY = window.scrollY || window.pageYOffset;
+        var d = targetY - startY;
+        if (Math.abs(d) < 1) { window.scrollTo(0, targetY); return; }
+        var t0 = performance.now();
+        var duration = Math.max(0.05, dur || 0.4) * 1000;
+        function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+        function frame(now) {
+          var t = Math.min(1, (now - t0) / duration);
+          window.scrollTo(0, startY + d * ease(t));
+          if (t < 1) { rafId = requestAnimationFrame(frame); }
+          else { rafId = null; }
+        }
+        rafId = requestAnimationFrame(frame);
+      };
+    })();
+
     /* === 过渡带：pinned 门（sticky pin + 滚动 scrub） ===
        交互（主人诉求）：
          - hero 区：无动画，字在视口外自然不可见（CSS 默认显示，无需隐藏）
@@ -852,8 +864,8 @@
            眉标+副题从 e=0.45 淡入防突现；分隔符 · 跟左边字同进退；
            第六十批新增丝滑跟随：eEff/pEff lerp 惯性逼近 e/p（滚动中拖尾丝滑）+ 每字 easeOut 缓动；
            第六十一批：停止 150ms 直接平滑吸附回全显或到底（不先收敛冻结），动画全程连续；
-           第六十二批：帧率无关 + 速度自适应跟随；第六十三批：接入 Lenis 全局平滑——
-           lenisOn 时过渡带跟随让位（防双重平滑），无 Lenis 自动回退自研 lerp；
+           第六十二批：帧率无关 + 速度自适应跟随；第一百三十七批：Lenis 已移除，
+           过渡带丝滑跟随始终走自研 lerp（原"Lenis 让位"分支删除）；
            第六十六批：UX 检查发现瞬跳/键盘下字会冻结在 lerp 滞后态——
            onIdle 启动短 rAF settling 循环让 lerp 收敛到稳定态（字随惯性平滑到位），再触发吸附）
          眉标 + 副标题最后滑出（p ∈ [MARGIN+slot*n, 1]） */
@@ -882,8 +894,8 @@
       var MARGIN_END = 0.15;     /* 滑出终点缓冲（=眉标/副题离场）：后 15%（300px / 移动 240px）
                                     —— 与起点解耦：五字滑出独占 55% 行程（每字 220px / 移动 176px，更慢更从容） */
 
-      /* 丝滑跟随（第六十三批）：lenisOn 时显示进度=滚动进度（惯性由 Lenis 承接，避免双重平滑）；
-         无 Lenis 时回退自研：帧率无关指数平滑 + 速度自适应（快滚松、慢滚紧） */
+      /* 丝滑跟随（第六十三批 / 第一百三十七批 Lenis 移除）：始终走自研——
+         帧率无关指数平滑 + 速度自适应（快滚松、慢滚紧），滚动惯性由原生滚动承接 */
       var eEff = 0, pEff = 0, first = true;
       var idleTimer = null, snapping = false, lastSnap = 0, settling = false;
       var lastSy = -1, lastT = 0, vel = 0;   /* 滚动速度 EMA（px/s），驱动自适应跟随 */
@@ -935,11 +947,7 @@
         var vh = window.innerHeight || document.documentElement.clientHeight;
         var ps = pinScroll();
 
-        /* 第六十七批：Lenis 平滑门控——仅过渡带区域（sy>=hb，五字目录顶进入视口顶）启用；
-           hero 等区域 smoothWheel=false → 原生滚动触感 */
-        if (window.__lenis) {
-          window.__lenis.options.smoothWheel = sy >= hb;
-        }
+        /* 第一百三十七批：Lenis 门控已移除（原生滚动无 smoothWheel 开关） */
 
         /* 进场进度 e（第七十二批起只作"触发点"用）：e≥0.12 触发登场时间动画，e<0.02 重置可重播。
            窗口 0.45vh 定位字行进入视口的时刻（第六十八批：旧 0.8vh 让前两字淡入跑屏外） */
@@ -949,34 +957,30 @@
            p=0 全显示 → p=1 全滑出（sticky 释放） */
         var p = Math.min(1, Math.max(0, (sy - hb) / ps));
 
-        /* 丝滑跟随：lenisOn → 直接对齐（惯性由 Lenis 的滚动平滑承接，不双重平滑）；
-           否则回退自研 lerp（帧率无关 + 速度自适应） */
-        if (lenisOn) {
-          eEff = e; pEff = p;
+        /* 丝滑跟随：自研 lerp（帧率无关 + 速度自适应）——
+           Lenis 移除后始终走此分支（原 lenisOn 直接对齐的让位分支已删） */
+        var now = performance.now();
+        var dt = lastT ? (now - lastT) / 1000 : 1 / 60;
+        lastT = now;
+        if (lastSy >= 0) {
+          vel += (((sy - lastSy) / dt) - vel) * 0.2;
+        }
+        lastSy = sy;
+        if (first) { eEff = e; pEff = p; first = false; }
+        var k = Math.max(0.07, Math.min(0.3, 0.3 - vel / 11000));
+        var kf = 1 - Math.pow(1 - k, Math.min(3, dt * 60));
+        eEff += (e - eEff) * kf;
+        pEff += (p - pEff) * kf;
+        /* settling：滚动停下后的短收敛循环（防瞬跳/键盘冻结），收敛完触发吸附 */
+        if (settling && Math.abs(e - eEff) < 0.01 && Math.abs(p - pEff) < 0.01) {
+          settling = false;
+          maybeSnap(p);
+        } else if (settling) {
+          ticking = true;
+          requestAnimationFrame(update);
         } else {
-          var now = performance.now();
-          var dt = lastT ? (now - lastT) / 1000 : 1 / 60;
-          lastT = now;
-          if (lastSy >= 0) {
-            vel += (((sy - lastSy) / dt) - vel) * 0.2;
-          }
-          lastSy = sy;
-          if (first) { eEff = e; pEff = p; first = false; }
-          var k = Math.max(0.07, Math.min(0.3, 0.3 - vel / 11000));
-          var kf = 1 - Math.pow(1 - k, Math.min(3, dt * 60));
-          eEff += (e - eEff) * kf;
-          pEff += (p - pEff) * kf;
-          /* settling：滚动停下后的短收敛循环（防瞬跳/键盘冻结），收敛完触发吸附 */
-          if (settling && Math.abs(e - eEff) < 0.01 && Math.abs(p - pEff) < 0.01) {
-            settling = false;
-            maybeSnap(p);
-          } else if (settling) {
-            ticking = true;
-            requestAnimationFrame(update);
-          } else {
-            if (Math.abs(e - eEff) < 0.002) eEff = e;
-            if (Math.abs(p - pEff) < 0.002) pEff = p;
-          }
+          if (Math.abs(e - eEff) < 0.002) eEff = e;
+          if (Math.abs(p - pEff) < 0.002) pEff = p;
         }
 
         var n = chars.length;
@@ -1079,14 +1083,9 @@
         var curY = window.scrollY || window.pageYOffset;
         var dist = Math.abs(target - curY);
         var dur = Math.max(0.25, Math.min(0.7, dist / 1600));
-        if (window.__lenis) {
-          window.__lenis.scrollTo(target, {
-            duration: dur,
-            easing: function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-          });
-        } else {
-          window.scrollTo({ top: target, behavior: 'smooth' });
-        }
+        /* 第一百三十七批：Lenis 移除 —— 自研 rAF 补间吸附（duration + easeInOut
+           可控，维持原 Lenis scrollTo 的吸附质感；原生 scrollTo smooth 无时长控制） */
+        smoothScrollTo(target, dur);
         function done() {
           snapping = false;
           /* 吸附结束后对齐一次显示进度，避免 lerp 残留偏移 */
@@ -1124,38 +1123,9 @@
       update();
     })();
 
-    /* 第一百三十三批（2026-08-21 主人"手机端落眸笑歌触滑动卡顿"）：
-       背景 canvas（canvas-nest 粒子网络 + canvas-ribbons 几何飘带）是常驻 rAF
-       每帧全屏重绘，移动端滚动时与 vslide scrub / 过渡带动画抢 GPU → 卡顿。
-       第一百三十六批（主人"有没有不暂停动画又可以优化性能的方法"）：
-       由"滚动时暂停 pause()/resume()"升级为"滚动时降帧率 setLowPower"——
-       两个 canvas 新增低功耗模式：滚动中帧率 60→30fps（动画持续运行、不暂停、
-       画面始终在动），渲染开销减半让给滚动/scrub；滚动停止 200ms 后恢复 60fps。
-       30fps 对慢速粒子/飘带几乎无感，且彻底避免"背景消失/静止"的观感问题。
-       pause()/resume() 仍由 canvas 自身 visibilitychange（切后台）使用。
-       注意 script.js 在 index 页先于 canvas 脚本加载（about 页相反），
-       window.RainNest/RainRibbons 需在 load 事件后才可用，故绑定延迟到 load。 */
-    window.addEventListener('load', function () {
-      var P = window.RainNest && typeof window.RainNest.setLowPower === 'function' ? window.RainNest : null;
-      var R = window.RainRibbons && typeof window.RainRibbons.setLowPower === 'function' ? window.RainRibbons : null;
-      if (!P && !R) return;
-      var low = false;
-      var t = null;
-      function lowPowerAll() {
-        if (low) return;
-        low = true;
-        if (P) P.setLowPower(true);
-        if (R) R.setLowPower(true);
-      }
-      function fullPowerAll() {
-        if (!low) return;
-        low = false;
-        if (P) P.setLowPower(false);
-        if (R) R.setLowPower(false);
-      }
-      window.addEventListener('scroll', function () {
-        lowPowerAll();
-        clearTimeout(t);
-        t = setTimeout(fullPowerAll, 200);
-      }, { passive: true });
-    });
+    /* 第一百三十七批（2026-08-21 主人"背景样式保持不变（若已误改请回退至原版）"）：
+       移除第一百三十三/一百三十六批加的"滚动时暂停/降帧率背景 canvas"逻辑 ——
+       canvas-nest.js / canvas-ribbons.js 已回退原版（git checkout 257d081），
+       背景动画恢复常驻 rAF（原版行为）；canvas 的 pause()/resume() 仅由自身
+       visibilitychange（切后台）使用。移动端滚动流畅改由原生滚动 + vslide 引擎
+       优化（p 缓存 / touch 禁 blur）承担。 */
