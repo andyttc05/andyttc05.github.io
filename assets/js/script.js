@@ -10,22 +10,28 @@
        拦截 wheel（passive:false + preventDefault）→ 目标位置累加 → rAF lerp 逼近 →
        window.scrollTo 逐帧落地。只对"鼠标滚轮/触摸板"（hover:hover + pointer:fine）
        启用，触摸设备保持原生滚动（原生已流畅）。
-       平滑系数 LERP 0.13 ≈ 0.5s 收敛（介于 Lenis lerp 0.1 与跟手之间）；
+       第一百三十九批（主人"感觉有时不是很跟手"）：固定 LERP 0.13 在快速滚动时
+       current 追不上 target → 滞后明显。改为速度自适应：滚动距离大（快滚/追远）
+       → k 大更跟手（上限 0.6，距离 ≥1200px 饱和）；距离小 → k 小平滑收尾。
        任意程序化滚动（过渡带吸附 / 抽屉关后滚顶）前调用 window.__wheelPause()
        取消进行中的 wheel 插值，避免两套滚动打架。 */
     (function () {
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!fine) return;
       var target = null, raf = null;
-      var LERP = 0.13;
+      var K_MIN = 0.15, K_MAX = 0.6; /* 平滑系数范围：慢滚 0.15 平滑 / 快滚 0.6 跟手 */
+      var DIST_SAT = 1200;           /* 距离饱和值（px）：≥ 用 K_MAX */
       function maxScroll() {
         return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       }
       function frame() {
         if (target === null) { raf = null; return; }
         var cur = window.scrollY;
-        var next = cur + (target - cur) * LERP;
-        if (Math.abs(target - cur) < 0.5) {
+        var delta = target - cur;
+        var ad = Math.abs(delta);
+        var k = K_MIN + (K_MAX - K_MIN) * Math.min(1, ad / DIST_SAT);
+        var next = cur + delta * k;
+        if (ad < 0.5) {
           next = target;
           target = null;
           raf = null;
