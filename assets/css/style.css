@@ -1075,6 +1075,15 @@
        2026-08-17 第五十五批：继承自基线 .hero-text stretch + .hero-art end 会乱序 */
     .hero-text { align-self: start; }
     .hero-art  { align-self: start; }
+    /* 第一百零一批：hero 出场动画时序移动端覆盖 —— 桌面 12vh 55vh 对单列布局过早：
+       立绘在文字下方，滚动 12vh（~100px）时立绘还全屏可见就开始淡出上滑，
+       观感=动画"盖住"还在屏幕上的内容。移动端改为 30vh 80vh：
+       淡出跟随 hero 实际离屏节奏（文字先出、立绘离屏时才淡出），
+       与桌面"出场随 hero 离开视口"的观感一致，且消除长段半透明"幽灵"画面 */
+    .hero-text,
+    .hero-art {
+      animation-range: 30vh 80vh;
+    }
     /* 第六十批：移动端 hero-text 非 stretch，--hero-anchor 无意义（JS 置 0），
        层间距改显式 margin 阶梯：gap(2→3) > gap(1→2) 在移动端也成立
        第六十一批：margin-bottom 归零（桌面抬起逻辑只服务锚点布局，移动端流式不需要） */
@@ -1719,17 +1728,35 @@
      与 .about-sub-line 区别:hero-desc 在 hero 区(text-align center),sub-line 在 about-bento 内(left)。 */
   .about-hero-desc {
     font-family: var(--font-head);
-    /* 第九十四批：恢复 about-desc-rise —— 主人澄清只移大卡 hover 浮动，描述登场动画保留 */
-    animation: about-desc-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+    /* 第一百零二批：描述入场/出场改为滚动驱动（title-exit，见下方 @supports 块）——
+       原 about-desc-rise 一次性加载动画移除（同元素上 fill:both 加载动画会永久压过
+       滚动驱动动画的 opacity，二者不能共存） */
     font-size: clamp(16px, 1.85vw, 20px);
     line-height: 1.65;
     color: var(--color-muted);
     margin-top: 18px;
     letter-spacing: 0.5px;
   }
-  @keyframes about-desc-rise {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
+  /* === 关于本猫标题 + 描述：滚动驱动入场/出场（第一百零二批 2026-08-21）===
+     标题/描述位于页面顶部：入场在加载时天然完成（页面顶=可见位），
+     滚动向下 → 元素从顶部离场（滑过导航栏下方）时淡出 + 上滑；
+     滚动向上 → 从上方淡入 + 滑入。
+     区间用 exit 0% exit 100%（真实页面逐点探测结论）：
+     - cover 100% 起 → 淡出完全发生在导航栏遮挡区，用户看不到出场动画；
+     - entry/cover 0% 起 → 加载时元素已部分透明（首屏 13-29%）；
+     - exit 0% 起 → 加载/驻留全程 opacity 1，淡出随元素滑入导航栏遮挡区
+       同步进行，与"标题被导航栏盖住离场"的物理一致 */
+  @supports (animation-timeline: view()) {
+    .about-title,
+    .about-hero-desc {
+      animation: title-exit linear both;
+      animation-timeline: view(block 100px);
+      animation-range: exit 0% exit 100%;
+    }
+  }
+  @keyframes title-exit {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-24px); }
   }
   .about-title {
     display: inline-block;
@@ -1761,15 +1788,20 @@
   .about-title-char:nth-child(2) { animation-delay: 0.25s; }
   .about-title-char:nth-child(3) { animation-delay: 0.4s; }
   .about-title-char:nth-child(4) { animation-delay: 0.55s; }
-  /* 副标题：滚动驱动入场/出场 —— 与大卡同 timeline+range+composition（第九十四批恢复） */
-  .about-sub,
-  .about-sub-section {
-    animation:
-      scroll-fade-opacity linear both,
-      scroll-fade-move linear both;
-    animation-timeline: view(block 100px), view(block 100px);
-    animation-range: entry 0% cover 100%, entry 0% cover 100%;
-    animation-composition: replace, add;
+  /* 副标题：滚动驱动入场/出场 —— 与大卡同 timeline+range+composition（第九十四批恢复）。
+     第一百零一批：@supports (animation-timeline: view()) 门控 —— 无 view() 支持的浏览器
+     （iOS Safari ≤17 / 老 Chrome / 部分 WebView）里 animation 简写 duration 默认 0s +
+     fill:both 会直接跳到结束态(opacity:0)，卡片/标题不可见；门控后不支持时内容自然全显 */
+  @supports (animation-timeline: view()) {
+    .about-sub,
+    .about-sub-section {
+      animation:
+        scroll-fade-opacity linear both,
+        scroll-fade-move linear both;
+      animation-timeline: view(block 100px), view(block 100px);
+      animation-range: entry 0% cover 100%, entry 0% cover 100%;
+      animation-composition: replace, add;
+    }
   }
   /* 副标题：置于卡片区顶部、紧贴卡片（主人要求贴近卡片位置）
      2026-08-20 主人"优化"：副标题字号略大 20-28→22-30，与卡内名字（24-33）形成梯度
@@ -1820,28 +1852,38 @@
     border-radius: 20px; /* 第五十四批：18→20 更现代柔和（配合"卡片质感"优化） */
     padding: clamp(28px, 3.5vw, 44px); /* 2026-08-20 主人"优化大卡片设计"：更舒展 24-36→28-44 */
     min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
-    /* 第九十四批：恢复滚动驱动入场/出场 —— 主人澄清只移大卡 hover 浮动，滚动动画保留
-       view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 80px nav 遮）
-       entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁 */
-    animation:
-      scroll-fade-opacity linear both,
-      scroll-fade-move linear both;
-    animation-timeline: view(block 100px), view(block 100px);
-    animation-range: entry 0% cover 100%, entry 0% cover 100%;
-    animation-composition: replace, add;
+  }
+  /* 滚动驱动入场/出场（第九十四批恢复）+ 第一百零一批 @supports 门控：
+     view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 80px nav 遮）
+     entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁。
+     无 view() 支持的浏览器不播动画，卡片保持基础样式全显（见 .about-sub 同款注释） */
+  @supports (animation-timeline: view()) {
+    .about-card {
+      animation:
+        scroll-fade-opacity linear both,
+        scroll-fade-move linear both;
+      animation-timeline: view(block 100px), view(block 100px);
+      animation-range: entry 0% cover 100%, entry 0% cover 100%;
+      animation-composition: replace, add;
+    }
   }
   /* === 滚动驱动动画 keyframes（双动画拆分）===
      scroll-fade-opacity 用 replace（composition）：opacity 0→1→0 标量替换基础值
-     scroll-fade-move 用 add（composition）：transform translateY(48px)+scale(0.96)→identity 叠加 */
+     scroll-fade-move 用 add（composition）：transform translateY(48px)+scale(0.96)→identity 叠加。
+     第一百零一批：位移/缩放参数化（--enter-y/--enter-s，桌面默认 48px/0.96），
+     移动端媒体查询覆盖为更收敛的值，减少窄屏滑动中的交叠感。
+     第一百零二批：入场窗口 20% → 7% —— 末张卡（GitHub）在页面底部永远走不完
+     时间轴 20% 处（页面已到底），实测停在 ~60% 半透明；7% 后所有视口
+     （含 768×1024 平板竖屏）底部元素都能走完入场 → 全显，且入场更快更跟手 */
   @keyframes scroll-fade-opacity {
     0%        { opacity: 0; }
-    20%       { opacity: 1; }
+    7%        { opacity: 1; }
     80%       { opacity: 1; }
     100%      { opacity: 0; }
   }
   @keyframes scroll-fade-move {
-    0%        { transform: translateY(48px) scale(0.96); }
-    20%       { transform: translateY(0) scale(1); }
+    0%        { transform: translateY(var(--enter-y, 48px)) scale(var(--enter-s, 0.96)); }
+    7%        { transform: translateY(0) scale(1); }
     100%      { transform: translateY(0) scale(1); }
   }
   .about-card-intro {
@@ -1946,10 +1988,15 @@
     background: var(--color-paper);
     border: 1px solid rgba(var(--color-accent-rgb), 0.14);
     padding: 12px;
-    /* 第九十四批：恢复 logo-scroll —— 主人澄清只移大卡 hover 浮动，游戏 logo 滚动淡入保留 */
-    animation: logo-scroll linear both;
-    animation-timeline: view(block 100px);
-    animation-range: entry 0% cover 60%;
+  }
+  /* 第九十四批：恢复 logo-scroll（主人澄清只移大卡 hover 浮动，logo 滚动淡入保留）。
+     第一百零一批：@supports 门控 —— 无 view() 支持时 logo 保持全显 */
+  @supports (animation-timeline: view()) {
+    .game-logo {
+      animation: logo-scroll linear both;
+      animation-timeline: view(block 100px);
+      animation-range: entry 0% cover 60%;
+    }
   }
   @keyframes logo-scroll {
     0%   { opacity: 0; transform: scale(0.92); }
@@ -2228,9 +2275,11 @@
   /* === 联系方式卡（第九十七批 2026-08-21 主人"副标题同款/去动画/改名/重设计卡片动画/优化排版与手机"）
      副标题 = .about-sub about-sub-section 同款(与 会的本事/游戏窝 完全一致:滚动驱动入场,无逐字动画);
      卡片 = 4 张 bento 卡,交替方向入场(奇偶卡左右斜入 + 上浮 + 微缩);
-     logo 单色剪影(favicon 同款 fill currentColor 风格):主题切换时图标自动反相 */
+     logo 单色剪影(favicon 同款 fill currentColor 风格):主题切换时图标自动反相。
+     第一百零二批：页面底部留白收敛 —— 底 padding clamp(72,9.5vw,128) → clamp(48,6vw,80)
+     （主人"页面底部留白过多,适当减少";margin-top 补偿式不变,它只对上一区间距负责） */
   .about-bento-contact {
-    padding-block: 0 clamp(72px, 9.5vw, 128px);
+    padding-block: 0 clamp(48px, 6vw, 80px);
     margin-top: calc(clamp(28px, 4vw, 48px) - clamp(72px, 9.5vw, 128px));
   }
   .about-bento-contact .about-grid { gap: 22px; }
@@ -2245,20 +2294,29 @@
     padding: clamp(22px, 2.6vw, 30px);
     text-decoration: none;        /* 整卡是 <a>,禁用默认下划线 */
     color: inherit;
-    /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向) */
-    animation:
-      scroll-fade-opacity linear both,
-      contact-card-move linear both;
-    animation-timeline: view(block 100px), view(block 100px);
-    animation-range: entry 0% cover 100%, entry 0% cover 100%;
-    animation-composition: replace, add;
   }
-  /* 奇偶交替入场方向(用 nth-of-type 只数 <a> 兄弟,首行 <p> 副标题不参与) */
+  /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向)。
+     第一百零一批：@supports 门控 —— 无 view() 支持时联系卡保持全显（见 .about-sub 同款注释） */
+  @supports (animation-timeline: view()) {
+    .contact-card {
+      animation:
+        scroll-fade-opacity linear both,
+        contact-card-move linear both;
+      animation-timeline: view(block 100px), view(block 100px);
+      animation-range: entry 0% cover 100%, entry 0% cover 100%;
+      animation-composition: replace, add;
+    }
+  }
+  /* 奇偶交替入场方向(用 nth-of-type 只数 <a> 兄弟,首行 <p> 副标题不参与)。
+     第一百零一批：translateY/scale 参数化（--enter-y/--enter-s，桌面默认 36px/0.96），
+     移动端媒体查询覆盖为更收敛的值 + X 位移收敛（±24px → ±12px），
+     避免窄屏单列/双列下卡片越出屏幕边缘。
+     第一百零二批：入场窗口 20% → 7%（同 scroll-fade-opacity，见其注释） */
   .contact-card:nth-of-type(odd)  { --enter-x: -24px; }
   .contact-card:nth-of-type(even) { --enter-x:  24px; }
   @keyframes contact-card-move {
-    0%   { transform: translateX(var(--enter-x, 0)) translateY(36px) scale(0.96); }
-    20%  { transform: translateX(0) translateY(0) scale(1); }
+    0%   { transform: translateX(var(--enter-x, 0)) translateY(var(--enter-y, 36px)) scale(var(--enter-s, 0.96)); }
+    7%   { transform: translateX(0) translateY(0) scale(1); }
     100% { transform: translateX(0) translateY(0) scale(1); }
   }
   /* 卡片头部:icon + 箭头 横向分散对齐 */
@@ -2344,10 +2402,11 @@
   }
 
   /* 移动端（≤768px）：2x2 网格 + 收紧 padding + 隐藏 hover 位移
-     注:副标题 .about-sub-section 沿用公共移动端规则(≤768 margin 24/16) */
+     注:副标题 .about-sub-section 沿用公共移动端规则(≤768 margin 24/16)
+     第一百零二批：底部留白 56 → 40px（配合入场窗口 7%，末张卡仍能走完入场全显） */
   @media (max-width: 768px) {
     .about-bento-contact {
-      padding-block: 0 56px;
+      padding-block: 0 40px;
       margin-top: calc(clamp(28px, 4vw, 48px) - clamp(72px, 9.5vw, 128px));
     }
     .about-bento-contact .about-grid { gap: 18px; }
@@ -2381,15 +2440,40 @@
      退场 80-100% keyframe 落在卡片还在屏幕上(实测 844:cardTop +10 开始淡出,卡片 100% 可见时半透明)
      桌面 404px 高卡实测 cardTop -103 才开始淡出(顶已出屏)→ 手机"挡内容"
      修复:≤768px inset 100→56px(= 移动 nav 高),退场窗口整体上移 → 卡片顶部出屏才开始淡出,与桌面同步
-     不改 keyframes/range(entry 0% cover 100% 与桌面完全一致),只换 timeline 的 inset */
-  @media (max-width: 768px) {
-    .about-card,
-    .about-sub,
-    .about-sub-section,
-    .contact-card {
-      animation-timeline: view(block 56px), view(block 56px);
-    }
-    .game-logo {
-      animation-timeline: view(block 56px);
+     不改 keyframes/range(entry 0% cover 100% 与桌面完全一致),只换 timeline 的 inset
+     第一百零一批追加（主人再次反馈"手机版与电脑版动画不一致、滑动时动画遮挡内容"）:
+     (1) 整个移动端滚动驱动动画覆盖并入 @supports (animation-timeline: view()) ——
+         无 view() 支持的浏览器（iOS Safari ≤17 等）不播动画、内容全显，
+         消除"卡片/标题 opacity 0 不可见"的跨端不一致;
+     (2) 入场位移收敛:卡片/副标题 translateY 48→28px、scale 0.96→0.98，
+         联系卡 translateY 36→22px、X 位移 ±24px→±12px —— 窄屏上动画元素
+         与相邻内容的短暂交叠明显减小（28px < 卡间 18-22px gap 的视觉余量），
+         且不再越出屏幕边缘;桌面不受影响(keyframes 参数化,默认值不变) */
+  @supports (animation-timeline: view()) {
+    @media (max-width: 768px) {
+      .about-card,
+      .about-sub,
+      .about-sub-section,
+      .contact-card {
+        animation-timeline: view(block 56px), view(block 56px);
+        /* 入场位移收敛：48→28px / scale 0.96→0.98（联系卡下面单独更小） */
+        --enter-y: 28px;
+        --enter-s: 0.98;
+      }
+      .contact-card {
+        --enter-y: 22px;
+        --enter-s: 0.98;
+      }
+      /* X 位移收敛：±24px → ±12px，窄屏双列/单列下不越出屏幕边缘 */
+      .contact-card:nth-of-type(odd)  { --enter-x: -12px; }
+      .contact-card:nth-of-type(even) { --enter-x:  12px; }
+      /* 第一百零二批：标题/描述 title-exit 移动端 inset 同步 56px（与卡片一致） */
+      .about-title,
+      .about-hero-desc {
+        animation-timeline: view(block 56px);
+      }
+      .game-logo {
+        animation-timeline: view(block 56px);
+      }
     }
   }
