@@ -659,6 +659,11 @@
 
       /* 阶段窗口(占行程比例):入场 [0, IN_END] / 驻留 [IN_END, OUT_START] / 离场 [OUT_START, 1] */
       var IN_END = 0.34, OUT_START = 0.66;
+      /* 第一百三十三批：触摸设备禁用 blur 插值 —— focus/bloom 屏巨字入场/离场带
+         filter: blur() 动画，每帧变化会创建离屏模糊层（GPU 大户），移动端滚动时
+         叠加背景 canvas + 5 屏 scrub 造成卡顿。touch 端 blur 恒 0 → 写 filter:none，
+         保留 transform/opacity 位移动效（入场语义不变，只是去掉模糊）。 */
+      var isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
       function easeOutCubic(t) { var u = 1 - t; return 1 - u * u * u; }
       function lerp(a, b, t)   { return a + (b - a) * t; }
@@ -680,7 +685,8 @@
             poem:   s.querySelector('.vslide-poem'), /* 两行诗(2026-08-18 加):SPEC 无 poem 键 → setFrame fallback 到 spec.sub 锚点(延迟淡入淡出,与副文案同拍) */
             visual: s.querySelector('.vslide-visual')
           },
-          top: 0, ext: 0
+          top: 0, ext: 0,
+          lastP: -1 /* 第一百三十三批：上一帧进度缓存，p 未变化跳过 setFrame（省无谓写入） */
         });
       }
       if (!slides.length) return;
@@ -755,6 +761,7 @@
           var s   = lerp(from.s   || 1, to.s   || 1, e);
           var rot = lerp(from.rot || 0, to.rot || 0, e);
           var blur = lerp(from.blur || 0, to.blur || 0, e);
+          if (isTouch) blur = 0; /* 第一百三十三批：触摸端禁用 blur（省离屏模糊层） */
           var op   = lerp(from.op === undefined ? 1 : from.op,
                           to.op   === undefined ? 1 : to.op, e);
           /* 2026-08-20 修巨字渲染瑕疵:identity 时写 transform:none/filter:none/opacity:1,
@@ -787,7 +794,9 @@
           /* 最后一屏(触)clamp 在 REST 末端:它是页面终点,离场后视口会露出 wrap
              空尾(空白页)。clamp 后滚动到底,触 仍全显钉在视口,主页以它收官 */
           if (d.isLast && p > OUT_START) p = OUT_START;
-          setFrame(d, p);
+          /* 第一百三十三批：进度未变（该屏不在滚动窗口内）跳过 setFrame，
+             滚动时只更新进度实际变化的屏，减少每帧 DOM 写入 */
+          if (p !== d.lastP) { d.lastP = p; setFrame(d, p); }
         }
       }
       function scheduleUpdate() {
@@ -1115,5 +1124,36 @@
       update();
     })();
 
-    /* 联系方式微信号复制块已删除（第九十八批 2026-08-21）——
-       微信卡改为跳转官网 weixin.qq.com，data-copy 复制逻辑整体下架 */
+    /* 第一百三十三批（2026-08-21 主人"手机端落眸笑歌触滑动卡顿"）：
+       背景 canvas（canvas-nest 粒子网络 + canvas-ribbons 几何飘带）是常驻 rAF
+       每帧全屏重绘，移动端滚动时与 vslide scrub / 过渡带动画抢 GPU → 卡顿。
+       两个 canvas 早已内置 pause()/resume() 接口（注释写明"跨页滚到非装饰区时
+       调用节能"），但从未接线。这里补上：
+       滚动期间暂停背景 canvas（每次 scroll 幂等调用 pause，canvas 内部自检），
+       滚动停止 200ms 后恢复 —— 滚动时背景静止几乎无感知（用户在看内容），
+       GPU 全部让给滚动/scrub 动画 → 滑动顺滑；停止后背景动效恢复，视觉零损失。
+       注意 script.js 在 index 页先于 canvas 脚本加载（about 页相反），
+       window.RainNest/RainRibbons 需在 load 事件后才可用，故绑定延迟到 load。 */
+    window.addEventListener('load', function () {
+      var P = window.RainNest && typeof window.RainNest.pause === 'function' ? window.RainNest : null;
+      var R = window.RainRibbons && typeof window.RainRibbons.pause === 'function' ? window.RainRibbons : null;
+      if (!P && !R) return;
+      var paused = false;
+      var t = null;
+      function pauseAll() {
+        if (P) P.pause();
+        if (R) R.pause();
+        paused = true;
+      }
+      function resumeAll() {
+        if (!paused) return;
+        paused = false;
+        if (P) P.resume();
+        if (R) R.resume();
+      }
+      window.addEventListener('scroll', function () {
+        pauseAll();
+        clearTimeout(t);
+        t = setTimeout(resumeAll, 200);
+      }, { passive: true });
+    });
