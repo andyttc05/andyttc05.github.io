@@ -71,7 +71,6 @@
     var dragLastX = 0;
     var dragLastT = 0;
     var dragVel = 0;      /* 释放前瞬时速度（px/s）→ 松手惯性初速 */
-    var dragMoved = false; /* 拖动超过阈值 → 抑制该次 click（touch tap 暂停不误触） */
 
     /* 同步复制份数：覆盖视口 + headroom；只增不删（防 resize 抖动）
        所有克隆与首份同源，克隆失败/节点丢失时重新补 */
@@ -111,18 +110,19 @@
       raf = requestAnimationFrame(frame);
     }
 
-    root.addEventListener('mouseenter', function () {
-      if (hover !== undefined) hovered = true;
-    });
-    root.addEventListener('mouseleave', function () {
-      hovered = false;
-    });
-    /* 触摸设备：tap 暂停（pointer coarse 时 hover 不触发），点一下停、再点走 */
-    if (window.matchMedia('(pointer: coarse)').matches) {
-      root.addEventListener('click', function () {
-        /* 拖拽过的手势不是 tap，忽略（dragMoved 在 pointerdown 时重置） */
-        if (dragMoved) { dragMoved = false; return; }
-        hovered = !hovered;
+    /* 第一百三十四批（2026-08-21 主人"移动端点击卡片动画速度异常减慢"）：
+       hover 减速只绑定 hover 设备 —— 移动端点击会触发浏览器合成的 mouseenter
+       （触摸点击 = 合成鼠标事件序列：mouseover/mouseenter → mousedown → click），
+       导致 hovered=true 触发减速到 data-hover(12px/s)，且触摸没有 mouseleave
+       → 动画永久慢速（正是"点击后动画变慢"的根因）。
+       触摸设备无真实 hover，不绑定 hover 减速；原 tap 暂停（click 切换 hovered）
+       一并移除 —— 移动端点击不影响动画速度，暂停/拉动由拖拽（pointerdown）提供。 */
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      root.addEventListener('mouseenter', function () {
+        if (hover !== undefined) hovered = true;
+      });
+      root.addEventListener('mouseleave', function () {
+        hovered = false;
       });
     }
 
@@ -134,7 +134,6 @@
     root.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return; /* 仅左键拖拽 */
       dragging = true;
-      dragMoved = false;
       dragStartX = e.clientX;
       dragStartOffset = offset;
       dragLastX = e.clientX;
@@ -148,7 +147,6 @@
       if (!dragging) return;
       var now = performance.now();
       var dx = e.clientX - dragStartX;
-      if (Math.abs(dx) > 5) dragMoved = true;
       var dt = Math.max(1, now - dragLastT) / 1000;
       dragVel = (e.clientX - dragLastX) / dt;
       dragLastX = e.clientX;
