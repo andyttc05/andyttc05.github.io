@@ -1127,34 +1127,35 @@
     /* 第一百三十三批（2026-08-21 主人"手机端落眸笑歌触滑动卡顿"）：
        背景 canvas（canvas-nest 粒子网络 + canvas-ribbons 几何飘带）是常驻 rAF
        每帧全屏重绘，移动端滚动时与 vslide scrub / 过渡带动画抢 GPU → 卡顿。
-       两个 canvas 早已内置 pause()/resume() 接口（注释写明"跨页滚到非装饰区时
-       调用节能"），但从未接线。这里补上：
-       滚动期间暂停背景 canvas（每次 scroll 幂等调用 pause，canvas 内部自检），
-       滚动停止 200ms 后恢复 —— GPU 全部让给滚动/scrub 动画 → 滑动顺滑。
-       第一百三十五批：pause 不再 clearRect（保留最后一帧画面）→ 滚动中背景
-       只是静止、不会"突然消失"（见 canvas-nest.js / canvas-ribbons.js 的 pause）。
+       第一百三十六批（主人"有没有不暂停动画又可以优化性能的方法"）：
+       由"滚动时暂停 pause()/resume()"升级为"滚动时降帧率 setLowPower"——
+       两个 canvas 新增低功耗模式：滚动中帧率 60→30fps（动画持续运行、不暂停、
+       画面始终在动），渲染开销减半让给滚动/scrub；滚动停止 200ms 后恢复 60fps。
+       30fps 对慢速粒子/飘带几乎无感，且彻底避免"背景消失/静止"的观感问题。
+       pause()/resume() 仍由 canvas 自身 visibilitychange（切后台）使用。
        注意 script.js 在 index 页先于 canvas 脚本加载（about 页相反），
        window.RainNest/RainRibbons 需在 load 事件后才可用，故绑定延迟到 load。 */
     window.addEventListener('load', function () {
-      var P = window.RainNest && typeof window.RainNest.pause === 'function' ? window.RainNest : null;
-      var R = window.RainRibbons && typeof window.RainRibbons.pause === 'function' ? window.RainRibbons : null;
+      var P = window.RainNest && typeof window.RainNest.setLowPower === 'function' ? window.RainNest : null;
+      var R = window.RainRibbons && typeof window.RainRibbons.setLowPower === 'function' ? window.RainRibbons : null;
       if (!P && !R) return;
-      var paused = false;
+      var low = false;
       var t = null;
-      function pauseAll() {
-        if (P) P.pause();
-        if (R) R.pause();
-        paused = true;
+      function lowPowerAll() {
+        if (low) return;
+        low = true;
+        if (P) P.setLowPower(true);
+        if (R) R.setLowPower(true);
       }
-      function resumeAll() {
-        if (!paused) return;
-        paused = false;
-        if (P) P.resume();
-        if (R) R.resume();
+      function fullPowerAll() {
+        if (!low) return;
+        low = false;
+        if (P) P.setLowPower(false);
+        if (R) R.setLowPower(false);
       }
       window.addEventListener('scroll', function () {
-        pauseAll();
+        lowPowerAll();
         clearTimeout(t);
-        t = setTimeout(resumeAll, 200);
+        t = setTimeout(fullPowerAll, 200);
       }, { passive: true });
     });
