@@ -185,9 +185,11 @@
     if (paused) return;
     paused = true;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    /* 清空画面：避免暂停前最后一帧（停止在某个状态）"冻屏"残留；
-       暂停时仍想看底色 = canvas 透明 = 看 html 背景，clearRect 不影响视觉 */
-    if (ctx && w && h) ctx.clearRect(0, 0, w, h);
+    /* 第一百三十五批（2026-08-21 主人"滑动时背景 canvas 突然消失"）：
+       不再 clearRect 清空画面 —— 暂停时保留最后一帧（粒子静止在当前位置），
+       滚动中背景只是"停住"而非"消失"，观感连续；resume 后继续动画。
+       原注释"清空避免冻屏残留"的担忧在滚动暂停场景不成立：
+       冻结画面比空白画布更自然（背景一直存在）。 */
   }
   function resume() {
     if (!paused) return;
