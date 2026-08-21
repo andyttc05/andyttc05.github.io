@@ -7,6 +7,8 @@
      此处只放 color-scheme + 基础兜底 */
   :root {
     color-scheme: light;
+    /* 第六十一批：标题字体 token hex 兜底（老浏览器读不到 OKLCH 时仍有 fallback） */
+    
     /* RGBA 调用的整数三元组（canvas/JS 读）—— 兜底用 hex,
        现代浏览器在 @supports 块内被 OKLCH 替换为精确值 */
     --color-paper-rgb: 248, 250, 252;
@@ -14,6 +16,24 @@
     --color-hover: rgba(0, 0, 0, 0.03);
     --color-shadow: rgba(0, 0, 0, 0.06);
     --color-glass-edge: rgba(255, 255, 255, 0.55);
+    /* 新拟态 token（2026-08-20 About 页专属）：元素面 = --neu-surface，
+       凸起/凹陷全靠 暗影+高光 双影。hex 兜底，@supports oklch 内被替换。
+       第五十七批：整体转蓝调（浅蓝白面 + 蓝灰影）消除"灰补丁"违和感；
+       b1/b2 两级蓝给 intro/poem 卡分层上色。
+       第五十八批：阴影收敛 —— 暗影全部加 alpha（8 位 hex），视觉减重。
+       第五十九批：蓝调丰富度升级 —— 加入天空蓝 --neu-b3（最亮档，
+       sky/cerulean hue ~225°），四级蓝按 L 阶梯 + hue 微差展开：
+       b3 天空亮(94.5% / hue 224°) → surface 蓝白(96.2% / hue 250°)
+       → b1 中蓝(94% / hue 250°) → b2 饱和(90% / hue 252° hue 偏紫蓝)
+       hue 不等宽是为了"色彩感"而非"色阶单调"。
+       第六十二批：蓝系提鲜 + 珊瑚橙 --neu-coral（年轻活力） */
+    --neu-b1-surface:      #ffffff;  /* 统一卡色：纯白（第七十二批） */
+    /* accent hover 冷天蓝（第五十九批）：chip name / hl 从默认蓝(250°) → 天蓝(220°)，
+       给纯蓝画面点一抹冷亮提气质，5-10% 占比 */
+    /* 珊瑚橙活力点缀（第六十二批）：chip hover 名，主蓝+橙 = 年轻活力标准配方 */
+    /* 字体 token hex 兜底（第六十二批起演进，第六十六批回归 Plex） */
+    --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
+    --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
   }
   :root.theme-dark {
     color-scheme: dark;
@@ -22,6 +42,9 @@
     --color-hover: rgba(255, 255, 255, 0.04);
     --color-shadow: rgba(0, 0, 0, 0.45);
     --color-glass-edge: rgba(255, 255, 255, 0.08);
+    --neu-b1-surface:      #2b3552;
+    --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
+    --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
   }
   /* OKLCH 升级层 — 第八批 audit 优化：
      现代浏览器（Chrome 111+/Safari 15.4+/Firefox 113+）走 oklch()，
@@ -42,6 +65,18 @@
       --color-muted:   oklch(44.55% 0.037 257.3);   /* slate-600 */
       --color-rule:    oklch(86.90% 0.020 252.9);   /* slate-300 */
       --color-alt:     oklch(96.83% 0.007 247.9);   /* slate-100 */
+      /* 新拟态 oklch 版：第五十七批全系蓝调——面 = 蓝白(比纸底蓝一档)，
+         暗影 = 蓝灰，浅底上高光隐入背景、暗影定深浅；b1/b2 两级蓝分层。
+         第五十八批：暗影 alpha 0.55-0.6（light）/ 0.7-0.85（dark）收敛减重。
+         第五十九批：四级蓝按 L 阶梯 + hue 微差展开，b3 天空亮 224° 与 b2 饱和 252° 形成
+         "冷↔冷偏紫"色彩感，避免单调同 hue。
+         第六十二批：年轻活力化 —— 蓝系整体提鲜（chroma 上调），新增珊瑚橙 --neu-coral
+         做 5-10% 暖色点缀（chip hover 名），主蓝 + 珊瑚橙 = 标准活力配方 */
+      --neu-b1-surface:      oklch(100% 0 0);  /* 统一卡片色：纯白（第七十二批） */
+      /* 第六十一批：标题字体 token —— Baloo 2（圆润可爱）+ Noto Sans SC fallback（中文兜底）。
+         第六十六批：回归 IBM Plex 系列（主人钟意主页原字体）—— head=Serif / body=Sans */
+      --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
+      --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
       --hero-greet:    oklch(62.31% 0.188 259.8);   /* blue-500 sub-accent */
       /* 5 段色调 OKLCH（2026-08-19 优化）：L/C/h 三轴独立可控,
          落 18% 最沉 / 眸 54% 沉 / 笑 63% 亮 / 歌 58% 中 / 触 64% 亮 ——
@@ -65,6 +100,11 @@
          上的 hairline 细节；OKLCH 等价表达：oklch(71% 0.035 257 / 16%) */
       --color-rule:    oklch(71.07% 0.035 256.8 / 0.16);
       --color-alt:     oklch(26.12% 0.040 263.5);   /* 深蓝灰 */
+      /* 新拟态 dark：surface 比 paper(slate-900) 亮一档；暗影近黑、高光微亮蓝灰。
+         第六十二批：提鲜 + 珊瑚橙 --neu-coral（年轻活力） */
+      --neu-b1-surface:      oklch(29.50% 0.050 250.0);
+      --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
+      --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
       --hero-greet:    oklch(82.76% 0.101 230.3);   /* sky-300 */
       /* 5 段 dark OKLCH（2026-08-19 同步优化）：L 提到 70-85% 区间,
          hue 维持与 light 一致,仅提亮 2-3 阶;chroma 微降避免深底刺眼 */
@@ -169,6 +209,11 @@
     font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     line-height: 1.7; font-size: 17px;
     padding: 0;
+    /* OpenType kerning + standard ligatures 让 Plex 字体在屏幕渲染更接近印刷品质
+       （与主页同款）：hero-time 的 letter-spacing 1.5px 是整个站 tracking 调性的签名 */
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   /* 主题切换：不再使用 view-transition 动画，直接瞬时切换 */
   /* 抽屉打开时锁 body 滚动：避免用户在抽屉打开时滚动背后的页面内容。
@@ -326,7 +371,7 @@
   }
 
   .nav-brand {
-    font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
+    font-family: 'IBM Plex Serif', 'Plex Serif FB', serif; font-weight: 700; font-style: italic;
     /* font-size 用 clamp() 让 768-1024px 之间从 30 渐变到 40，跟 .nav-inner 高度同步缩放 */
     font-size: clamp(30px, calc(3.906vw), 40px); letter-spacing: -0.5px;
     color: var(--color-ink); text-decoration: none;
@@ -428,7 +473,7 @@
     background: var(--color-rule);
   }
   .nav-menu-brand {
-    font-family: 'IBM Plex Serif', serif; font-weight: 700; font-style: italic;
+    font-family: 'IBM Plex Serif', 'Plex Serif FB', serif; font-weight: 700; font-style: italic;
     font-size: 30px; color: var(--color-ink); text-decoration: none;
     letter-spacing: -0.5px;
     /* 与 .nav-brand 完全统一的居中策略：
@@ -487,7 +532,7 @@
   .nav-menu-links a {
     display: flex; align-items: center; gap: 12px;
     padding: 18px 24px;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     /* 18px / weight 600 = 跟桌面 .nav-links a 统一（跨设备视觉一致） */
     font-size: 18px; font-weight: 600;
     letter-spacing: -0.2px;
@@ -498,7 +543,7 @@
     flex: 1;
   }
   .nav-menu-links a .arrow {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     font-size: 16px; font-weight: 500;
     color: var(--color-ink);
     opacity: 0.30;
@@ -555,7 +600,7 @@
   }
   .nav-menu-action-hit svg { width: 26px; height: 26px; flex-shrink: 0; }
   .nav-menu-action-hit > span {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     font-size: 14px; font-weight: 500;
     letter-spacing: 1px;
   }
@@ -735,6 +780,20 @@
      padding-bottom（--hero-anchor，JS 实测）垫到图片底部 → 第三层精准锚在图片底部。
      2026-08-17 第六十批：JS 锚点方案（替代第五十七批"移除 min-height"的折中） */
   .hero-text { align-self: stretch; }
+  /* 第九十四批：恢复 hero-scroll-exit（主人澄清只移大卡 hover 浮动，hero 滚动出场保留）
+     scroll(root) 时间轴 range 12vh 55vh：滚动 12% 开始、55% 完成淡出 + 上滑 56px；
+     让 vslide 章节紧接 hero，自然衔接 */
+  .hero-text,
+  .hero-art {
+    animation: hero-scroll-exit linear both;
+    animation-timeline: scroll(root);
+    animation-range: 12vh 55vh;
+    animation-composition: replace;
+  }
+  @keyframes hero-scroll-exit {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-56px); }
+  }
   .hero-art  { align-self: center; }
 
   /* === 左：内容 === */
@@ -755,7 +814,7 @@
      gap: 14 是层内推荐值——比原分散 20-36 更紧凑，让"层"成为更强单元 */
   .hero-layer { display: flex; flex-direction: column; gap: 14px; }
   .hero-welcome {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 15px; letter-spacing: 2.5px; text-transform: uppercase;
     color: var(--color-muted);
     /* 左起 accent 短横线点睛：与英文间留 10px，竖排对齐 */
@@ -770,7 +829,7 @@
   }
   .hero-title {
     /* 纯文本标题：字号 clamp(44px,7vw,96px)，高度由内容撑开（移除 decrypt 特效容器） */
-    font-family: 'IBM Plex Serif', serif;
+    font-family: var(--font-head); /* 第六十三批：全站统一手写体 Ma Shan Zheng */
     font-weight: 700;
     position: relative;
   }
@@ -780,7 +839,7 @@
     display: inline-flex;
     font-size: clamp(44px, 7vw, 96px);
     font-weight: 800;
-    font-family: 'IBM Plex Serif', 'Plex Serif FB', serif;
+    font-family: var(--font-head); /* 第六十三批：hero-title-text 手写体 */
   }
   /* 逐字弹出：页面加载时每个字依次弹跳出现（scale 0.4→1.15→1 + opacity）。
      延迟 0.15s/字错开；fill both 让动画前保持隐藏、结束后保持原位（2026-08-17 新增） */
@@ -789,6 +848,7 @@
     background: linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent), #ffffff 45%) 100%);
     background-clip: text;
     color: transparent;
+    /* 第九十四批：恢复 hero-char-pop —— 主人澄清只移大卡 hover 浮动，所有其他动画保留 */
     animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
   @keyframes hero-char-pop {
@@ -814,7 +874,7 @@
     max-width: 46ch;
   }
   .hero-type {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 17px;
     color: var(--color-ink);
     min-height: 30px; /* 打字过程中行高稳定，不跳动；字级 < 副标题(18px) */
@@ -836,7 +896,7 @@
      抬到图片底部 → 第三层跟图片底部精准对齐。同时吸收全部剩余空间 → gap(2→3) > gap(1→2)。
      2026-08-17 第六十批：JS 锚点方案（替代第五十七批"min-height:auto 靠运气对齐"） */
   .hero-layer-3 {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     /* 辅助信息：明显小于副标题(18)/打字机(17)，拉开层级 */
     font-size: 14px; letter-spacing: 0.3px;
     color: var(--color-muted);
@@ -978,7 +1038,7 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
     color: var(--color-muted);
     z-index: 1;
@@ -1125,7 +1185,7 @@
   .story-intro-eyebrow {
     display: flex; align-items: center; justify-content: center;
     gap: 10px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 14px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
@@ -1147,7 +1207,7 @@
     gap: clamp(16px, 2.5vw, 36px);
     white-space: nowrap;
     max-width: 100%;
-    font-family: 'IBM Plex Serif', serif;
+    font-family: var(--font-head); /* 第六十三批：落眸笑歌触手写体 */
     font-weight: 700;
     font-size: clamp(40px, 6vw, 64px);
     letter-spacing: 0.16em;
@@ -1210,8 +1270,6 @@
     }
     .story-intro-sub { font-size: 14px; }
   }
-
-
 
   /* === Lenis 平滑滚动（第六十三批试用）===
      Lenis 官方推荐 CSS：防止 scroll-behavior:smooth 干扰惯性、触屏滚动边界正确。
@@ -1341,7 +1399,7 @@
     display: flex;
     align-items: center;
     gap: clamp(10px, 1.2vw, 14px);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: clamp(10.5px, 1.25vh, 12.5px);
     font-weight: 400;
     line-height: 1;
@@ -1349,7 +1407,8 @@
     text-transform: uppercase;
     pointer-events: none;
     z-index: 2;
-    will-change: opacity, transform;
+    /* 2026-08-20 修巨字渲染瑕疵:去掉 will-change —— JS 已逐帧写 transform 自会合成层,
+       静态 will-change 让文本常驻合成层(子像素 AA 退化 + 层底雾影),REST 时需落回原生渲染 */
   }
   .vslide-no { font-weight: 500; opacity: 0.9; }
   .vslide-rule { display: block; width: 22px; height: 1px; background: currentColor; opacity: 0.45; flex: none; }
@@ -1382,7 +1441,7 @@
     margin: 0;
     grid-column: 1;
     grid-row: 1;
-    font-family: 'IBM Plex Serif', serif;
+    font-family: var(--font-head); /* 第六十三批：雨眸笑歌触手写体 */
     font-weight: 700;
     font-size: clamp(96px, 16.5vh, 184px);
     line-height: 0.92;
@@ -1390,7 +1449,8 @@
     color: var(--glyph-fall); /* 默认值;每段被下面 5 段独立选择器覆盖 */
     align-self: start;
     justify-self: start;
-    will-change: transform, opacity, filter;
+    /* 2026-08-20 修巨字渲染瑕疵:去掉 will-change —— 配合 JS setFrame 在 identity 时写 transform:none,
+       让 REST 期脱离合成层,文字回到原生 subpixel AA,消除"下方雾影/中下方抽动" */
   }
   /* 5 段独立色调 —— 每段一个情绪色 */
   .vslide[data-anim="fall"]  .vslide-glyph { color: var(--glyph-fall); }
@@ -1414,14 +1474,14 @@
     grid-row: 2;
     align-self: end;
     justify-self: start;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: var(--font-body); /* 第六十三批：宋体小薇 */
     font-weight: 500;
     font-size: clamp(17px, 2.3vh, 24px);
     line-height: 1.55;
     letter-spacing: 0.04em;
     color: var(--color-muted); /* 默认;5 段独立覆写 */
     max-width: 44ch;
-    will-change: transform, opacity, filter;
+    /* 2026-08-20 修巨字渲染瑕疵:同 glyph,去掉 will-change 让文本 REST 落回原生渲染 */
   }
   /* 引子前短破折号(2026-08-19):em-dash 字符,字号同副文案,字距 0;
      渲染成"—— "效果但更紧凑;只占一格字宽,呼吸感强 */
@@ -1453,14 +1513,14 @@
     grid-row: 3;
     align-self: start;
     justify-self: start;
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: var(--font-body); /* 第六十三批：宋体小薇 */
     font-weight: 400;
     font-size: clamp(14.5px, 1.85vh, 19px);
     line-height: 2.05;
     letter-spacing: 0.16em; /* 更诗感 */
     color: var(--color-muted); /* 默认;5 段独立覆写 */
     max-width: 22ch;
-    will-change: transform, opacity, filter;
+    /* 2026-08-20 修巨字渲染瑕疵:同 glyph/sub,去掉 will-change */
   }
   /* 诗行前细竖线(2026-08-19):CSS border-left 不好跨 br 控制,改 inline-block span + 背景;
      高度 1em 跟当前行字高同步,自动随 line-height 缩放;左间距 0.5em */
@@ -1637,3 +1697,699 @@
     .vslide-visual { width: min(36vw, 360px); }
   }
 
+  /* === About 页（第一批→第七批：散文 → Bento 卡片网格）
+     编辑式排版：居中主标题 + 贴卡片副标题 + 多卡网格，不放立绘/图片。
+     第七批（主人反馈）：主标题居中 + accent 色调；副标题移入卡片区顶部贴卡片。
+     第十二批：加回 site 卡，删除 Play/Now/Contact 卡 —— 页面 = 我是谁(hello/me/site) + 技能(标题+logo loop 卡)。
+     注：about 页不引 canvas 粒子背景，body 透明不会盖任何画布层。 */
+  .about-main {
+    max-width: 1200px; /* 第七十三批：与 .nav-inner 同宽对齐（主人"页面长度和导航栏对齐"） */
+    margin: 0 auto;
+    padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
+    /* 第八十八批：无页面级浮动 —— 只保留滚动驱动入场动画 */
+  }
+  /* 标题区：主标题居中、accent 色调（第九批，替代纯 ink + 装饰线） */
+  .about-hero {
+    padding-block: clamp(72px, 12vh, 132px) clamp(32px, 4vw, 48px);
+    /* 第四十六批：主人"关于本猫下方分割线移除"——直接去掉 border-bottom，无装饰线 */
+    text-align: center;
+  }
+  /* 第四十九批：主标题描述(.about-hero-desc)——主标题下方,不放卡内。
+     居中（继承 hero text-align: center）+ 衬线 + 字号小于标题 (clamp 16-20) + muted + tracking 略大
+     与 .about-sub-line 区别:hero-desc 在 hero 区(text-align center),sub-line 在 about-bento 内(left)。 */
+  .about-hero-desc {
+    font-family: var(--font-head);
+    /* 第九十四批：恢复 about-desc-rise —— 主人澄清只移大卡 hover 浮动，描述登场动画保留 */
+    animation: about-desc-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+    font-size: clamp(16px, 1.85vw, 20px);
+    line-height: 1.65;
+    color: var(--color-muted);
+    margin-top: 18px;
+    letter-spacing: 0.5px;
+  }
+  @keyframes about-desc-rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .about-title {
+    display: inline-block;
+    /* 第九十三批：移除逐字弹出动画（主人"移除动画"）—— 静态展示 */
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(52px, 9vw, 96px);
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+    /* 第四十五批"重点字加颜色"：主标题整体改 ink，`.hl` 用 accent 跳出——
+       之前整体 accent 是单色基调，`.hl` 没对比度；改 ink 后"本猫"的 accent 才有视觉差 */
+    color: var(--color-ink);
+    text-shadow:
+      0 0 1px oklch(from var(--color-ink) l c h / 0.10);
+  }
+  /* 第四十五批：标题重点字配色——主标题 hl 用 accent 重墨（字重 800 + accent ink），
+     小标题 hl 用 accent 中等字重（font-weight 600）。同款 hl 类在 .about-sub 也复用 */
+  .about-title .hl {
+    color: var(--color-accent);
+    font-weight: 800;
+  }
+  /* 第九十二批：复用主页 hero-char-pop（同款弹性曲线 + 错峰 delay） —— 与「时雨时猫」统一弹出质感
+     第九十四批：恢复 —— 主人澄清只移大卡 hover 浮动，标题逐字弹出保留 */
+  .about-title-char {
+    display: inline-block;
+    animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .about-title-char:nth-child(1) { animation-delay: 0.1s; }
+  .about-title-char:nth-child(2) { animation-delay: 0.25s; }
+  .about-title-char:nth-child(3) { animation-delay: 0.4s; }
+  .about-title-char:nth-child(4) { animation-delay: 0.55s; }
+  /* 副标题：滚动驱动入场/出场 —— 与大卡同 timeline+range+composition（第九十四批恢复） */
+  .about-sub,
+  .about-sub-section {
+    animation:
+      scroll-fade-opacity linear both,
+      scroll-fade-move linear both;
+    animation-timeline: view(block 100px), view(block 100px);
+    animation-range: entry 0% cover 100%, entry 0% cover 100%;
+    animation-composition: replace, add;
+  }
+  /* 副标题：置于卡片区顶部、紧贴卡片（主人要求贴近卡片位置）
+     2026-08-20 主人"优化"：副标题字号略大 20-28→22-30，与卡内名字（24-33）形成梯度
+     主人"不要太密集"：mb 20→24，副标题与卡片间距更松
+     第五十四批：color muted → ink（与 hero 主标题同逻辑：整体 ink 实色、.hl accent 跳出，
+     标题更醒目，"重点字上色"才有对比度） */
+  .about-sub {
+    font-family: var(--font-head);
+    font-weight: 500;
+    font-size: clamp(22px, 2.6vw, 30px);
+    line-height: 1.45;
+    color: var(--color-ink);
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;       /* 第三十六批"字体调性对齐主页"：轻微 tracking 与 hero title 同节奏 */
+  }
+  /* 第四十五批"重点字加颜色"：小标题内重点字用 accent 跳出（font-weight 500→600） */
+  .about-sub .hl {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  /* Section 标题（grid 内 section 标题通用 —— 技能/游戏都引用），
+     span 12 满行靠左；顶部拉开与上行卡片的距离，底部贴卡 */
+  .about-sub-section {
+    grid-column: 1 / -1;
+    margin: clamp(28px, 4vw, 48px) 0 20px;
+  }
+  /* 正文区：Bento 卡片网格（第五批）
+     12 列网格填满 1200 容器 → 消除大片留白。
+     新拟态版（2026-08-20 主人"关于页一律新拟态"）：去边框、去零阴影，
+     卡片面 = --neu-surface（比纸底沉一档），凸起全靠 右下暗影 + 左上高光 双影；
+     背景（html paper + canvas 粒子层）一律不动。 */
+  .about-bento {
+    padding-block: clamp(36px, 4.5vw, 52px) clamp(72px, 9.5vw, 128px); /* 2026-08-20 主人"不要太密集"：顶 32-48→36-52，底 64-120→72-128 */
+  }
+  .about-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 22px; /* 2026-08-20 主人"不要太密集"：卡片间距 18→22 */
+  }
+  /* === About 页（第九十四批 2026-08-21 主人"只移除大卡 hover 浮动"）===
+     - 大卡 hover-lift -3px —— 删（主人指定移除）
+     - 恢复所有其他动画（char-by-char 标题 / about-desc-rise 描述 / 滚动驱动入场出场）
+     - 大卡 = 滚动驱动入场出场（view() 时间轴，replace+add 拆双动画） */
+  .about-card {
+    /* 第六十五批：弃新拟态 → 现代 UI —— flat + hairline 边框 + 零重阴影 */
+    background: var(--neu-b1-surface); /* 第六十九批：所有卡片统一耐看蓝（不再分层） */
+    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border-radius: 20px; /* 第五十四批：18→20 更现代柔和（配合"卡片质感"优化） */
+    padding: clamp(28px, 3.5vw, 44px); /* 2026-08-20 主人"优化大卡片设计"：更舒展 24-36→28-44 */
+    min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
+    /* 第九十四批：恢复滚动驱动入场/出场 —— 主人澄清只移大卡 hover 浮动，滚动动画保留
+       view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 80px nav 遮）
+       entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁 */
+    animation:
+      scroll-fade-opacity linear both,
+      scroll-fade-move linear both;
+    animation-timeline: view(block 100px), view(block 100px);
+    animation-range: entry 0% cover 100%, entry 0% cover 100%;
+    animation-composition: replace, add;
+  }
+  /* === 滚动驱动动画 keyframes（双动画拆分）===
+     scroll-fade-opacity 用 replace（composition）：opacity 0→1→0 标量替换基础值
+     scroll-fade-move 用 add（composition）：transform translateY(48px)+scale(0.96)→identity 叠加 */
+  @keyframes scroll-fade-opacity {
+    0%        { opacity: 0; }
+    20%       { opacity: 1; }
+    80%       { opacity: 1; }
+    100%      { opacity: 0; }
+  }
+  @keyframes scroll-fade-move {
+    0%        { transform: translateY(48px) scale(0.96); }
+    20%       { transform: translateY(0) scale(1); }
+    100%      { transform: translateY(0) scale(1); }
+  }
+  .about-card-intro {
+    grid-column: span 7;    /* 第四十六批：me + site 合并为自我介绍卡（左大）；第四十九批 span 6→7 因内容更多 */
+    /* 第六十九批：继承 base 统一卡色（不再分层） */
+  }
+  .about-card-poem {
+    grid-column: span 5;    /* 第四十六批：新增诗意卡；第四十九批 span 6→5 配合 intro 放大 */
+    /* 第六十九批：继承 base 统一卡色（不再分层） */
+  }
+  /* 卡内排版：欢迎行（颜文字入行）/ 名字 / 正文 / 收尾
+     2026-08-20 主人"优化字体大小和颜色"：字号加大、名字用 accent 强调、收尾微缩以拉层级
+     2026-08-20 主人"不要太密集"：行距全面加大（欢迎 1.65→1.75、名字 1.25→1.3、正文/收尾 1.8→1.95）、名字 mb 18→22、收尾 mt 28→32 */
+  .about-card-welcome {
+    font-family: var(--font-body); /* 第六十二批：正文 Nunito 圆润统一 */
+    font-size: clamp(19px, 2.1vw, 23px);
+    line-height: 1.75;
+    color: var(--color-ink);
+  }
+  .about-card-name {
+    font-family: var(--font-head); /* 第六十二批：名字 = 标题级，Baloo 2 统一可爱 */
+    font-weight: 700;
+    font-size: clamp(24px, 2.9vw, 33px);
+    line-height: 1.3;
+    color: var(--color-accent); /* 名字用 accent 强调（人名是卡内最强信息） */
+    margin-bottom: 22px;
+    letter-spacing: 1.5px;       /* 第三十六批"字体调性对齐主页"：与 #heroTime 同 1.5px tracking（站签名） */
+  }
+  .about-card-text {
+    font-family: var(--font-body);
+    font-size: clamp(16px, 1.75vw, 19px);
+    line-height: 1.95;
+    color: var(--color-ink);
+  }
+  .about-card-site .about-card-text { max-width: 62ch; }
+  .about-card-close {
+    font-family: var(--font-body);
+    font-size: clamp(15.5px, 1.7vw, 18.5px);
+    line-height: 1.95;
+    color: var(--color-muted);
+    margin-top: 32px;
+  }
+  /* 第四十六批+第四十八批+第五十五批+第九十四批：诗意卡视觉——
+     - 第四十八批删 border-left accent 引用条
+     - 第五十五批（主人"诗意卡卡片要和其他卡片一样"）：去掉淡 accent 底色与特殊 hover，
+       完全继承 .about-card base（alt 底 + hairline 边框）
+     - 第九十四批（主人"只移除大卡 hover 浮动"）：移除所有 hover-lift，poem 与其他卡完全一致静态
+     - 内容用 white-space: pre-line 保留换行；flex 垂直居中让 3 行诗与 intro 卡文字齐平
+     - .poem-hl 重点字用 accent + font-weight 600 跳出来（保留，主人要求上色） */
+  .about-card-poem {
+    display: flex;
+    align-items: center;
+  }
+  .about-card-poem p {
+    font-family: var(--font-body); /* 第六十二批：诗行 Nunito 圆润 */
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 2.0;
+    color: var(--color-ink);
+    margin: 0;
+    white-space: pre-line;
+    /* 中文字符不自斜体（font-style: normal）；如加 .en / italic 选区 */
+  }
+  /* 第七十三批：intro 卡重点字上色（同 poem-hl 逻辑，供自我介绍卡用） */
+  .about-card-text .hl {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  /* 第四十八批：诗意卡重点字配色（雨/代码/猫等核心意象用 accent 跳出） */
+  .about-card-poem .poem-hl {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  /* 第五十五批：.about-card-poem:hover 规则已删 —— 诗意卡完全继承 base hover
+     （上浮 -3px + 边框 accent 0.45α），与其他卡片一致 */
+  /* === 游戏卡（第四十三批 2026-08-20 主人"账号和服务器换位+优化排版"；第五十五批：去标签留值）
+     layout:logo + 三值横排 —— 移除"游戏名字/服务器/游戏账号"标签文字后，
+     名字(ink 700) / 服务器(muted) / 账号(accent 500) 三列直接可扫读。
+     hover 走 .about-card base（整卡上浮 -3px），logo 不单独位移（防双重位移）。 */
+  .about-card-games { grid-column: span 12; }
+  .game-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .game-row {
+    display: flex;
+    align-items: center;
+    gap: clamp(20px, 2.4vw, 36px);
+    padding: clamp(18px, 2vw, 26px) 0;
+    /* 新拟态去分隔线：拟态语言里"线"让位于"面+影"，行间距即分隔 */
+  }
+  .game-row:first-child { padding-top: 0; }
+  .game-row:last-child { padding-bottom: 0; }
+  .game-logo {
+    width: auto;
+    height: clamp(56px, 5.5vw, 76px);
+    flex-shrink: 0;
+    display: block;
+    object-fit: contain;
+    border-radius: 16px;
+    /* 第六十五批：现代 UI —— 白底 hairline tile（浅蓝卡面上干净利落） */
+    background: var(--color-paper);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    padding: 12px;
+    /* 第九十四批：恢复 logo-scroll —— 主人澄清只移大卡 hover 浮动，游戏 logo 滚动淡入保留 */
+    animation: logo-scroll linear both;
+    animation-timeline: view(block 100px);
+    animation-range: entry 0% cover 60%;
+  }
+  @keyframes logo-scroll {
+    0%   { opacity: 0; transform: scale(0.92); }
+    30%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  /* 三值横排：grid 3 列 spread 满行，无标签直接可扫读 */
+  .game-info {
+    margin: 0;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: clamp(20px, 3vw, 56px);
+    align-items: center;
+  }
+  .game-info-value {
+    margin: 0;
+    font-family: var(--font-body); /* 第六十二批：游戏三值 Nunito 圆润 */
+    font-size: clamp(16px, 1.65vw, 18px);
+    line-height: 1.3;
+    color: var(--color-ink);
+    font-weight: 400;
+  }
+  /* 游戏名：主标题层级 — 加重加粗（卡片设计指南：标题 18-20px 重字重） */
+  .game-info-name { font-weight: 700; }
+  /* 服务器：metadata 层级 — muted 轻量 */
+  .game-info-server { color: var(--color-muted); }
+  /* 游戏账号：次重要层级 — accent 高亮（辨识度最高的"信息锚点"） */
+  .game-info-account { color: var(--color-accent); font-weight: 500; }
+  /* 移动端（≤768px）：logo 缩到 48px、三值单列竖排 */
+  @media (max-width: 768px) {
+    .game-row {
+      align-items: center;      /* 第七十五批：logo 靠左 + 三值横排填满右侧 */
+      gap: 14px;
+      padding: 16px 0;
+    }
+    .game-logo { height: 56px; border-radius: 12px; padding: 8px; }
+    .game-info {
+      grid-template-columns: 1fr 1fr 1.3fr; /* 第七十七批：账号列加宽，10 位数字完整 */
+      column-gap: 8px;
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+    }
+    .game-info-value {
+      font-size: 13px;          /* 第七十七批：13px 让 10 位数字账号完整放下 */
+      font-variant-numeric: tabular-nums; /* 数字等宽，宽度可预测 */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  /* === Skills 卡：logo loop 双向（第十批/第十一批优化）===
+     参考 React Bits <LogoLoop />：rAF 平滑 + hover 减速 + 边缘 fade + chip hover 微缩放。
+     第十一批：chip 放大 + 名字下方加描述 + logo 彩色 + hover 边框不被裁剪（viewport padding）。
+     第十二批：删 Play/Now/Contact 后卡内小标题 .about-card-h 已无使用，整块移除。 */
+  .about-card-skills { grid-column: span 12; }
+  /* 分组名（2026-08-20 主人"工具/语言字体太小"：12→15px、muted→ink 更清晰）
+     间距对齐 4pt 网格（Material/HIG）：label→desc 8px */
+  .skills-label {
+    font-family: var(--font-body); /* 第六十二批：去 mono，Nunito 圆润统一 */
+    font-size: 14px;             /* 第三十八批主人"字体大一点点，适中就好"：13→14 微调（保留 uppercase + tracking 1.6px） */
+    letter-spacing: 1.6px;        /* 第三十六批"调性对齐"：与 hero-welcome "WELCOME TO" tracking 2.5px / game-info 1.4 折中 */
+    color: var(--color-ink);
+    font-weight: 700;
+    text-transform: uppercase;   /* 第三十六批"调性对齐"：与 hero-welcome 全大写一致 */
+    margin-bottom: 8px;
+  }
+  /* 第四十七批：删除 .skills-label-desc CSS 块（主人要求移除"平时折腾代码..."和
+     "写过..."两条描述，HTML 元素已删，CSS 留空块无意义） */
+  /* 2026-08-20 主人"语言和工具 section 之间不要太密"：亲近律——不同 section 间距 32-48px，
+     取 4pt 网格 40px。此前 loop 后无 margin（0px），"语言"标题紧贴工具 chips */
+  .skills-loop + .skills-label { margin-top: 40px; }
+  .skills-loop {
+    position: relative;
+    --loop-gap: 20px; /* 2026-08-20 主人"不要太拥挤"：chip 间距 14→20 */
+    --chip-w: auto;   /* 2026-08-20 主人"loop 卡片等宽"：about-loop.js 测每 loop 最宽 chip 写入 */
+  }
+  .skills-loop-viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    /* 垂直 padding 给 chip hover scale(1.06) 留空间 → 上下蓝色边框不被 overflow 裁剪 */
+    padding-block: 10px;
+  }
+  /* 边缘 fade：从新拟态卡片表面色（--neu-surface）渐隐，替代 React Bits 的 fadeOut */
+  .skills-loop-viewport::before,
+  .skills-loop-viewport::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: clamp(24px, 8%, 96px);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .skills-loop-viewport::before {
+    left: 0;
+    background: linear-gradient(to right, var(--neu-b1-surface), rgba(0, 0, 0, 0));
+  }
+  .skills-loop-viewport::after {
+    right: 0;
+    background: linear-gradient(to left, var(--neu-b1-surface), rgba(0, 0, 0, 0));
+  }
+  .skills-loop-track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+    user-select: none;
+  }
+  .skills-loop-list {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .skills-chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* 等宽后内容居中（2026-08-20 主人"等宽"） */
+    gap: 16px;
+    margin-right: var(--loop-gap);
+    padding: 22px 14px; /* 第五十五批：28px 12px → 22px 14px —— 主人"loop card 太大了"，回到第五十一批验收过的"高瘦"比例；viewport padding-block 12→10 */
+    width: var(--chip-w, auto); /* 每 loop 等宽：about-loop.js 测最宽 chip 写入 --chip-w */
+    background: var(--color-paper); /* 第六十五批：现代 chip —— 白底 hairline */
+    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border-radius: 14px;
+    font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
+    color: var(--color-ink);
+    white-space: nowrap;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.25s ease;
+  }
+  .skills-chip img {
+    width: 22px;                /* 第三十七批主人"svg 太大了"：28→22 微缩，
+                                   保留 24×24 viewBox 渲染、让 chip 看上去更"图标风"而非"头图" */
+    height: 22px;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    /* 彩色 logo（Simple Icons 默认品牌色 / Harness.io 青蓝 / WorkBuddy 绿猫 / SQL 蓝数据库 / DeepSeek 官方黑鲸鱼） */
+  }
+  /* 2026-08-20 主人：DeepSeek(模型) 蓝鲸 / DeepSeek Harness 黑鲸。
+     黑鲸在暗色 chip 背景 slate-900 上不可见 → 只对 harness 版反相为白鲸；
+     蓝鲸 #5786FE 在亮暗背景都清晰，不动。 */
+  .theme-dark .skills-chip img[src*="deepseek-harness"] {
+    filter: invert(1);
+  }
+  /* chip 文本列：名字 + 描述（2026-08-20 主人"名字和描述不要贴的很紧"；
+     主人"不要太密集"：gap 对齐 4pt 网格 4px） */
+  .skills-chip-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    line-height: 1.3;
+  }
+  .skills-chip-name {
+    font-family: var(--font-body); /* 第六十二批：Nunito 圆润 */
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-ink);
+    transition: color 0.2s ease;
+  }
+  .skills-chip-desc {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--color-muted);
+    transition: color 0.2s ease;
+  }
+  /* hover：边框 accent + 名字霓虹青（第六十五批：现代 UI 反馈） */
+  /* hover：卡片微微悬浮（第六十七批，主人要求去边框/字体变色，只留上浮） */
+  .skills-chip:hover {
+    transform: translateY(-3px);
+  }
+
+  /* 移动端（≤768px 平板竖屏+手机）：标题区收紧，卡片全列宽单列堆叠
+     第四十四批 2026-08-20 主人"优化关于页手机版"：
+     - chip 去掉 desc 只显名字（避免 iPhone 窄屏挤压成竖排单字）
+     - 副标题字号上调（19-22 → 21-26）更醒目
+     - games 字段间隙加大呼吸
+     - 新增 ≤480 极窄屏断点：游戏卡 stacked（logo 顶中 + dl 双列） */
+  @media (max-width: 768px) {
+    .about-hero {
+      padding-block: clamp(40px, 6vh, 72px) 28px; /* 第七十一批：手机版顶部留白收紧 */
+    }
+    .about-hero-desc { font-size: clamp(14px, 4vw, 17px); margin-top: 14px; }
+    .about-title {
+      font-size: clamp(40px, 11vw, 46px);
+      letter-spacing: 0;
+    }
+    .about-sub {
+      font-size: clamp(21px, 6vw, 26px);   /* 第四十四批：19-22→21-26 让副标题更醒目 */
+      margin-bottom: 18px;
+    }
+
+    .about-bento {
+      padding-block: 28px 56px; /* 第七十一批：移动端底部留白微收 */
+    }
+    /* 第四十四批追诊：mobile 用 flex column 取代 grid 1fr。
+       原因：chrome 的 `1fr` 在 grid item content 超宽时会按 items min-content 收缩列宽
+       （实测 iPhone 1fr 算出 160 而非 358，desktop 600vp 算出 370 而非 568）；
+       改用 flex column + width:100% 更稳健地让每张卡占满容器宽。 */
+    .about-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;                            /* 第四十四批：22→18 移动端更紧凑 */
+    }
+    .about-card-intro,
+    .about-card-poem,
+    .about-card-skills {
+      width: 100%;                          /* 第四十六批：me/site → intro/poem 重命名 */
+    }
+
+    .about-card {
+      padding: 20px;                        /* 第七十一批：移动端 23.4→20 更紧凑 */
+      border-radius: 16px;                  /* 第四十四批：18→16 移动端更柔和 */
+    }
+    /* 第五十四批：mobile .about-sub-desc/.about-sub-line 样式随 HTML 移除 */
+    .about-card-welcome { font-size: clamp(16px, 4.4vw, 18px); }
+    .about-card-name { font-size: clamp(20px, 5.5vw, 24px); letter-spacing: 1px; }
+    .about-card-text,
+    .about-card-close { font-size: clamp(15px, 4.2vw, 17px); }
+    .about-card-name { margin-bottom: 16px; }      /* 第四十四批：22→16 移动端紧凑 */
+    .about-card-close { margin-top: 22px; }         /* 第四十四批：32→22 移动端紧凑 */
+    /* 第四十八批：诗意卡移动端稍紧凑（无左 border） */
+    .about-card-poem p { font-size: clamp(16px, 4.5vw, 19px); line-height: 1.9; }
+
+    /* Skills 卡移动端：chip 紧凑化 + 隐藏描述
+       关键坑：原 chip "img + name + desc" 三件套在 390px viewport 下会被 flex 压缩成单字竖排
+       修复：隐藏 desc + 缩小 padding/gap/img
+       第五十批:去掉 .skills-chip-name max-width 110px + overflow hidden + ellipsis
+       —— DeepSeek Harness 已简化为 DSH,无需兜底截断;max-width + overflow hidden 是
+       mobile hover scale(1.06)导致"文字跳变"的根本原因(chip-name 容器被截断,
+       scale 时容器宽度变化让文字位置重排;去掉 max-width 后 chip-name 完整显示,
+       scale 时文字位置稳定) */
+    .skills-label { font-size: 13px; letter-spacing: 1.4px; margin-bottom: 6px; }
+    .skills-loop + .skills-label { margin-top: 28px; }     /* 第四十四批：40→28 移动端紧凑 */
+    .skills-loop { --loop-gap: 12px; }                      /* 第四十四批：20→12 紧凑 */
+    .skills-loop-viewport { padding-block: 8px; }
+    .skills-chip {
+      padding: 12px 10px;                                   /* 第五十五批：16px 8px → 12px 10px —— 主人"loop card 太大了"，mobile chip 同步缩小 */
+      gap: 8px;                                             /* 第四十四批：16→8 紧凑 */
+      border-radius: 12px;                                  /* 第四十四批：14→12 移动端 */
+    }
+    .skills-chip img { width: 18px; height: 18px; }         /* 第四十四批：22→18 移动端 */
+    .skills-chip-text { gap: 0; }                           /* 第四十四批：4→0 只显名字时无间距 */
+    .skills-chip-desc { display: none; }                    /* 第四十四批：移动端隐藏描述 防挤压 */
+    .skills-chip-name {
+      font-size: 14px;                                      /* 第五十批：13.5→14 名字简化后可读性更好 */
+      /* 第五十批：去掉 max-width/overflow/ellipsis，DSH 短名 + chip 等宽自动适配 */
+    }
+    /* 第五十批：mobile hover 用 border-color + name color 反馈，禁用 transform scale
+       —— 修复 chip scale + track translate 同时作用导致的视觉跳动(bug 描述："鼠标悬浮
+       在手机版的 logo loop 上，动画会好奇怪，电脑版就没有这个问题")
+       第五十八批：chip 已无常驻阴影，触摸端连带禁用 inset 按入（防粘滞） */
+    @media (hover: none) and (pointer: coarse) {
+      .skills-chip:hover { transform: none; }
+    }
+    .skills-loop-viewport::before,
+    .skills-loop-viewport::after { width: 20px; }
+  }
+
+  /* 极窄屏（≤480px 手机）：第五十四批游戏区已改纯 logo 横排（base 有 flex-wrap），
+     此处只收 hero/卡片密度 */
+  @media (max-width: 480px) {
+    .about-hero { padding-block: 48px 28px; }
+    .about-card { padding: 20px; border-radius: 14px; }
+    .about-card-name { font-size: 22px; }
+    .about-sub-section { margin: 24px 0 16px; }
+  }
+
+  /* === 联系方式卡（第九十七批 2026-08-21 主人"副标题同款/去动画/改名/重设计卡片动画/优化排版与手机"）
+     副标题 = .about-sub about-sub-section 同款(与 会的本事/游戏窝 完全一致:滚动驱动入场,无逐字动画);
+     卡片 = 4 张 bento 卡,交替方向入场(奇偶卡左右斜入 + 上浮 + 微缩);
+     logo 单色剪影(favicon 同款 fill currentColor 风格):主题切换时图标自动反相 */
+  .about-bento-contact {
+    padding-block: 0 clamp(72px, 9.5vw, 128px);
+    margin-top: calc(clamp(28px, 4vw, 48px) - clamp(72px, 9.5vw, 128px));
+  }
+  .about-bento-contact .about-grid { gap: 22px; }
+
+  /* === 联系方式 bento 卡片网格（第九十七批 2026-08-21 主人"重新设计卡片动画"）
+       4 卡每卡 span 3 of 12 / 平板 span 6 / 移动 span 12 (1 列 stack)。
+       卡片动画:交替方向入场 —— 奇偶卡从左右两侧斜入 + 上浮 + 微缩
+       (--enter-x 奇数 -24px / 偶数 +24px),与其余大卡的纯上浮形成区别;
+       hover 仅 bg 微变色 + 箭头位移 4px + icon 微浮(不位移卡身,大卡第九十四批规则) */
+  .contact-card {
+    grid-column: span 3;
+    padding: clamp(22px, 2.6vw, 30px);
+    text-decoration: none;        /* 整卡是 <a>,禁用默认下划线 */
+    color: inherit;
+    /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向) */
+    animation:
+      scroll-fade-opacity linear both,
+      contact-card-move linear both;
+    animation-timeline: view(block 100px), view(block 100px);
+    animation-range: entry 0% cover 100%, entry 0% cover 100%;
+    animation-composition: replace, add;
+  }
+  /* 奇偶交替入场方向(用 nth-of-type 只数 <a> 兄弟,首行 <p> 副标题不参与) */
+  .contact-card:nth-of-type(odd)  { --enter-x: -24px; }
+  .contact-card:nth-of-type(even) { --enter-x:  24px; }
+  @keyframes contact-card-move {
+    0%   { transform: translateX(var(--enter-x, 0)) translateY(36px) scale(0.96); }
+    20%  { transform: translateX(0) translateY(0) scale(1); }
+    100% { transform: translateX(0) translateY(0) scale(1); }
+  }
+  /* 卡片头部:icon + 箭头 横向分散对齐 */
+  .contact-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+  /* icon-wrap 与 .game-logo / favicon 同款白底 hairline tile 语汇(品牌识别)
+     第九十八批:彩色品牌 logo,白底 tile 48px 放大展示,radius 14px */
+  .contact-card-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-paper);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border-radius: 14px;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .contact-card-icon img {
+    width: 34px;
+    height: 34px;
+    display: block;
+  }
+  .contact-card:hover .contact-card-icon { transform: translateY(-2px); }
+
+  /* 主体:handle 句柄值(第九十八批:去掉小号 mono 平台标签,图标即平台名,只留 handle) */
+  .contact-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    line-height: 1.4;
+  }
+  .contact-card-handle {
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.5vw, 17px);
+    font-weight: 600;
+    color: var(--color-ink);
+    /* 长邮箱/handle 防溢出 + 允许 break-word */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  /* 右侧箭头:默认 muted 灰,hover 变 accent + 平移;与 chip 大卡:hover-arrow 一致 */
+  .contact-card-arrow {
+    font-family: var(--font-mono);
+    font-size: clamp(16px, 1.6vw, 20px);
+    color: var(--color-muted);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+    flex-shrink: 0;
+  }
+  .contact-card:hover .contact-card-arrow {
+    color: var(--color-accent);
+    transform: translateX(4px);
+  }
+  /* 卡片 hover:bg + border 微变色(无位移——大卡第九十四批不位移规则) */
+  .contact-card { transition: background-color 0.3s ease, border-color 0.3s ease; }
+  .contact-card:hover {
+    background-color: rgba(var(--color-accent-rgb), 0.04);
+    border-color: rgba(var(--color-accent-rgb), 0.28);
+  }
+
+  /* 旧 list 实现彻底下架(第九十五批 4 行单列 → 第九十六批 bento 4 卡) */
+  .contact-list,
+  .contact-row,
+  .contact-row + .contact-row,
+  .contact-row:last-child,
+  .contact-link,
+  .contact-icon-wrap,
+  .contact-icon,
+  .contact-info,
+  .contact-info-name,
+  .contact-info-handle,
+  .contact-info-handle--placeholder,
+  .about-card-contact {
+    display: none !important;
+  }
+
+  /* 移动端（≤768px）：2x2 网格 + 收紧 padding + 隐藏 hover 位移
+     注:副标题 .about-sub-section 沿用公共移动端规则(≤768 margin 24/16) */
+  @media (max-width: 768px) {
+    .about-bento-contact {
+      padding-block: 0 56px;
+      margin-top: calc(clamp(28px, 4vw, 48px) - clamp(72px, 9.5vw, 128px));
+    }
+    .about-bento-contact .about-grid { gap: 18px; }
+    .contact-card {
+      grid-column: span 6;
+      padding: 20px;
+    }
+    .contact-card-icon { width: 44px; height: 44px; }
+    .contact-card-icon img { width: 30px; height: 30px; }
+    .contact-card-handle { font-size: 14px; }
+    /* touch 端：仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important) */
+    @media (hover: none) and (pointer: coarse) {
+      .contact-card-icon,
+      .contact-card-arrow { transform: none !important; }
+      .contact-card:hover .contact-card-icon { transform: none; }
+      .contact-card:hover .contact-card-arrow { transform: none; }
+    }
+  }
+  /* 小屏（≤480px）：1 列 stack */
+  @media (max-width: 480px) {
+    .contact-card {
+      grid-column: 1 / -1;
+      padding: 18px;
+    }
+    .contact-card-handle { font-size: 13.5px; }
+  }
+
+
+  /* === 第一百批：移动端滚动驱动动画 inset 同步桌面（2026-08-21 主人"手机的动画优化一下,手机版驱动入场/出场动画和电脑版同步,手机版现在的动画有点挡内容"）
+     问题:view(block 100px) inset 固定 100px,手机视口矮(~667-844px)+ nav 只有 56px,
+     退场 80-100% keyframe 落在卡片还在屏幕上(实测 844:cardTop +10 开始淡出,卡片 100% 可见时半透明)
+     桌面 404px 高卡实测 cardTop -103 才开始淡出(顶已出屏)→ 手机"挡内容"
+     修复:≤768px inset 100→56px(= 移动 nav 高),退场窗口整体上移 → 卡片顶部出屏才开始淡出,与桌面同步
+     不改 keyframes/range(entry 0% cover 100% 与桌面完全一致),只换 timeline 的 inset */
+  @media (max-width: 768px) {
+    .about-card,
+    .about-sub,
+    .about-sub-section,
+    .contact-card {
+      animation-timeline: view(block 56px), view(block 56px);
+    }
+    .game-logo {
+      animation-timeline: view(block 56px);
+    }
+  }

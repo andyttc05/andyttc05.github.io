@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="关于时雨时猫 — 分享作品和生活的地方">
+<meta name="theme-color" content="#f8fafc">
+<title>关于 — rain.meow</title>
+<script>
+  /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+</script>
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<link rel="stylesheet" href="../assets/css/style.css?v=240">
+</head>
+<body>
+
+  <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <a href="#about-intro" class="skip-link">跳到主要内容</a>
+
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
+      <ul class="nav-links">
+        <li class="nav-hover-indicator" aria-hidden="true"></li>
+        <li><a href="coming-soon.html">项目</a></li>
+        <li><a href="coming-soon.html">动态</a></li>
+        <li><a href="coming-soon.html">照片</a></li>
+        <li><a href="about.html">关于</a></li>
+      </ul>
+      <div class="nav-actions">
+        <span class="nav-actions-indicator" aria-hidden="true"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+        </button>
+        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="nav-icon-label">EN</span>
+        </a>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
+    <header class="nav-menu-header">
+      <span class="nav-menu-brand" aria-hidden="true">rain.meow</span>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="nav-menu-body">
+      <ul class="nav-menu-links">
+        <li><a href="coming-soon.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+      </ul>
+    </div>
+    <footer class="nav-menu-footer">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
+        <span class="nav-menu-action-hit">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabelMobile">Dark</span>
+        </span>
+      </button>
+      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）">
+        <span class="nav-menu-action-hit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span>EN</span>
+        </span>
+      </a>
+    </footer>
+  </nav>
+
+  <main class="about-main">
+    <!-- === About 页：页面标题区（2026-08-20 第七批）===
+         主标题「关于」居中 + accent 色调；副标题「我是谁」在卡片区顶部紧贴卡片。
+         第十二批：加回小站卡(site)；删除 Play/Now/Contact 卡；页面 = 我是谁 + 技能 两区。 -->
+    <header class="about-hero">
+      <h1 class="about-title" aria-label="关于本猫"><span class="about-title-char">关</span><span class="about-title-char">于</span><span class="about-title-char hl">本</span><span class="about-title-char hl">猫</span></h1>
+      <!-- 第四十九批：主标题描述（不放卡里）；第五十四批：文案优化 -->
+      <p class="about-hero-desc">住在香港的猫，听雨，写码，慢慢长大</p>
+    </header>
+
+    <!-- === 自我介绍区（第四十六批 2026-08-20 主人重设计）：
+         - 移除 welcome 卡（原 .about-card-hello）
+         - "猫猫在此" 重新设计为"自我介绍"
+         - me + site 合并为 .about-card-intro（左半 span 6），合并内容 + 加"住在香港"
+         - 新增 .about-card-poem 诗意卡（右半 span 6），与 intro 等宽成对
+         - 第五十四批：移除全部副标题描述（.about-sub-line + .about-sub-desc） -->
+    <section class="about-bento" id="about-intro" aria-labelledby="about-sub-0">
+      <p class="about-sub" id="about-sub-0"><span class="hl">自我</span>介绍</p>
+      <div class="about-grid">
+        <!-- 自我介绍卡（左半）：第七十三批重构 —— "四行自我介绍"式短句，主题 雨/水/编程（参考 taozhiyy.top/about 结构，内容原创不重复） -->
+        <div class="about-card about-card-intro">
+          <p class="about-card-name">时雨时猫</p>
+          <p class="about-card-text">雨落在键盘上，就成了<span class="hl">代码</span>。<br>HKUST Data Science 二年级，INTJ，喜欢把东西拆开再装回去。<br>这个角落放我的作品——最近在玩 vibe coding：<br>脑子里模糊的点子，交给 AI，一起搭成真的。</p>
+        </div>
+        <!-- 诗意卡（右半）：第七十三批重构 —— 雨替天空写代码（水声存进名字，扣"时雨"），主题 雨/水/编程 -->
+        <div class="about-card about-card-poem">
+          <p>雨替<span class="poem-hl">天空</span>写<span class="poem-hl">代码</span>
+<span class="poem-hl">一行</span>落下，<span class="poem-hl">一行</span>蒸发
+我把<span class="poem-hl">水声</span>存进名字，等下一场<span class="poem-hl">雨</span>来敲门</p>
+        </div>
+
+        <!-- 技能/游戏 Section 标题通用类 about-sub-section（grid 内 span 12 满行靠左） -->
+        <p class="about-sub about-sub-section" id="about-sub-skills"><span class="hl">会的</span>本事</p>
+
+        <!-- Skills 卡：logo loop 双向（上方 工具 右→左 / 下方 语言 左→右）
+             引擎 about-loop.js：rAF + 平滑速度 + 动态复制份数 + hover 减速 + 边缘 fade
+             (2026-08-20 主人：Tools/Languages 中文；描述加长；Harness = DeepSeek Harness(开源的 Agent 框架)；
+             VS Code 换 devicon 彩色图标(原 simpleicons visualstudiocode 404 破图)；图标 assets/images/skills/ 本地化) -->
+        <div class="about-card about-card-skills">
+          <p class="skills-label">工具</p>
+          <div class="skills-loop" data-direction="left" data-speed="55" data-hover="12" aria-label="工具循环">
+            <div class="skills-loop-viewport">
+              <div class="skills-loop-track">
+                <ul class="skills-loop-list">
+                  <li class="skills-chip"><img src="../assets/images/skills/deepseek.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DeepSeek</span><span class="skills-chip-desc">国产大模型，写码问答</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/deepseek-harness.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DSH</span><span class="skills-chip-desc">开源 Agent 框架</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/workbuddy.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">WorkBuddy</span><span class="skills-chip-desc">腾讯 AI 搭子，办公全能</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/vscode.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">VS Code</span><span class="skills-chip-desc">主力代码编辑器</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/git.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Git</span><span class="skills-chip-desc">代码版本与协作</span></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <p class="skills-label">语言</p>
+          <div class="skills-loop" data-direction="right" data-speed="50" data-hover="10" aria-label="语言循环">
+            <div class="skills-loop-viewport">
+              <div class="skills-loop-track">
+                <ul class="skills-loop-list">
+                  <li class="skills-chip"><img src="../assets/images/skills/cplusplus.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">C++</span><span class="skills-chip-desc">系统级性能语言</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/python.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Python</span><span class="skills-chip-desc">数据科学与脚本主力</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/sql.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">SQL</span><span class="skills-chip-desc">关系型数据库查询</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/html5.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">HTML</span><span class="skills-chip-desc">网页内容与结构</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/css.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">CSS</span><span class="skills-chip-desc">网页视觉与布局</span></span></li>
+                  <li class="skills-chip"><img src="../assets/images/skills/javascript.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">JavaScript</span><span class="skills-chip-desc">网页交互与逻辑</span></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 游戏 Section（2026-08-20 主人"做个游戏区"→ 第三十三批"去掉框、加标签、重设计"→ 第四十三批"账号和服务器换位+优化排版"）
+             layout:logo + 三值横排（第五十五批：移除"游戏名字/服务器/游戏账号"标签文字，只留内容值；
+             名字 700 ink / 服务器 muted / 账号 accent 高亮） -->
+        <p class="about-sub about-sub-section" id="about-sub-games">游戏<span class="hl">窝</span></p>
+
+        <div class="about-card about-card-games">
+          <ul class="game-list">
+            <li class="game-row">
+              <img class="game-logo" src="../assets/images/games/wzry.webp" alt="王者荣耀" width="160" height="160" decoding="async">
+              <div class="game-info">
+                <span class="game-info-value game-info-name">王者荣耀</span>
+                <span class="game-info-value game-info-server">国服</span>
+                <span class="game-info-value game-info-account">残梦若归鸿</span>
+              </div>
+            </li>
+            <li class="game-row">
+              <img class="game-logo" src="../assets/images/games/hsr.webp" alt="崩坏：星穹铁道" width="160" height="160" decoding="async">
+              <div class="game-info">
+                <span class="game-info-value game-info-name">星穹铁道</span>
+                <span class="game-info-value game-info-server">亚服</span>
+                <span class="game-info-value game-info-account">839386225</span>
+              </div>
+            </li>
+            <li class="game-row">
+              <img class="game-logo" src="../assets/images/games/zzz.webp" alt="绝区零" width="160" height="160" decoding="async">
+              <div class="game-info">
+                <span class="game-info-value game-info-name">绝区零</span>
+                <span class="game-info-value game-info-server">亚服</span>
+                <span class="game-info-value game-info-account">1314904716</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- === 联系方式（第九十八批 2026-08-21 主人"网上搜搜联系区卡片排版设计/彩色logo/大小参考favicon预览图/微信跳转官网"）
+         副标题:同款 .about-sub about-sub-section(第九十七批定型);
+         卡片:4 张 bento 卡 —— 彩色品牌 logo(官网原版:Gmail 四色 M / 微信绿 #07C160 / IG 渐变 / GitHub 黑猫,
+         单色剪影弃用),白底 hairline tile 48px,去掉小号 mono 平台标签(图标即平台名),只留 handle;
+         SVG 文件 width=600 height=600(与 favicon.svg 预览图同规格);
+         微信卡:点击 → 跳转微信官网 weixin.qq.com(不再复制微信号) -->
+    <section class="about-bento about-bento-contact" id="about-contact" aria-labelledby="about-contact-title">
+      <div class="about-grid about-grid-contact">
+        <p class="about-sub about-sub-section" id="about-contact-title">联系<span class="hl">我</span></p>
+        <a class="about-card contact-card" href="mailto:andyttc2463@gmail.com" aria-label="邮箱 andyttc2463 at gmail.com">
+          <span class="contact-card-head">
+            <span class="contact-card-icon"><img src="../assets/icons/contact/email.svg?v=2" alt="Gmail" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
+          </span>
+          <span class="contact-card-body">
+            <span class="contact-card-handle">andyttc2463@gmail.com</span>
+          </span>
+        </a>
+        <a class="about-card contact-card" href="https://weixin.qq.com" target="_blank" rel="noopener noreferrer" aria-label="微信官网">
+          <span class="contact-card-head">
+            <span class="contact-card-icon"><img src="../assets/icons/contact/wechat.svg?v=2" alt="WeChat" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
+          </span>
+          <span class="contact-card-body">
+            <span class="contact-card-handle">andyttc314</span>
+          </span>
+        </a>
+        <a class="about-card contact-card" href="https://www.instagram.com/_andy_ttc" target="_blank" rel="noopener noreferrer" aria-label="Instagram _andy_ttc">
+          <span class="contact-card-head">
+            <span class="contact-card-icon"><img src="../assets/icons/contact/instagram.svg?v=2" alt="Instagram" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
+          </span>
+          <span class="contact-card-body">
+            <span class="contact-card-handle">_andy_ttc</span>
+          </span>
+        </a>
+        <a class="about-card contact-card" href="https://github.com/andyttc05" target="_blank" rel="noopener noreferrer" aria-label="GitHub andyttc05">
+          <span class="contact-card-head">
+            <span class="contact-card-icon"><img src="../assets/icons/contact/github.svg?v=2" alt="GitHub" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
+          </span>
+          <span class="contact-card-body">
+            <span class="contact-card-handle">andyttc05</span>
+          </span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- nav 已解析完，立即设好主题文字 label（与首页同款，同步执行防闪） -->
+  <script>
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    d && (d.textContent = label);
+    m && (m.textContent = label);
+  </script>
+
+  <!-- 全屏动态背景（2026-08-20 主人"关于页背景也用主页的"）：canvas-nest 粒子 + ribbons 飘带，
+       与 index.html 同款配置；script.js 主题切换会经 window.RainNest/RainRibbons.setColor 联动 -->
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=6"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=6"></script>
+
+  <script src="../assets/js/lenis.min.js" defer></script>
+  <script src="../assets/js/script.js?v=106" defer></script>
+  <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
+  <script src="../assets/js/about-loop.js?v=4" defer></script>
+</body>
+</html>

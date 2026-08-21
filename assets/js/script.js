@@ -578,7 +578,11 @@
         },
         reach: {
           meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
-          glyph:  { IN: { y: 26, s: 1, op: 0 }, REST: { s: 0.96 }, OUT: { y: -14, s: 0.9, op: 0 } },
+          /* 2026-08-20:REST s:0.96 → 删,落 true identity —— 配合 glyph/sub/poem 去 will-change +
+             setFrame identity 写 transform:none,让 REST 期脱合成层、文字原生渲染,消除下方雾影与抽动。
+             原 0.96 "缩回定格" 设计取舍:伸近 + 4% 微缩;现改为"伸近定格 at 全尺寸"(从下方升起落定),
+             触 语义上"抵达"全貌亦合。视觉差 4%, 渲染质量提升明显 */
+          glyph:  { IN: { y: 26, op: 0 }, REST: {}, OUT: { y: -14, s: 0.9, op: 0 } },
           sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
           visual: { IN: { y: 24, op: 0 }, REST: { y: -0.8 }, OUT: { y: -12, op: 0 } }
         }
@@ -684,10 +688,22 @@
           var blur = lerp(from.blur || 0, to.blur || 0, e);
           var op   = lerp(from.op === undefined ? 1 : from.op,
                           to.op   === undefined ? 1 : to.op, e);
-          el.style.transform = 'translate3d(0, ' + ((y * vh) / 100).toFixed(2) + 'px, 0) rotate(' +
-            rot.toFixed(2) + 'deg) scale(' + s.toFixed(3) + ')';
-          el.style.filter = blur > 0.01 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
-          el.style.opacity = op.toFixed(3);
+          /* 2026-08-20 修巨字渲染瑕疵:identity 时写 transform:none/filter:none/opacity:1,
+             浏览器撤销合成层 → 文本落回原生 subpixel AA,消除"下方雾影/中下方抽动"。
+             阈值 y<0.005vh(≈0.045px)/ rot<0.005°/ |s-1|<0.0005 / blur≤0.01 / op≥0.999。
+             配合 CSS 删 will-change 生效(2026-08-20 同步把 reach REST s:0.96 改为 identity,
+             使末屏 触 也能落回原生渲染,代价是失去 4% 微缩定格,改"伸近定格 at 全尺寸") */
+          if (Math.abs(y) < 0.005 && Math.abs(rot) < 0.005 && Math.abs(s - 1) < 0.0005 &&
+              blur <= 0.01 && op >= 0.999) {
+            el.style.transform = 'none';
+            el.style.filter = 'none';
+            el.style.opacity = '1';
+          } else {
+            el.style.transform = 'translate3d(0, ' + ((y * vh) / 100).toFixed(2) + 'px, 0) rotate(' +
+              rot.toFixed(2) + 'deg) scale(' + s.toFixed(3) + ')';
+            el.style.filter = blur > 0.01 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
+            el.style.opacity = op.toFixed(3);
+          }
         }
       }
 
@@ -1029,3 +1045,6 @@
       });
       update();
     })();
+
+    /* 联系方式微信号复制块已删除（第九十八批 2026-08-21）——
+       微信卡改为跳转官网 weixin.qq.com，data-copy 复制逻辑整体下架 */
