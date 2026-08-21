@@ -258,15 +258,6 @@
     .scroll-progress { height: 2px; }
   }
 
-  /* 导航栏登场动画：完全从屏幕外滑入 + 轻微缩放 + 淡入（hero motion）
-     视觉上像是"导航栏从页面顶部外侧降下来盖住内容"，并伴随从 96% 缩放到 100% 的"近大远小"透视感。
-     scale(0.96) 而非 1 → 0：避免缩放幅度过大导致元素看起来"变形"，96% 是有"立体感"但视觉几乎无感的临界点。
-     配合 ease-out-expo 缓动：前 30% 时间走完 80% 距离，剩下时间优雅减速到静止。 */
-  @keyframes nav-enter {
-    from { opacity: 0; transform: translateY(-100%) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
   /* === nav === */
   .nav {
     position: sticky; top: 0; z-index: 100;
@@ -284,9 +275,8 @@
     border-bottom: 1px solid var(--color-rule);
     /* 玻璃边缘高光：一条极细的内顶高光，模拟光线打在玻璃上沿 */
     box-shadow: inset 0 1px 0 var(--color-glass-edge);
-    /* 登场动画：0.8s 配合 ease-out-expo（前快后慢），戏剧化但不过分拖沓。
-       主体 main 是空的，导航栏是用户首先看到的元素，这个"先声夺人"的开场合适。 */
-    animation: nav-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    /* 第一百一十八批（2026-08-21）：移除刷新时的入场动画（nav-enter）—— 主人反馈
+       每次刷新页面看到导航栏从顶上滑下来有些干扰；现在导航栏在页面加载瞬间直接到位 */
   }
   /* 滚动后：背景保持半透明，启用毛玻璃（此时 nav 下方真有内容值得模糊）；
      用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
@@ -482,7 +472,12 @@
        配合 .nav-menu-header 的 display:flex + align-items:center 抽屉头内垂直居中 */
     line-height: 1;
     padding: 7px 0;
+    /* 第一百零九批：从 span 变 a —— 交互态（cursor + hover 颜色提示可点击） */
+    cursor: pointer;
+    transition: color 0.2s ease;
   }
+  /* 第一百零九批：抽屉 brand hover 时变 accent，与顶部 nav-brand 行为一致 */
+  .nav-menu-brand:hover { color: var(--color-accent); }
   .nav-menu-close {
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--color-ink);
@@ -636,7 +631,8 @@
   .hamburger:focus-visible,
   .nav-menu-links a:focus-visible,
   .nav-menu-action:focus-visible,
-  .nav-menu-close:focus-visible {
+  .nav-menu-close:focus-visible,
+  .hero-cta:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
@@ -651,7 +647,8 @@
     .hamburger:focus-visible,
     .nav-menu-links a:focus-visible,
     .nav-menu-action:focus-visible,
-    .nav-menu-close:focus-visible {
+    .nav-menu-close:focus-visible,
+    .hero-cta:focus-visible {
       outline: none;
     }
   }
@@ -900,10 +897,12 @@
     /* 辅助信息：明显小于副标题(18)/打字机(17)，拉开层级 */
     font-size: 14px; letter-spacing: 0.3px;
     color: var(--color-muted);
-    margin-top: auto;
-    /* 第六十一批：主人反馈 meta 贴图片底太下 → margin-bottom 抬起固定距离
-       （margin-top:auto 先吸余量落到底部，再被 margin-bottom 抬升） */
-    margin-bottom: clamp(28px, 4vw, 48px);
+    /* 第一百二十批：移除 margin-top: auto —— CTA 移到 layer-2 后，meta 不再是 hero-text
+       最后一个元素。auto 会把 meta 推到 hero-text 底部、把 CTA 挤上去，
+       现在让 meta 跟 CTA 正常层叠（margin-top 走正常阶梯值）。
+       margin-bottom 仍保留 — 让 meta 跟 hero-text 底部留呼吸，不贴图底 */
+    margin-top: clamp(20px, 3vw, 32px);
+    margin-bottom: clamp(8px, 1vw, 14px);
   }
   .hero-meta-line {
     display: flex; align-items: center; gap: 12px;
@@ -929,6 +928,143 @@
     font-size: 22px;
     letter-spacing: 1.5px;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* === 第一百一十五批（2026-08-21）：hero「来认识本猫」入口 ——
+     动画参考 taozhiyy.top 的 EXPLORE 按钮（Tailwind group-hover 上滑+倾斜）：
+       外层 .hero-cta-flip 固定尺寸 + overflow:hidden（裁掉滑出部分）；
+       前层默认 translateY(0) skewY(0)，hover → translateY(-160%) skewY(12deg)（向上滑出+倾斜）；
+       后层默认 absolute translateY(164%) skewY(12deg)（斜躺在下方），hover → translateY(0) skewY(0)（滑上立正）。
+     duration 0.5s（与 taozhiyy 一致）；两层文字同为"来认识本猫"。
+     第一百一十六批（2026-08-21）：按钮放大（38→44，padding 22→28）、文字右方加 SVG 箭头 —
+       箭头独立于 flip 容器（避免被 overflow:hidden 裁掉），位于文字右方 8px 处；
+       hover 时箭头 0.4s 右移 + 颜色加深（与背景同步），松手回弹；
+       移动端也保留箭头（768 媒体查询同步调整）。
+     第一百一十九批（2026-08-21）：按钮配色改为「深背景 + 白字」实色 CTA 风格 —
+       原「浅蓝+黑字」(accent 35% / 白 65% + #000) 视觉略弱、不像主按钮；
+       改为「accent 实色背景 + 白色文字」，对比度 ~8.6:1（WCAG AAA，远超 4.5:1 AA 标准）。
+       hover 状态:背景色 oklch 亮度从 54.6% → 48%（加深深蓝），0.25s ease 平滑过渡；
+       active 状态:再加深到 42%，模拟「按下」物理反馈。色相保持 262.9 不变，
+       仅调亮度，避免色彩漂移（保持品牌色一致性）。 */
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    /* 第一百二十批：CTA 上移到 layer-2 后，margin-top 从 22px → 28px，
+       加大与上方叙事内容的间距，让"读完内容 → 看按钮"的视觉过渡更舒适；
+       layer-3 在 CTA 下方另起一段，间距由 layer-3 自己的 margin-top 接管（20-32px） */
+    margin-top: clamp(20px, 3vw, 28px);
+    padding: 0 28px 0 28px;
+    height: 44px;
+    border: none;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-decoration: none;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 24%, transparent);
+    /* 第一百二十四批：hero-cta 独立管理入场 + 交互 transition ——
+       从 .hero-text > * 通用入场规则中排除（见入场转场区块），
+       这里自带入场初始态（opacity 0 / translateY 14px，.entered 时恢复） */
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      background 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  /* hover: 背景加深一档（oklch 54.6% → 48% L）+ 微抬起 + 阴影扩散
+     第一百二十四批：特异性升级为 .hero.entered .hero-text > .hero-cta:hover ——
+     原 .hero-cta:hover (0,2,0) 被入场规则 .hero.entered .hero-text > * (0,3,0)
+     的 transform:none 压过，导致按钮上浮从未生效（computed transform 恒为 none）。
+     入场完成后交互走快反馈：transition 覆盖为 0.25s（含 transform），delay 归零
+     （入场 delay 0.21s 不拖累 hover）。 */
+  .hero.entered .hero-text > .hero-cta:hover {
+    transform: translateY(-1px);
+    background: oklch(48% 0.220 262.9);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 32%, transparent);
+    transition:
+      transform 0.25s ease,
+      background 0.25s ease,
+      box-shadow 0.25s ease;
+    transition-delay: 0s;
+  }
+  /* active: 再深一档，模拟「按下」物理反馈 + 微缩按压（第一百二十四批：
+     与联系卡 :active scale(0.98) 同款按压语汇，让实色 CTA 也有"按下去"手感） */
+  .hero.entered .hero-text > .hero-cta:active {
+    transform: translateY(0) scale(0.97);
+    background: oklch(42% 0.225 262.9);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 24%, transparent);
+    transition-delay: 0s;
+  }
+  /* === 文字上滑+倾斜容器（taozhiyy EXPLORE 同款） === */
+  .hero-cta-flip {
+    position: relative;
+    display: inline-flex;
+    overflow: hidden;
+    line-height: 1;
+  }
+  .hero-cta-face {
+    display: block;
+    white-space: nowrap;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  /* 默认: 前层立正，后层绝对定位斜躺在下方（translateY 164% + skewY 12deg） */
+  .hero-cta-front { transform: translateY(0) skewY(0deg); }
+  .hero-cta-back {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translateY(164%) skewY(12deg);
+  }
+  /* hover: 前层向上滑出+倾斜，后层滑上立正（与 taozhiyy EXPLORE 一致）。
+     第一百二十五批：反馈动效强化 —— hover 时两层文字微放大 1.06（翻转更醒目），
+     active 按压时当前层压缩 0.94（与按钮整体按压 scale(0.97) 同拍） */
+  .hero-cta:hover .hero-cta-front { transform: translateY(-160%) skewY(12deg) scale(1.06); }
+  .hero-cta:hover .hero-cta-back  { transform: translateY(0) skewY(0deg) scale(1.06); }
+  .hero-cta:active .hero-cta-back { transform: translateY(0) skewY(0deg) scale(0.94); }
+  /* === 文字右方箭头（独立容器，不被 .hero-cta-flip 的 overflow:hidden 裁掉）===
+     第一百二十四批（2026-08-21）：箭头反馈与联系卡箭头统一 —— 0.45s 回弹曲线
+     cubic-bezier(0.22, 1, 0.36, 1)（先小幅前移再回拉，类似"被吸过去又弹回来"的
+     弹性反馈）+ hover 位移 4px → 6px；松手自动弹回 0。
+     箭头颜色跟按钮文字（白色），跟随 color 属性自动继承。 */
+  .hero-cta-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #ffffff;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hero-cta-arrow svg {
+    display: block;
+  }
+  .hero-cta:hover .hero-cta-arrow {
+    transform: translateX(6px);
+  }
+  /* focus-visible: 与 hero 区其它按钮同款环形描边（亮色版 — 背景深，要亮色描边） */
+  .hero-cta:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+  }
+  /* 减小动效偏好：禁用 hover 位移/翻转 */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-cta,
+    .hero-cta-face,
+    .hero-cta-arrow { transition-duration: 0.01ms !important; }
+    .hero-cta:hover .hero-cta-arrow { transform: none; }
+    /* 第一百二十四批：选择器升级特异性，与 .hero.entered .hero-text > .hero-cta:hover 对齐 */
+    .hero.entered .hero-text > .hero-cta:hover { transform: none; }
+  }
+  @media (max-width: 768px) {
+    .hero-cta { height: 40px; padding: 0 24px; font-size: 13px; gap: 6px; }
+    .hero-cta-arrow svg { width: 12px; height: 12px; }
   }
 
   /* === 右：立绘卡片 === */
@@ -1002,15 +1138,21 @@
      --lift/--scale 变量由 hover 提供，动画读取同一套值保持一致 */
 
   /* === 电影感入场转场（.entered 触发） ===
-     文字错峰渐入 + 立绘斜切擦入，全部 GPU 合成 */
-  .hero-text > * {
+     文字错峰渐入 + 立绘斜切擦入，全部 GPU 合成。
+     第一百二十四批：:not(.hero-cta) 排除按钮 —— 原 .hero-text > * 的
+     transform:none（(0,3,0)）压过 .hero-cta:hover/.active 的 transform，
+     导致按钮 hover 上浮/按压从未生效；hero-cta 入场由它自己的规则管理
+     （见 .hero-cta 定义 + 下方 .hero.entered .hero-text > .hero-cta 恢复规则） */
+  .hero-text > *:not(.hero-cta) {
     opacity: 0;
     transform: translateY(14px);
     transition:
       opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
       transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .hero.entered .hero-text > * { opacity: 1; transform: none; }
+  .hero.entered .hero-text > *:not(.hero-cta) { opacity: 1; transform: none; }
+  /* hero-cta 独立入场恢复（初始态在 .hero-cta 定义里） */
+  .hero.entered .hero-text > .hero-cta { opacity: 1; transform: none; }
   .hero.entered .hero-text > *:nth-child(1) { transition-delay: 0.05s; }
   .hero.entered .hero-text > *:nth-child(2) { transition-delay: 0.13s; }
   .hero.entered .hero-text > *:nth-child(3) { transition-delay: 0.21s; }
@@ -1301,22 +1443,8 @@
      保持纯滑动触发，不加额外特效。已删除 .gi 的 ::before/::after、is-resting、is-revealed、
      .story-intro-progress 全套；保留 .nav-brand 悬停下划线（非本区域、未反馈问题）。 */
 
-  /* === 整体 UI 增强 === */
-  /* Brand 微妙下划线（与 .nav-hover-indicator 同款风格：accent 色细线） */
-  .nav-brand { position: relative; }
-  .nav-brand::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: 2px;
-    width: 0;
-    height: 2px;
-    background: var(--color-accent);
-    border-radius: 1px;
-    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
-  }
-  .nav-brand:hover::after { width: 100%; }
+  /* === 整体 UI 增强 ===
+     第一百零九批（2026-08-21）：移除 .nav-brand 悬停下划线（主人反馈"rain.meow 的下划线特效"不要） */
 
   /* Hero 标题：恢复纯色（第七十一批移除 125° ink 渐变——background-clip:text + color:transparent
      在刷新/字体加载瞬间会闪出整块黑影，且与逐字 accent 渐变重叠。标题现在走 .hero-title-char 的 accent 渐变） */
@@ -1719,7 +1847,9 @@
   }
   /* 标题区：主标题居中、accent 色调（第九批，替代纯 ink + 装饰线） */
   .about-hero {
-    padding-block: clamp(72px, 12vh, 132px) clamp(32px, 4vw, 48px);
+    /* 第一百零六批（2026-08-21）：首屏放宽 —— 顶部 5vh→7vh、底部 2vw→3vw，
+       给标题区与"标题+副标题+介绍卡"之间留出呼吸（主人"首屏太拥挤"反馈） */
+    padding-block: clamp(52px, 7vh, 64px) clamp(24px, 3vw, 36px);
     /* 第四十六批：主人"关于本猫下方分割线移除"——直接去掉 border-bottom，无装饰线 */
     text-align: center;
   }
@@ -1734,7 +1864,7 @@
     font-size: clamp(16px, 1.85vw, 20px);
     line-height: 1.65;
     color: var(--color-muted);
-    margin-top: 18px;
+    margin-top: 16px;  /* 第一百零六批：12→16 配合首屏放宽（与 hero→sub 节奏一致） */
     letter-spacing: 0.5px;
   }
   /* === 关于本猫标题 + 描述：滚动驱动入场/出场（第一百零二批 2026-08-21）===
@@ -1814,7 +1944,9 @@
     font-size: clamp(22px, 2.6vw, 30px);
     line-height: 1.45;
     color: var(--color-ink);
-    margin-bottom: 24px;
+    margin-bottom: clamp(28px, 4vw, 48px);   /* 第一百零七批（2026-08-21）：20→28-48 区间 —— 与下方 .about-sub-section margin-top 同一组 clamp，
+       让"自我介绍→介绍卡"的视觉下距（约 28-48px）跟"会的本事→技能卡/游戏窝→游戏卡"（约 50px）一致。
+       grid-row-gap(22) + .about-sub-section margin-bottom(20) ≈ 42-50，与新设值同档位（主人"副标题和卡片间隔保持一致"反馈） */
     letter-spacing: 0.5px;       /* 第三十六批"字体调性对齐主页"：轻微 tracking 与 hero title 同节奏 */
   }
   /* 第四十五批"重点字加颜色"：小标题内重点字用 accent 跳出（font-weight 500→600） */
@@ -1834,7 +1966,8 @@
      卡片面 = --neu-surface（比纸底沉一档），凸起全靠 右下暗影 + 左上高光 双影；
      背景（html paper + canvas 粒子层）一律不动。 */
   .about-bento {
-    padding-block: clamp(36px, 4.5vw, 52px) clamp(72px, 9.5vw, 128px); /* 2026-08-20 主人"不要太密集"：顶 32-48→36-52，底 64-120→72-128 */
+    /* 第一百零六批：顶部 2.5vw→3.5vw（首屏放宽，与 hero→sub 节奏一致）；底部留白不变 */
+    padding-block: clamp(28px, 3.5vw, 40px) clamp(72px, 9.5vw, 128px);
   }
   .about-grid {
     display: grid;
@@ -1850,7 +1983,7 @@
     background: var(--neu-b1-surface); /* 第六十九批：所有卡片统一耐看蓝（不再分层） */
     border: 1px solid rgba(var(--color-accent-rgb), 0.14);
     border-radius: 20px; /* 第五十四批：18→20 更现代柔和（配合"卡片质感"优化） */
-    padding: clamp(28px, 3.5vw, 44px); /* 2026-08-20 主人"优化大卡片设计"：更舒展 24-36→28-44 */
+    padding: clamp(28px, 3.2vw, 34px); /* 第一百零六批：24-32→28-34 首屏放宽（更舒展的内部呼吸） */
     min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
   }
   /* 滚动驱动入场/出场（第九十四批恢复）+ 第一百零一批 @supports 门控：
@@ -1894,6 +2027,19 @@
     grid-column: span 5;    /* 第四十六批：新增诗意卡；第四十九批 span 6→5 配合 intro 放大 */
     /* 第六十九批：继承 base 统一卡色（不再分层） */
   }
+  /* 第一百二十七批（2026-08-21 主人"这两个卡片不用加入进场动画"）：
+     撤销第一百二十六批给 intro/poem 加的加载入场动画（card-load-in），
+     两张卡恢复继承 .about-card 的滚动驱动入场（首屏内不播，用户接受静态）；
+     hover 反馈保留（accent 边框加深 + 阴影扩散，不上浮——尊重第九十四批） */
+  .about-card.about-card-intro,
+  .about-card.about-card-poem {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .about-card.about-card-intro:hover,
+  .about-card.about-card-poem:hover {
+    border-color: rgba(var(--color-accent-rgb), 0.45);
+    box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
+  }
   /* 卡内排版：欢迎行（颜文字入行）/ 名字 / 正文 / 收尾
      2026-08-20 主人"优化字体大小和颜色"：字号加大、名字用 accent 强调、收尾微缩以拉层级
      2026-08-20 主人"不要太密集"：行距全面加大（欢迎 1.65→1.75、名字 1.25→1.3、正文/收尾 1.8→1.95）、名字 mb 18→22、收尾 mt 28→32 */
@@ -1911,6 +2057,10 @@
     color: var(--color-accent); /* 名字用 accent 强调（人名是卡内最强信息） */
     margin-bottom: 22px;
     letter-spacing: 1.5px;       /* 第三十六批"字体调性对齐主页"：与 #heroTime 同 1.5px tracking（站签名） */
+  }
+  /* 第一百零四批："我是"前缀不上色 —— 只让本名「时雨时猫」保持 accent 强调 */
+  .about-card-name-me {
+    color: var(--color-ink);
   }
   .about-card-text {
     font-family: var(--font-body);
@@ -1958,39 +2108,63 @@
   }
   /* 第五十五批：.about-card-poem:hover 规则已删 —— 诗意卡完全继承 base hover
      （上浮 -3px + 边框 accent 0.45α），与其他卡片一致 */
-  /* === 游戏卡（第四十三批 2026-08-20 主人"账号和服务器换位+优化排版"；第五十五批：去标签留值）
-     layout:logo + 三值横排 —— 移除"游戏名字/服务器/游戏账号"标签文字后，
-     名字(ink 700) / 服务器(muted) / 账号(accent 500) 三列直接可扫读。
-     hover 走 .about-card base（整卡上浮 -3px），logo 不单独位移（防双重位移）。 */
-  .about-card-games { grid-column: span 12; }
-  .game-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  /* === 游戏窝（第一百二十二批 2026-08-21 主人"错落式散落布局，打破网格呆板感"）===
+     三张游戏贴纸卡错落摆放：nth-of-type 各自 rotate + 垂直错位 + 投影，
+     模仿随意散落在桌面的卡片，替代原"大卡内三行列表"的呆板网格。
+     hover 明确反馈：上浮回正 + accent 边框/阴影扩散 + 名字变色；
+     :active 按压微缩，模拟物理按下。logo 保留 logo-scroll 滚动淡入。 */
+  .game-stack {
+    grid-column: span 12;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(18px, 2.2vw, 28px);
+    align-items: start;
   }
-  .game-row {
+  .game-tile {
+    position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: clamp(20px, 2.4vw, 36px);
-    padding: clamp(18px, 2vw, 26px) 0;
-    /* 新拟态去分隔线：拟态语言里"线"让位于"面+影"，行间距即分隔 */
+    text-align: center;
+    gap: 10px;
+    background: var(--neu-b1-surface); /* 与 .about-card 同款实色卡面 */
+    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border-radius: 20px;
+    padding: clamp(20px, 2.4vw, 30px) clamp(16px, 1.8vw, 24px);
+    box-shadow: 0 6px 18px rgba(var(--color-accent-rgb), 0.05);
+    transition:
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
   }
-  .game-row:first-child { padding-top: 0; }
-  .game-row:last-child { padding-bottom: 0; }
+  /* 错落摆放：三张卡各自旋转 + 垂直错位（打破网格呆板感） */
+  .game-tile:nth-of-type(1) { transform: rotate(-2.5deg) translateY(0); }
+  .game-tile:nth-of-type(2) { transform: rotate(2deg)    translateY(clamp(10px, 1.6vw, 20px)); }
+  .game-tile:nth-of-type(3) { transform: rotate(-1.5deg) translateY(clamp(4px, 0.8vw, 10px)); }
+  /* hover：上浮 + 回正 + accent 边框/阴影扩散（明确交互反馈） */
+  .game-tile:hover {
+    transform: rotate(0deg) translateY(-8px);
+    border-color: rgba(var(--color-accent-rgb), 0.45);
+    box-shadow: 0 14px 28px rgba(var(--color-accent-rgb), 0.14);
+  }
+  /* :active 按压：轻微回缩模拟物理按下 */
+  .game-tile:active {
+    transform: rotate(0deg) translateY(-3px) scale(0.98);
+    box-shadow: 0 6px 12px rgba(var(--color-accent-rgb), 0.10);
+  }
   .game-logo {
     width: auto;
-    height: clamp(56px, 5.5vw, 76px);
+    height: clamp(52px, 5vw, 72px);
     flex-shrink: 0;
     display: block;
     object-fit: contain;
     border-radius: 16px;
-    /* 第六十五批：现代 UI —— 白底 hairline tile（浅蓝卡面上干净利落） */
+    /* 白底 hairline tile（与联系卡 icon / favicon 同款语汇） */
     background: var(--color-paper);
     border: 1px solid rgba(var(--color-accent-rgb), 0.14);
     padding: 12px;
   }
-  /* 第九十四批：恢复 logo-scroll（主人澄清只移大卡 hover 浮动，logo 滚动淡入保留）。
-     第一百零一批：@supports 门控 —— 无 view() 支持时 logo 保持全显 */
+  /* 第九十四批：logo-scroll 滚动淡入保留（hover 反馈集中在卡片本体，不与动画冲突） */
   @supports (animation-timeline: view()) {
     .game-logo {
       animation: logo-scroll linear both;
@@ -2003,51 +2177,65 @@
     30%  { opacity: 1; transform: scale(1); }
     100% { opacity: 1; transform: scale(1); }
   }
-  /* 三值横排：grid 3 列 spread 满行，无标签直接可扫读 */
-  .game-info {
-    margin: 0;
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: clamp(20px, 3vw, 56px);
-    align-items: center;
-  }
-  .game-info-value {
-    margin: 0;
-    font-family: var(--font-body); /* 第六十二批：游戏三值 Nunito 圆润 */
-    font-size: clamp(16px, 1.65vw, 18px);
+  /* 信息竖排：名字 ink 700 / 服务器 muted / 账号 accent 500（直接可扫读） */
+  .game-tile-name {
+    margin: 4px 0 0;
+    font-family: var(--font-body);
+    font-size: clamp(16px, 1.6vw, 19px);
+    font-weight: 700;
     line-height: 1.3;
     color: var(--color-ink);
-    font-weight: 400;
+    transition: color 0.2s ease;
   }
-  /* 游戏名：主标题层级 — 加重加粗（卡片设计指南：标题 18-20px 重字重） */
-  .game-info-name { font-weight: 700; }
-  /* 服务器：metadata 层级 — muted 轻量 */
-  .game-info-server { color: var(--color-muted); }
-  /* 游戏账号：次重要层级 — accent 高亮（辨识度最高的"信息锚点"） */
-  .game-info-account { color: var(--color-accent); font-weight: 500; }
-  /* 移动端（≤768px）：logo 缩到 48px、三值单列竖排 */
+  .game-tile-server {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: clamp(12.5px, 1.3vw, 14px);
+    line-height: 1.3;
+    color: var(--color-muted);
+  }
+  .game-tile-account {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: clamp(12px, 1.25vw, 13.5px);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    line-height: 1.3;
+    color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  /* hover：名字变 accent，与卡面上浮/边框/阴影同拍 */
+  .game-tile:hover .game-tile-name { color: var(--color-accent); }
+  /* 移动端（≤768px）：三卡横排紧凑贴纸，错落角度收敛，账号防溢出 */
   @media (max-width: 768px) {
-    .game-row {
-      align-items: center;      /* 第七十五批：logo 靠左 + 三值横排填满右侧 */
-      gap: 14px;
-      padding: 16px 0;
+    .game-stack {
+      gap: 12px;
     }
-    .game-logo { height: 56px; border-radius: 12px; padding: 8px; }
-    .game-info {
-      grid-template-columns: 1fr 1fr 1.3fr; /* 第七十七批：账号列加宽，10 位数字完整 */
-      column-gap: 8px;
-      flex: 1;
-      min-width: 0;
-      text-align: left;
+    .game-tile {
+      padding: 14px 10px 16px;
+      gap: 6px;
+      border-radius: 16px;
     }
-    .game-info-value {
-      font-size: 13px;          /* 第七十七批：13px 让 10 位数字账号完整放下 */
-      font-variant-numeric: tabular-nums; /* 数字等宽，宽度可预测 */
+    .game-tile:nth-of-type(1) { transform: rotate(-1.5deg) translateY(0); }
+    .game-tile:nth-of-type(2) { transform: rotate(1.2deg)   translateY(8px); }
+    .game-tile:nth-of-type(3) { transform: rotate(-1deg)    translateY(4px); }
+    .game-tile:hover { transform: rotate(0deg) translateY(-4px); }
+    .game-logo { height: 44px; border-radius: 12px; padding: 8px; }
+    .game-tile-name { font-size: 14px; }
+    .game-tile-server { font-size: 12px; }
+    .game-tile-account {
+      font-size: 11px;
+      letter-spacing: 0;
+      max-width: 100%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+  }
+  /* touch 端：hover 粘滞只保留边框/阴影反馈，卡片不回正不浮起（防 iOS 粘滞错乱） */
+  @media (hover: none) and (pointer: coarse) {
+    .game-tile:hover { transform: none; }
   }
 
   /* === Skills 卡：logo loop 双向（第十批/第十一批优化）===
@@ -2075,6 +2263,19 @@
     position: relative;
     --loop-gap: 20px; /* 2026-08-20 主人"不要太拥挤"：chip 间距 14→20 */
     --chip-w: auto;   /* 2026-08-20 主人"loop 卡片等宽"：about-loop.js 测每 loop 最宽 chip 写入 */
+    /* 第一百二十三批：拖拽拉动 —— grab 光标 + 禁选文本 + touch-action 只放行纵向滚动
+       （横向手势交给 JS 拖拽，纵向仍可翻页） */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
+  .skills-loop:active { cursor: grabbing; }
+  /* 拖拽时不让 img 被原生拖动/长按选中：事件落到 loop 容器统一处理 */
+  .skills-loop img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
   }
   .skills-loop-viewport {
     position: relative;
@@ -2174,6 +2375,15 @@
   /* hover：卡片微微悬浮（第六十七批，主人要求去边框/字体变色，只留上浮） */
   .skills-chip:hover {
     transform: translateY(-3px);
+  }
+
+  /* 第一百零五批：矮桌面视口（高 ≤767，如 1280×720 窗口/小笔记本）额外收紧，
+     保证首屏 标题 + 副标题 + 介绍卡 完整可见；正常桌面（≥768 高）已由 base 收紧覆盖 */
+  @media (min-width: 769px) and (max-height: 767px) {
+    .about-hero { padding-block: clamp(24px, 4vh, 36px) clamp(12px, 1.5vw, 16px); }
+    .about-title { font-size: clamp(48px, 7vw, 84px); }
+    .about-bento { padding-top: clamp(16px, 2vw, 20px); }
+    .about-card { padding: clamp(20px, 2.5vw, 24px); }
   }
 
   /* 移动端（≤768px 平板竖屏+手机）：标题区收紧，卡片全列宽单列堆叠
@@ -2294,6 +2504,7 @@
     padding: clamp(22px, 2.6vw, 30px);
     text-decoration: none;        /* 整卡是 <a>,禁用默认下划线 */
     color: inherit;
+    position: relative;           /* 第一百二十五批:箭头绝对定位锚点(右侧垂直居中) */
   }
   /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向)。
      第一百零一批：@supports 门控 —— 无 view() 支持时联系卡保持全显（见 .about-sub 同款注释） */
@@ -2347,6 +2558,11 @@
     display: block;
   }
   .contact-card:hover .contact-card-icon { transform: translateY(-2px); }
+  /* 第九十八批:GitHub 黑猫 logo 硬编码 fill=#1B1F23,深色 chip 背景 slate-900 上不可见 →
+     复用 skills-chip 的 deepseek-harness 反相策略,暗色主题反相为白猫 */
+  .theme-dark .contact-card-icon img[src*="github"] {
+    filter: invert(1);
+  }
 
   /* 主体:handle 句柄值(第九十八批:去掉小号 mono 平台标签,图标即平台名,只留 handle) */
   .contact-card-body {
@@ -2366,23 +2582,41 @@
     word-break: break-word;
     min-width: 0;
   }
-  /* 右侧箭头:默认 muted 灰,hover 变 accent + 平移;与 chip 大卡:hover-arrow 一致 */
+  /* 箭头:第一百二十五批（2026-08-21 主人"箭头放卡片正中间"）——
+     从 head 行右端改为绝对定位在卡片右侧、垂直居中（top:50% + translateY(-50%)），
+     right 与卡片内边距对齐；hover 变 accent + 右移 6px（0.45s 回弹曲线，先小幅前移
+     再回拉的弹性反馈），松手回弹到垂直居中位。 */
   .contact-card-arrow {
+    position: absolute;
+    right: clamp(18px, 2.2vw, 26px);
+    top: 50%;
+    transform: translateY(-50%);
     font-family: var(--font-mono);
     font-size: clamp(16px, 1.6vw, 20px);
     color: var(--color-muted);
-    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+    transition:
+      color 0.2s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     flex-shrink: 0;
   }
   .contact-card:hover .contact-card-arrow {
     color: var(--color-accent);
-    transform: translateX(4px);
+    transform: translateY(-50%) translateX(6px);
   }
-  /* 卡片 hover:bg + border 微变色(无位移——大卡第九十四批不位移规则) */
-  .contact-card { transition: background-color 0.3s ease, border-color 0.3s ease; }
+  /* 卡片 hover/active：去掉透明背景方案（第一百二十二批 主人"悬停/点击变全透明不符合调性"）
+     原方案 background-color rgba(accent, 0.08) 会覆盖 .about-card 的实色卡面 → 暗色主题下
+     几乎全透明（露出深色页面背景）。新方案保持实色背景不变，反馈改用：
+     accent 边框加深 + 轻微上浮 + 阴影扩散（:active 按压微缩），
+     配合已有的箭头位移 / icon 微浮 / handle 变 accent。 */
+  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.3s ease; }
   .contact-card:hover {
-    background-color: rgba(var(--color-accent-rgb), 0.04);
-    border-color: rgba(var(--color-accent-rgb), 0.28);
+    border-color: rgba(var(--color-accent-rgb), 0.45);
+    box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
+    transform: translateY(-4px);
+  }
+  .contact-card:active {
+    transform: translateY(-2px) scale(0.98);
+    box-shadow: 0 5px 12px rgba(var(--color-accent-rgb), 0.10);
   }
 
   /* 旧 list 实现彻底下架(第九十五批 4 行单列 → 第九十六批 bento 4 卡) */
@@ -2417,12 +2651,20 @@
     .contact-card-icon { width: 44px; height: 44px; }
     .contact-card-icon img { width: 30px; height: 30px; }
     .contact-card-handle { font-size: 14px; }
-    /* touch 端：仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important) */
+    /* touch 端：仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important)。
+       第一百二十五批：箭头是绝对定位 + translateY(-50%) 垂直居中，基础 transform 必须保留，
+       只禁 hover 的右移 6px */
     @media (hover: none) and (pointer: coarse) {
-      .contact-card-icon,
-      .contact-card-arrow { transform: none !important; }
+      .contact-card-icon { transform: none !important; }
+      .contact-card-arrow { transform: translateY(-50%) !important; }
       .contact-card:hover .contact-card-icon { transform: none; }
-      .contact-card:hover .contact-card-arrow { transform: none; }
+      .contact-card:hover .contact-card-arrow { transform: translateY(-50%) !important; }
+      /* 第一百二十二批：contact-card 本体的 hover 上浮/阴影在 touch 端同样禁用
+         （点击粘滞会一直浮起）——只保留边框高亮；:active 按压微缩保留 */
+      .contact-card:hover {
+        transform: none;
+        box-shadow: none;
+      }
     }
   }
   /* 小屏（≤480px）：1 列 stack */

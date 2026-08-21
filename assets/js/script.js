@@ -21,6 +21,7 @@
     var btn = document.getElementById('hamburgerBtn');
     var menu = document.getElementById('navMenu');
     var closeBtn = document.getElementById('navMenuClose');
+    var navMenuBrand = document.getElementById('navMenuBrand');
     var body = document.body;
 
     /* === hero 视频已移除（v62：2026-08-17 晚，移动端卡顿回退为静态图）===
@@ -95,6 +96,22 @@
       e.stopPropagation();
       closeMenu();
     });
+    /* 第一百零九批：手机版抽屉 rain.meow 可点击 —— 行为：
+       其他页 → 链接跳转回首页（href=index.html / ../index.html 已写在 HTML）；
+       首页 → 拦截默认导航，只关抽屉并滚回顶部，避免整页刷新 */
+    if (navMenuBrand) {
+      navMenuBrand.addEventListener('click', function(e) {
+        /* 已经在首页就阻止跳转 → 只关抽屉 + 滚回顶 */
+        var path = location.pathname;
+        var onHome = path === '/' || path.endsWith('/index.html') || path === '/index.html';
+        if (onHome) {
+          e.preventDefault();
+          closeMenu();
+          window.scrollTo({ top: 0, behavior: lenisOn ? 'auto' : 'smooth' });
+        }
+        /* 其他页：让 href 正常跳转；menu 上的 A-click handler 会顺带关抽屉 */
+      });
+    }
     menu.addEventListener('click', function(e) {
       if (e.target.tagName === 'A') { closeMenu(); }
     });
@@ -122,6 +139,12 @@
       var indicator = document.querySelector('.nav-hover-indicator');
       if (!navLinks || !indicator) return;
       var links = navLinks.querySelectorAll('a');
+      /* 首次定位一律 snap（无过渡）：光斑初始态在导航最左端 translateX(0)/width 0，
+         若首次定位直接带过渡，会看到"从左滑入"——第一个链接（项目）恰好在 0 位
+         所以看不出，其余链接（动态/照片/关于）就会明显滑入。刷新后浏览器会对
+         光标下的链接补发 mouseenter，同样触发首次定位。首次 snap 到位后，
+         链接之间的移动再走平滑过渡（滑动高亮设计不变）。 */
+      var shown = false;
 
       function moveTo(link) {
         var navRect = navLinks.getBoundingClientRect();
@@ -130,11 +153,23 @@
         indicator.style.transform = 'translateX(' + (linkRect.left - navRect.left) + 'px)';
         indicator.style.opacity = '1';
       }
+      /* 无过渡直接定位：先关 transition → 设样式 → 强制 reflow 落定 → 恢复 transition */
+      function snapTo(link) {
+        var prev = indicator.style.transition;
+        indicator.style.transition = 'none';
+        moveTo(link);
+        void indicator.offsetWidth;
+        indicator.style.transition = prev;
+      }
+      function position(link) {
+        if (shown) moveTo(link);
+        else { shown = true; snapTo(link); }
+      }
 
       links.forEach(function (link) {
-        link.addEventListener('mouseenter', function () { moveTo(link); });
+        link.addEventListener('mouseenter', function () { position(link); });
         /* 键盘 Tab 聚焦时同样驱动光斑，与鼠标体验统一 */
-        link.addEventListener('focus', function () { moveTo(link); });
+        link.addEventListener('focus', function () { position(link); });
       });
       navLinks.addEventListener('mouseleave', function () {
         indicator.style.opacity = '0';
@@ -147,9 +182,19 @@
         requestAnimationFrame(function () {
           resizeTicking = false;
           var hovered = navLinks.querySelector('a:hover');
-          if (hovered) moveTo(hovered);
+          if (hovered) position(hovered);
         });
       });
+      /* 加载完成兜底：若悬停/焦点已被恢复（如刷新后鼠标仍停在链接上且浏览器
+         未补发 mouseenter），立即 snap 到位并标记已定位 */
+      var restored = document.activeElement;
+      if (restored && restored.tagName === 'A' && navLinks.contains(restored)) {
+        shown = true;
+        snapTo(restored);
+      } else {
+        var hovered = navLinks.querySelector('a:hover');
+        if (hovered) { shown = true; snapTo(hovered); }
+      }
     })();
     /* === 桌面右侧操作区滑动高亮（月亮/地球，与目录同款） === */
     (function () {
@@ -157,6 +202,9 @@
       var indicator = document.querySelector('.nav-actions-indicator');
       if (!actions || !indicator) return;
       var buttons = actions.querySelectorAll('.nav-icon');
+      /* 与目录同款：首次定位一律 snap，避免光斑从 translateX(0) 滑入
+         （第一个按钮 Dark 恰好在 0 位看不出，EN 就会从左滑入） */
+      var shown = false;
 
       function moveTo(btn) {
         var actionsRect = actions.getBoundingClientRect();
@@ -165,11 +213,23 @@
         indicator.style.transform = 'translateX(' + (btnRect.left - actionsRect.left) + 'px)';
         indicator.style.opacity = '1';
       }
+      /* 无过渡直接定位：先关 transition → 设样式 → 强制 reflow 落定 → 恢复 transition */
+      function snapTo(btn) {
+        var prev = indicator.style.transition;
+        indicator.style.transition = 'none';
+        moveTo(btn);
+        void indicator.offsetWidth;
+        indicator.style.transition = prev;
+      }
+      function position(btn) {
+        if (shown) moveTo(btn);
+        else { shown = true; snapTo(btn); }
+      }
 
       buttons.forEach(function (btn) {
-        btn.addEventListener('mouseenter', function () { moveTo(btn); });
+        btn.addEventListener('mouseenter', function () { position(btn); });
         /* 键盘 Tab 聚焦时同样驱动光斑 */
-        btn.addEventListener('focus', function () { moveTo(btn); });
+        btn.addEventListener('focus', function () { position(btn); });
       });
       actions.addEventListener('mouseleave', function () {
         indicator.style.opacity = '0';
@@ -182,9 +242,18 @@
         requestAnimationFrame(function () {
           resizeTicking = false;
           var hovered = actions.querySelector('.nav-icon:hover');
-          if (hovered) moveTo(hovered);
+          if (hovered) position(hovered);
         });
       });
+      /* 加载完成兜底：若悬停/焦点已被恢复，立即 snap 到位并标记已定位 */
+      var restored = document.activeElement;
+      if (restored && restored.classList.contains('nav-icon') && actions.contains(restored)) {
+        shown = true;
+        snapTo(restored);
+      } else {
+        var hovered = actions.querySelector('.nav-icon:hover');
+        if (hovered) { shown = true; snapTo(hovered); }
+      }
     })();
     var ticking = false;
     function onScroll() {
