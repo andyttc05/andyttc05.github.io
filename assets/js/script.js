@@ -77,14 +77,40 @@
        图片加载完成前保持透明（CSS .hero-art-img / .vslide-img 初始 opacity:0），
        load 后加 .is-loaded 触发 0.5s 淡入 —— 图片晚到（CDN 慢 / 开发者工具
        禁缓存）时不再"卡片先亮、图片啪地弹出"；已缓存图在脚本执行时即 complete，
-       立即加类，入场动画期间完成淡入，观感与原来一致。 */
+       立即加类，入场动画期间完成淡入，观感与原来一致。
+       第一百四十八批（2026-08-23 主人"刷新页面时落眸笑歌触五幕雨区域会卡住或消失"）：
+       原实现只挂 load 监听，存在两类失效：
+       (a) loading="lazy" 的 vslide 图滚动前不加载 → 无 load 事件 → 永远 opacity:0；
+       (b) 图片加载失败（404/断网）→ load 不触发 → 区域永远空白。
+       修法（三路兜底，任一路成功即点亮）：
+       1. complete 立即点亮（缓存命中）；
+       2. load 监听（正常加载）；
+       3. error 监听 —— 失败也点亮（显示纸底，绝不让区域永久消失）；
+       4. IntersectionObserver —— lazy 图进入视口即确保开始加载，
+          刷新恢复滚动位置时视口内的图也会被主动触发（无需用户滚动）。 */
     function markImageLoaded(img) {
       if (!img) return;
-      if (img.complete && img.naturalWidth > 0) {
-        img.classList.add('is-loaded');
-        return;
+      function on() { img.classList.add('is-loaded'); }
+      /* 已加载（含缓存命中）直接点亮 */
+      if (img.complete && img.naturalWidth > 0) { on(); return; }
+      /* 正常加载 → 点亮；加载失败 → 也点亮（宁可见纸底，不可区域永久空白） */
+      img.addEventListener('load', on, { once: true });
+      img.addEventListener('error', on, { once: true });
+      /* lazy 图兜底：进入视口即开始加载（lazy 本身会加载，这里保证
+         刷新恢复滚动位置时视口内的图不依赖用户滚动才触发） */
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting) {
+              var t = entries[i].target;
+              io.unobserve(t);
+              if (t.complete && t.naturalWidth > 0) on();
+              /* 未 complete 时 load/error 监听兜底已挂，无需额外动作 */
+            }
+          }
+        }, { rootMargin: '200px' });
+        io.observe(img);
       }
-      img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
     }
 
     var navEl = document.getElementById('nav');
@@ -662,11 +688,22 @@
         function releaseUp() {
           if (!pressed) return;
           pressed = false;
+          /* 第一百四十八批（2026-08-23 主人"按压在图片外松开，动画好奇怪"）：
+             修法对照游戏卡批 140 —— 起点取 press 动画定格的实际渲染 transform
+             （getComputedStyle 读动画合成后的值 = 压扁位），cancel 后元素回落到
+             CSS 层（hover 态或 base 态），回弹动画从"实际压扁位"平滑过渡到
+             "松开瞬间的 hover 判定终点"，起点/终点都与当前渲染一致，无跳变。
+             旧实现硬编码 tfAt(0.97) 作起点：在卡片外松开时 hover 已失效，
+             tfBase() 终点是非 hover 值，且 pressAnim.cancel() 后 CSS 立即回落
+             到 hover 值 → 起点(0.97×base) 与当前渲染错位 → 回弹一帧跳变。 */
+          var from = getComputedStyle(artCard).transform;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
-          /* 两帧 + back 缓动：过冲（1.03 量级）由曲线生成，手写关键帧反而显僵硬 */
+          /* 松开瞬间判定 hover：指针在卡片上 → 回弹到 hover 位；已在卡片外 →
+             回弹到 base 位（--lift/--scale/--tilt 读的是实时 computed，自动正确） */
+          var to = tfBase();
           releaseAnim = artCard.animate([
-            { transform: tfAt(0.97), offset: 0 },
-            { transform: tfBase(), offset: 1 }
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
           ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
