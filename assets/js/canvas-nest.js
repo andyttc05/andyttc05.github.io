@@ -76,8 +76,6 @@
 
   var points = [];
   var mouse = { x: null, y: null, max: 20000 };
-  /* 鼠标最后移动时刻：静止超过 60ms 即视为"鼠标静止"，停止驱逐粒子 */
-  var lastMoveAt = 0;
   /* mousemove 节流 (2026-08-20): 浏览器原生 mousemove 事件高频 (60-200/s),
      每事件都跑 d² 比较 + 写入 mouse.x/y → 浪费。rAF 节流到每帧最多 1 次写入,
      step() 内同步读 mouse.x/y(每帧 1 次)而非每事件 1 次, 桌面性能略改善。
@@ -96,6 +94,36 @@
     mouseRafScheduled = true;
     requestAnimationFrame(flushMouse);
   }
+
+  /* 第一百四十九批（2026-08-23 主人"背景粒子交互动效有卡断感"）：
+     卡顿根源不在帧率（rAF 常驻 60fps），而在【交互手感的运动不连贯】：
+     1. 旧版 mouseMoving 窗口仅 60ms，快速移动时"驱逐/静止"状态高频翻转，
+        靠近鼠标的粒子被反复 0.03*dxm 推走又回弹 → 粒子在鼠标周围抖跳；
+     2. 驱逐是硬开关（d2m >= MOUSE_MAX/2 才推），力度无距离平滑，靠近即跳变；
+     3. 鼠标线每帧最多 N 次 strokeStyle 字符串拼接 + 状态切换，CPU 热路径。
+     优化：
+     a. 驱逐力度改【距离连续平滑】：force = (1 - d2m/MOUSE_MAX) 线性衰减，
+        且只在鼠标真正快速移动（速度 > 阈值）时施加 → 慢移不抖、快移平滑让开；
+     3. 鼠标线透明度按距离渐变绘制，但 strokeStyle 字符串缓存到每帧开头
+        （全屏同一色，alpha 只随距离变 → 用分段近似减少状态切换）；
+     b. 鼠标静止 60ms 后连线淡出（不重画），进一步省帧内绘制。 */
+  /* 鼠标速度判定：两次 mousemove 间隔位移 > 阈值才算"快速移动"（驱逐生效） */
+  var prevMouseX = null, prevMouseY = null, prevMouseT = 0;
+  var mouseSpeed = 0;
+  function updateMouseSpeed(x, y) {
+    var now = performance.now();
+    var dt = now - prevMouseT;
+    if (prevMouseX !== null && dt > 0) {
+      var dist = Math.sqrt((x - prevMouseX) * (x - prevMouseX) + (y - prevMouseY) * (y - prevMouseY));
+      mouseSpeed = dist / dt; /* px/ms */
+    }
+    prevMouseX = x; prevMouseY = y; prevMouseT = now;
+  }
+  var FAST_MOVE = 0.4;   /* 鼠标速度阈值 px/ms（≈400px/s）：低于此视为慢移/微调，不驱逐 */
+  /* 鼠标连接线的 alpha 分段：避免每根线都拼 rgba 字符串（热路径省状态切换）。
+     鼠标线距离环带 → 固定 alpha 档位，视觉连续（0.9 → 0.35 共 5 档） */
+  var MOUSE_LINE_ALPHAS = [0.9, 0.8, 0.68, 0.55, 0.42, 0.35];
+  var MOUSE_LINE_BANDS = 6;
 
   /* 制造一个随机粒子：速度下限避免 |v|≈0 的极慢漂移产生"卡顿/抖动"感 */
   function makePoint() {
@@ -126,12 +154,24 @@
   /* 距离阈值取常量（粒子 max=6000 / 鼠标 max=20000），原代码每对读 o.max 多一次属性查找 */
   var POINT_MAX = 6000;
   var MOUSE_MAX = 20000;
+  /* 第一百四十九批：鼠标线强度 —— 移动后拉满，静止后随时间淡出（不再逐帧满画） */
+  var mouseLineOpacity = 1;
+  var mouseLineLastMoveAt = 0;
   function step() {
     if (paused) { rafId = null; return; }
     ctx.clearRect(0, 0, w, h);
     var n = points.length;
-    var mouseMoving = (Date.now() - lastMoveAt) < 60;
     var hasMouse = mouse.x !== null && mouse.y !== null;
+    /* 鼠标连线强度：移动后拉满；静止 >120ms 线性衰减到 0（连线自然淡出） */
+    if (hasMouse) {
+      if (Date.now() - mouseLineLastMoveAt > 120) {
+        mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05);
+      } else {
+        mouseLineOpacity = Math.min(1, mouseLineOpacity + 0.25);
+      }
+    } else {
+      mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05);
+    }
     var colorRgb = config.color;
     var i, j;
 
@@ -161,20 +201,33 @@
         }
       }
 
-      /* 鼠标连接：仅当鼠标在视口内才迭代。
-         桌面端 90% 时间鼠标静止在 nav 或窗外，hasMouse=false → 整段跳过（每帧省 N 次 d² 比较） */
-      if (hasMouse) {
+      /* 鼠标连接：仅当鼠标在视口内且连线未完全淡出才迭代。
+         桌面端 90% 时间鼠标静止在 nav 或窗外，hasMouse=false → 整段跳过（每帧省 N 次 d² 比较）；
+         鼠标静止后 mouseLineOpacity 衰减 → 静止时不逐帧画满强度线（视觉自然淡出） */
+      if (hasMouse && mouseLineOpacity > 0.02) {
         var dxm = p.x - mouse.x, dym = p.y - mouse.y, d2m = dxm * dxm + dym * dym;
         if (d2m < MOUSE_MAX) {
-          /* 仅在鼠标移动时推开粒子：鼠标静止时不再驱逐，消除围绕鼠标的来回弹跳 */
-          if (mouseMoving && d2m >= MOUSE_MAX / 2) { p.x -= 0.03 * dxm; p.y -= 0.03 * dym; }
-          var am = (MOUSE_MAX - d2m) / MOUSE_MAX;
-          ctx.beginPath();
-          ctx.lineWidth = am / 2;
-          ctx.strokeStyle = 'rgba(' + colorRgb + ',' + (am + 0.2) + ')';
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.stroke();
+          /* 第一百四十九批：驱逐改【速度判定 + 距离连续平滑】——
+             只在鼠标快速移动（mouseSpeed > FAST_MOVE）时施加；
+             力度随距离线性衰减（近处让开、远处不动），消除"推开-回弹"抖跳。
+             上限从 0.03 收到 0.022：快速划过时粒子平滑让开、不弹跳 */
+          if (mouseSpeed > FAST_MOVE) {
+            var repel = (1 - d2m / MOUSE_MAX) * 0.022;
+            p.x -= repel * dxm;
+            p.y -= repel * dym;
+          }
+          /* 连线 alpha 按距离分段（MOUSE_LINE_BANDS 档），强度随鼠标线淡出衰减 */
+          var band = Math.floor((d2m / MOUSE_MAX) * MOUSE_LINE_BANDS);
+          if (band >= MOUSE_LINE_BANDS) band = MOUSE_LINE_BANDS - 1;
+          var am = MOUSE_LINE_ALPHAS[band] * mouseLineOpacity;
+          if (am > 0.02) {
+            ctx.beginPath();
+            ctx.lineWidth = am / 2.2;
+            ctx.strokeStyle = 'rgba(' + colorRgb + ',' + am.toFixed(3) + ')';
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
         }
       }
     }
@@ -197,14 +250,16 @@
 
   resize();
   window.addEventListener('resize', resize);
+  /* 第一百四十九批：mousemove 同时记录速度（供驱逐判定）+ 更新时间戳（供连线淡出判定） */
   window.addEventListener('mousemove', function (e) {
-    lastMoveAt = Date.now();
+    mouseLineLastMoveAt = Date.now();
+    updateMouseSpeed(e.clientX, e.clientY);
     onMouse(e.clientX, e.clientY);
   });
   window.addEventListener('mouseout', function () { mouse.x = null; mouse.y = null; pendingMouseX = pendingMouseY = null; });
   window.addEventListener('touchmove', function (e) {
     var t = e.touches && e.touches[0];
-    if (t) { lastMoveAt = Date.now(); onMouse(t.clientX, t.clientY); }
+    if (t) { mouseLineLastMoveAt = Date.now(); updateMouseSpeed(t.clientX, t.clientY); onMouse(t.clientX, t.clientY); }
   });
   window.addEventListener('touchend', function () { mouse.x = null; mouse.y = null; pendingMouseX = pendingMouseY = null; });
 
