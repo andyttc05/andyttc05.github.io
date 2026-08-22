@@ -274,7 +274,17 @@
     /* 玻璃边缘高光：一条极细的内顶高光，模拟光线打在玻璃上沿 */
     box-shadow: inset 0 1px 0 var(--color-glass-edge);
     /* 第一百一十八批（2026-08-21）：移除刷新时的入场动画（nav-enter）—— 主人反馈
-       每次刷新页面看到导航栏从顶上滑下来有些干扰；现在导航栏在页面加载瞬间直接到位 */
+       每次刷新页面看到导航栏从顶上滑下来有些干扰；现在导航栏在页面加载瞬间直接到位
+       第一百五十一批（2026-08-23 主人"刷新页面导航栏闪烁"）：
+       backdrop-filter/背景/阴影在 .scrolled 切换时是突变（none → blur(16px)），
+       刷新恢复滚动位置时 GPU 合成层重建 + 背景采样突变 = 视觉闪烁。
+       加 transition 平滑过渡；首次滚动恢复时也会渐变而非闪变。
+       backdrop-filter 的 transition 在多数浏览器可插值（blur 从 0 渐变）。
+       background/box-shadow 走常规颜色过渡。 */
+    transition:
+      background 0.3s ease,
+      box-shadow 0.3s ease,
+      backdrop-filter 0.3s ease;
   }
   /* 滚动后：背景保持半透明，启用毛玻璃（此时 nav 下方真有内容值得模糊）；
      用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
@@ -955,6 +965,7 @@
     align-items: center;
     gap: 8px;
     align-self: flex-start;
+    position: relative; /* 第一百五十一批：静态命中区 ::before 锚点 */
     /* 第一百二十批：CTA 上移到 layer-2 后，margin-top 从 22px → 28px，
        加大与上方叙事内容的间距，让"读完内容 → 看按钮"的视觉过渡更舒适；
        layer-3 在 CTA 下方另起一段，间距由 layer-3 自己的 margin-top 接管（20-32px） */
@@ -1005,6 +1016,23 @@
     background: oklch(42% 0.225 262.9);
     box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 24%, transparent);
     transition-delay: 0s;
+  }
+  /* 第一百五十一批（2026-08-23 主人"鼠标悬停在主页按钮边缘特定位置时动画抽搐抖动"）：
+     根因 = hover 上浮 translateY(-1px)：指针停在按钮底部内侧 1px 处时，
+     hover 触发 → 按钮上移 1px → 指针脱离 → hover 熄灭 → 按钮回落 → 再触发 → 抖动
+     （实测底部边缘 -1px 处 40 帧内 hover 切换 3 次）。
+     修法（与 chips/contact-cards 批 142 同款）：::before 静态命中区扩展
+     4px 边距 + hover 时反向位移 +4px 抵消按钮 -1px 上浮 → 命中区锚定视口不动，
+     整个过渡中指针不越界，:hover 恒定无切换。inset -4px 覆盖上浮 1px 的临界区。 */
+  .hero-cta::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    transition: transform 0.25s ease;
+  }
+  .hero.entered .hero-text > .hero-cta:hover::before {
+    transform: translateY(4px); /* 反向抵消按钮 -1px 上浮，命中区锚定视口 */
   }
   /* === 文字上滑+倾斜容器（taozhiyy EXPLORE 同款） === */
   .hero-cta-flip {
