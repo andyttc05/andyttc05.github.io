@@ -13,7 +13,6 @@
        现代浏览器在 @supports 块内被 OKLCH 替换为精确值 */
     --color-paper-rgb: 248, 250, 252;
     --color-accent-rgb: 37, 99, 235;
-    --color-hover: rgba(0, 0, 0, 0.03);
     --color-shadow: rgba(0, 0, 0, 0.06);
     --color-glass-edge: rgba(255, 255, 255, 0.55);
     /* 新拟态 token（2026-08-20 About 页专属）：元素面 = --neu-surface，
@@ -39,7 +38,6 @@
     color-scheme: dark;
     --color-paper-rgb: 15, 23, 42;
     --color-accent-rgb: 96, 165, 250;
-    --color-hover: rgba(255, 255, 255, 0.04);
     --color-shadow: rgba(0, 0, 0, 0.45);
     --color-glass-edge: rgba(255, 255, 255, 0.08);
     --neu-b1-surface:      #2b3552;
@@ -1457,21 +1455,8 @@
     .story-intro-sub { font-size: 14px; }
   }
 
-  /* === Lenis 平滑滚动（第六十三批试用）===
-     Lenis 官方推荐 CSS：防止 scroll-behavior:smooth 干扰惯性、触屏滚动边界正确。
-     本站未设 scroll-behavior，此处主要是兜底 + overscroll 行为正确性 */
-  html.lenis, html.lenis body {
-    height: auto;
-  }
-  .lenis.lenis-smooth {
-    scroll-behavior: auto !important;
-  }
-  .lenis.lenis-smooth [data-lenis-prevent] {
-    overscroll-behavior: contain;
-  }
-  .lenis.lenis-stopped {
-    overflow: hidden;
-  }
+  /* 第一百四十八批：删 Lenis 平滑滚动 CSS（第六十三批试用，Lenis 库已随
+     "revert to native scroll" 提交移除，html.lenis/.lenis 系列是死代码） */
 
   /* === 落眸笑歌触 增强（第七十批）→ 第七十一批移除 ===
      主人反馈：文字悬浮（悬停下划线/强调色）、首访 halo、底部进度条都不需要——
@@ -2083,15 +2068,11 @@
   .about-card.about-card-poem:hover {
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
   }
-  /* 卡内排版：欢迎行（颜文字入行）/ 名字 / 正文 / 收尾
+  /* 卡内排版：名字 / 正文
      2026-08-20 主人"优化字体大小和颜色"：字号加大、名字用 accent 强调、收尾微缩以拉层级
-     2026-08-20 主人"不要太密集"：行距全面加大（欢迎 1.65→1.75、名字 1.25→1.3、正文/收尾 1.8→1.95）、名字 mb 18→22、收尾 mt 28→32 */
-  .about-card-welcome {
-    font-family: var(--font-body); /* 第六十二批：正文 Nunito 圆润统一 */
-    font-size: clamp(19px, 2.1vw, 23px);
-    line-height: 1.75;
-    color: var(--color-ink);
-  }
+     2026-08-20 主人"不要太密集"：行距全面加大（名字 1.25→1.3、正文/收尾 1.8→1.95）、名字 mb 18→22
+     第一百四十八批：删 .about-card-welcome/.about-card-site/.about-card-close 死代码
+     （第四十六批重设计已移除对应 HTML，仅留注释） */
   .about-card-name {
     font-family: var(--font-head); /* 第六十二批：名字 = 标题级，Baloo 2 统一可爱 */
     font-weight: 700;
@@ -2110,14 +2091,6 @@
     font-size: clamp(16px, 1.75vw, 19px);
     line-height: 1.95;
     color: var(--color-ink);
-  }
-  .about-card-site .about-card-text { max-width: 62ch; }
-  .about-card-close {
-    font-family: var(--font-body);
-    font-size: clamp(15.5px, 1.7vw, 18.5px);
-    line-height: 1.95;
-    color: var(--color-muted);
-    margin-top: 32px;
   }
   /* 第四十六批+第四十八批+第五十五批+第九十四批：诗意卡视觉——
      - 第四十八批删 border-left accent 引用条
@@ -2566,13 +2539,11 @@
       padding: 20px;                        /* 第七十一批：移动端 23.4→20 更紧凑 */
       border-radius: 16px;                  /* 第四十四批：18→16 移动端更柔和 */
     }
-    /* 第五十四批：mobile .about-sub-desc/.about-sub-line 样式随 HTML 移除 */
-    .about-card-welcome { font-size: clamp(16px, 4.4vw, 18px); }
+    /* 第五十四批：mobile .about-sub-desc/.about-sub-line 样式随 HTML 移除
+       第一百四十八批：.about-card-welcome/.about-card-close 移动端规则一并删（死代码） */
     .about-card-name { font-size: clamp(20px, 5.5vw, 24px); letter-spacing: 1px; }
-    .about-card-text,
-    .about-card-close { font-size: clamp(15px, 4.2vw, 17px); }
+    .about-card-text { font-size: clamp(15px, 4.2vw, 17px); }
     .about-card-name { margin-bottom: 16px; }      /* 第四十四批：22→16 移动端紧凑 */
-    .about-card-close { margin-top: 22px; }         /* 第四十四批：32→22 移动端紧凑 */
     /* 第四十八批：诗意卡移动端稍紧凑（无左 border） */
     .about-card-poem p { font-size: clamp(16px, 4.5vw, 19px); line-height: 1.9; }
 
@@ -2781,21 +2752,8 @@
     box-shadow: 0 5px 12px rgba(var(--color-accent-rgb), 0.10);
   }
 
-  /* 旧 list 实现彻底下架(第九十五批 4 行单列 → 第九十六批 bento 4 卡) */
-  .contact-list,
-  .contact-row,
-  .contact-row + .contact-row,
-  .contact-row:last-child,
-  .contact-link,
-  .contact-icon-wrap,
-  .contact-icon,
-  .contact-info,
-  .contact-info-name,
-  .contact-info-handle,
-  .contact-info-handle--placeholder,
-  .about-card-contact {
-    display: none !important;
-  }
+  /* 第一百四十八批：删旧 list 实现下架块（第九十五批 4 行单列 → 第九十六批 bento 4 卡，
+     对应 HTML 早已移除，.contact-list 系列 + .about-card-contact 的 display:none 是死代码） */
 
   /* 移动端（≤768px）：2x2 网格 + 收紧 padding + 隐藏 hover 位移
      注:副标题 .about-sub-section 沿用公共移动端规则(≤768 margin 24/16)
