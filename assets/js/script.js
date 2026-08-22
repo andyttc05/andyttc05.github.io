@@ -19,26 +19,56 @@
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!fine) return;
       var target = null, raf = null;
-      /* 第一百四十批（主人"滑动一些页面时很笨重"）：
-         笨重来源 = 慢速滚动/触摸板细调也被 lerp 插值拖慢（每帧只走 15%，
-         感觉"推不动"）。修复：
-         ① 小步输入（|deltaY| < 30px，触摸板细调/慢滚）直接落地，不插值 → 轻盈跟手；
-         ② 平滑路径下限 K_MIN 0.15 → 0.2（中速滚动更跟手）；
-         ③ 快速滚动 K_MAX 0.6 + 距离饱和 1200px 保持不变。 */
-      var K_MIN = 0.2, K_MAX = 0.6; /* 平滑系数范围：慢滚 0.2 / 快滚 0.6 */
-      var DIST_SAT = 1200;           /* 距离饱和值（px）：≥ 用 K_MAX */
-      var DIRECT_DELTA = 30;         /* |deltaY| < 30 → 直通不插值 */
+      /* 第一百五十批（2026-08-23 主人"优化网页滑动手感"）：
+         对照主流平滑滚动标准（Lenis 手感模型 / 惯性阻尼惯例）重构：
+         ① 帧率无关：旧版用固定 lerp 系数 k（0.2-0.6），60Hz/120Hz 或掉帧时
+            每帧走固定比例 → 滚动速度随设备/负载漂移。改为指数平滑
+            k = 1 - exp(-dt/TAU)，按帧间隔归一化（与过渡带/vslide 的
+            lerp 同一套数学，站内手感统一）。
+         ② 双通道自适应：距离通道（目标远 → 跟手）+ 速度通道（慢速微调
+            近乎直通、中速滚轮平滑防逐格跳、快速跟手），消除旧版
+            30px"直通/插值"硬切换的手感断层。
+         ③ 程序化滚动协调：抽屉关后滚顶 / smoothScrollTo 吸附前都会调用
+            __wheelPause() 停掉 wheel 平滑（target 清空），程序化滚动结束后
+            wheel 重新从实际位置锚定，不会"滚完又跳回旧目标"。 */
+      var TAU_MIN = 0.04, TAU_MAX = 0.14;   /* 平滑时间常数：跟手 40ms / 平顺 140ms */
+      var DIST_SAT = 900;                   /* 距离饱和（px）：≥ 用 TAU_MIN（最跟手） */
+      var VEL_MID = 40;                     /* 输入速度"中值"（px/事件）：最平滑档 */
+      var VEL_MID_TAU = 0.14;               /* 中速输入的 TAU（最平滑，防滚轮逐格跳） */
+      var MIN_STEP = 0.3;                   /* 到位判定阈值（px） */
+      var lastInputV = 0;                   /* 最近一次 wheel 输入速度（px/事件） */
+      var lastT = 0;
       function maxScroll() {
         return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       }
-      function frame() {
+      function frame(now) {
         if (target === null) { raf = null; return; }
+        var dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 1 / 60;
+        lastT = now;
         var cur = window.scrollY;
         var delta = target - cur;
         var ad = Math.abs(delta);
-        var k = K_MIN + (K_MAX - K_MIN) * Math.min(1, ad / DIST_SAT);
-        var next = cur + delta * k;
-        if (ad < 0.5) {
+        /* 双通道平滑（帧率无关指数平滑），取更跟手的一方：
+           ① 距离通道：目标远 → 小 TAU 跟手，目标近 → 大 TAU 平顺收尾；
+           ② 速度通道：慢速微调（触摸板细调）→ 小 TAU 近乎直通不滞后；
+              中速滚轮 → 大 TAU 平滑（消除逐格跳）；快速 → 小 TAU 跟手。 */
+        var tDist = TAU_MIN + (TAU_MAX - TAU_MIN) * Math.max(0, 1 - ad / DIST_SAT);
+        var v = lastInputV;
+        var tVel;
+        if (v < VEL_MID) {
+          /* 慢速：速度越低越跟手（0 → TAU_MIN 直通） */
+          tVel = TAU_MIN + (VEL_MID_TAU - TAU_MIN) * (v / VEL_MID);
+        } else if (v < VEL_MID * 2) {
+          /* 中速：最平滑（滚轮逐格 → 平滑过渡） */
+          tVel = VEL_MID_TAU;
+        } else {
+          /* 快速：越快越跟手（双倍中值以上快速回落 TAU_MIN） */
+          tVel = VEL_MID_TAU - (VEL_MID_TAU - TAU_MIN) * Math.min(1, (v - VEL_MID * 2) / (VEL_MID * 2));
+        }
+        var tau = Math.min(tDist, tVel);
+        var kd = 1 - Math.exp(-dt / tau);
+        var next = cur + delta * kd;
+        if (ad < MIN_STEP) {
           next = target;
           target = null;
           raf = null;
@@ -52,19 +82,12 @@
         e.preventDefault();
         var delta = e.deltaY;
         var max = maxScroll();
-        if (Math.abs(delta) < DIRECT_DELTA) {
-          /* 小步直通：无插值滞后（触摸板细调 / 慢滚微调） */
-          if (target === null) {
-            window.scrollTo(0, Math.max(0, Math.min(max, window.scrollY + delta)));
-          } else {
-            target = Math.max(0, Math.min(max, target + delta));
-          }
-          return;
-        }
         if (target === null) {
           target = window.scrollY;
+          lastT = 0;
           raf = requestAnimationFrame(frame);
         }
+        lastInputV = Math.abs(delta);
         target = Math.max(0, Math.min(max, target + delta));
       }, { passive: false });
       window.__wheelPause = function () {
