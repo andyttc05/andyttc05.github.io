@@ -1219,6 +1219,11 @@
         var now = performance.now();
         var dt = lastT ? (now - lastT) / 1000 : 1 / 60;
         lastT = now;
+        /* 第一百五十二批：dt 下限保护 —— 同一帧内多个 update（rAF + scroll/resize
+           并发）时 dt≈0，(sy-lastSy)/dt 爆炸 → vel 溢出 → k 越界 → Math.pow 负底
+           小数幂 = NaN → eEff/pEff 变 NaN → 五字 opacity NaN 渲染为 0 = 卡住
+           （用户反馈"过渡带刷新页面卡住"）。dt 下限 1ms 防除零。 */
+        dt = Math.max(0.001, dt);
         if (lastSy >= 0) {
           vel += (((sy - lastSy) / dt) - vel) * 0.2;
         }
@@ -1228,6 +1233,7 @@
         var kf = 1 - Math.pow(1 - k, Math.min(3, dt * 60));
         eEff += (e - eEff) * kf;
         pEff += (p - pEff) * kf;
+
         /* settling：滚动停下后的短收敛循环（防瞬跳/键盘冻结），收敛完触发吸附 */
         if (settling && Math.abs(e - eEff) < 0.01 && Math.abs(p - pEff) < 0.01) {
           settling = false;
@@ -1250,7 +1256,14 @@
            第七十三批修重置：字行完全滑出视口底（hb-sy > 0.52vh，不可见）才重置可重播——
            旧阈值 eEff<0.02 时字还可见（屏底 94% 处），en 瞬间归零 = 文字"突然消失"，割裂 */
         if (!entryStarted && eEff >= 0.12) { entryStarted = true; entryT0 = nowMs; }
-        if (entryStarted && hb - sy > vh * 0.52) { entryStarted = false; }
+        /* 第一百五十二批：入场动画播放期间（en 未走完）不重置 —— 刷新恢复
+           scrollY 时 hb 可能因字体/图片加载短暂波动，若在播放中触发重置，
+           en 冻结在中间值 = 五字半透明卡住（用户反馈"过渡带刷新卡住"）。
+           重置只发生在：动画已播完（nowMs-entryT0 > 窗口）且字行滑出视口底
+           且用户向上滚（scrollDir<0）——即真正离开又回来时。 */
+        var entryWinMs = n * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS;
+        var entryDone = !entryStarted || (nowMs - entryT0 >= entryWinMs);
+        if (entryStarted && entryDone && scrollDir < 0 && hb - sy > vh * 0.52) { entryStarted = false; }
 
         /* 第七十四批：向上滑回 Hero 的离场动画（位置驱动，永远与画面同步）——
            时间驱动的登场不反向播放，向上滑时字只是静止滑出屏 → "静止后突然消失"割裂。
@@ -1374,9 +1387,32 @@
       /* 2026-08-19 修复"Cmd+R 刷新丢失"(同 vslides):
          刷新静默恢复 scrollY 不触发 scroll → 首帧 cachedHbY 若在 hero 未就绪时测量则偏小
          → p 偏大 → 过渡带五字全滑出/眉标副题消失,且 hbImg complete 后 invalidateHbY 只清缓存
-         不重测 → 永久卡错位。window load(资源终态) → 失效缓存 + 立即重算一帧修正。 */
+         不重测 → 永久卡错位。window load(资源终态) → 失效缓存 + 立即重算一帧修正。
+         第一百五十二批（2026-08-23 主人"过渡带刷新页面卡住"）：
+         刷新恢复 scrollY 到过渡带时，入场触发原本依赖 eEff（lerp 慢值）≥0.12，
+         而 eEff 爬升需要滚动驱动的 rAF 续帧 —— 刷新恢复不触发 scroll → 死锁，
+         entryStarted 永不触发、五字永远透明。load 兜底用【真实 e】直接判定并
+         强制从头播（重置 entryT0），不依赖 lerp 链路；入场动画的 rAF 续帧
+         （update 末尾条件）会持续到播放完。配合两处防护（见 update 内）：
+         dt 下限 1ms（防同帧并发 update 的 vel 溢出 → NaN）+ entryDone 守卫
+         （播放中不重置，重置只发生在播完且用户向上滚时）。 */
       window.addEventListener('load', function () {
         invalidateHbY();
+        first = true;
+        var syL = window.scrollY || window.pageYOffset;
+        var hbL = heroBottomY();
+        var vhL = window.innerHeight || document.documentElement.clientHeight;
+        var entryWindowL = vhL * 0.45;
+        var eReal = Math.min(1, Math.max(0, (syL - (hbL - entryWindowL)) / entryWindowL));
+        if (eReal >= 0.12) {
+          /* 刷新位置在字行进入视口之后 → 强制触发 + 重置 entryT0 从头播，
+             保证五字完整登场 */
+          entryStarted = true;
+          entryT0 = performance.now();
+        } else {
+          entryStarted = false;
+        }
+        settling = false;
         update();
       });
       update();
