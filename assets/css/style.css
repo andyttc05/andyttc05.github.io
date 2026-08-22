@@ -2317,26 +2317,35 @@
   }
   /* hover：名字变 accent，与卡面上浮/边框/阴影同拍 */
   .game-tile-wrap:hover .game-tile-name { color: var(--color-accent); }
-  /* 移动端（≤768px）：三卡横排紧凑贴纸，错落角度收敛，账号防溢出 */
+  /* 移动端（≤768px）：第一百五十三批（主人"优化手机版游戏窝排版"）——
+     3 列在 375px 下每卡仅 ~106px 宽，账号被截断、内容拥挤。
+     改为 2 列：前两张一行、第三张居中，卡片 ~170px 更舒展；
+     错落角度/垂直错位收敛，胶带与 logo 同步缩小。 */
   @media (max-width: 768px) {
     .game-stack {
-      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .game-tile-wrap:has(.game-tile-3) {
+      grid-column: 1 / -1; /* 第三张居中占整行 */
+      justify-self: center;
+      width: calc(50% - 7px); /* 与上方两卡等宽 */
     }
     .game-tile {
-      padding: 14px 10px 16px;
-      gap: 6px;
+      padding: 16px 12px 18px;
+      gap: 8px;
       border-radius: 16px;
       --gt-hover-y: -4px; /* 窄屏 hover 抬升收敛 */
     }
     .game-tile-wrap:has(.game-tile-1) { --gt-tilt: -1.5deg; --gt-x: -2px; --gt-y: 0px; }
-    .game-tile-wrap:has(.game-tile-2) { --gt-tilt: 1.2deg;  --gt-x: 2px;  --gt-y: 8px; }
-    .game-tile-wrap:has(.game-tile-3) { --gt-tilt: -1deg;   --gt-x: -1px; --gt-y: 4px; }
+    .game-tile-wrap:has(.game-tile-2) { --gt-tilt: 1.2deg;  --gt-x: 2px;  --gt-y: 6px; }
+    .game-tile-wrap:has(.game-tile-3) { --gt-tilt: -1deg;   --gt-x: 0px;  --gt-y: 10px; }
     .game-tile::before { top: -8px; height: 15px; width: 48%; } /* 窄屏胶带收敛 */
-    .game-logo { height: 44px; border-radius: 12px; padding: 8px; }
-    .game-tile-name { font-size: 14px; }
-    .game-tile-server { font-size: 12px; }
+    .game-logo { height: 48px; border-radius: 12px; padding: 8px; }
+    .game-tile-name { font-size: 15px; }
+    .game-tile-server { font-size: 12.5px; }
     .game-tile-account {
-      font-size: 11px;
+      font-size: 12px;
       letter-spacing: 0;
       max-width: 100%;
       white-space: nowrap;
@@ -2732,21 +2741,27 @@
      right 与卡片内边距对齐；hover 变 accent + 右移 6px（0.45s 回弹曲线，先小幅前移
      再回拉的弹性反馈），松手回弹到垂直居中位。 */
   .contact-card-arrow {
-    position: absolute;
-    right: clamp(18px, 2.2vw, 26px);
-    top: 50%;
-    transform: translateY(-50%);
+    /* 第一百五十三批（2026-08-23 主人"箭头水平位置改为和图标的中间位置对齐"）：
+       原实现绝对定位贴卡片右缘（top:50% = 卡片垂直中心），箭头中心与图标
+       （head 顶部、高 48px）中心存在 ~10px 偏差。改为放回 .contact-card-head
+       的 flex 流内 —— head 的 align-items:center 让箭头与图标【垂直中心精确
+       对齐】（水平位置 = head 内 space-between 的最右端，紧贴 handle 区右侧）。
+       hover 右移 6px 保留（transform translateX，基础 transform 移除）。 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     font-family: var(--font-mono);
     font-size: clamp(16px, 1.6vw, 20px);
     color: var(--color-muted);
+    line-height: 1;
     transition:
       color 0.2s ease,
       transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    flex-shrink: 0;
   }
   .contact-card:hover .contact-card-arrow {
     color: var(--color-accent);
-    transform: translateY(-50%) translateX(6px);
+    transform: translateX(6px);
   }
   /* 卡片 hover/active：去掉透明背景方案（第一百二十二批 主人"悬停/点击变全透明不符合调性"）
      原方案 background-color rgba(accent, 0.08) 会覆盖 .about-card 的实色卡面 → 暗色主题下
@@ -2785,28 +2800,38 @@
 
   /* 移动端（≤768px）：2x2 网格 + 收紧 padding + 隐藏 hover 位移
      注:副标题 .about-sub-section 沿用公共移动端规则(≤768 margin 24/16)
-     第一百零二批：底部留白 56 → 40px（配合入场窗口 7%，末张卡仍能走完入场全显） */
+     第一百零二批：底部留白 56 → 40px（配合入场窗口 7%，末张卡仍能走完入场全显）
+     第一百五十三批（主人"优化手机版联系我排版"）：
+     通用 .about-grid 移动端是 flex column（批 44 为 1fr 收缩问题改的），
+     导致联系卡在手机上也 1 列堆叠（span 6 的 2x2 从未生效）。
+     联系卡区恢复 grid 2 列：4 张卡两两成行更紧凑，卡片 ~46% 宽足够
+     容纳图标 + handle（含长邮箱）；≤480px 极窄屏回退 1 列（既有规则，防长邮箱挤）。 */
   @media (max-width: 768px) {
     .about-bento-contact {
       padding-block: 0 40px;
       margin-top: calc(clamp(28px, 4vw, 48px) - clamp(72px, 9.5vw, 128px));
     }
-    .about-bento-contact .about-grid { gap: 18px; }
-    .contact-card {
-      grid-column: span 6;
-      padding: 20px;
+    .about-bento-contact .about-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
     }
-    .contact-card-icon { width: 44px; height: 44px; }
-    .contact-card-icon img { width: 30px; height: 30px; }
-    .contact-card-handle { font-size: 14px; }
+    .contact-card {
+      grid-column: auto; /* 2 列自动排布（覆盖通用 span 6） */
+      padding: 18px;
+      min-width: 0;
+    }
+    .contact-card-icon { width: 40px; height: 40px; }
+    .contact-card-icon img { width: 26px; height: 26px; }
+    .contact-card-handle { font-size: 13.5px; }
     /* touch 端：仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important)。
-       第一百二十五批：箭头是绝对定位 + translateY(-50%) 垂直居中，基础 transform 必须保留，
-       只禁 hover 的右移 6px */
+       第一百五十三批：箭头已改为 flex 流内（align-items:center 对齐图标中心），
+       基础 transform 不再需要 translateY(-50%)，touch 端只需禁 hover 右移 6px */
     @media (hover: none) and (pointer: coarse) {
       .contact-card-icon { transform: none !important; }
-      .contact-card-arrow { transform: translateY(-50%) !important; }
+      .contact-card-arrow { transform: none !important; }
       .contact-card:hover .contact-card-icon { transform: none; }
-      .contact-card:hover .contact-card-arrow { transform: translateY(-50%) !important; }
+      .contact-card:hover .contact-card-arrow { transform: none; }
       /* 第一百二十二批：contact-card 本体的 hover 上浮/阴影在 touch 端同样禁用
          （点击粘滞会一直浮起）——只保留边框高亮；:active 按压微缩保留 */
       .contact-card:hover {
