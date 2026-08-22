@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
+     独立于 style.css（本页不引 style.css 也要用），三个页面共用 -->
+<link rel="stylesheet" href="../assets/css/loader.css?v=3">
 <style>
   :root {
     --color-ink: #0f172a;
@@ -17,6 +20,13 @@
     --color-rule: #cbd5e1;
     --color-muted: #475569;
     --color-alt: #f1f5f9;
+  }
+  /* 加载页关键定位（第一百四十五批）：首帧即全屏覆盖（loader.css 的完整视觉就位前兜底） */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 背景色只放 html（画布层），body 透明——否则不透明 body 背景会盖住全屏背景 canvas */
@@ -84,6 +94,37 @@
 </style>
 </head>
 <body>
+<!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+     https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
+     三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
+     样式：assets/css/loader.css；逻辑：assets/js/loader.js（基于时间/场景/用户感知的决策系统：
+     bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+     就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，本页打字机等它才开打）。
+     noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+<div id="pageLoader" role="status" aria-label="页面加载中">
+  <div class="page-loader-three" aria-hidden="true">
+    <div class="page-loader-dot"></div>
+    <div class="page-loader-dot"></div>
+    <div class="page-loader-dot"></div>
+  </div>
+</div>
+<noscript><style>#pageLoader{display:none}</style></noscript>
+<script>
+  /* 第一百四十五批兜底：loader.js 未加载/异常时，load+2s 后强制解除加载页。
+     正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var loader = document.getElementById('pageLoader');
+      var html = document.documentElement;
+      if (!loader || html.classList.contains('page-ready')) return;
+      html.classList.remove('page-loading');
+      html.classList.add('page-ready');
+      try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+      loader.classList.add('is-done');
+      setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+    }, 2000);
+  });
+</script>
 <div class="wrapper">
   <p class="typewriter"><span id="typewriter-text"></span><span class="cursor"></span></p>
   <p class="back-link"><a href="../index.html">&larr; 返回主页</a></p>
@@ -132,9 +173,21 @@
     }
   }
 
-  setTimeout(tick, 600);
+  /* 第一百四十五批（加载页）：打字机等页面就绪（loader.js 派发 pageReady）再开打，
+     加载页淡出后才开始打字，避免内容在加载页背后空转 */
+  function bootTypewriter() { setTimeout(tick, 600); }
+  if (document.documentElement.classList.contains('page-ready')) {
+    bootTypewriter();
+  } else {
+    document.addEventListener('pageReady', bootTypewriter, { once: true });
+    window.addEventListener('load', function () {
+      setTimeout(bootTypewriter, 1000);
+    }, { once: true });
+  }
 })();
 </script>
+<!-- 全屏加载页控制器（第一百四十六批）：基于时间/场景/用户感知的决策系统，就绪后派发 pageReady -->
+<script src="../assets/js/loader.js?v=3" defer></script>
 <!-- 全屏背景动效（与主页同款）：几何粒子网络 + 动态几何飘带，单色 accent 版 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=3"></script>
 <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=3"></script>

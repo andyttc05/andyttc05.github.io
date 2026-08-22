@@ -1,0 +1,122 @@
+/* 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+   https://github.com/bistutzyy/taozhiyy"）
+   结构：#pageLoader 固定全屏盖在最上层（z-index 高于 nav/抽屉/进度条），
+   背景用 paper token（深色主题自动跟随）。
+   视觉：taozhiyy 同款 three-body loader —— 三个圆点沿轨道错相摆动 + 整体匀速旋转，
+   纯 CSS 动态图形（transform 驱动零重排），无文字、无进度条、无品牌图标。
+   配色用本站 accent 蓝（taozhiyy 原版 --uib-color 紫 #5d3fd3，此处跟随主题）。
+   逻辑：assets/js/loader.js —— 基于【时间 / 场景 / 用户感知】的决策系统（非简单是/否开关）：
+   - bfcache 恢复（pageshow persisted）→ 立即移除加载页（内容已在内存，绝不闪现）
+   - 秒开（就绪耗时 < 350ms）→ 连淡出动画都省，直接移除（防"闪一下"）
+   - 首访 → 最短展示 ~900ms（动态图形停留让用户感知过渡）；回访 → ~450ms
+   - 慢网（effectiveType 2g/slow-2g）→ 最短展示与兜底上限放宽
+   - 兜底上限：资源卡死也绝不锁页面（快网 6s / 慢网 12s）
+   就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
+   script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播（见 .page-ready 门控）。
+   注意：不写 prefers-reduced-motion 降级 —— 与全站约定一致（主人系统开减弱动态，
+   写了动画会被静默关掉）。
+   本文件独立于 style.css：coming-soon.html 不引 style.css，但三个页面都引本文件。 */
+
+#pageLoader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: var(--color-paper, #f8fafc);
+  color: var(--color-ink, #0f172a);
+  overflow: hidden;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+#pageLoader.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* 加载期间锁滚动：页面内容被加载页盖住，滚动条/手势滚动留在背后无意义，
+   避免用户"滚了但页面没动"的错位感；就绪后移除（loader.js） */
+html.page-loading { overflow: hidden; }
+
+/* three-body loader（taozhiyy 同款，三体轨道动画）
+   结构：外层容器整体匀速旋转（orbit），三个 .page-loader-dot 各占 30% 宽、
+   沿 60°/-60°/正下三个锚点伸出，dot 内 ::after 圆点错相上下摆动（wobble-1/2）——
+   合成"三体相互绕转"的轨道感。纯 transform + opacity，零重排。 */
+.page-loader-three {
+  --uib-size: 38px;
+  --uib-speed: 0.8s;
+  --uib-color: var(--color-accent, #2563eb);
+  position: relative;
+  display: inline-block;
+  height: var(--uib-size);
+  width: var(--uib-size);
+  /* 整体旋转（无限）+ 入场淡入（一次）双动画 */
+  animation:
+    loader-orbit calc(var(--uib-speed) * 2.5) linear infinite,
+    loader-three-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes loader-three-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.page-loader-dot {
+  position: absolute;
+  height: 100%;
+  width: 30%;
+}
+.page-loader-dot::after {
+  content: "";
+  position: absolute;
+  height: 0%;
+  width: 100%;
+  padding-bottom: 100%;
+  background-color: var(--uib-color);
+  border-radius: 50%;
+}
+.page-loader-dot:nth-child(1) {
+  bottom: 5%;
+  left: 0;
+  transform: rotate(60deg);
+  transform-origin: 50% 85%;
+}
+.page-loader-dot:nth-child(1)::after {
+  bottom: 0;
+  left: 0;
+  animation: loader-wobble-1 var(--uib-speed) infinite ease-in-out;
+  animation-delay: calc(var(--uib-speed) * -0.3);
+}
+.page-loader-dot:nth-child(2) {
+  bottom: 5%;
+  right: 0;
+  transform: rotate(-60deg);
+  transform-origin: 50% 85%;
+}
+.page-loader-dot:nth-child(2)::after {
+  bottom: 0;
+  left: 0;
+  animation: loader-wobble-1 var(--uib-speed) infinite ease-in-out;
+  animation-delay: calc(var(--uib-speed) * -0.15);
+}
+.page-loader-dot:nth-child(3) {
+  bottom: -5%;
+  left: 0;
+  transform: translateX(116.666%);
+}
+.page-loader-dot:nth-child(3)::after {
+  top: 0;
+  left: 0;
+  animation: loader-wobble-2 var(--uib-speed) infinite ease-in-out;
+}
+/* 外层整体旋转：三体轨道感（taozhiyy 原版 spin78236，语义化重命名） */
+@keyframes loader-orbit {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+/* 上下两点的错相摆动：上点先缩、下点先升，合成"相互绕转" */
+@keyframes loader-wobble-1 {
+  0%, 100% { transform: translateY(0%) scale(1); opacity: 1; }
+  50%      { transform: translateY(-66%) scale(0.65); opacity: 0.8; }
+}
+@keyframes loader-wobble-2 {
+  0%, 100% { transform: translateY(0%) scale(1); opacity: 1; }
+  50%      { transform: translateY(66%) scale(0.65); opacity: 0.8; }
+}

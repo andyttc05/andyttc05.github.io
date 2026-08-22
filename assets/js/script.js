@@ -73,6 +73,20 @@
       };
     })();
 
+    /* 第一百四十三批（2026-08-22 主人"连续刷新页面时图片会闪了一下"）：
+       图片加载完成前保持透明（CSS .hero-art-img / .vslide-img 初始 opacity:0），
+       load 后加 .is-loaded 触发 0.5s 淡入 —— 图片晚到（CDN 慢 / 开发者工具
+       禁缓存）时不再"卡片先亮、图片啪地弹出"；已缓存图在脚本执行时即 complete，
+       立即加类，入场动画期间完成淡入，观感与原来一致。 */
+    function markImageLoaded(img) {
+      if (!img) return;
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('is-loaded');
+        return;
+      }
+      img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
+    }
+
     var navEl = document.getElementById('nav');
     var scrollProgressEl = document.getElementById('scrollProgress');
     var btn = document.getElementById('hamburgerBtn');
@@ -341,9 +355,28 @@
     (function () {
       var hero = document.getElementById('hero');
       if (!hero) return;
-      requestAnimationFrame(function () {
-        hero.classList.add('entered');
-      });
+      /* 第一百四十五批（2026-08-22 主人"加个加载页过渡，资源加载完再显示页面"）：
+         hero 入场从「脚本就绪立即播」改为「页面就绪（加载页结束）后播」——
+         loader.js 在 window load + 字体就绪后给 <html> 加 .page-ready 并派发 pageReady
+         事件；这里等它就位再 .entered，让加载页淡出与 hero 弹入无缝衔接。
+         兜底：pageReady 未触发（loader 脚本缺失/异常）时 window load + 1s 强制入场，
+         页面永不因加载页而不可见。 */
+      function heroEnter() {
+        /* 入场被加载页推迟 → 锚点抑制窗口重新从入场时刻计时 1.3s（第一百四十二批） */
+        suppressUntil = Math.max(suppressUntil || 0, performance.now() + 1300);
+        requestAnimationFrame(function () {
+          hero.classList.add('entered');
+        });
+        startTypewriter();
+      }
+      if (document.documentElement.classList.contains('page-ready')) {
+        heroEnter();
+      } else {
+        document.addEventListener('pageReady', heroEnter, { once: true });
+        window.addEventListener('load', function () {
+          setTimeout(heroEnter, 1000);
+        }, { once: true });
+      }
 
       /* --- hero 布局锚点（第六十批）：图片垂直居中 + 第三层跟图片底部对齐 ---
          图片在 hero 内容区垂直居中（.hero-art align-self: center）→ 图片底部 =
@@ -357,8 +390,19 @@
       var artCard = hero.querySelector('.hero-art-card');
       var mqMobile = window.matchMedia('(max-width: 768px)');
       var anchorTicking = false;
+      /* 第一百四十二批（2026-08-22 主人"连续刷新后 SCROLL 动画结束时定位偶发不一致"）：
+         入场动画期间（≤1.2s）任何 --hero-anchor 重算都会触发 .hero 高度 reflow →
+         .hero-scroll（bottom 32px 锚定 .hero 内容盒底部）瞬时跳变；用户感知为
+         "动画刚结束位置却飘了一下"。suppressUntil = now() + 1300ms（hero.entered
+         0.45s delay + 0.7s 时长 ≈ 1.15s 落定 + 100ms 余量）。所有 syncHeroAnchor 调用
+         (初始 / fonts.ready / img.load / resize) 在此期间都 no-op；期间 --hero-anchor
+         保持 0，hero-text 默认 padding-bottom=0（layout 与最初 CSS 一致，SCROLL
+         位置稳定）；跨过 1.3s 后第一次 resize / fonts.ready 回调 / img.load 才会回填
+         —— 此时 hero 入场已落定，reflow 不再影响视觉锚点。 */
+      var suppressUntil = performance.now() + 1300;
       function syncHeroAnchor() {
         if (anchorTicking) return;
+        if (performance.now() < suppressUntil) return;
         anchorTicking = true;
         requestAnimationFrame(function () {
           var anchor = 0;
@@ -373,18 +417,21 @@
           anchorTicking = false;
         });
       }
-      syncHeroAnchor();
       window.addEventListener('resize', syncHeroAnchor);
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(syncHeroAnchor);
       }
-      /* 图片加载完成（intrinsic 尺寸确定）后再校一次，防 aspect-ratio 计算误差 */
+      /* 图片加载完成（intrinsic 尺寸确定）后再校一次，防 aspect-ratio 计算误差。
+         但 inline preload + 已缓存图经常在 50ms 内就 complete，过早 sync 会和入场撞车
+         —— 所以这里不再立即 sync；fonts.ready + resize 兜底即可（同一资源栈里
+         img.complete 触发时 fonts 也已 ready，至少一个会落 1.3s 后回调，触发回填） */
       if (artCard) {
         var img = artCard.querySelector('img');
-        if (img) {
-          if (img.complete) { syncHeroAnchor(); }
-          else { img.addEventListener('load', syncHeroAnchor); }
+        if (img && !img.complete) {
+          img.addEventListener('load', syncHeroAnchor, { once: true });
         }
+        /* 第一百四十三批：图片就绪前透明 → 就绪后淡入（防晚到图片弹出闪现） */
+        markImageLoaded(img);
       }
 
       /* --- 打字机：几句雨猫主题句子循环播放 ---
@@ -430,12 +477,32 @@
             typeTimer = setTimeout(tick, DELETE_MS);
           }
         }
-        typeTimer = setTimeout(tick, 700);
+        typeTimer = null;
+        /* 第一百四十五批（加载页）：打字机初始启动等页面就绪 ——
+           加载页盖住期间不空转，加载页淡出后才从第一句开打。
+           就绪路径：heroEnter() 里的 startTypewriter()（200ms）会接棒；
+           这里只负责兜底 —— page-ready 已就绪 / pageReady 事件 / load+1s 强制，
+           保证任何时序下打字机都会启动且不重复（typeTimer 判空）。 */
+        if (document.documentElement.classList.contains('page-ready')) {
+          typeTimer = setTimeout(tick, 700);
+        } else {
+          document.addEventListener('pageReady', function () {
+            if (!typeTimer) typeTimer = setTimeout(tick, 700);
+          }, { once: true });
+          window.addEventListener('load', function () {
+            setTimeout(function () {
+              if (!typeTimer) typeTimer = setTimeout(tick, 700);
+            }, 1000);
+          }, { once: true });
+        }
       }
       function stopTypewriter() {
         if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
       }
       function startTypewriter() {
+        /* 第一百四十五批：加载页未结束（无 .page-ready）不启动打字机 ——
+           IO 在页面加载时立即 intersect hero 会触发这里，门控后改为等 pageReady 再开打 */
+        if (!document.documentElement.classList.contains('page-ready')) return;
         if (!typeEl || typeTimer) return;
         typeTimer = setTimeout(tick, 200);
       }
@@ -648,6 +715,64 @@
       }
     })();
 
+    /* === 游戏窝卡片 按压回弹（第一百三十八批 2026-08-22 主人"点击动效弹一点"）===
+       与 hero 立绘同款手感：mousedown 60ms 压扁 scale(0.97) 保持 → mouseup 280ms
+       back 缓动回弹（cubic-bezier(0.34,1.56,0.64,1)，y>1 自带过冲 → "弹"）。
+       transform 从 --gt-tilt/--gt-x/--gt-y/--gt-hover-y 变量构造（与 CSS hover 落点同值），
+       hover 态由 .game-tile-wrap 实时判定 → 回弹终点 = 悬停位或基础位。
+       mouseup 绑 window：卡片内外松开都回弹；不挂 mouseleave（拖出未松开不提前回弹）。
+       第一百四十批：release 起点取 getComputedStyle 当前实际变换（拖出卡片外松开不跳变）。
+       pointer:coarse（触屏）跳过 → CSS :active 兜底按压。 */
+    (function () {
+      var tiles = document.querySelectorAll('.game-tile');
+      if (!tiles.length) return;
+      if (window.matchMedia('(pointer: coarse)').matches) return;
+      function readVar(el, name, fb) {
+        var v = getComputedStyle(el).getPropertyValue(name).trim();
+        return v || fb;
+      }
+      function tfAt(tile, scaleVal) {
+        var wrap = tile.closest('.game-tile-wrap');
+        var hovered = !!(wrap && wrap.matches(':hover'));
+        var tilt = hovered ? '0deg' : readVar(tile, '--gt-tilt', '0deg');
+        var x = hovered ? '0px' : readVar(tile, '--gt-x', '0px');
+        var y = hovered ? readVar(tile, '--gt-hover-y', '-8px') : readVar(tile, '--gt-y', '0px');
+        return 'rotate(' + tilt + ') translateX(' + x + ') translateY(' + y + ') scale(' + scaleVal + ')';
+      }
+      Array.prototype.forEach.call(tiles, function (tile) {
+        var pressAnim = null, releaseAnim = null, pressed = false;
+        tile.addEventListener('mousedown', function (e) {
+          if (e && e.button !== undefined && e.button !== 0) return;
+          if (pressed) return;
+          pressed = true;
+          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
+          pressAnim = tile.animate([
+            { transform: tfAt(tile, 1), offset: 0 },
+            { transform: tfAt(tile, 0.97), offset: 1 }
+          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
+        });
+        window.addEventListener('mouseup', function () {
+          if (!pressed) return;
+          pressed = false;
+          /* 第一百四十批（2026-08-22 主人"按住卡片在卡片范围外松开，动画怪怪的/还是瞬间跳变"）：
+             必须【先读、后 cancel】：pressAnim.cancel() 同步移除动画效果，元素立即回落到
+             CSS 层（:hover 悬浮位或基础散落位）；若先 cancel 再读 getComputedStyle，
+             from 取到的已是回落值 → 起点 ≠ 当前渲染位 → 瞬间跳变。
+             正确顺序：from 取 press 动画定格中的实际变换（压扁位）→ cancel → release
+             从该位平滑过渡到终点。终点按松开瞬间 :hover 判定：
+             卡内松开 → 弹回 hover 位；卡外松开 → 平滑弹回基础散落位。 */
+          var from = getComputedStyle(tile).transform;
+          if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
+          var to = tfAt(tile, 1);
+          releaseAnim = tile.animate([
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
+          ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          releaseAnim.onfinish = function () { releaseAnim = null; };
+        });
+      });
+    })();
+
     /* === 落眸笑歌触 · 全屏钉住滑动(5 屏)· 滚动 scrub 引擎 ===
      机制(2026-08-18 由 scroll-snap 改 sticky pin,主人诉求):
        - 每屏 .vslide-wrap 提供滚动行程(100vh + --pin-ext),内层 .vslide sticky 钉住
@@ -747,6 +872,8 @@
           top: 0, ext: 0,
           lastP: -1 /* 第一百三十三批：上一帧进度缓存，p 未变化跳过 setFrame（省无谓写入） */
         });
+        /* 第一百四十三批：vslide 懒加载图就绪前透明 → 就绪后淡入（防滚动/刷新时弹出闪现） */
+        markImageLoaded(s.querySelector('.vslide-img'));
       }
       if (!slides.length) return;
       /* 最后一屏(触)是主页终点:没有下一页可交接,离场动画只会把屏淡出后滚出视口,

@@ -18,14 +18,63 @@
   .icon-moon { display: block; }
   .theme-dark .icon-sun { display: block; }
   .theme-dark .icon-moon { display: none; }
+  /* 加载页关键定位（第一百四十五批）：先于 loader.css 就位 —— 首帧即全屏覆盖 + 主题底色，
+     防 loader.css 未就绪时页面内容透出；完整视觉（品牌/雨丝/进度条）在 loader.css */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
+  }
+  html.theme-dark #pageLoader {
+    background: var(--color-paper, #0f172a);
+    color: var(--color-ink, #e2e8f0);
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
-<link rel="stylesheet" href="../assets/css/style.css?v=257">
+<!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
+     独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
+<link rel="stylesheet" href="../assets/css/loader.css?v=3">
+<link rel="stylesheet" href="../assets/css/style.css?v=264">
 </head>
 <body>
+
+  <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+       https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
+       三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（基于时间/场景/用户感知的决策系统：
+       bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
+       script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
+       noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+  <div id="pageLoader" role="status" aria-label="页面加载中">
+    <div class="page-loader-three" aria-hidden="true">
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+    </div>
+  </div>
+  <noscript><style>#pageLoader{display:none}</style></noscript>
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
+       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
+       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
 
   <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
   <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
@@ -144,18 +193,18 @@
              + 第一百二十三批（2026-08-21 主人"循环卡片支持拖拽拉动"）：pointer 拖拽跟随 +
              松手惯性衰减回自动滚动；触摸纵向翻页不受影响（touch-action: pan-y）
              (2026-08-20 主人：Tools/Languages 中文；描述加长；Harness = DeepSeek Harness(开源的 Agent 框架)；
-             VS Code 换 devicon 彩色图标(原 simpleicons visualstudiocode 404 破图)；图标 assets/icons/skills/ 本地化) -->
+             VS Code 换 devicon 彩色图标(原 simpleicons visualstudiocode 404 破图)；图标 https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/ 本地化) -->
         <div class="about-card about-card-skills">
           <p class="skills-label">工具</p>
           <div class="skills-loop" data-direction="left" data-speed="55" data-hover="12" aria-label="工具循环">
             <div class="skills-loop-viewport">
               <div class="skills-loop-track">
                 <ul class="skills-loop-list">
-                  <li class="skills-chip"><img src="../assets/icons/skills/deepseek.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DeepSeek</span><span class="skills-chip-desc">国产大模型，写码问答</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/deepseek-harness.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DSH</span><span class="skills-chip-desc">开源 Agent 框架</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/workbuddy.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">WorkBuddy</span><span class="skills-chip-desc">腾讯 AI 搭子，办公全能</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/vscode.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">VS Code</span><span class="skills-chip-desc">主力代码编辑器</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/git.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Git</span><span class="skills-chip-desc">代码版本与协作</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/deepseek.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DeepSeek</span><span class="skills-chip-desc">国产大模型，写码问答</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/deepseek-harness.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">DSH</span><span class="skills-chip-desc">开源 Agent 框架</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/workbuddy.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">WorkBuddy</span><span class="skills-chip-desc">腾讯 AI 搭子，办公全能</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/vscode.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">VS Code</span><span class="skills-chip-desc">主力代码编辑器</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/git.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Git</span><span class="skills-chip-desc">代码版本与协作</span></span></li>
                 </ul>
               </div>
             </div>
@@ -165,12 +214,12 @@
             <div class="skills-loop-viewport">
               <div class="skills-loop-track">
                 <ul class="skills-loop-list">
-                  <li class="skills-chip"><img src="../assets/icons/skills/cplusplus.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">C++</span><span class="skills-chip-desc">系统级性能语言</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/python.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Python</span><span class="skills-chip-desc">数据科学与脚本主力</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/sql.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">SQL</span><span class="skills-chip-desc">关系型数据库查询</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/html5.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">HTML</span><span class="skills-chip-desc">网页内容与结构</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/css.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">CSS</span><span class="skills-chip-desc">网页视觉与布局</span></span></li>
-                  <li class="skills-chip"><img src="../assets/icons/skills/javascript.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">JavaScript</span><span class="skills-chip-desc">网页交互与逻辑</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/cplusplus.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">C++</span><span class="skills-chip-desc">系统级性能语言</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/python.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">Python</span><span class="skills-chip-desc">数据科学与脚本主力</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/sql.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">SQL</span><span class="skills-chip-desc">关系型数据库查询</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/html5.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">HTML</span><span class="skills-chip-desc">网页内容与结构</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/css.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">CSS</span><span class="skills-chip-desc">网页视觉与布局</span></span></li>
+                  <li class="skills-chip"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/skills/javascript.svg" alt="" width="28" height="28" loading="lazy" decoding="async"><span class="skills-chip-text"><span class="skills-chip-name">JavaScript</span><span class="skills-chip-desc">网页交互与逻辑</span></span></li>
                 </ul>
               </div>
             </div>
@@ -180,26 +229,35 @@
         <!-- 游戏 Section（2026-08-20 主人"做个游戏区"→ 第三十三批"去掉框、加标签、重设计"→ 第四十三批"账号和服务器换位+优化排版"
              → 第一百二十二批 2026-08-21 主人"错落式散落布局，打破网格呆板感"：三张游戏贴纸卡
              各自 rotate + 垂直错位，像随意散落在桌上的卡片，替代原大卡内三行列表；
-             hover 上浮回正 + accent 边框/阴影 + 名字变色（明确交互反馈）） -->
+             hover 上浮回正 + accent 边框/阴影 + 名字变色（明确交互反馈））
+             → 第一百三十九批 2026-08-22 主人"悬浮特效没了 / 可爱杂乱好看一点"：
+             HTML 补上 .game-tile-wrap 包裹层（第一百三十六批 CSS 改 hover 目标时漏改 HTML，
+             导致 hover 全失效）；CSS 侧升级"可爱杂乱"：双向错位 + 彩色和纸胶带 + 缝线描边） -->
         <p class="about-sub about-sub-section" id="about-sub-games">游戏<span class="hl">窝</span></p>
         <div class="game-stack">
-          <div class="game-tile game-tile-1">
-            <img class="game-logo" src="../assets/icons/games/wzry.webp?v=2" alt="王者荣耀" width="160" height="160" decoding="async" loading="lazy">
-            <p class="game-tile-name">王者荣耀</p>
-            <p class="game-tile-server">国服</p>
-            <p class="game-tile-account">残梦若归鸿</p>
+          <div class="game-tile-wrap">
+            <div class="game-tile game-tile-1">
+              <img class="game-logo" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/games/wzry.webp?v=3" alt="王者荣耀" width="160" height="160" decoding="async" loading="lazy">
+              <p class="game-tile-name">王者荣耀</p>
+              <p class="game-tile-server">国服</p>
+              <p class="game-tile-account">残梦若归鸿</p>
+            </div>
           </div>
-          <div class="game-tile game-tile-2">
-            <img class="game-logo" src="../assets/icons/games/hsr.webp?v=2" alt="崩坏：星穹铁道" width="160" height="160" decoding="async" loading="lazy">
-            <p class="game-tile-name">星穹铁道</p>
-            <p class="game-tile-server">亚服</p>
-            <p class="game-tile-account">839386225</p>
+          <div class="game-tile-wrap">
+            <div class="game-tile game-tile-2">
+              <img class="game-logo" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/games/hsr.webp?v=3" alt="崩坏：星穹铁道" width="160" height="160" decoding="async" loading="lazy">
+              <p class="game-tile-name">星穹铁道</p>
+              <p class="game-tile-server">亚服</p>
+              <p class="game-tile-account">839386225</p>
+            </div>
           </div>
-          <div class="game-tile game-tile-3">
-            <img class="game-logo" src="../assets/icons/games/zzz.webp?v=2" alt="绝区零" width="160" height="160" decoding="async" loading="lazy">
-            <p class="game-tile-name">绝区零</p>
-            <p class="game-tile-server">亚服</p>
-            <p class="game-tile-account">1314904716</p>
+          <div class="game-tile-wrap">
+            <div class="game-tile game-tile-3">
+              <img class="game-logo" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/games/zzz.webp?v=3" alt="绝区零" width="160" height="160" decoding="async" loading="lazy">
+              <p class="game-tile-name">绝区零</p>
+              <p class="game-tile-server">亚服</p>
+              <p class="game-tile-account">1314904716</p>
+            </div>
           </div>
         </div>
       </div>
@@ -217,7 +275,7 @@
         <p class="about-sub about-sub-section" id="about-contact-title">联系<span class="hl">我</span></p>
         <a class="about-card contact-card" href="https://weixin.qq.com" target="_blank" rel="noopener noreferrer" aria-label="微信官网">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/wechat.svg?v=3" alt="WeChat" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/contact/wechat.svg?v=3" alt="WeChat" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -226,7 +284,7 @@
         </a>
         <a class="about-card contact-card" href="https://www.instagram.com/_andy_ttc" target="_blank" rel="noopener noreferrer" aria-label="Instagram _andy_ttc">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/instagram.svg?v=3" alt="Instagram" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/contact/instagram.svg?v=3" alt="Instagram" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -235,7 +293,7 @@
         </a>
         <a class="about-card contact-card" href="https://github.com/andyttc05" target="_blank" rel="noopener noreferrer" aria-label="GitHub andyttc05">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/github.svg?v=3" alt="GitHub" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/contact/github.svg?v=3" alt="GitHub" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -244,7 +302,7 @@
         </a>
         <a class="about-card contact-card" href="mailto:andyttc2463@gmail.com" aria-label="邮箱 andyttc2463 at gmail.com">
           <span class="contact-card-head">
-            <span class="contact-card-icon"><img src="../assets/icons/contact/email.svg?v=3" alt="Gmail" width="34" height="34" loading="lazy" decoding="async"></span>
+            <span class="contact-card-icon"><img src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/icons/contact/email.svg?v=3" alt="Gmail" width="34" height="34" loading="lazy" decoding="async"></span>
             <span class="contact-card-arrow" aria-hidden="true">&rarr;</span>
           </span>
           <span class="contact-card-body">
@@ -270,7 +328,8 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=9"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=9"></script>
 
-  <script src="../assets/js/script.js?v=117" defer></script>
+  <script src="../assets/js/loader.js?v=3" defer></script>
+  <script src="../assets/js/script.js?v=120" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <script src="../assets/js/about-loop.js?v=11" defer></script>
 </body>
