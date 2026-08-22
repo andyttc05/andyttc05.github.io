@@ -40,9 +40,13 @@
     color: var(--color-ink, #e2e8f0);
   }
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
+     替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
+     中文走系统字体回退（与原行为一致）；@font-face 声明见 assets/css/fonts.css -->
+<link rel="stylesheet" href="assets/css/fonts.css?v=1">
 <link rel="preload" as="image" href="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/hero/catgirl_sailor.webp?v=7" type="image/webp" fetchpriority="high">
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
