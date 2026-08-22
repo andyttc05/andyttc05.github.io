@@ -847,22 +847,26 @@
     background: linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent), #ffffff 45%) 100%);
     background-clip: text;
     color: transparent;
-    /* 第九十四批：恢复 hero-char-pop —— 主人澄清只移大卡 hover 浮动，所有其他动画保留 */
-    animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    /* 第九十四批：恢复 hero-char-pop —— 主人澄清只移大卡 hover 浮动，所有其他动画保留。
+       第一百四十五批（2026-08-22 加载页）：默认 animation:none（静态可见），
+       html.page-ready（加载页结束后由 loader.js 加到 <html>）才播弹出 ——
+       "时雨时猫"逐字弹出出现在加载页淡出之后，成为转场的一部分 */
+    animation: none;
   }
   @keyframes hero-char-pop {
     0%   { transform: scale(0.4); opacity: 0; }
     55%  { transform: scale(1.15); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
-  .hero-title-char:nth-child(1) { animation-delay: 0.1s; }
-  .hero-title-char:nth-child(2) { animation-delay: 0.25s; }
-  .hero-title-char:nth-child(3) { animation-delay: 0.4s; }
-  .hero-title-char:nth-child(4) { animation-delay: 0.55s; }
-  .hero-title-char:nth-child(5) { animation-delay: 0.7s; }
-  .hero-title-char:nth-child(6) { animation-delay: 0.85s; }
-  .hero-title-char:nth-child(7) { animation-delay: 1s; }
-  .hero-title-char:nth-child(8) { animation-delay: 1.15s; }
+  html.page-ready .hero-title-char { animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  html.page-ready .hero-title-char:nth-child(1) { animation-delay: 0.1s; }
+  html.page-ready .hero-title-char:nth-child(2) { animation-delay: 0.25s; }
+  html.page-ready .hero-title-char:nth-child(3) { animation-delay: 0.4s; }
+  html.page-ready .hero-title-char:nth-child(4) { animation-delay: 0.55s; }
+  html.page-ready .hero-title-char:nth-child(5) { animation-delay: 0.7s; }
+  html.page-ready .hero-title-char:nth-child(6) { animation-delay: 0.85s; }
+  html.page-ready .hero-title-char:nth-child(7) { animation-delay: 1s; }
+  html.page-ready .hero-title-char:nth-child(8) { animation-delay: 1.15s; }
   .hero-title-char::selection {
     background: var(--color-accent);
     color: var(--color-paper);
@@ -1137,6 +1141,13 @@
     width: 100%; height: 100%;
     object-fit: cover;
     object-position: top center;
+    /* 第一百四十三批（2026-08-22 主人"连续刷新页面时图片会闪了一下"）：
+       图片加载完成前保持透明，加载完成后才淡入（transition 复用 0.5s ease）。
+       根因：卡片 clip-path 擦入动画 ~0.8s 播完不等待图片；图片晚到（CDN 慢 /
+       开发者工具禁缓存强制重下）时，卡片先全亮出灰色纸底，图片随后"啪"地弹出 = 闪。
+       markImageLoaded（script.js）在 load 后加 .is-loaded 触发淡入；
+       已缓存图（img.complete）在脚本执行时立即加类，入场擦除期间即完成淡入，观感不变 */
+    opacity: 0;
     transition: opacity 0.5s ease;
     /* 移动端：长按出系统菜单（保存/拷贝/分享），点击无视觉反馈——浏览器原生接管。
        保留 user-select/drag 禁用，避免文本选择 + 图片拖出。
@@ -1144,6 +1155,7 @@
     user-select: none;
     -webkit-user-drag: none;
   }
+  .hero-art-img.is-loaded { opacity: 1; }
   /* 按压/回弹动画在 script.js 用 Web Animations API（element.animate）实现：
      mousedown 压扁 → mouseup 曲线回弹（back 缓动自带过冲）。
      --lift/--scale 变量由 hover 提供，动画读取同一套值保持一致 */
@@ -1722,7 +1734,12 @@
     height: auto; /* 高度跟随自身纵横比(落 1.4:1 横 / 眸 1:1 方 / 其余 ~1.16-1.21) */
     display: block;
     pointer-events: none;
+    /* 第一百四十三批：懒加载图片加载完成前透明 + 加载后淡入，防滚动/刷新时图片
+       "啪"地弹出（figure 的 opacity 由 scrub 驱动，img 自身不再瞬时闪现） */
+    opacity: 0;
+    transition: opacity 0.5s ease;
   }
+  .vslide-img.is-loaded { opacity: 1; }
   /* data-pos 5 段位置对角律动 —— glyph + sub + visual 的 grid 列偏移
      默认:glyph/sub 左列,visual 右列垂直居中(middle-right = mr)
      2026-08-19 09:15 优化横向留白(主人反馈"有些段右边空/左边空/中间空",手机版单列无此问题):
@@ -1932,15 +1949,18 @@
     font-weight: 800;
   }
   /* 第九十二批：复用主页 hero-char-pop（同款弹性曲线 + 错峰 delay） —— 与「时雨时猫」统一弹出质感
-     第九十四批：恢复 —— 主人澄清只移大卡 hover 浮动，标题逐字弹出保留 */
+     第九十四批：恢复 —— 主人澄清只移大卡 hover 浮动，标题逐字弹出保留。
+     第一百四十五批（加载页）：默认 animation:none（静态可见），html.page-ready
+     （加载页结束后由 loader.js 加到 <html>）才播弹出 —— 与主页标题同一转场节奏 */
   .about-title-char {
     display: inline-block;
-    animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation: none;
   }
-  .about-title-char:nth-child(1) { animation-delay: 0.1s; }
-  .about-title-char:nth-child(2) { animation-delay: 0.25s; }
-  .about-title-char:nth-child(3) { animation-delay: 0.4s; }
-  .about-title-char:nth-child(4) { animation-delay: 0.55s; }
+  html.page-ready .about-title-char { animation: hero-char-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  html.page-ready .about-title-char:nth-child(1) { animation-delay: 0.1s; }
+  html.page-ready .about-title-char:nth-child(2) { animation-delay: 0.25s; }
+  html.page-ready .about-title-char:nth-child(3) { animation-delay: 0.4s; }
+  html.page-ready .about-title-char:nth-child(4) { animation-delay: 0.55s; }
   /* 副标题：滚动驱动入场/出场 —— 与大卡同 timeline+range+composition（第九十四批恢复）。
      第一百零一批：@supports (animation-timeline: view()) 门控 —— 无 view() 支持的浏览器
      （iOS Safari ≤17 / 老 Chrome / 部分 WebView）里 animation 简写 duration 默认 0s +
@@ -2053,14 +2073,14 @@
   /* 第一百二十七批（2026-08-21 主人"这两个卡片不用加入进场动画"）：
      撤销第一百二十六批给 intro/poem 加的加载入场动画（card-load-in），
      两张卡恢复继承 .about-card 的滚动驱动入场（首屏内不播，用户接受静态）；
-     hover 反馈保留（accent 边框加深 + 阴影扩散，不上浮——尊重第九十四批） */
+     第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
+     hover 仅阴影扩散，边框颜色保持 base 0.14α 不变（不上浮——尊重第九十四批） */
   .about-card.about-card-intro,
   .about-card.about-card-poem {
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease;
   }
   .about-card.about-card-intro:hover,
   .about-card.about-card-poem:hover {
-    border-color: rgba(var(--color-accent-rgb), 0.45);
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
   }
   /* 卡内排版：欢迎行（颜文字入行）/ 名字 / 正文 / 收尾
@@ -2132,10 +2152,17 @@
   /* 第五十五批：.about-card-poem:hover 规则已删 —— 诗意卡完全继承 base hover
      （上浮 -3px + 边框 accent 0.45α），与其他卡片一致 */
   /* === 游戏窝（第一百二十二批 2026-08-21 主人"错落式散落布局，打破网格呆板感"）===
-     三张游戏贴纸卡错落摆放：nth-of-type 各自 rotate + 垂直错位 + 投影，
+     三张游戏贴纸卡错落摆放：.game-tile-1/2/3 各自 rotate + 垂直错位 + 投影，
      模仿随意散落在桌面的卡片，替代原"大卡内三行列表"的呆板网格。
      hover 明确反馈：上浮回正 + accent 边框/阴影扩散 + 名字变色；
-     :active 按压微缩，模拟物理按下。logo 保留 logo-scroll 滚动淡入。 */
+     点击（第一百三十八批 2026-08-22 主人"弹一点"）：JS 按压回弹 —— 按下 60ms 压扁
+     scale(0.97)、松开 280ms back 缓动回弹（自带过冲）；触屏降级 CSS :active 微缩。
+     logo 保留 logo-scroll 滚动淡入。
+     第一百三十九批（2026-08-22 主人"悬浮特效没了 / 可爱杂乱好看一点"）：
+     —— HTML 补上 .game-tile-wrap 包裹层（第一百三十六批改 CSS 时漏改 HTML → hover 全失效，已恢复）；
+     —— "可爱杂乱"升级：三卡 rotate + 水平/垂直双向错位（新增 --gt-x），顶部彩色和纸胶带
+        （.game-tile::before，各卡不同颜色/角度/位置 + 锯齿撕边）+ 卡内虚线缝线内描边
+        （outline-dashed，手工贴纸/手账感）；hover 时胶带加亮，与卡身同拍。 */
   .game-stack {
     grid-column: span 12;
     display: grid;
@@ -2150,29 +2177,88 @@
     align-items: center;
     text-align: center;
     gap: 10px;
-    background: var(--neu-b1-surface); /* 与 .about-card 同款实色卡面 */
+    background: var(--neu-b1-surface); /* 与 .about-card 同款实色卡面（第七十二批纯白不变） */
     border: 1px solid rgba(var(--color-accent-rgb), 0.14);
     border-radius: 20px;
     padding: clamp(20px, 2.4vw, 30px) clamp(16px, 1.8vw, 24px);
     box-shadow: 0 6px 18px rgba(var(--color-accent-rgb), 0.05);
+    /* 第一百三十九批：虚线缝线内描边 —— 手工贴纸/手账感（跟随圆角，不参与布局） */
+    outline: 1.5px dashed rgba(var(--color-accent-rgb), 0.16);
+    outline-offset: -7px;
     transition:
       transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.3s ease,
       box-shadow 0.3s ease;
   }
-  /* 错落摆放：三张卡各自旋转 + 垂直错位（打破网格呆板感） */
-  .game-tile:nth-of-type(1) { transform: rotate(-2.5deg) translateY(0); }
-  .game-tile:nth-of-type(2) { transform: rotate(2deg)    translateY(clamp(10px, 1.6vw, 20px)); }
-  .game-tile:nth-of-type(3) { transform: rotate(-1.5deg) translateY(clamp(4px, 0.8vw, 10px)); }
-  /* hover：上浮 + 回正 + accent 边框/阴影扩散（明确交互反馈） */
-  .game-tile:hover {
-    transform: rotate(0deg) translateY(-8px);
-    border-color: rgba(var(--color-accent-rgb), 0.45);
+  /* 第一百三十九批：顶部和纸胶带 —— 半透明彩条 + 锯齿撕边，像随手贴上去的胶带 */
+  .game-tile::before {
+    content: "";
+    position: absolute;
+    top: -11px;
+    left: var(--gt-tape-left);
+    width: 54%;
+    height: 21px;
+    transform: translateX(-50%) rotate(var(--gt-tape-rot));
+    background: rgba(var(--gt-tape-rgb), 0.17);
+    box-shadow: 0 1px 3px rgba(var(--color-accent-rgb), 0.08);
+    clip-path: polygon(0 0, 100% 0, 100% 68%, 93% 90%, 86% 68%, 79% 90%, 72% 68%, 64% 90%, 57% 68%, 50% 90%, 43% 68%, 36% 90%, 29% 68%, 21% 90%, 14% 68%, 7% 90%, 0 68%);
+    pointer-events: none;
+  }
+  /* 错落摆放：三张卡各自旋转 + 水平/垂直双向错位（打破网格呆板感）。
+     第一百四十三批：变量定义移到 wrapper（:has 定位）——tile 与 wrapper::before
+     命中区同源取值（tile 继承），单一来源不漂移 */
+  .game-tile-wrap:has(.game-tile-1) { --gt-tilt: -3.5deg; --gt-x: -4px; --gt-y: 0px; --gt-tape-rgb: 37, 99, 235;   --gt-tape-left: 20%; --gt-tape-rot: -4deg; }
+  .game-tile-wrap:has(.game-tile-2) { --gt-tilt: 2.6deg;  --gt-x: 4px;  --gt-y: clamp(12px, 1.7vw, 22px); --gt-tape-rgb: 236, 72, 153; --gt-tape-left: 55%; --gt-tape-rot: 3deg; }
+  .game-tile-wrap:has(.game-tile-3) { --gt-tilt: -2.2deg; --gt-x: -2px; --gt-y: clamp(5px, 0.9vw, 11px); --gt-tape-rgb: 245, 158, 11; --gt-tape-left: 32%; --gt-tape-rot: -2deg; }
+  .game-tile-1, .game-tile-2, .game-tile-3 {
+    transform: rotate(var(--gt-tilt)) translateX(var(--gt-x)) translateY(var(--gt-y));
+  }
+  /* 第一百三十六批（2026-08-22）：游戏卡 hover 抖动根治 —— 静态包裹层方案。
+     原方案(伪元素扩命中区)在"旋转回正 + 上浮 8px"时,边角位移可达 ~18px 贴近缓冲上限,
+     屏幕缩放/字体不同的环境下仍会突破上限 → 角部抽搐(主人反馈"特别容易触发")。
+     现改为:.game-tile-wrap(网格项)是静态 hover 目标,位移只作用于内层 .game-tile ——
+     hover 命中区永远不动,旋转/上浮幅度多大都不会抖;伪元素缓冲已移除(不再需要)。
+     第一百四十三批（2026-08-22 主人"其他小卡片还是有抖动问题"）：
+     上版仍漏掉"错位伸出区抖动"——tile 的 --gt-y 垂直错位 + 旋转让静止视觉盒比
+     wrapper 布局盒向下多伸出 ~22px（见 --gt-y clamp 上限）。指针悬停在该伸出条带时
+     :hover 命中 → tile 上浮回正（translateY 从 +22px 变 -8px，视觉盒整体上移 ~30px）
+     → 指针脱离 tile 与 wrapper 布局盒 → :hover 熄灭 → tile 回落 → 再次命中 → 抖动。
+     修法：--gt-* 变量从 .game-tile 上移到 wrapper（单一来源），wrapper 补一层
+     【静止命中区伪元素】——把 tile 的静止 transform 原样复制到 wrapper::before，
+     命中区 = tile 完整静止视觉盒（含错位/旋转伸出部分），且永远不随 hover 变化 →
+     伸出条带内 :hover 恒定无切换。tile 本体仍负责视觉位移（hover 上浮回正），
+     命中区与视觉分开互不干扰；JS 按压回弹读 tile 的 getComputedStyle（自定义属性
+     可继承），无需改 JS。 */
+  .game-tile-wrap {
+    position: relative;
+    min-width: 0;
+    --gt-tilt: -2.5deg;   /* 基础旋转（.game-tile-1/2/3 各自覆盖） */
+    --gt-x: 0px;          /* 第一百三十九批：基础水平错位（杂乱横向散落） */
+    --gt-y: 0px;          /* 基础垂直错位 */
+    --gt-hover-y: -8px;   /* hover 抬升量（移动端覆盖 -4px） */
+    --gt-tape-rgb: var(--color-accent-rgb); /* 第一百三十九批：顶部和纸胶带颜色三元组（各卡覆盖） */
+    --gt-tape-left: 50%;  /* 胶带横向锚点（各卡错开，撕得随意） */
+    --gt-tape-rot: -3deg; /* 胶带倾斜（各卡覆盖） */
+  }
+  /* 第一百四十三批：静止命中区 —— 复制 tile 静止 transform，锚定 tile 完整静止视觉盒 */
+  .game-tile-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    transform: rotate(var(--gt-tilt)) translateX(var(--gt-x)) translateY(var(--gt-y));
+  }
+  /* hover：上浮 + 回正 + 阴影扩散（明确交互反馈；第一百三十五批：边框颜色保持 0.14α 不变） */
+  .game-tile-wrap:hover .game-tile {
+    transform: rotate(0deg) translateX(0) translateY(var(--gt-hover-y));
     box-shadow: 0 14px 28px rgba(var(--color-accent-rgb), 0.14);
+  }
+  /* hover：胶带加亮一点（第一百三十九批：跟卡身同拍，撕得更明显） */
+  .game-tile-wrap:hover .game-tile::before {
+    background: rgba(var(--gt-tape-rgb), 0.26);
   }
   /* :active 按压：轻微回缩模拟物理按下 */
   .game-tile:active {
-    transform: rotate(0deg) translateY(-3px) scale(0.98);
+    transform: rotate(0deg) translateX(0) translateY(-3px) scale(0.98);
     box-shadow: 0 6px 12px rgba(var(--color-accent-rgb), 0.10);
   }
   .game-logo {
@@ -2229,7 +2315,7 @@
     overflow-wrap: anywhere;
   }
   /* hover：名字变 accent，与卡面上浮/边框/阴影同拍 */
-  .game-tile:hover .game-tile-name { color: var(--color-accent); }
+  .game-tile-wrap:hover .game-tile-name { color: var(--color-accent); }
   /* 移动端（≤768px）：三卡横排紧凑贴纸，错落角度收敛，账号防溢出 */
   @media (max-width: 768px) {
     .game-stack {
@@ -2239,11 +2325,12 @@
       padding: 14px 10px 16px;
       gap: 6px;
       border-radius: 16px;
+      --gt-hover-y: -4px; /* 窄屏 hover 抬升收敛 */
     }
-    .game-tile:nth-of-type(1) { transform: rotate(-1.5deg) translateY(0); }
-    .game-tile:nth-of-type(2) { transform: rotate(1.2deg)   translateY(8px); }
-    .game-tile:nth-of-type(3) { transform: rotate(-1deg)    translateY(4px); }
-    .game-tile:hover { transform: rotate(0deg) translateY(-4px); }
+    .game-tile-wrap:has(.game-tile-1) { --gt-tilt: -1.5deg; --gt-x: -2px; --gt-y: 0px; }
+    .game-tile-wrap:has(.game-tile-2) { --gt-tilt: 1.2deg;  --gt-x: 2px;  --gt-y: 8px; }
+    .game-tile-wrap:has(.game-tile-3) { --gt-tilt: -1deg;   --gt-x: -1px; --gt-y: 4px; }
+    .game-tile::before { top: -8px; height: 15px; width: 48%; } /* 窄屏胶带收敛 */
     .game-logo { height: 44px; border-radius: 12px; padding: 8px; }
     .game-tile-name { font-size: 14px; }
     .game-tile-server { font-size: 12px; }
@@ -2256,9 +2343,11 @@
       text-overflow: ellipsis;
     }
   }
-  /* touch 端：hover 粘滞只保留边框/阴影反馈，卡片不回正不浮起（防 iOS 粘滞错乱） */
+  /* touch 端：hover 粘滞只保留边框/阴影反馈，卡片不回正不浮起（防 iOS 粘滞错乱）；
+     胶带也不加亮（保持 0.17α 常态） */
   @media (hover: none) and (pointer: coarse) {
-    .game-tile:hover { transform: none; }
+    .game-tile-wrap:hover .game-tile { transform: none; }
+    .game-tile-wrap:hover .game-tile::before { background: rgba(var(--gt-tape-rgb), 0.17); }
   }
 
   /* === Skills 卡：logo loop 双向（第十批/第十一批优化）===
@@ -2267,13 +2356,13 @@
      第十二批：删 Play/Now/Contact 后卡内小标题 .about-card-h 已无使用，整块移除。 */
   .about-card-skills { grid-column: span 12; }
   /* 第一百二十九批（2026-08-21 主人"'会的本事'的卡片也加个动效"）：
-     hover 反馈与 intro/poem 大卡一致 —— accent 边框加深 + 阴影扩散（不上浮，
-     尊重第九十四批"移除大卡 hover 浮动"）；卡内 chip 保留各自的上浮动效 */
+     hover 反馈与 intro/poem 大卡一致 —— 阴影扩散（不上浮，尊重第九十四批）；
+     第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
+     边框颜色保持 base 0.14α 不变，仅阴影扩散；卡内 chip 保留各自的上浮动效 */
   .about-card.about-card-skills {
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease;
   }
   .about-card.about-card-skills:hover {
-    border-color: rgba(var(--color-accent-rgb), 0.45);
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
   }
   /* 分组名（2026-08-20 主人"工具/语言字体太小"：12→15px、muted→ink 更清晰）
@@ -2350,6 +2439,7 @@
     margin: 0;
   }
   .skills-chip {
+    position: relative; /* 第一百三十四批：命中区扩展伪元素锚点 */
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
@@ -2408,6 +2498,21 @@
   /* hover：卡片微微悬浮（第六十七批，主人要求去边框/字体变色，只留上浮） */
   .skills-chip:hover {
     transform: translateY(-3px);
+  }
+  /* 第一百四十二批（2026-08-22）：hover 边缘抖动彻底修复 —— 上版 ::before 命中区扩 8px
+     仍存在"过渡抖动区"：chip 从 translateY(0) → translateY(-3px) 时，::before 跟着移动，
+     落在原本 (h+5, h+8] 区间的指针会随过渡进出命中区 → :hover 反复切换，动画重启卡顿。
+     修法：给 ::before 加反向 transform 抵消 chip 位移（+3px），命中区锚定视口不动——
+     整个过渡过程中命中区位置恒定；inset 从 -8px 收到 -6px（命中区已稳定）。 */
+  .skills-chip::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .skills-chip:hover::before {
+    transform: translateY(3px); /* 反向抵消 chip -3px 上浮，命中区锚定视口 */
   }
 
   /* 第一百零五批：矮桌面视口（高 ≤767，如 1280×720 窗口/小笔记本）额外收紧，
@@ -2561,10 +2666,15 @@
      第一百零二批：入场窗口 20% → 7%（同 scroll-fade-opacity，见其注释） */
   .contact-card:nth-of-type(odd)  { --enter-x: -24px; }
   .contact-card:nth-of-type(even) { --enter-x:  24px; }
+  /* 第一百三十四批（2026-08-21）：contact-card-move 由 transform 改为独立属性 translate/scale ——
+     滚动驱动动画(fill both + add 合成)会永久占用 transform,导致 hover 的 transform 过渡被
+     抑制(实测悬停时 -4px 瞬移而非 0.35s 平滑上浮 = 卡顿/抽搐)。改用 translate/scale 后,
+     入场动画与 hover transform 互不冲突,上浮过渡正常平滑;支持 scroll-timeline 的浏览器
+     均支持独立变换属性,兼容无风险 */
   @keyframes contact-card-move {
-    0%   { transform: translateX(var(--enter-x, 0)) translateY(var(--enter-y, 36px)) scale(var(--enter-s, 0.96)); }
-    7%   { transform: translateX(0) translateY(0) scale(1); }
-    100% { transform: translateX(0) translateY(0) scale(1); }
+    0%   { translate: var(--enter-x, 0) var(--enter-y, 36px); scale: var(--enter-s, 0.96); }
+    7%   { translate: 0 0; scale: 1; }
+    100% { translate: 0 0; scale: 1; }
   }
   /* 卡片头部:icon + 箭头 横向分散对齐 */
   .contact-card-head {
@@ -2642,13 +2752,29 @@
   /* 卡片 hover/active：去掉透明背景方案（第一百二十二批 主人"悬停/点击变全透明不符合调性"）
      原方案 background-color rgba(accent, 0.08) 会覆盖 .about-card 的实色卡面 → 暗色主题下
      几乎全透明（露出深色页面背景）。新方案保持实色背景不变，反馈改用：
-     accent 边框加深 + 轻微上浮 + 阴影扩散（:active 按压微缩），
+     轻微上浮 + 阴影扩散（:active 按压微缩；第一百三十五批：边框颜色保持 0.14α 不变），
      配合已有的箭头位移 / icon 微浮 / handle 变 accent。 */
-  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.3s ease; }
+  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
   .contact-card:hover {
-    border-color: rgba(var(--color-accent-rgb), 0.45);
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
     transform: translateY(-4px);
+  }
+  /* 第一百四十二批（2026-08-22）：hover 边缘抖动彻底修复 —— 上版 ::before 命中区扩 10px
+     仍存在"过渡抖动区"：卡片从 translateY(0) → translateY(-4px) 时，::before 跟着移动，
+     落在原本 (h+6, h+10] 区间的指针会随过渡进出命中区 → :hover 反复切换，动画来回重启动卡顿。
+     修法：给 ::before 加反向 transform 抵消卡片位移（+4px），命中区锚定视口不动——
+     整个过渡过程中命中区位置恒定，过渡结束/开始指针都不会越界。
+     border-radius: inherit 让命中区贴合卡片圆角边缘。
+     inset 从 -10px 收到 -8px（命中区已稳定无需更大冗余），点击命中更精准。 */
+  .contact-card::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: inherit;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .contact-card:hover::before {
+    transform: translateY(4px); /* 反向抵消卡片 -4px 上浮，命中区锚定视口 */
   }
   .contact-card:active {
     transform: translateY(-2px) scale(0.98);
@@ -2755,3 +2881,4 @@
       }
     }
   }
+

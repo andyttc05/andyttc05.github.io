@@ -16,3 +16,6 @@ inspo/
 
 # Local video re-encode backups (not for repo)
 assets/videos/*.bak
+
+# Image re-encode originals (kept locally for rollback, not for repo)
+assets/.bak-originals/
