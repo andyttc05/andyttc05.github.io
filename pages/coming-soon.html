@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>建设中 — rain.meow</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
+     替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
+     中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
+<link rel="stylesheet" href="../assets/css/fonts.css?v=1">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（本页不引 style.css 也要用），三个页面共用 -->
