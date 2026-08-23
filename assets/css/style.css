@@ -1893,6 +1893,105 @@
     .vslide-visual { width: min(36vw, 360px); }
   }
 
+  /* === 落眸笑歌触 · CSS scroll-driven 接管（第一百五十九批 2026-08-24 主人"都优化一下/开工吧"）
+     机制：浏览器原生 scroll(root) 时间轴 + 绝对 scroll-range → 动画整体跑合成器线程，
+     主线程零 scrub（不再每帧 JS 写 transform/opacity/filter）。
+     JS 只负责 invalidate 时量每屏 top/ext，把 5 元素的入场/离场 range 写成 inline
+     animationRange（见 script.js cssDriven 分支；错峰 = 各元素不同的 range 区间，
+     scroll-driven 不支持 animation-delay）。
+     值经 CSS 变量（--in-y/--in-s/--in-r/--in-b/--rest-y/--out-*）由每屏独立覆写，
+     与 JS SPEC 表一一对应。缓动 easeOutCubic ≈ cubic-bezier(0.215,0.61,0.355,1)，
+     与 JS 各阶段 easeOutCubic 同质感。
+     @supports 门控：不支持的浏览器走原 JS scrub 引擎（script.js cssDriven 检测同步，
+     两端都用 scroll(root) 语法保证一致）。 */
+
+  /* 两对 keyframes：vs-in（入场 IN→REST）/ vs-out（离场 REST→OUT）。
+     transform 顺序 translate→rotate→scale 与 JS setFrame 完全一致；
+     filter blur 用变量（触屏被下方 media 清零，对应 JS isTouch）。 */
+  @keyframes vs-in {
+    from {
+      transform: translate3d(0, var(--in-y, 0px), 0) rotate(var(--in-r, 0deg)) scale(var(--in-s, 1));
+      filter: blur(var(--in-b, 0px));
+      opacity: 0;
+    }
+    to {
+      transform: translate3d(0, var(--rest-y, 0px), 0) rotate(0deg) scale(1);
+      filter: blur(0px);
+      opacity: 1;
+    }
+  }
+  @keyframes vs-out {
+    from {
+      transform: translate3d(0, var(--rest-y, 0px), 0) rotate(0deg) scale(1);
+      filter: blur(0px);
+      opacity: 1;
+    }
+    to {
+      transform: translate3d(0, var(--out-y, 0px), 0) rotate(var(--out-r, 0deg)) scale(var(--out-s, 1));
+      filter: blur(var(--out-b, 0px));
+      opacity: 0;
+    }
+  }
+
+  /* 5 屏 × 5 元素动画规格（与 JS SPEC 表一致；poem 复用 sub 锚点）。
+     默认 --rest-y:0（驻留 identity），仅触屏 visual 有 -0.8vh 微抬。 */
+  .vslide[data-anim="fall"]  .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
+  .vslide[data-anim="fall"]  .vslide-glyph  { --in-y: -32vh; --out-y: -18vh; }
+  .vslide[data-anim="fall"]  .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="fall"]  .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="fall"]  .vslide-visual { --in-y: -14vh; --out-y: -16vh; }
+
+  .vslide[data-anim="focus"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
+  .vslide[data-anim="focus"] .vslide-glyph  { --in-s: 2.4; --in-b: 14px; --out-s: 0.82; --out-b: 6px; }
+  .vslide[data-anim="focus"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="focus"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="focus"] .vslide-visual { --in-y: 12vh; --in-s: 1.3; --out-y: -10vh; --out-s: 1.05; }
+
+  .vslide[data-anim="bloom"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
+  .vslide[data-anim="bloom"] .vslide-glyph  { --in-s: 0.3; --in-b: 8px; --out-s: 1.12; --out-b: 4px; }
+  .vslide[data-anim="bloom"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="bloom"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="bloom"] .vslide-visual { --in-y: 8vh; --in-s: 0.88; --out-y: -10vh; --out-s: 1.05; }
+
+  .vslide[data-anim="swing"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
+  .vslide[data-anim="swing"] .vslide-glyph  { --in-r: -7deg; --out-r: 7deg; }
+  .vslide[data-anim="swing"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="swing"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="swing"] .vslide-visual { --in-y: 8vh; --in-r: -4deg; --out-y: -10vh; --out-r: 3deg; }
+
+  .vslide[data-anim="reach"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
+  .vslide[data-anim="reach"] .vslide-glyph  { --in-y: 26vh; --out-y: -14vh; --out-s: 0.9; }
+  .vslide[data-anim="reach"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="reach"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
+  .vslide[data-anim="reach"] .vslide-visual { --in-y: 24vh; --rest-y: -0.8vh; --out-y: -12vh; }
+
+  @supports (animation-timeline: scroll(root)) {
+    /* 注意：animation 简写会重置 animation-timeline 为 auto → 必须把 timeline
+       写在简写之后、同一规则内（拆开写或写前面都会被简写重置成 DocumentTimeline） */
+    .vslide-meta   { animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both, vs-out cubic-bezier(0.215, 0.61, 0.355, 1) forwards; animation-timeline: scroll(root); }
+    .vslide-glyph  { animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both, vs-out cubic-bezier(0.215, 0.61, 0.355, 1) forwards; animation-timeline: scroll(root); }
+    .vslide-sub    { animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both, vs-out cubic-bezier(0.215, 0.61, 0.355, 1) forwards; animation-timeline: scroll(root); }
+    .vslide-poem   { animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both, vs-out cubic-bezier(0.215, 0.61, 0.355, 1) forwards; animation-timeline: scroll(root); }
+    .vslide-visual { animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both, vs-out cubic-bezier(0.215, 0.61, 0.355, 1) forwards; animation-timeline: scroll(root); }
+    /* 末屏「触」：主页终点无交接对象 → 只播入场，REST 后保持（对应 JS isLast clamp at OUT_START） */
+    .vslide[data-anim="reach"] .vslide-meta,
+    .vslide[data-anim="reach"] .vslide-glyph,
+    .vslide[data-anim="reach"] .vslide-sub,
+    .vslide[data-anim="reach"] .vslide-poem,
+    .vslide[data-anim="reach"] .vslide-visual {
+      animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both;
+      animation-timeline: scroll(root);
+    }
+    /* 触屏禁用 blur（对应 JS isTouch 恒 0）—— 离屏模糊层是移动 GPU 大户 */
+    @media (hover: none) and (pointer: coarse) {
+      .vslide[data-anim="focus"] .vslide-glyph,
+      .vslide[data-anim="bloom"] .vslide-glyph {
+        --in-b: 0px;
+        --out-b: 0px;
+      }
+    }
+  }
+
   /* === About 页（第一批→第七批：散文 → Bento 卡片网格）
      编辑式排版：居中主标题 + 贴卡片副标题 + 多卡网格，不放立绘/图片。
      第七批（主人反馈）：主标题居中 + accent 色调；副标题移入卡片区顶部贴卡片。
