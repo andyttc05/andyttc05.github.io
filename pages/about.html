@@ -49,8 +49,10 @@
   <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
        https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
        三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
-       样式：assets/css/loader.css；逻辑：assets/js/loader.js（基于时间/场景/用户感知的决策系统：
-       bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+       渐进式加载：不再等图片，window load + 字体就绪即放行 —— 图片不阻塞首屏渲染，
+       技能图标/游戏 logo/联系方式图全 loading=lazy 按需到位，CSS .is-loaded 淡入兜底；
+       其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
        就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
        script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
        noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
@@ -332,7 +334,7 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
 
-  <script src="../assets/js/loader.js?v=4" defer></script>
+  <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=125" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <script src="../assets/js/about-loop.js?v=11" defer></script>

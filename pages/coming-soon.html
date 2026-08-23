@@ -100,8 +100,9 @@
 <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
      https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
      三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
-     样式：assets/css/loader.css；逻辑：assets/js/loader.js（基于时间/场景/用户感知的决策系统：
-     bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+     样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+     渐进式加载：不再等图片，window load + 字体就绪即放行 —— 图片不阻塞首屏渲染；
+     其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
      就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，本页打字机等它才开打）。
      noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
 <div id="pageLoader" role="status" aria-label="页面加载中">
@@ -189,8 +190,10 @@
   }
 })();
 </script>
-<!-- 全屏加载页控制器（第一百四十六批）：基于时间/场景/用户感知的决策系统，就绪后派发 pageReady -->
-<script src="../assets/js/loader.js?v=3" defer></script>
+<!-- 全屏加载页控制器（第一百五十五批 2026-08-23）：渐进式加载 —— 不再等图片，
+     就绪信号 = window load + 字体就绪；本页无大图，秒开；基于时间/场景/用户感知的决策系统，
+     就绪后派发 pageReady -->
+<script src="../assets/js/loader.js?v=5" defer></script>
 <!-- 全屏背景动效（与主页同款）：几何粒子网络 + 动态几何飘带，单色 accent 版 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
 <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
