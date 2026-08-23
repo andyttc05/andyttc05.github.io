@@ -1018,6 +1018,72 @@
          clamp 进度在 REST 末端,滚动到底 触 保持全显钉住 = 主页以触 收官 */
       slides[slides.length - 1].isLast = true;
 
+      /* 第一百五十九批（2026-08-24 主人"都优化一下/开工吧"）：
+         CSS scroll-driven 接管 —— 动画整体跑合成器线程（scroll(root) + animation-range），
+         主线程零 scrub。JS 只保留：量每屏 top/ext（measure）+ 写 5 元素 range。
+         错峰（meta/glyph/visual/sub/poem 的入场窗口）经不同 range 区间表达
+         （scroll-driven 不支持 animation-delay）。range 值 = 绝对文档 scroll 坐标，
+         resize/字体/hero 图加载后失效重算（与 JS 版 measure 同一套 invalidate 时机）。
+         检测语法与 CSS @supports (animation-timeline: scroll(root)) 严格一致：
+         两端同用 scroll(root)，避免"CSS 生效但 JS 没跳走"或反过来的不一致。 */
+      var cssDriven = false;
+      try { cssDriven = !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll(root)')); } catch (e) {}
+      /* 入场错峰区间（占行程比例）：与 setFrame delayMap/winMap 一一对应 */
+      var RANGE_IN = {
+        meta:   [0,      0.187],
+        glyph:  [0,      0.34],
+        visual: [0.0748, 0.2618],
+        sub:    [0.153,  0.323],
+        poem:   [0.204,  0.34]
+      };
+      if (cssDriven) {
+        /* 把每屏 5 元素的 animationRange 写成 inline（一次写完，非逐帧）。
+           末屏 reach 只有入场段（clamp 语义 → 播完 REST 保持，不写离场段）。 */
+        function applyRanges() {
+          for (var ri = 0; ri < slides.length; ri++) {
+            var rd = slides[ri];
+            var st = rd.top, ln = rd.ext, en = st + ln;
+            var outS = st + OUT_START * ln;
+            for (var rk in rd.el) {
+              var rel = rd.el[rk];
+              if (!rel) continue;
+              var ir = RANGE_IN[rk] || RANGE_IN.glyph;
+              var inS = st + ir[0] * ln, inE = st + ir[1] * ln;
+              if (rd.isLast) {
+                rel.style.animationRange = inS.toFixed(1) + 'px ' + inE.toFixed(1) + 'px';
+              } else {
+                rel.style.animationRange = inS.toFixed(1) + 'px ' + inE.toFixed(1) + 'px, ' +
+                  outS.toFixed(1) + 'px ' + en.toFixed(1) + 'px';
+              }
+            }
+          }
+        }
+        var reapplyRanges = function () {
+          /* sy 是本 IIFE 尾部（JS 引擎路径）才赋值的 hoisted var，
+             必须先取当前 scrollY，否则 d.top = NaN → animationRange "NaNpx"
+             被浏览器判非法值丢弃（range 一直为空） */
+          try {
+            sy = window.scrollY || 0;
+            measure();
+            applyRanges();
+          } catch (err) { /* 测量失败不阻塞页面其余部分 */ }
+        };
+        window.addEventListener('resize', reapplyRanges);
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(reapplyRanges);
+        }
+        var cssHero = document.getElementById('hero');
+        var cssImg = cssHero ? cssHero.querySelector('img') : null;
+        if (cssImg) {
+          if (cssImg.complete) reapplyRanges();
+          else cssImg.addEventListener('load', reapplyRanges);
+        }
+        window.addEventListener('load', reapplyRanges);
+        setTimeout(reapplyRanges, 500);
+        reapplyRanges();
+        return; /* 以下原 JS scrub 引擎不启用（CSS 动画已接管） */
+      }
+
       var vh = window.innerHeight || document.documentElement.clientHeight;
       var sy = 0;
 
@@ -1120,22 +1186,36 @@
           var d = slides[i];
           var p = (sy - d.top) / d.ext;
           if (p < 0) p = 0; else if (p > 1) p = 1;
-          /* 最后一屏(触)clamp 在 REST 末端:它是页面终点,离场后视口会露出 wrap
-             空尾(空白页)。clamp 后滚动到底,触 仍全显钉在视口,主页以它收官 */
+          /* 最后一屏(触)clamp 在 REST 末端：它是页面终点，离场后视口会露出 wrap
+             空尾(空白页)。clamp 后滚动到底，触 仍全显钉在视口，主页以它收官 */
           if (d.isLast && p > OUT_START) p = OUT_START;
           /* 第一百三十三批：进度未变（该屏不在滚动窗口内）跳过 setFrame，
              滚动时只更新进度实际变化的屏，减少每帧 DOM 写入 */
-          if (p !== d.lastP) { d.lastP = p; setFrame(d, p); }
+          if (p === d.lastP) continue;
+          /* 第一百五十八批（2026-08-24 主人"手机版落眸笑歌触滑动流畅"）：
+             驻留区短路 —— 上一帧与本帧 p 都落在 [IN_END, OUT_START] 区间，
+             所有元素已落 identity（REST 期 5 屏 × 5 元素 = 25 次循环是纯空转），
+             直接跳过 setFrame。进出驻留区边界的那一帧仍正常 setFrame
+             （写 identity 或启动 IN/OUT 过渡），其余驻留滚动 = no-op。
+             移动端滚动期间每帧省 ~25 次缓存比对 + 字符串拼接 + 5 个对象属性读，
+             与过渡带 update + canvas-nest + ribbons 抢主线程时显著减负。
+             末屏 isLast clamp 到 OUT_START 后天然落在驻留区内 → 自动短路 */
+          if (d.lastP >= IN_END && d.lastP <= OUT_START &&
+              p >= IN_END && p <= OUT_START) {
+            d.lastP = p; continue;
+          }
+          d.lastP = p; setFrame(d, p);
         }
       }
       function scheduleUpdate() {
+        if (!vslideActive) return;
         if (vsTicking) return;
         vsTicking = true;
-        requestAnimationFrame(update);
+        vsRafId = requestAnimationFrame(update);
       }
 
-      /* 几何失效:视口/字体/hero 图尺寸变化 → 重测 top/ext。
-         hero 在 vslides 之前,hero 高度变化会平移所有 wrap 的文档坐标 */
+      /* 几何失效：视口/字体/hero 图尺寸变化 → 重测 top/ext。
+         hero 在 vslides 之前，hero 高度变化会平移所有 wrap 的文档坐标 */
       var lastW = window.innerWidth;
       function invalidate() { measure(); scheduleUpdate(); }
       window.addEventListener('resize', invalidate);
@@ -1148,16 +1228,52 @@
         if (vsImg.complete) invalidate();
         else vsImg.addEventListener('load', invalidate);
       }
-      /* 2026-08-19 修复"Cmd+R 刷新部分显示丢失":
-         刷新时浏览器静默恢复 scrollY(恢复滚动位置不触发 scroll 事件),首帧若 hero 区
-         高度未就绪(立绘图/字体),wrap top 测得偏小 → p 偏大 → 各屏被算进离场段(全 opacity 0),
-         且 hero img complete(缓存秒开)后 load 监听不再触发 → 错误状态永久固化。
-         window load 是资源终态:滚动位置已恢复 + 布局已稳定 → 重测 top/ext + 刷一帧,必修正。
-         setTimeout 兜底布局异步稳定(如字体重排)的极端场景,一次性无副作用。 */
+      /* 2026-08-19 修复"Cmd+R 刷新部分显示丢失"：
+         刷新时浏览器静默恢复 scrollY（恢复滚动位置不触发 scroll 事件），首帧若 hero 区
+         高度未就绪（立绘图/字体），wrap top 测得偏小 → p 偏大 → 各屏被算进离场段（全 opacity 0），
+         且 hero img complete（缓存秒开）后 load 监听不再触发 → 错误状态永久固化。
+         window load 是资源终态：滚动位置已恢复 + 布局已稳定 → 重测 top/ext + 刷一帧，必修正。
+         setTimeout 兜底布局异步稳定（如字体重排）的极端场景，一次性无副作用。 */
       window.addEventListener('load', invalidate);
       setTimeout(invalidate, 500);
       window.addEventListener('scroll', scheduleUpdate, { passive: true });
-      /* 首帧:立即测量 + 刷一帧(p=0 全 IN 态,元素 opacity 0 防 FOUC;滚动后接管) */
+
+      /* 第一百五十八批（2026-08-24 主人"都优化一下"）：
+         用 IntersectionObserver 在 vs-slides 离开视口时完全停掉 vslide 引擎：
+         scheduleUpdate 返回 → 无 rAF → 无 measure/setFrame/DOM 写入。
+         用户在 hero/过渡带/页脚滚动时，5 屏 × 5 元素的循环开销 = 0。
+         rootMargin 50% ≈ 0.5× 视口缓冲（移动 ~400px / 桌面 ~500px）——
+         元素在视口外 ~0.5×vh 时已切换，IO 回调通常先于 scroll 事件触发，
+         用户进入下一屏前已就绪。
+         "out" 时取消挂起的 rAF（避免关屏后还跑一帧空转）；
+         "in" 时立即 measure + update（几何可能在关屏期间变了 = resize/字体到达）。 */
+      var vsRafId = null;
+      var vslideActive = false;
+      var vsSection = document.querySelector('.vs-slides');
+      if (vsSection && 'IntersectionObserver' in window) {
+        var vsObserver = new IntersectionObserver(function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            if (e.isIntersecting) {
+              if (!vslideActive) {
+                vslideActive = true;
+                /* 关屏期间几何已失效（resize 等）→ 重测 + 写一帧 */
+                measure();
+                update();
+              }
+            } else {
+              vslideActive = false;
+              vsTicking = false;
+              if (vsRafId !== null) { cancelAnimationFrame(vsRafId); vsRafId = null; }
+            }
+          }
+        }, { rootMargin: '50% 0px 50% 0px' });
+        vsObserver.observe(vsSection);
+      } else {
+        vslideActive = true; /* 老浏览器降级：始终活跃 */
+      }
+
+      /* 首帧：立即测量 + 刷一帧（p=0 全 IN 态，元素 opacity 0 防 FOUC；滚动后接管） */
       invalidate();
     })();
 
@@ -1340,6 +1456,26 @@
         } else {
           if (Math.abs(e - eEff) < 0.002) eEff = e;
           if (Math.abs(p - pEff) < 0.002) pEff = p;
+        }
+
+        /* 第一百五十八批（2026-08-24 主人"手机版五幕雨滑动流畅"）：
+           离屏快路径 —— 过渡带已完全滚出视口顶部（sy > hb+ps）且入场动画已播完，
+           字 + 分隔 + 眉标 + 副题都已滑出（DOM 写入早在滑出时被缓存），
+           此后每次 scroll 事件触发的 update 仍跑一遍 16 次元素循环是纯空转。
+           门控后：lerp/eEff/pEff 簿记照跑（vel/k 不影响显示），
+           settling 由 onIdle 触发 → 此处若 settling 已被 onIdle 拉起则让短收敛循环跑完，
+           否则直接 return，下次 scroll/resize/load 再启 update。
+           移动端每帧省 ~16 次缓存比对 + 字符串拼接 + ~10 个对象属性写。
+           入场动画期间（!entryDone）不触发 → 时间驱动的登场动画正常播完 */
+        if (sy > hb + ps + 1) {
+          var n2 = chars.length;
+          var entryWinMsChk = n2 * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS;
+          var entryDoneChk = !entryStarted || (performance.now() - entryT0 >= entryWinMsChk);
+          if (entryDoneChk) {
+            /* scrollDir 簿记保留（maybeSnap 需用），settling 已在上方分支处理 */
+            if (lastSy >= 0 && sy !== lastSy) { scrollDir = sy > lastSy ? 1 : -1; }
+            return;
+          }
         }
 
         var n = chars.length;
