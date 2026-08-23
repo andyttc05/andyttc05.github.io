@@ -2186,6 +2186,9 @@
     /* 第一百三十九批：虚线缝线内描边 —— 手工贴纸/手账感（跟随圆角，不参与布局） */
     outline: 1.5px dashed rgba(var(--color-accent-rgb), 0.16);
     outline-offset: -7px;
+    /* 第一百五十五批：触屏快速响应 —— manipulation 禁双击缩放/去 300ms 点击延迟，
+       纵向滚动不受影响（滚动接管时 pointercancel 由 JS 快速归位） */
+    touch-action: manipulation;
     transition:
       transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.3s ease;
@@ -2354,9 +2357,18 @@
     }
   }
   /* touch 端：hover 粘滞只保留边框/阴影反馈，卡片不回正不浮起（防 iOS 粘滞错乱）；
-     胶带也不加亮（保持 0.17α 常态） */
+     胶带也不加亮（保持 0.17α 常态）。
+     第一百五十五批（2026-08-23 主人"游戏区触碰点击动画和鼠标悬浮动画冲突"）：
+     悬浮 transform 必须等于【基础散落位】而非 transform: none —— 旧值 none 会覆盖
+     .game-tile-1/2/3 的基础 rotate/translateX/translateY，触屏上 :hover 粘滞
+     （点过一次就一直命中）会把散落卡片拉直、破坏错落布局；
+     改成与基础位同值的显式 transform（变量继承自 wrapper，单一来源），
+     hover 命中时视觉零变化；JS 按压已按 fine 判定走基础位（script.js 批 155），
+     两端一致不再跳变。 */
   @media (hover: none) and (pointer: coarse) {
-    .game-tile-wrap:hover .game-tile { transform: none; }
+    .game-tile-wrap:hover .game-tile {
+      transform: rotate(var(--gt-tilt)) translateX(var(--gt-x)) translateY(var(--gt-y));
+    }
     .game-tile-wrap:hover .game-tile::before { background: rgba(var(--gt-tape-rgb), 0.17); }
   }
 
@@ -2654,6 +2666,10 @@
     text-decoration: none;        /* 整卡是 <a>,禁用默认下划线 */
     color: inherit;
     position: relative;           /* 第一百二十五批:箭头绝对定位锚点(右侧垂直居中) */
+    /* 第一百五十五批：整卡可点（<a>）—— manipulation 禁双击缩放/去点击延迟；
+       -webkit-user-drag:none 禁原生链接拖拽幽灵（按住拖出卡片时不出现链接拖影） */
+    touch-action: manipulation;
+    -webkit-user-drag: none;
   }
   /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向)。
      第一百零一批：@supports 门控 —— 无 view() 支持时联系卡保持全显（见 .about-sub 同款注释） */
@@ -2824,21 +2840,6 @@
     .contact-card-icon { width: 40px; height: 40px; }
     .contact-card-icon img { width: 26px; height: 26px; }
     .contact-card-handle { font-size: 13.5px; }
-    /* touch 端：仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important)。
-       第一百五十三批：箭头已改为 flex 流内（align-items:center 对齐图标中心），
-       基础 transform 不再需要 translateY(-50%)，touch 端只需禁 hover 右移 6px */
-    @media (hover: none) and (pointer: coarse) {
-      .contact-card-icon { transform: none !important; }
-      .contact-card-arrow { transform: none !important; }
-      .contact-card:hover .contact-card-icon { transform: none; }
-      .contact-card:hover .contact-card-arrow { transform: none; }
-      /* 第一百二十二批：contact-card 本体的 hover 上浮/阴影在 touch 端同样禁用
-         （点击粘滞会一直浮起）——只保留边框高亮；:active 按压微缩保留 */
-      .contact-card:hover {
-        transform: none;
-        box-shadow: none;
-      }
-    }
   }
   /* 小屏（≤480px）：1 列 stack */
   @media (max-width: 480px) {
@@ -2847,6 +2848,24 @@
       padding: 18px;
     }
     .contact-card-handle { font-size: 13.5px; }
+  }
+
+  /* touch 端（第一百五十五批：原块嵌在 ≤768px 内，平板横屏/宽触屏不生效 →
+     移到顶层全宽度生效，与游戏卡 touch 规则同构）：
+     仅禁用 hover 位移(防粘滞);滚动驱动入场动画保留(transform 不碰 !important)。
+     第一百五十三批：箭头已改为 flex 流内（align-items:center 对齐图标中心），
+     基础 transform 不再需要 translateY(-50%)，touch 端只需禁 hover 右移 6px */
+  @media (hover: none) and (pointer: coarse) {
+    .contact-card-icon { transform: none !important; }
+    .contact-card-arrow { transform: none !important; }
+    .contact-card:hover .contact-card-icon { transform: none; }
+    .contact-card:hover .contact-card-arrow { transform: none; }
+    /* 第一百二十二批：contact-card 本体的 hover 上浮/阴影在 touch 端同样禁用
+       （点击粘滞会一直浮起）——只保留边框高亮；:active 按压微缩保留 */
+    .contact-card:hover {
+      transform: none;
+      box-shadow: none;
+    }
   }
 
 
