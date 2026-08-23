@@ -60,8 +60,11 @@
   <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
        https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
        三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
-       样式：assets/css/loader.css；逻辑：assets/js/loader.js（基于时间/场景/用户感知的决策系统：
-       bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+       改为渐进式加载：不再等图片，就绪信号 = window load + 字体就绪 —— 图片默认不阻塞
+       首屏渲染，等图只会拉长白屏；首屏 hero 立绘 fetchpriority=high 优先，视口外图全 lazy，
+       CSS .is-loaded 淡入兜底；其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、
+       慢网放宽、兜底上限不锁页面；
        就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
        script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
        noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
@@ -212,7 +215,9 @@
     </div>
 
     <!-- 右：立绘卡片（微歪 + 后置双层柔光 echo + 左下打底）
-         2026-08-17：经多批视频优化在移动端仍卡，最终落地为 catgirl_sailor.webp 静态图 -->
+         2026-08-17：经多批视频优化在移动端仍卡，最终落地为 catgirl_sailor.webp 静态图
+         第一百五十五批：fetchpriority=high + <link rel=preload> 已是首屏最高优先级，
+         正常网络与 window.load 几乎同时到位；CSS .is-loaded 兜底淡入，未到时透明占位 -->
     <div class="hero-art">
       <div class="hero-art-base" aria-hidden="true"></div>
       <div class="hero-art-card">
@@ -277,7 +282,7 @@
           <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>雨滴落下的瞬间，心里也跟着静了</p>
           <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>檐角的雨，数着心跳<br><span class="vslide-poem-line" aria-hidden="true"></span>一滴，就是一整夜</p>
           <figure class="vslide-visual" data-visual="fall" aria-hidden="true">
-            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/fall.webp?v=4" alt="" width="1000" height="860" decoding="async">
+            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/fall.webp?v=4" alt="" width="1000" height="860" loading="lazy" decoding="async" fetchpriority="low">
           </figure>
         </div>
       </article>
@@ -290,7 +295,7 @@
           <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>第一次抬眼看你，你也在看吗</p>
           <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>目光穿过雨幕<br><span class="vslide-poem-line" aria-hidden="true"></span>落下来时，连呼吸都轻了</p>
           <figure class="vslide-visual" data-visual="focus" aria-hidden="true">
-            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/focus.webp?v=4" alt="" width="1000" height="1018" decoding="async">
+            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/focus.webp?v=4" alt="" width="1000" height="1018" loading="lazy" decoding="async" fetchpriority="low">
           </figure>
         </div>
       </article>
@@ -303,7 +308,7 @@
           <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>嘴角先于心事，扬了起来</p>
           <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>笑意像水面上的光<br><span class="vslide-poem-line" aria-hidden="true"></span>一圈，一圈，荡开晴天</p>
           <figure class="vslide-visual" data-visual="bloom" aria-hidden="true">
-            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/bloom.webp?v=4" alt="" width="1000" height="825" decoding="async">
+            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/bloom.webp?v=4" alt="" width="1000" height="825" loading="lazy" decoding="async" fetchpriority="low">
           </figure>
         </div>
       </article>
@@ -316,7 +321,7 @@
           <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>走在路上，嘴里哼着没名字的调</p>
           <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>脚步踩着节拍<br><span class="vslide-poem-line" aria-hidden="true"></span>风把旋律，捎去下一个路口</p>
           <figure class="vslide-visual" data-visual="swing" aria-hidden="true">
-            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/swing.webp?v=4" alt="" width="1000" height="714" decoding="async">
+            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/swing.webp?v=4" alt="" width="1000" height="714" loading="lazy" decoding="async" fetchpriority="low">
           </figure>
         </div>
       </article>
@@ -329,7 +334,7 @@
           <p class="vslide-sub"><span class="vslide-sub-mark" aria-hidden="true"></span>伸出手，想碰一下，又缩回来</p>
           <p class="vslide-poem"><span class="vslide-poem-line" aria-hidden="true"></span>指尖悬在半空<br><span class="vslide-poem-line" aria-hidden="true"></span>差一寸的距离，是全部的勇敢</p>
           <figure class="vslide-visual" data-visual="reach" aria-hidden="true">
-            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/reach.webp?v=4" alt="" width="1000" height="861" decoding="async">
+            <img class="vslide-img" src="https://andyttc05-1456257048.cos.ap-hongkong.myqcloud.com/images/vslide/reach.webp?v=4" alt="" width="1000" height="861" loading="lazy" decoding="async" fetchpriority="low">
           </figure>
         </div>
       </article>
@@ -350,7 +355,7 @@
   m && (m.textContent = label);
 </script>
 
-<script src="assets/js/loader.js?v=4" defer></script>
+<script src="assets/js/loader.js?v=5" defer></script>
 <script src="assets/js/script.js?v=125" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
