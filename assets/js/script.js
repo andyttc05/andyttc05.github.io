@@ -776,17 +776,24 @@
     })();
 
     /* === 游戏窝卡片 按压回弹（第一百三十八批 2026-08-22 主人"点击动效弹一点"）===
-       与 hero 立绘同款手感：mousedown 60ms 压扁 scale(0.97) 保持 → mouseup 280ms
+       与 hero 立绘同款手感：按下 60ms 压扁 scale(0.97) 保持 → 松开 280ms
        back 缓动回弹（cubic-bezier(0.34,1.56,0.64,1)，y>1 自带过冲 → "弹"）。
        transform 从 --gt-tilt/--gt-x/--gt-y/--gt-hover-y 变量构造（与 CSS hover 落点同值），
        hover 态由 .game-tile-wrap 实时判定 → 回弹终点 = 悬停位或基础位。
-       mouseup 绑 window：卡片内外松开都回弹；不挂 mouseleave（拖出未松开不提前回弹）。
+       松开绑 window：卡片内外松开都回弹；不挂 leave（拖出未松开不提前回弹）。
        第一百四十批：release 起点取 getComputedStyle 当前实际变换（拖出卡片外松开不跳变）。
-       pointer:coarse（触屏）跳过 → CSS :active 兜底按压。 */
+       第一百五十四批（2026-08-23 主人"手机版游戏区和电脑一样变为可点击"）：
+       原实现 pointer:coarse（触屏）直接跳过，只剩 CSS :active —— iOS Safari 的
+       :active 需 touchstart 激活、默认不触发 → 手机端点卡片毫无反馈。
+       改用 Pointer Events（pointerdown/pointerup，鼠标+触屏统一）：
+       - 触屏按下也走压扁/回弹，与电脑手感一致；
+       - touch-action: pan-y（CSS 已有）保证纵向滚动不受影响，点击/轻按才触发；
+       - 触屏无 :hover，tfAt 走基础散落位 → 回弹终点正确；
+       - 触屏按住拖出卡片再松开，window 级 pointerup 兜底回弹。 */
     (function () {
       var tiles = document.querySelectorAll('.game-tile');
       if (!tiles.length) return;
-      if (window.matchMedia('(pointer: coarse)').matches) return;
+      if (!('PointerEvent' in window)) return; /* 老浏览器降级：无按压反馈（CSS :active 兜底） */
       function readVar(el, name, fb) {
         var v = getComputedStyle(el).getPropertyValue(name).trim();
         return v || fb;
@@ -801,7 +808,8 @@
       }
       Array.prototype.forEach.call(tiles, function (tile) {
         var pressAnim = null, releaseAnim = null, pressed = false;
-        tile.addEventListener('mousedown', function (e) {
+        tile.addEventListener('pointerdown', function (e) {
+          /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
           if (e && e.button !== undefined && e.button !== 0) return;
           if (pressed) return;
           pressed = true;
@@ -811,7 +819,7 @@
             { transform: tfAt(tile, 0.97), offset: 1 }
           ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
         });
-        window.addEventListener('mouseup', function () {
+        window.addEventListener('pointerup', function () {
           if (!pressed) return;
           pressed = false;
           /* 第一百四十批（2026-08-22 主人"按住卡片在卡片范围外松开，动画怪怪的/还是瞬间跳变"）：
