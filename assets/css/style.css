@@ -1403,7 +1403,9 @@
     text-transform: uppercase;
     color: var(--color-muted);
     margin-bottom: clamp(24px, 4vh, 40px);
-    will-change: transform; /* 逐帧 transform（丝滑跟随）→ 提前合成层，防抖动 */
+    /* 第一百五十七批：移除 will-change —— 滚动时 JS 写 inline transform 自动提升
+       合成层；REST 期 JS 写 identity（transform:none）脱层，省移动端 GPU 层（与
+       vslide 2026-08-20 删 will-change 同一思路，正文渲染瑕疵同理消除） */
   }
   .story-intro-eyebrow::before,
   .story-intro-eyebrow::after {
@@ -1427,10 +1429,11 @@
     color: var(--color-ink);
     margin-bottom: clamp(20px, 3.5vh, 32px);
   }
-  /* 每字独立 span：JS 写 translate3d，will-change 预声明避免滚动抖动 */
+  /* 每字独立 span：JS 写 translate3d（滚动时自动提升合成层） */
   .story-intro-glyphs .gi {
     display: inline-block;
-    will-change: transform;
+    /* 第一百五十七批：移除 will-change（滚动时 inline transform 自动提升，
+       REST 写 identity 脱层，与 .vslide-glyph 2026-08-20 同思路） */
     flex-shrink: 0; /* 字体回退时禁止收缩换位（第六十六批修移动端） */
   }
   /* 五字不同色调 — 主人要「全不同蓝调、不能有黑有彩」——
@@ -1448,14 +1451,15 @@
     color: var(--color-rule);
     letter-spacing: 0;
     transform: translateY(0.2em);
-    will-change: transform;
+    /* 第一百五十七批：移除 will-change（滚动时 inline transform 自动提升，
+       REST 期 JS 写回 translateY(0.2em) identity 脱层） */
     /* 进场/滑出时由 JS 写 inline transform（跟左边字同进退），默认样式仅在 JS 未接管时生效 */
   }
   .story-intro-sub {
     font-size: 15px;
     letter-spacing: 0.12em;
     color: var(--color-muted);
-    will-change: transform;
+    /* 第一百五十七批：移除 will-change（同上，REST 写 identity 脱层） */
   }
 
   /* === 过渡带 移动端（≤768px） === */
@@ -1740,7 +1744,9 @@
     width: min(42vw, 500px); /* 2026-08-18 晚:主人定稿"全部改为 500" */
     display: block;
     overflow: hidden;
-    will-change: transform;
+    /* 第一百五十七批：移除 will-change —— 5 屏立绘不再常驻合成层（移动端省
+       GPU 内存/带宽）；滚动 scrub 时 JS 写 inline transform 自动提升，REST 期
+       setFrame 写 identity（transform:none）脱层，与文字元素同一套策略 */
   }
   .vslide-img {
     width: 100%;
