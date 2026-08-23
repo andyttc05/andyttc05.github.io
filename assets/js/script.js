@@ -1092,17 +1092,23 @@
              阈值 y<0.005vh(≈0.045px)/ rot<0.005°/ |s-1|<0.0005 / blur≤0.01 / op≥0.999。
              配合 CSS 删 will-change 生效(2026-08-20 同步把 reach REST s:0.96 改为 identity,
              使末屏 触 也能落回原生渲染,代价是失去 4% 微缩定格,改"伸近定格 at 全尺寸") */
+          var tStr, fStr, oStr;
           if (Math.abs(y) < 0.005 && Math.abs(rot) < 0.005 && Math.abs(s - 1) < 0.0005 &&
               blur <= 0.01 && op >= 0.999) {
-            el.style.transform = 'none';
-            el.style.filter = 'none';
-            el.style.opacity = '1';
+            tStr = 'none';
+            fStr = 'none';
+            oStr = '1';
           } else {
-            el.style.transform = 'translate3d(0, ' + ((y * vh) / 100).toFixed(2) + 'px, 0) rotate(' +
+            tStr = 'translate3d(0, ' + ((y * vh) / 100).toFixed(2) + 'px, 0) rotate(' +
               rot.toFixed(2) + 'deg) scale(' + s.toFixed(3) + ')';
-            el.style.filter = blur > 0.01 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
-            el.style.opacity = op.toFixed(3);
+            fStr = blur > 0.01 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
+            oStr = op.toFixed(3);
           }
+          /* 第一百五十七批：逐元素写缓存 —— 值未变（如元素还在入场延迟窗口、
+             REST 恒等态）跳过 DOM 写入；滚动五屏时只写实际在动的元素 */
+          if (el.__vsT !== tStr) { el.style.transform = tStr; el.__vsT = tStr; }
+          if (el.__vsF !== fStr) { el.style.filter = fStr; el.__vsF = fStr; }
+          if (el.__vsO !== oStr) { el.style.opacity = oStr; el.__vsO = oStr; }
         }
       }
 
@@ -1235,17 +1241,30 @@
       var lastSy = -1, lastT = 0, vel = 0;   /* 滚动速度 EMA（px/s），驱动自适应跟随 */
       /* 滚动方向（-1=上 / 0=静止 / 1=下），maybeSnap 据此判断吸附意图 */
       var scrollDir = 0;
+      /* 第一百五十七批：逐元素写缓存 —— 计算值未变时跳过 DOM 写入；
+         REST/全显期写 identity（transform:none / translateY(0.2em)）让元素脱离
+         合成层，与 vslide 2026-08-20 的"删 will-change + identity 脱层"同一套思路。
+         滚动五幕雨/五个屏时，过渡带（视口外）不再每帧刷 12 个 style。 */
+      var charT = [], charO = [], sepT = [], sepO = [];
+      var tailT = {}, tailO = {};
 
       /* 与 .story-pin 高度配套：读 CSS 变量，改 CSS 一处即可（桌面 900px / 移动 720px） */
-      /* pinScroll 直接读 CSS 变量;modern browsers getComputedStyle 总返回有效值 */
+      /* 第一百五十七批（2026-08-23 主人"五幕雨/落眸笑歌触 五个区域手机版滑动不流畅"）：
+         --pin-scroll 只随媒体查询（resize）变化 → 缓存实测值；update 热路径不再每帧
+         getComputedStyle（读计算样式会强制样式重算，是滚动帧的隐性开销）。 */
+      var cachedPS = -1;
       function pinScroll() {
+        if (cachedPS >= 0) return cachedPS;
         var v = 900;
         if (pin) {
           var raw = getComputedStyle(pin).getPropertyValue('--pin-scroll').trim();
           if (raw) v = parseFloat(raw) || 900;
         }
+        cachedPS = v;
         return v;
       }
+      function invalidatePS() { cachedPS = -1; }
+      window.addEventListener('resize', invalidatePS);
 
       function heroBottomY() {
         if (cachedHbY >= 0) return cachedHbY;
@@ -1332,7 +1351,11 @@
            触发点：字行进入视口底缘（eEff≥0.12）；
            第七十三批修重置：字行完全滑出视口底（hb-sy > 0.52vh，不可见）才重置可重播——
            旧阈值 eEff<0.02 时字还可见（屏底 94% 处），en 瞬间归零 = 文字"突然消失"，割裂 */
-        if (!entryStarted && eEff >= 0.12) { entryStarted = true; entryT0 = nowMs; }
+        /* 第一百五十七批：加"pin 未完全滚出视口"门控 —— 旧版滚动进入五幕雨
+           （sy > hb+ps，过渡带已整体在视口上方）时 eEff 仍会爬过 0.12，触发登场
+           rAF 在屏外空转 ~2s，与五屏 scrub 抢主线程；现在只有过渡带仍与视口
+           相交（sy ≤ hb+ps）才触发登场。 */
+        if (!entryStarted && eEff >= 0.12 && sy <= hb + ps + 1) { entryStarted = true; entryT0 = nowMs; }
         /* 第一百五十二批：入场动画播放期间（en 未走完）不重置 —— 刷新恢复
            scrollY 时 hb 可能因字体/图片加载短暂波动，若在播放中触发重置，
            en 冻结在中间值 = 五字半透明卡住（用户反馈"过渡带刷新卡住"）。
@@ -1359,12 +1382,28 @@
           var ex = easeOut(Math.min(1, Math.max(0, (pEff - startX) / slotX)));
           var opacity = (en * (1 - ex)) * (1 - leave);
           var offset = HIDDEN_OFFSET * ((1 - en) + ex) + 120 * leave;
-          chars[i].style.transform = 'translate3d(0, ' + offset.toFixed(1) + 'px, 0)';
-          chars[i].style.opacity = opacity.toFixed(2);
+          /* 第一百五十七批：写缓存 + identity —— 全显（offset≈0 & opacity≈1）写
+             transform:none 让字脱离合成层（配 CSS 删 will-change）；值未变跳过写入 */
+          var cT, cO;
+          if (Math.abs(offset) < 0.05 && opacity >= 0.999) {
+            cT = 'none'; cO = '1';
+          } else {
+            cT = 'translate3d(0, ' + offset.toFixed(1) + 'px, 0)';
+            cO = opacity.toFixed(2);
+          }
+          if (charT[i] !== cT) { chars[i].style.transform = cT; charT[i] = cT; }
+          if (charO[i] !== cO) { chars[i].style.opacity = cO; charO[i] = cO; }
           /* 分隔符 · 跟左边的字同进退（同一 en/ex），否则字在上浮/滑出时 · 悬在原地，观感断裂 */
           if (i < seps.length) {
-            seps[i].style.transform = 'translate3d(0, calc(0.2em + ' + offset.toFixed(1) + 'px), 0)';
-            seps[i].style.opacity = opacity.toFixed(2);
+            var sT, sO;
+            if (Math.abs(offset) < 0.05 && opacity >= 0.999) {
+              sT = 'translateY(0.2em)'; sO = '1';  /* CSS 默认基线位（0.2em）即 identity */
+            } else {
+              sT = 'translate3d(0, calc(0.2em + ' + offset.toFixed(1) + 'px), 0)';
+              sO = opacity.toFixed(2);
+            }
+            if (sepT[i] !== sT) { seps[i].style.transform = sT; sepT[i] = sT; }
+            if (sepO[i] !== sO) { seps[i].style.opacity = sO; sepO[i] = sO; }
           }
         }
 
@@ -1380,15 +1419,23 @@
           tEn = easeOut(Math.min(1, Math.max(0, (nowMs - entryT0 - n * ENTRY_STAGGER - TAIL_DELAY) / TAIL_MS)));
         }
         var tEx = easeOut(Math.min(1, Math.max(0, (pEff - tailXStart) / MARGIN_END)));
-        var tOpacity = ((tEn * (1 - tEx)) * (1 - leave)).toFixed(2);
+        var tOp = (tEn * (1 - tEx)) * (1 - leave);
         var tOffset = HIDDEN_OFFSET * 0.5 * ((1 - tEn) + tEx) + 60 * leave;
+        /* 第一百五十七批：同五字 —— identity 脱层 + 写缓存 */
+        var tT, tO;
+        if (Math.abs(tOffset) < 0.05 && tOp >= 0.999) {
+          tT = 'none'; tO = '1';
+        } else {
+          tT = 'translate3d(0, ' + tOffset.toFixed(1) + 'px, 0)';
+          tO = tOp.toFixed(2);
+        }
         if (eyebrow) {
-          eyebrow.style.transform = 'translate3d(0, ' + tOffset.toFixed(1) + 'px, 0)';
-          eyebrow.style.opacity = tOpacity;
+          if (tailT.eyebrow !== tT) { eyebrow.style.transform = tT; tailT.eyebrow = tT; }
+          if (tailO.eyebrow !== tO) { eyebrow.style.opacity = tO; tailO.eyebrow = tO; }
         }
         if (sub) {
-          sub.style.transform = 'translate3d(0, ' + tOffset.toFixed(1) + 'px, 0)';
-          sub.style.opacity = tOpacity;
+          if (tailT.sub !== tT) { sub.style.transform = tT; tailT.sub = tT; }
+          if (tailO.sub !== tO) { sub.style.opacity = tO; tailO.sub = tO; }
         }
 
         /* 时间动画播放中 → 持续 rAF（否则停在非滚动状态时播放会冻结） */
@@ -1475,13 +1522,17 @@
          （播放中不重置，重置只发生在播完且用户向上滚时）。 */
       window.addEventListener('load', function () {
         invalidateHbY();
+        invalidatePS();
         first = true;
         var syL = window.scrollY || window.pageYOffset;
         var hbL = heroBottomY();
         var vhL = window.innerHeight || document.documentElement.clientHeight;
         var entryWindowL = vhL * 0.45;
         var eReal = Math.min(1, Math.max(0, (syL - (hbL - entryWindowL)) / entryWindowL));
-        if (eReal >= 0.12) {
+        /* 第一百五十七批：刷新位置在五幕雨（syL ≤ hbL+psL）才强制登场 ——
+           刷新落在五屏内（过渡带已滚过）不播屏外空转的入场动画 */
+        var psL = pinScroll();
+        if (eReal >= 0.12 && syL <= hbL + psL + 1) {
           /* 刷新位置在字行进入视口之后 → 强制触发 + 重置 entryT0 从头播，
              保证五字完整登场 */
           entryStarted = true;
