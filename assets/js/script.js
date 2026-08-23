@@ -794,13 +794,21 @@
       var tiles = document.querySelectorAll('.game-tile');
       if (!tiles.length) return;
       if (!('PointerEvent' in window)) return; /* 老浏览器降级：无按压反馈（CSS :active 兜底） */
+      /* 第一百五十五批（2026-08-23 主人"游戏区卡片触碰点击动画和鼠标悬浮动画冲突，适配触碰设备"）：
+         触屏（hover:none + pointer:coarse）的 :hover 是"粘滞"的 —— 手指点过之后浏览器
+         一直把它当作 hover 命中，wrap.matches(':hover') 在触屏上恒为 true → 按压动画
+         把卡片从散落位瞬间拉直成悬浮位（而 CSS 触屏规则又禁用 hover 位移）→ 一按就跳变。
+         修法：hover 终点只在"真能悬浮"的细指针设备上生效（与滚轮平滑同款 fine 判定，
+         script.js 顶部第 19 行同一媒体查询）——触屏按压/回弹全程走基础散落位，
+         与 CSS 触屏规则一致，触碰点击动画不再与悬浮动画冲突。 */
+      var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       function readVar(el, name, fb) {
         var v = getComputedStyle(el).getPropertyValue(name).trim();
         return v || fb;
       }
       function tfAt(tile, scaleVal) {
         var wrap = tile.closest('.game-tile-wrap');
-        var hovered = !!(wrap && wrap.matches(':hover'));
+        var hovered = fine && !!(wrap && wrap.matches(':hover'));
         var tilt = hovered ? '0deg' : readVar(tile, '--gt-tilt', '0deg');
         var x = hovered ? '0px' : readVar(tile, '--gt-x', '0px');
         var y = hovered ? readVar(tile, '--gt-hover-y', '-8px') : readVar(tile, '--gt-y', '0px');
@@ -808,36 +816,97 @@
       }
       Array.prototype.forEach.call(tiles, function (tile) {
         var pressAnim = null, releaseAnim = null, pressed = false;
-        tile.addEventListener('pointerdown', function (e) {
-          /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
-          if (e && e.button !== undefined && e.button !== 0) return;
-          if (pressed) return;
-          pressed = true;
-          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
-          pressAnim = tile.animate([
-            { transform: tfAt(tile, 1), offset: 0 },
-            { transform: tfAt(tile, 0.97), offset: 1 }
-          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
-        });
-        window.addEventListener('pointerup', function () {
+        /* 统一松开出口（第一百五十五批）：
+           pointerup（卡片内外松开）→ 280ms 弹簧回弹（第一百四十批：先读后 cancel，
+           起点取按压动画定格的实际压扁位，终点按松开瞬间 :hover 判定）；
+           pointercancel（触屏滚动接管手势）→ 120ms 快速归位 —— 原来没监听
+           pointercancel：手机上从卡片起滑滚动页面时浏览器接管手势、只发 cancel
+           不发 up → pressed 卡死 + fill:forwards 把卡片永久压扁。 */
+        function release(quick) {
           if (!pressed) return;
           pressed = false;
-          /* 第一百四十批（2026-08-22 主人"按住卡片在卡片范围外松开，动画怪怪的/还是瞬间跳变"）：
-             必须【先读、后 cancel】：pressAnim.cancel() 同步移除动画效果，元素立即回落到
-             CSS 层（:hover 悬浮位或基础散落位）；若先 cancel 再读 getComputedStyle，
-             from 取到的已是回落值 → 起点 ≠ 当前渲染位 → 瞬间跳变。
-             正确顺序：from 取 press 动画定格中的实际变换（压扁位）→ cancel → release
-             从该位平滑过渡到终点。终点按松开瞬间 :hover 判定：
-             卡内松开 → 弹回 hover 位；卡外松开 → 平滑弹回基础散落位。 */
           var from = getComputedStyle(tile).transform;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
           var to = tfAt(tile, 1);
           releaseAnim = tile.animate([
             { transform: from, offset: 0 },
             { transform: to, offset: 1 }
-          ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          ], { duration: quick ? 120 : 280, easing: quick ? 'ease-out' : 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
+        }
+        tile.addEventListener('pointerdown', function (e) {
+          /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
+          if (e && e.button !== undefined && e.button !== 0) return;
+          if (pressed) return;
+          pressed = true;
+          /* 第一百五十六批：起点取当前实际渲染位 —— 上次回弹未播完就再次按下时
+             （快速连点 280ms 内），从 tfAt(1) 起压会从回弹中途瞬间跳到完整位 → 跳变；
+             读 getComputedStyle 从当前位置起压，与 release 的"先读后 cancel"同款哲学 */
+          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
+          var from = getComputedStyle(tile).transform;
+          pressAnim = tile.animate([
+            { transform: from, offset: 0 },
+            { transform: tfAt(tile, 0.97), offset: 1 }
+          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
         });
+        window.addEventListener('pointerup', function () { release(false); });
+        window.addEventListener('pointercancel', function () { release(true); });
+      });
+    })();
+
+    /* === 联系卡 按压回弹（第一百五十五批 2026-08-23 主人"联系区卡片按住卡片、
+       在卡片外松开鼠标，动画好奇怪，统一解决"）===
+       旧实现纯 CSS :active/:hover 过渡：mousedown 压扁后一拖出卡片，:active 与
+       :hover 同时熄灭 → 卡片在鼠标【还按着】时就提前弹回基础位；叠加 ::before
+       命中区（inset -8px）再添一层阈值，拖出过程会经历 压扁→上浮→归位 多次转向，
+       看起来"动画好奇怪"。
+       与游戏卡（上一段）统一：Pointer Events + window 级松开兜底 ——
+       - pointerdown：60ms 压扁 scale(0.97)，保持悬浮位高度（fine 指针 hover 时），
+         按住拖到卡片外也不会提前回弹（WAAPI fill:forwards 钉住按压位）；
+       - pointerup（卡片内外松开都触发）：先读实际压扁位 → cancel → 280ms 弹簧
+         回弹到 悬浮位（卡内松开）/ 基础位（卡外松开）；
+       - pointercancel（触屏滚动接管）：120ms 快速归位，不留压扁残影；
+       - 触屏 :hover 粘滞 → fine 判定让触屏全程走基础位（同游戏卡批 155）；
+       - 联系卡是 <a>，不 preventDefault，点击跳转不受影响；
+       - transform 与滚动入场动画不冲突（入场用独立属性 translate/scale，批 134）。 */
+    (function () {
+      var cards = document.querySelectorAll('.contact-card');
+      if (!cards.length) return;
+      if (!('PointerEvent' in window)) return; /* 老浏览器降级：CSS :active 兜底 */
+      var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      function tfAt(card, scaleVal) {
+        var hovered = fine && card.matches(':hover');
+        return 'translateY(' + (hovered ? '-4px' : '0px') + ') scale(' + scaleVal + ')';
+      }
+      Array.prototype.forEach.call(cards, function (card) {
+        var pressAnim = null, releaseAnim = null, pressed = false;
+        function release(quick) {
+          if (!pressed) return;
+          pressed = false;
+          var from = getComputedStyle(card).transform;
+          if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
+          var to = tfAt(card, 1);
+          releaseAnim = card.animate([
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
+          ], { duration: quick ? 120 : 280, easing: quick ? 'ease-out' : 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          releaseAnim.onfinish = function () { releaseAnim = null; };
+        }
+        card.addEventListener('pointerdown', function (e) {
+          /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
+          if (e && e.button !== undefined && e.button !== 0) return;
+          if (pressed) return;
+          pressed = true;
+          /* 第一百五十六批：与游戏卡同款 —— 起点取当前实际渲染位，快速连点不跳变 */
+          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
+          var from = getComputedStyle(card).transform;
+          pressAnim = card.animate([
+            { transform: from, offset: 0 },
+            { transform: tfAt(card, 0.97), offset: 1 }
+          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
+        });
+        window.addEventListener('pointerup', function () { release(false); });
+        window.addEventListener('pointercancel', function () { release(true); });
       });
     })();
 
