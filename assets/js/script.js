@@ -669,98 +669,92 @@
         fetchWeather(22.337, 114.263);
       }
 
-      /* --- 照片按压反馈（mousedown 压扁 / mouseup 弹簧回弹）：
-         按下：60ms 快速压扁 scale(0.97) 并保持（fill: forwards）；
-         松开：单帧回弹 + back 缓动曲线（cubic-bezier(0.34,1.56,0.64,1)）——
-         过冲由曲线自身产生（y>1 的 overshoot），不手写关键帧（逐帧反而卡顿不自然）。
-         规范依据：gesture-responses —— press 50ms 内响应、release 150-300ms + overshoot。
-         mouseup 绑在 window 上 → 卡片内外任何位置松开都触发回弹；
-         故意不挂 mouseleave：拖出元素时按钮未释放，不应提前回弹
-         （之前 mouseleave 等同松开 → 用户拖到外面还在按，卡就先回弹了，动画"奇怪"）。
-         位移/缩放读 --lift/--scale 变量（hover 提供），保持 hover 态一致 */
+      /* --- 照片按压反馈（第一百六十三批 2026-08-24 主人"主页图片按压手感与
+          游戏窝卡片一致"）---
+         从 mousedown/mouseup + touch 双轨改为 Pointer Events 统一（对照游戏卡
+         批 154/155/156 同款结构）：
+         - pointerdown：60ms 压扁（scale 乘 0.97）；起点取 getComputedStyle 实际
+           渲染位 → 回弹未播完快速连点不跳变（156 批同款哲学）；
+         - pointerup（卡片内外松开）：先读实际压扁位 → cancel → 280ms 弹簧回弹
+           （cubic-bezier(0.34,1.56,0.64,1) 自带过冲）；
+         - pointercancel（触屏滚动接管手势）：120ms 快速归位，不留压扁残影；
+         - fine 判定 hover 终点（触屏 :hover 粘滞 → 恒走基础位，与 CSS
+           @media (hover:none) 的 --lift/--scale 归零一致，155 批同款）；
+         - 不 preventDefault：滚动不受影响，iOS 长按系统菜单照常弹出；
+         - touch-action: manipulation（CSS）保留：禁双击缩放、允许平移滚动。 */
       /* 复用外层 IIFE 顶部已声明的 artCard（line 231，hero.querySelector('.hero-art-card')），
          这里不再重新 querySelector 同一个元素 —— 重构搬块时漏删的 var 声明 */
-      if (artCard) {
+      if (artCard && 'PointerEvent' in window) {
         var pressAnim = null;
         var releaseAnim = null;
         var pressed = false;
+        var finePress = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
         function readVar(name, fallback) {
           var v = getComputedStyle(artCard).getPropertyValue(name).trim();
           return v || fallback;
         }
         function tfAt(scaleVal) {
-          var lift = readVar('--lift', '0px');
+          /* hover 终点只在真能悬浮的细指针设备生效；触屏恒走基础位。
+             --scale 基础 1 / hover 1.02，压扁系数相乘保持比例（hover 时
+             1.02×0.97≈0.989，回弹 ×1 回 1.02） */
+          var hovered = finePress && artCard.matches(':hover');
+          var lift = hovered ? readVar('--lift', '0px') : '0px';
           var tilt = readVar('--tilt', '-2deg');
-          return 'rotate(' + tilt + ') translateY(' + lift + ') scale(' + scaleVal + ')';
+          var baseScale = parseFloat(hovered ? readVar('--scale', '1') : '1') || 1;
+          return 'rotate(' + tilt + ') translateY(' + lift + ') scale(' + (baseScale * scaleVal).toFixed(4) + ')';
         }
-        function tfBase() {
-          return tfAt(readVar('--scale', '1'));
-        }
-        function pressDown(e) {
-          /* 只响应左键（button=0）：右键/中键会弹系统菜单，压扁动画会与菜单错乱。
-             touch 事件无 button 属性（undefined），短路跳过检查正常触发 */
-          if (e && e.button !== undefined && e.button !== 0) return;
-          if (pressed) return;
-          pressed = true;
-          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
-          pressAnim = artCard.animate([
-            { transform: tfBase(), offset: 0 },
-            { transform: tfAt(0.97), offset: 1 }
-          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
-        }
-        function releaseUp() {
+        function release(quick) {
           if (!pressed) return;
           pressed = false;
-          /* 第一百四十八批（2026-08-23 主人"按压在图片外松开，动画好奇怪"）：
-             修法对照游戏卡批 140 —— 起点取 press 动画定格的实际渲染 transform
-             （getComputedStyle 读动画合成后的值 = 压扁位），cancel 后元素回落到
-             CSS 层（hover 态或 base 态），回弹动画从"实际压扁位"平滑过渡到
-             "松开瞬间的 hover 判定终点"，起点/终点都与当前渲染一致，无跳变。
-             旧实现硬编码 tfAt(0.97) 作起点：在卡片外松开时 hover 已失效，
-             tfBase() 终点是非 hover 值，且 pressAnim.cancel() 后 CSS 立即回落
-             到 hover 值 → 起点(0.97×base) 与当前渲染错位 → 回弹一帧跳变。 */
           var from = getComputedStyle(artCard).transform;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
-          /* 松开瞬间判定 hover：指针在卡片上 → 回弹到 hover 位；已在卡片外 →
-             回弹到 base 位（--lift/--scale/--tilt 读的是实时 computed，自动正确） */
-          var to = tfBase();
+          var to = tfAt(1);
+          lastTo = to;
+          releaseAnim = artCard.animate([
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
+          ], { duration: quick ? 120 : 280, easing: quick ? 'ease-out' : 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          releaseAnim.onfinish = function () { releaseAnim = null; };
+        }
+        /* 第一百六十四批（2026-08-24 主人"卡外松开后立刻悬停回卡片，会有一点点的
+           瞬移"）：回弹动画播放中 hover 翻转 —— 松开的瞬间指针在卡外 → 动画终点
+           按 base 位判定（tfAt 读实时 :hover = false）；280ms 动画播放期间用户立刻
+           悬停回卡片，CSS 层已切到 hover 位（--lift -6px / --scale 1.02），而动画
+           终点仍是 base 位 → 动画结束后元素从 base 突跳到 hover 位 = 瞬移。
+           修法：pointerenter/leave 时若终点判定值变化（lastTo 对比），cancel 当前
+           回弹并从实际渲染位重新 animate 到新终点 —— 起点=动画中途实际位（无跳变），
+           终点=实时 hover 判定（落地即对齐 CSS 层，无突跳）。 */
+        var lastTo = '';
+        function retargetRelease() {
+          if (!releaseAnim || pressed) return;
+          var to = tfAt(1);
+          if (to === lastTo) return;
+          lastTo = to;
+          var from = getComputedStyle(artCard).transform;
+          releaseAnim.cancel();
           releaseAnim = artCard.animate([
             { transform: from, offset: 0 },
             { transform: to, offset: 1 }
           ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
-        /* 第一百六十二批（2026-08-24 主人"手机主页图片改为可点击的动效"）：
-           移动端（pointer: coarse）由 touch 事件接管按压反馈 —— 按下压扁、
-           松开弹簧回弹（与桌面同一套 pressDown/releaseUp，动效一致）。
-           设计约束：
-           ① 不 preventDefault（passive: true）→ 不阻塞页面滚动、不破坏 iOS
-              长按系统菜单（保存/拷贝/分享，长按 ~500ms 弹出，压扁动画早已定格）；
-           ② touchmove 位移 >10px 判定为"滚动不是点击" → 取消压扁立即回弹，
-              滑动过程中卡片不会一直压着；
-           ③ touchend/touchcancel 都触发回弹（手指划出卡片/中断同样复位）。
-           桌面端保留 mousedown 压扁/回弹：鼠标 hover/click 是桌面交互的核心反馈。 */
-        var isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-        if (isCoarsePointer) {
-          var touchSX = 0, touchSY = 0;
-          artCard.addEventListener('touchstart', function (e) {
-            var t = e.changedTouches[0];
-            touchSX = t.clientX; touchSY = t.clientY;
-            pressDown(e);
-          }, { passive: true });
-          artCard.addEventListener('touchmove', function (e) {
-            if (!pressed) return;
-            var t = e.changedTouches[0];
-            if (Math.abs(t.clientX - touchSX) > 10 || Math.abs(t.clientY - touchSY) > 10) {
-              releaseUp();
-            }
-          }, { passive: true });
-          artCard.addEventListener('touchend', releaseUp);
-          artCard.addEventListener('touchcancel', releaseUp);
-        } else {
-          artCard.addEventListener('mousedown', pressDown);
-          window.addEventListener('mouseup', releaseUp);
-        }
+        artCard.addEventListener('pointerenter', retargetRelease);
+        artCard.addEventListener('pointerleave', retargetRelease);
+        artCard.addEventListener('pointerdown', function (e) {
+          /* 只响应左键（button=0）：右键/中键会弹系统菜单，压扁动画会与菜单错乱。
+             touch 事件无 button 属性（undefined），短路跳过检查正常触发 */
+          if (e && e.button !== undefined && e.button !== 0) return;
+          if (pressed) return;
+          pressed = true;
+          if (releaseAnim) { releaseAnim.cancel(); releaseAnim = null; }
+          var from = getComputedStyle(artCard).transform;
+          pressAnim = artCard.animate([
+            { transform: from, offset: 0 },
+            { transform: tfAt(0.97), offset: 1 }
+          ], { duration: 60, easing: 'ease-out', fill: 'forwards' });
+        });
+        window.addEventListener('pointerup', function () { release(false); });
+        window.addEventListener('pointercancel', function () { release(true); });
       }
 
       /* === 性能：hero 滚出视口 → 暂停打字机 + 时钟（canvas 背景不暂停）===
@@ -848,12 +842,32 @@
           var from = getComputedStyle(tile).transform;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
           var to = tfAt(tile, 1);
+          lastTo = to;
           releaseAnim = tile.animate([
             { transform: from, offset: 0 },
             { transform: to, offset: 1 }
           ], { duration: quick ? 120 : 280, easing: quick ? 'ease-out' : 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
+        /* 第一百六十四批：同 hero 图 —— 卡外松开后立刻悬停回卡片，回弹动画终点
+           （base 位）与 CSS hover 层（上浮位）错位 → 动画结束突跳瞬移。
+           pointerenter/leave 时终点判定值变化则从实际渲染位重定向动画。 */
+        var lastTo = '';
+        function retargetRelease() {
+          if (!releaseAnim || pressed) return;
+          var to = tfAt(tile, 1);
+          if (to === lastTo) return;
+          lastTo = to;
+          var from = getComputedStyle(tile).transform;
+          releaseAnim.cancel();
+          releaseAnim = tile.animate([
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
+          ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          releaseAnim.onfinish = function () { releaseAnim = null; };
+        }
+        tile.addEventListener('pointerenter', retargetRelease);
+        tile.addEventListener('pointerleave', retargetRelease);
         tile.addEventListener('pointerdown', function (e) {
           /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
           if (e && e.button !== undefined && e.button !== 0) return;
@@ -906,12 +920,31 @@
           var from = getComputedStyle(card).transform;
           if (pressAnim) { pressAnim.cancel(); pressAnim = null; }
           var to = tfAt(card, 1);
+          lastTo = to;
           releaseAnim = card.animate([
             { transform: from, offset: 0 },
             { transform: to, offset: 1 }
           ], { duration: quick ? 120 : 280, easing: quick ? 'ease-out' : 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
+        /* 第一百六十四批：同 hero 图/游戏卡 —— 卡外松开后立刻悬停回卡片，
+           回弹动画终点与 CSS hover 层错位 → 动画结束突跳瞬移。重定向修法同款。 */
+        var lastTo = '';
+        function retargetRelease() {
+          if (!releaseAnim || pressed) return;
+          var to = tfAt(card, 1);
+          if (to === lastTo) return;
+          lastTo = to;
+          var from = getComputedStyle(card).transform;
+          releaseAnim.cancel();
+          releaseAnim = card.animate([
+            { transform: from, offset: 0 },
+            { transform: to, offset: 1 }
+          ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+          releaseAnim.onfinish = function () { releaseAnim = null; };
+        }
+        card.addEventListener('pointerenter', retargetRelease);
+        card.addEventListener('pointerleave', retargetRelease);
         card.addEventListener('pointerdown', function (e) {
           /* 只响应主指针（鼠标左键 / 触屏主触点）；忽略右键/中键 */
           if (e && e.button !== undefined && e.button !== 0) return;
