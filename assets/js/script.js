@@ -730,14 +730,34 @@
           ], { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
           releaseAnim.onfinish = function () { releaseAnim = null; };
         }
-        /* 移动端（pointer: coarse）完全不挂 press 监听——浏览器原生接管：
-           点击无视觉反馈、长按弹系统菜单（iOS 弹"存储图像/拷贝/分享"，
-           Android Chrome 弹"保存图片/搜索"）。CSS 同步移除 -webkit-touch-callout
-           让 iOS 长按菜单恢复。
-           桌面端保留 mousedown 压扁/回弹：鼠标 hover/click 是桌面交互的核心反馈。
-           2026-08-17 第五十一批 */
+        /* 第一百六十二批（2026-08-24 主人"手机主页图片改为可点击的动效"）：
+           移动端（pointer: coarse）由 touch 事件接管按压反馈 —— 按下压扁、
+           松开弹簧回弹（与桌面同一套 pressDown/releaseUp，动效一致）。
+           设计约束：
+           ① 不 preventDefault（passive: true）→ 不阻塞页面滚动、不破坏 iOS
+              长按系统菜单（保存/拷贝/分享，长按 ~500ms 弹出，压扁动画早已定格）；
+           ② touchmove 位移 >10px 判定为"滚动不是点击" → 取消压扁立即回弹，
+              滑动过程中卡片不会一直压着；
+           ③ touchend/touchcancel 都触发回弹（手指划出卡片/中断同样复位）。
+           桌面端保留 mousedown 压扁/回弹：鼠标 hover/click 是桌面交互的核心反馈。 */
         var isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-        if (!isCoarsePointer) {
+        if (isCoarsePointer) {
+          var touchSX = 0, touchSY = 0;
+          artCard.addEventListener('touchstart', function (e) {
+            var t = e.changedTouches[0];
+            touchSX = t.clientX; touchSY = t.clientY;
+            pressDown(e);
+          }, { passive: true });
+          artCard.addEventListener('touchmove', function (e) {
+            if (!pressed) return;
+            var t = e.changedTouches[0];
+            if (Math.abs(t.clientX - touchSX) > 10 || Math.abs(t.clientY - touchSY) > 10) {
+              releaseUp();
+            }
+          }, { passive: true });
+          artCard.addEventListener('touchend', releaseUp);
+          artCard.addEventListener('touchcancel', releaseUp);
+        } else {
           artCard.addEventListener('mousedown', pressDown);
           window.addEventListener('mouseup', releaseUp);
         }

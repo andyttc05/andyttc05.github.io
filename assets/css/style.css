@@ -196,6 +196,11 @@
      全屏背景 canvas（负 z-index 绘制在 body 盒之下，只能在 body 盒外/页面下方露出） */
   html { background: var(--color-paper); color: var(--color-ink); }
   body { background: transparent; color: var(--color-ink); }
+  /* 第一百六十一批（2026-08-24 主人"禁止双击放大页面"）：
+     touch-action: manipulation —— 禁双击缩放（double-tap zoom）同时保留双指捏合
+     缩放（无障碍友好），且消除移动端 300ms 点击延迟。设于 html 经祖先链全局生效；
+     优于 user-scalable=no（iOS Safari 10+ 忽略该 meta 且禁捏合伤无障碍）。 */
+  html { touch-action: manipulation; }
   /* 隐藏浏览器原生滚动条（侧栏）：保留滚动能力，仅视觉隐藏。
      - Firefox：scrollbar-width: none（标准）
      - Chrome/Safari/Edge：::-webkit-scrollbar { display: none }
