@@ -1450,9 +1450,9 @@
     font-size: 0.6em;
     color: var(--color-rule);
     letter-spacing: 0;
-    transform: translateY(0.2em);
-    /* 第一百五十七批：移除 will-change（滚动时 inline transform 自动提升，
-       REST 期 JS 写回 translateY(0.2em) identity 脱层） */
+    /* 第一百五十九批：去掉静态 transform: translateY(0.2em) —— 静态 transform
+       会让 4 个分隔符常驻合成层（与 REST 期脱层思路冲突）。基线 0.2em 偏移改由
+       JS 写 px 绝对值（identity = translateY(Xpx)，缓存可比），滚动中不读计算样式。 */
     /* 进场/滑出时由 JS 写 inline transform（跟左边字同进退），默认样式仅在 JS 未接管时生效 */
   }
   .story-intro-sub {

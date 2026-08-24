@@ -1318,10 +1318,12 @@
            驻留区桌面 600px / 移动 480px，观众滑到即看到完整五字静态停留；
            滑出 MARGIN_START 0.3 / MARGIN_END 0.15 解耦，五字每字 220px 慢滑出；
            眉标+副题从 e=0.45 淡入防突现；分隔符 · 跟左边字同进退；
-           第六十批新增丝滑跟随：eEff/pEff lerp 惯性逼近 e/p（滚动中拖尾丝滑）+ 每字 easeOut 缓动；
+           第六十批新增丝滑跟随：pEff lerp 惯性逼近 p（滚动中拖尾丝滑）+ 每字 easeOut 缓动；
            第六十一批：停止 150ms 直接平滑吸附回全显或到底（不先收敛冻结），动画全程连续；
            第六十二批：帧率无关 + 速度自适应跟随；第一百三十七批：Lenis 已移除，
            过渡带丝滑跟随始终走自研 lerp（原"Lenis 让位"分支删除）；
+           第一百五十九批：eEff 已删（登场判定用真实 e，见 update），settling 收敛循环
+           已删（滚动停止直接吸附，见 onIdle）——
            第六十六批：UX 检查发现瞬跳/键盘下字会冻结在 lerp 滞后态——
            onIdle 启动短 rAF settling 循环让 lerp 收敛到稳定态（字随惯性平滑到位），再触发吸附）
          眉标 + 副标题最后滑出（p ∈ [MARGIN+slot*n, 1]） */
@@ -1335,8 +1337,8 @@
       if (!intro || !glyphs) return;
       var chars = Array.prototype.slice.call(glyphs.querySelectorAll('.gi'));
       var seps = Array.prototype.slice.call(glyphs.querySelectorAll('.gi-sep'));
-      var ticking = false;
       var HIDDEN_OFFSET = 120;   /* 字进场/滑出的最大位移（px），从下方来、往下方去 */
+      var charT = [], charO = [], sepT = [], sepO = [];
       /* 第七十二批：登场改时间驱动（滑动触发一次 + 固定时长播放）——
          旧 scrub 让进场速度=滚动速度，轻轻一滑就播完看不清；
          现在每字 900ms + 110ms 间隔，任何滚动速度都能看清完整登场 */
@@ -1352,8 +1354,8 @@
 
       /* 丝滑跟随（第六十三批 / 第一百三十七批 Lenis 移除）：始终走自研——
          帧率无关指数平滑 + 速度自适应（快滚松、慢滚紧），滚动惯性由原生滚动承接 */
-      var eEff = 0, pEff = 0, first = true;
-      var idleTimer = null, snapping = false, lastSnap = 0, settling = false;
+      var pEff = 0, first = true;
+      var snapping = false, lastSnap = 0;
       var lastSy = -1, lastT = 0, vel = 0;   /* 滚动速度 EMA（px/s），驱动自适应跟随 */
       /* 滚动方向（-1=上 / 0=静止 / 1=下），maybeSnap 据此判断吸附意图 */
       var scrollDir = 0;
@@ -1363,6 +1365,10 @@
          滚动五幕雨/五个屏时，过渡带（视口外）不再每帧刷 12 个 style。 */
       var charT = [], charO = [], sepT = [], sepO = [];
       var tailT = {}, tailO = {};
+      /* 第一百五十九批：常驻 rAF 循环的帧间隔（update 读 rafDt 帧率无关 lerp；
+         声明于下方循环区）；sep 基线 px 缓存（gi-sep identity 从 em 相对值改
+         px 绝对值后，首次写 inline style 时量一次缓存，滚动中不再 getComputedStyle） */
+      var sepBasePx = -1;
 
       /* 与 .story-pin 高度配套：读 CSS 变量，改 CSS 一处即可（桌面 900px / 移动 720px） */
       /* 第一百五十七批（2026-08-23 主人"五幕雨/落眸笑歌触 五个区域手机版滑动不流畅"）：
@@ -1410,7 +1416,6 @@
       }
 
       function update() {
-        ticking = false;
         var sy = window.scrollY || window.pageYOffset;
         var hb = heroBottomY();
         var vh = window.innerHeight || document.documentElement.clientHeight;
@@ -1429,53 +1434,42 @@
         /* 丝滑跟随：自研 lerp（帧率无关 + 速度自适应）——
            Lenis 移除后始终走此分支（原 lenisOn 直接对齐的让位分支已删） */
         var now = performance.now();
-        var dt = lastT ? (now - lastT) / 1000 : 1 / 60;
+        var dt = rafDt || (lastT ? (now - lastT) / 1000 : 1 / 60); /* 第一百五十九批：常驻循环用真实帧间隔 */
         lastT = now;
         /* 第一百五十二批：dt 下限保护 —— 同一帧内多个 update（rAF + scroll/resize
            并发）时 dt≈0，(sy-lastSy)/dt 爆炸 → vel 溢出 → k 越界 → Math.pow 负底
            小数幂 = NaN → eEff/pEff 变 NaN → 五字 opacity NaN 渲染为 0 = 卡住
            （用户反馈"过渡带刷新页面卡住"）。dt 下限 1ms 防除零。 */
         dt = Math.max(0.001, dt);
-        if (lastSy >= 0) {
+        /* 第一百五十九批：vel 只在 scrollY 变化时累积 —— 常驻循环空转帧 dt 照走
+           但 (sy-lastSy)=0，vel 会衰减到 0 再被 scroll 尖峰突然拉满，k 抖动。
+           无变化帧保留 vel 前值；末行 lastSy = sy 已在下方统一。 */
+        if (lastSy >= 0 && sy !== lastSy) {
           vel += (((sy - lastSy) / dt) - vel) * 0.2;
         }
         lastSy = sy;
-        if (first) { eEff = e; pEff = p; first = false; }
-        var k = Math.max(0.07, Math.min(0.3, 0.3 - vel / 11000));
+        if (first) { pEff = p; first = false; }
+        var k = Math.max(0.12, Math.min(0.3, 0.3 - vel / 6000)); /* 第一百五十九批：快滚更跟手，消双重平滑拖尾 */
         var kf = 1 - Math.pow(1 - k, Math.min(3, dt * 60));
-        eEff += (e - eEff) * kf;
         pEff += (p - pEff) * kf;
 
-        /* settling：滚动停下后的短收敛循环（防瞬跳/键盘冻结），收敛完触发吸附 */
-        if (settling && Math.abs(e - eEff) < 0.01 && Math.abs(p - pEff) < 0.01) {
-          settling = false;
-          maybeSnap(p);
-        } else if (settling) {
-          ticking = true;
-          requestAnimationFrame(update);
-        } else {
-          if (Math.abs(e - eEff) < 0.002) eEff = e;
-          if (Math.abs(p - pEff) < 0.002) pEff = p;
-        }
+        if (Math.abs(p - pEff) < 0.002) pEff = p;
+
+        /* 滚动方向簿记（maybeSnap 判断吸附意图 + entryStarted 重置判定用） */
+        if (lastSy >= 0 && sy !== lastSy) { scrollDir = sy > lastSy ? 1 : -1; }
 
         /* 第一百五十八批（2026-08-24 主人"手机版五幕雨滑动流畅"）：
            离屏快路径 —— 过渡带已完全滚出视口顶部（sy > hb+ps）且入场动画已播完，
            字 + 分隔 + 眉标 + 副题都已滑出（DOM 写入早在滑出时被缓存），
-           此后每次 scroll 事件触发的 update 仍跑一遍 16 次元素循环是纯空转。
-           门控后：lerp/eEff/pEff 簿记照跑（vel/k 不影响显示），
-           settling 由 onIdle 触发 → 此处若 settling 已被 onIdle 拉起则让短收敛循环跑完，
-           否则直接 return，下次 scroll/resize/load 再启 update。
-           移动端每帧省 ~16 次缓存比对 + 字符串拼接 + ~10 个对象属性写。
-           入场动画期间（!entryDone）不触发 → 时间驱动的登场动画正常播完 */
+           此后跑 update 的 16 次元素循环是纯空转。
+           第一百五十九批：常驻循环 zone 门控已在上游拦截（zone 外不跑 update），
+           此处保留兜底（zone 上界 = hb+ps+400，进入缓冲带内仍可能触发）。
+           滚动方向簿记在 lerp 段已完成（maybeSnap / entryStarted 重置判定用）。 */
         if (sy > hb + ps + 1) {
           var n2 = chars.length;
           var entryWinMsChk = n2 * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS;
           var entryDoneChk = !entryStarted || (performance.now() - entryT0 >= entryWinMsChk);
-          if (entryDoneChk) {
-            /* scrollDir 簿记保留（maybeSnap 需用），settling 已在上方分支处理 */
-            if (lastSy >= 0 && sy !== lastSy) { scrollDir = sy > lastSy ? 1 : -1; }
-            return;
-          }
+          if (entryDoneChk) return;
         }
 
         var n = chars.length;
@@ -1491,12 +1485,14 @@
            （sy > hb+ps，过渡带已整体在视口上方）时 eEff 仍会爬过 0.12，触发登场
            rAF 在屏外空转 ~2s，与五屏 scrub 抢主线程；现在只有过渡带仍与视口
            相交（sy ≤ hb+ps）才触发登场。 */
-        if (!entryStarted && eEff >= 0.12 && sy <= hb + ps + 1) { entryStarted = true; entryT0 = nowMs; }
+        if (!entryStarted && e >= 0.12 && sy <= hb + ps + 1) { entryStarted = true; entryT0 = nowMs; }
         /* 第一百五十二批：入场动画播放期间（en 未走完）不重置 —— 刷新恢复
            scrollY 时 hb 可能因字体/图片加载短暂波动，若在播放中触发重置，
            en 冻结在中间值 = 五字半透明卡住（用户反馈"过渡带刷新卡住"）。
            重置只发生在：动画已播完（nowMs-entryT0 > 窗口）且字行滑出视口底
-           且用户向上滚（scrollDir<0）——即真正离开又回来时。 */
+           且用户向上滚（scrollDir<0）——即真正离开又回来时。
+           第一百五十九批：登场判定改用真实 e —— eEff（lerp 慢值）已移除，真实 e
+           无滞后，常驻循环（zone 内每帧跑 update）保证触发不丢帧。 */
         var entryWinMs = n * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS;
         var entryDone = !entryStarted || (nowMs - entryT0 >= entryWinMs);
         if (entryStarted && entryDone && scrollDir < 0 && hb - sy > vh * 0.52) { entryStarted = false; }
@@ -1531,11 +1527,18 @@
           if (charO[i] !== cO) { chars[i].style.opacity = cO; charO[i] = cO; }
           /* 分隔符 · 跟左边的字同进退（同一 en/ex），否则字在上浮/滑出时 · 悬在原地，观感断裂 */
           if (i < seps.length) {
-            var sT, sO;
+            /* 第一百五十九批：分隔符 identity/位移统一为 px 值 —— 原 identity 串
+               'translateY(0.2em)' 为 CSS 相对值，浏览器 computed 返回 px 矩阵，
+               写缓存（字符串比对）与 computed 永久不匹配，identity 脱层失效；
+               现在 JS 全部写 px 值，缓存生效、REST 期 transform:none 稳定脱层。
+               基线 px 只量一次（缓存 sepBasePx），滚动中零 getComputedStyle。 */
+            if (sepBasePx < 0) {
+              sepBasePx = parseFloat(getComputedStyle(seps[0]).fontSize) * 0.2;
+            }
             if (Math.abs(offset) < 0.05 && opacity >= 0.999) {
-              sT = 'translateY(0.2em)'; sO = '1';  /* CSS 默认基线位（0.2em）即 identity */
+              sT = 'translateY(' + sepBasePx.toFixed(1) + 'px)'; sO = '1';
             } else {
-              sT = 'translate3d(0, calc(0.2em + ' + offset.toFixed(1) + 'px), 0)';
+              sT = 'translate3d(0, ' + (sepBasePx + offset).toFixed(1) + 'px, 0)';
               sO = opacity.toFixed(2);
             }
             if (sepT[i] !== sT) { seps[i].style.transform = sT; sepT[i] = sT; }
@@ -1544,8 +1547,8 @@
         }
 
         /* 第七十一批：移除 is-resting 悬停 / is-revealed halo / 进度条（主人反馈：文字悬浮特效与
-           底部进度条不好看，且应保持纯滑动触发）——保留滚动方向供 maybeSnap 判断 */
-        if (lastSy >= 0 && sy !== lastSy) { scrollDir = sy > lastSy ? 1 : -1; }
+           底部进度条不好看，且应保持纯滑动触发）——滚动方向簿记已上移（lerp 段后），
+           maybeSnap 判断更及时（离屏快路径 return 前也能拿到方向） */
 
         /* 眉标 + 副标题：五字播完后 TAIL_DELAY 接上（时间驱动）；滑出仍最后走（p 尾段）；
            离场（向上）同 leave 淡出+下沉 */
@@ -1574,38 +1577,59 @@
           if (tailO.sub !== tO) { sub.style.opacity = tO; tailO.sub = tO; }
         }
 
-        /* 时间动画播放中 → 持续 rAF（否则停在非滚动状态时播放会冻结） */
+        /* 时间动画播放中 → 续帧（否则停在非滚动状态时播放会冻结）
+           第一百五十九批：改由常驻循环驱动 —— 标记 replayFrames 续帧 ~60 帧，
+           循环尾 pickup 收走，update 内不再自发 rAF */
         if (entryStarted && nowMs - entryT0 < n * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS + 80) {
-          ticking = true;
-          requestAnimationFrame(update);
+          replayFrames = 60;
         }
       }
       function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
-      /* 滚动停止（含惯性结束）150ms → 启动短 rAF 收敛循环（防瞬跳/键盘冻结），
-         收敛到稳定态后由 settling 分支触发吸附（字随 lerp 平滑到位，非冻结） */
+      /* 第一百五十九批：滚动停止即直接吸附 —— scrollend（浏览器原生时机，Safari 16.4+/
+         Chrome 114+）触发 onIdle；不支持则 idleTimer 150ms 兜底（onScroll 内 clear+
+         重排）。旧版先 settling 收敛再吸附已删（pEff lerp 帧率无关 + 常驻循环每帧
+         跟进，吸附起步时 pEff 已贴近 p，settling 循环多余）。 */
+      var idleTimer = null;
+      /* 第一百六十批：wheel 平滑器在滚动惯性结束后会再发一两个 scroll 事件 → 若
+         scrollend 未触发（部分浏览器 onIdle 空转）、onIdle 在吸附补间中途被拉起，
+         会用旧 scrollDir 再开一段冲突吸附。补间结束（done 清 snapGuard）后 300ms
+         内忽略 idle 吸附，防"刚停稳又弹"的残余回弹。 */
+      var snapGuard = false;
       function onIdle() {
-        settling = true;
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(update);
+        if (snapping || snapGuard) return;
+        var sy = window.scrollY || window.pageYOffset;
+        var ps = pinScroll(), hb = heroBottomY();
+        if (sy > hb - 100 && sy < hb + ps + 100) {
+          maybeSnap(Math.min(1, Math.max(0, (sy - hb) / ps)));
+        }
+      }
+      if ('onscrollend' in window) {
+        window.addEventListener('scrollend', onIdle);
       }
 
       /* 停在坏位置（滑出中段，五字半残）→ 平滑吸附回全显（p<0.6）或滑到底 */
       function maybeSnap(p) {
         var now = Date.now();
         if (snapping || now - lastSnap < 1000) return;
+        /* 第一百六十批：可吸附区间放宽 —— 旧 MARGIN_START=0.3 会把下滑停在
+           0.3~0.5 之间的用户当"坏位置"弹回驻留。现在下滑按方向直通到底，
+           只需防真正想停驻留/到底的边界误吸，故仅剔除驻留区（p≤MARGIN_START）
+           与底区（p≥0.925），中段下滑不再被拉回。 */
         if (p <= MARGIN_START) return;                /* 驻留区：五字全显，不动 */
         if (p >= 1 - MARGIN_END * 0.5) return;        /* ≥0.925：接近结束，不动 */
         lastSnap = now;
         snapping = true;
         var hbY = heroBottomY(), psV = pinScroll();
-        /* 第七十批：滚动方向决定吸附意图
-           - scrollDir === -1（向上滚）→ 始终回到驻留（用户想回去看五字）
-           - scrollDir === 1 且过半（p > 0.55）→ 滑到底（用户已深入，惯性继续）
-           - scrollDir === 1 且未过半 → 回驻留（用户只是试探，应回到五字完整态）
-           - scrollDir === 0（静止）→ 回驻留（默认安全方向） */
-        var goDown = (scrollDir === 1) && (p > 0.55);
+        /* 第一百六十批（2026-08-24 主人"滑动时会弹回去"）：
+           吸附方向改为完全跟随最近滚动方向 —— 旧逻辑"下滑未过半回驻留"会把刚
+           下滑一点想看后续的用户强制弹回顶部（弹回 bug 主因）。
+           现在：上滑 → 回驻留（用户想看五字）；下滑 → 继续到底（不反向弹回）；
+           静止（键盘/跳转）→ 过半到底，否则回驻留。 */
+        var goDown;
+        if (scrollDir === -1) goDown = false;
+        else if (scrollDir === 1) goDown = true;
+        else goDown = p > 0.5;
         var target = goDown ? (hbY + psV) : hbY;
         /* 整体速度统一（第六十五批）：回弹时长 ∝ 距离/常速（~1600px/s，与滑出节奏同频），
            不再固定 0.55s——短距离快速到位、长距离从容不赶；
@@ -1613,17 +1637,21 @@
         var curY = window.scrollY || window.pageYOffset;
         var dist = Math.abs(target - curY);
         var dur = Math.max(0.25, Math.min(0.7, dist / 1600));
-        /* 第一百三十八批：吸附前取消进行中的 wheel 平滑插值（避免两套滚动打架） */
+        /* 第一百三十八批：吸附前取消进行中的 wheel 平滑插值（避免两套滚动打架）。
+           第一百六十批：补间期间持续锁住 wheel 平滑（防止补间过程中用户惯性
+           尾流或新 wheel 事件重锚定 target 与补间打架 → 弹回），补间结束放行。 */
         if (window.__wheelPause) window.__wheelPause();
         /* 第一百三十七批：Lenis 移除 —— 自研 rAF 补间吸附（duration + easeInOut
            可控，维持原 Lenis scrollTo 的吸附质感；原生 scrollTo smooth 无时长控制） */
         smoothScrollTo(target, dur);
+        snapGuard = true;
         function done() {
           snapping = false;
+          /* 补间结束：清吸附锁，300ms 内不响应 idle 吸附（防惯性尾流二次弹回） */
+          snapGuard = false;
+          setTimeout(function () { snapGuard = true; }, 300);
           /* 吸附结束后对齐一次显示进度，避免 lerp 残留偏移 */
-          if (ticking) return;
-          ticking = true;
-          requestAnimationFrame(update);
+          frameNeeded = true;
         }
         if ('onscrollend' in window) {
           window.addEventListener('scrollend', done, { once: true });
@@ -1632,15 +1660,41 @@
         }
       }
 
+      /* 第一百五十九批：常驻单 rAF 循环 —— scroll/wheel/resize 只改 dirty 标志，
+         循环每帧 pickup 收走脏帧并跑 update。update 帧率 = 显示屏帧率（不再被
+         scroll 事件频率拖累），桌面滚轮/触摸板双平滑（wheel lerp + pEff lerp）
+         每帧跟进消拖尾，移动端原生惯性滚动每帧同步。zone 外（且无入场动画
+         待播）只清 dirty 直接返回，零渲染开销；入场动画期间 replayFrames>0
+         保证 zone 内持续每帧更新（否则停在非滚动状态时播放会冻结）。 */
+      var dirty = true;
+      var frameNeeded = false;
+      var replayFrames = 0;
+      var rafDt = 0;
+
+      function loop(now) {
+        requestAnimationFrame(loop);
+        var sy = window.scrollY || window.pageYOffset;
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var hb = heroBottomY();
+        var ps = pinScroll();
+        var zone = sy > hb - vh * 0.8 - 400 && sy < hb + ps + 400;
+        var need = dirty || frameNeeded || replayFrames > 0;
+        if (replayFrames > 0) replayFrames--;
+        frameNeeded = false;
+        if (!need) return;
+        if (!zone) { dirty = false; return; }
+        rafDt = (now - (loop.last || now)) / 1000;   /* ms → s，update 当秒用 */
+        loop.last = now;
+        update();
+      }
+
       function onScroll() {
-        /* 吸附回弹期间不重排 idle */
-        if (!snapping) {
+        dirty = true;
+        /* 无 scrollend 的浏览器（旧 Safari/Firefox）：150ms 无 scroll 事件 → 吸附 */
+        if (!('onscrollend' in window) && !snapping) {
           clearTimeout(idleTimer);
           idleTimer = setTimeout(onIdle, 150);
         }
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(update);
       }
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', onScroll);
@@ -1676,10 +1730,11 @@
         } else {
           entryStarted = false;
         }
-        settling = false;
-        update();
+        dirty = true;
       });
-      update();
+
+      /* 启动常驻循环（首帧 dirty=true 会立即渲染一帧修正刷新位置） */
+      requestAnimationFrame(loop);
     })();
 
     /* 第一百三十七批（2026-08-21 主人"背景样式保持不变（若已误改请回退至原版）"）：
