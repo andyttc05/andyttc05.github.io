@@ -1758,10 +1758,18 @@
            刷新落在五屏内（过渡带已滚过）不播屏外空转的入场动画 */
         var psL = pinScroll();
         if (eReal >= 0.12 && syL <= hbL + psL + 1) {
-          /* 刷新位置在字行进入视口之后 → 强制触发 + 重置 entryT0 从头播，
-             保证五字完整登场 */
+          /* 刷新位置在字行进入视口之后 → 强制触发登场。
+             第一百七十一批（2026-08-25 主人"Chrome 在五幕雨和落中间刷新显示异常"）：
+             刷新落在过渡带内（syL > hbL，五字已按 p 滑出）时若 entryT0=now 从头
+             重播入场，en 先归零 → 五字先透明再重播，与 scrub 位置冲突 = 显示异常。
+             此时入场视为已播完（entryT0 前移），五字/眉标/副题纯位置驱动，位置
+             与动画严格一致；刷新在入口前（syL ≤ hbL）保留入场动画。 */
           entryStarted = true;
-          entryT0 = performance.now();
+          if (syL > hbL) {
+            entryT0 = performance.now() - (chars.length * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS);
+          } else {
+            entryT0 = performance.now();
+          }
         } else {
           entryStarted = false;
         }
@@ -1778,3 +1786,49 @@
        背景动画恢复常驻 rAF（原版行为）；canvas 的 pause()/resume() 仅由自身
        visibilitychange（切后台）使用。移动端滚动流畅改由原生滚动 + vslide 引擎
        优化（p 缓存 / touch 禁 blur）承担。 */
+
+    /* === 第一百七十一批：刷新滚动位置统一恢复（跨浏览器一致） ===
+       问题（2026-08-25 主人反馈）：
+       - Safari：在「落眸笑歌触」任意屏 Cmd+R 刷新 → 滚动位置丢回顶部（原生
+         恢复失败，显示 Hero）
+       - Chrome：过渡带中段刷新 → 动画状态与位置错位（已由上面 load 兜底修复）
+       方案：JS 接管滚动恢复 ——
+       - 滚动节流（300ms）+ pagehide（刷新前必触发）把 scrollY 存入 sessionStorage
+       - 刷新后 loader 解锁（pageReady，此时 html.page-loading 的 overflow 已移除、
+         可滚动）→ 检测原生恢复是否生效；失效则 scrollTo 恢复
+       - load + 600ms 兜底（loader 异常未派发 pageReady 时）
+       scrollTo 触发 scroll 事件 → 过渡带/vslide 引擎自然同步，无需额外处理。 */
+    (function () {
+      var KEY = 'rm-scroll-restore';
+      var timer = null;
+
+      function save() {
+        try { sessionStorage.setItem(KEY, String(window.scrollY || 0)); } catch (e) {}
+      }
+
+      /* 滚动停止 300ms 后记录（高频滚动只存最后一次） */
+      window.addEventListener('scroll', function () {
+        if (timer) return;
+        timer = setTimeout(function () { timer = null; save(); }, 300);
+      }, { passive: true });
+
+      /* 刷新/离开页面前必触发 → 保存最新位置 */
+      window.addEventListener('pagehide', save);
+
+      function restore() {
+        try {
+          var saved = parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0;
+          if (saved <= 0) return;
+          var max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
+          if (saved > max) saved = Math.max(0, max);
+          var sy = window.scrollY || 0;
+          if (Math.abs(sy - saved) < 50) return; /* 原生恢复已生效，幂等跳过 */
+          window.scrollTo(0, saved);
+        } catch (e) {}
+      }
+
+      /* loader 解锁滚动后恢复（pageReady 派发时 page-loading 已移除） */
+      document.addEventListener('pageReady', function () { setTimeout(restore, 0); });
+      /* 兜底：loader 异常未派发 pageReady → load + 600ms 再试 */
+      window.addEventListener('load', function () { setTimeout(restore, 600); });
+    })();
