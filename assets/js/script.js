@@ -1828,16 +1828,19 @@
        visibilitychange（切后台）使用。移动端滚动流畅改由原生滚动 + vslide 引擎
        优化（p 缓存 / touch 禁 blur）承担。 */
 
-    /* === 第一百七十一批：刷新滚动位置统一恢复（跨浏览器一致） ===
-       问题（2026-08-25 主人反馈，batch-175 反转）：
+    /* === 第一百七十一批（batch-175 反转）/ 第一百七十七批：刷新回正面 + logo 刷新 ===
+       问题（2026-08-25 主人反馈，batch-175/177）：
        - 原 batch-171/172 实现"刷新恢复滚动位置"（当时 Safari 丢位置被当 bug）。
-       - 主人明确新语义：刷新 = 重新开始 = 回到页面正面（顶部），不能停留在
-         页面中间（方便调试检查）。且点击 rain.meow logo 要回到 Hero 页。
+       - 主人明确语义：刷新 = 重新开始 = 回到页面正面（顶部），不能停留在中间；
+         点击 rain.meow logo = 刷新界面（回正面 + 全部状态重置）。
        方案：
        - history.scrollRestoration = 'manual' —— 禁用浏览器原生恢复（否则刷新
          会停留中间）
-       - reload 后滚回顶部（pageReady 解锁 + load 兜底）
-       - .nav-brand 点击：首页内 → 平滑回顶（不整页重载）；其他页 → 正常跳转首页 */
+       - reload 后滚回顶部（pageReady 解锁 + load 兜底；manual 下 scrollY 本为 0，
+         此处是浏览器忽略 manual 时的兜底）
+       - .nav-brand 点击（第一百七十七批）：首页内 → location.reload() 完整刷新
+         （触发 loader + hero 入场重播，状态全新，配合上面回顶逻辑停在正面）；
+         子页（about 等）→ 走默认 href 跳转首页（同样整页加载回正面） */
     (function () {
       /* 禁用原生滚动恢复：刷新后浏览器不恢复旧位置 → 天然停在顶部 */
       try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
@@ -1857,17 +1860,18 @@
         window.addEventListener('load', function () { setTimeout(toTop, 100); });
       }
 
-      /* rain.meow logo 回 Hero（第一百七十五批）：
-         href="index.html" 整页重载在首页内会停留中间（浏览器恢复位置）。
-         改为拦截：首页内 → 平滑回顶；其他页 → 正常跳转首页 */
+      /* rain.meow logo = 刷新界面（第一百七十七批）：
+         href="index.html" 整页重载在首页内会被浏览器恢复位置停留在中间。
+         改为拦截：首页内 → location.reload()（完整刷新，回正面 + 状态重置，
+         与 Cmd+R 行为一致）；子页 → 走默认 href 跳转首页（同样回正面）。 */
       var brand = document.querySelector('.nav-brand');
       if (brand) {
         brand.addEventListener('click', function (e) {
           var isIndex = location.pathname === '/' ||
             location.pathname.toLowerCase().endsWith('/index.html');
-          if (!isIndex) return; /* 非首页 → 走默认 href 跳转 */
+          if (!isIndex) return; /* 子页 → 走默认 href 跳转 */
           e.preventDefault();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          location.reload();
         });
       }
     })();
