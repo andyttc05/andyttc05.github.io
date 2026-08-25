@@ -65,8 +65,12 @@
       var x = off * (W + G);
       var rot = -off * 60; /* 左卡 +60°（右缘朝前）/ 右卡 -60° —— 消失点纵深 */
       var sc = off === 0 ? 1 : 0.85;
+      /* 第一百八十一批（主人"左右内容渐入渐出"）：非活动卡随 |off| 渐隐
+         （off=0→1 / ±1→0.55 / ±2→0.3 / ±3→0.17），配合容器 overflow 裁剪 */
+      var op = off === 0 ? 1 : Math.pow(0.55, Math.abs(off));
       cards[i].style.transform =
         'translateX(' + x + 'px) rotateY(' + rot + 'deg) scale(' + sc + ')';
+      cards[i].style.opacity = op.toFixed(2);
       cards[i].classList.toggle('is-active', off === 0);
     }
     var dots = dotsWrap.querySelectorAll('.skewed-dot');

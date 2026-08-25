@@ -41,7 +41,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=3">
-<link rel="stylesheet" href="../assets/css/style.css?v=273">
+<link rel="stylesheet" href="../assets/css/style.css?v=274">
 </head>
 <body>
 
@@ -165,9 +165,11 @@
     <section class="about-bento" id="projects-intro" aria-label="项目列表">
       <div class="skewed-carousel" id="skewedCarousel" aria-label="项目轮播">
         <div class="skewed-strip"></div>
-        <button class="skewed-arrow prev" aria-label="上一个项目">&#8249;</button>
-        <button class="skewed-arrow next" aria-label="下一个项目">&#8250;</button>
-        <div class="skewed-dots"></div>
+        <div class="skewed-controls">
+          <button class="skewed-arrow prev" aria-label="上一个项目">&#8249;</button>
+          <div class="skewed-dots"></div>
+          <button class="skewed-arrow next" aria-label="下一个项目">&#8250;</button>
+        </div>
       </div>
     </section>
   </main>
@@ -189,6 +191,6 @@
   <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=135" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=1" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=2" defer></script>
 </body>
 </html>

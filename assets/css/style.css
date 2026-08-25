@@ -3041,7 +3041,7 @@
      - 交互：左右按钮 / 底部圆点 / 拖拽 / 键盘 ← →。
      与 about 页 .about-bento 同宽容器，移动端卡片宽自动收窄。 */
   .skewed-carousel {
-    --sc-card-w: 200px;
+    --sc-card-w: 230px;
     --sc-gap: 28px;
     --sc-rot: 60deg;
     --sc-scale: 0.85;
@@ -3050,15 +3050,18 @@
     margin: 0 auto;
     padding-block: clamp(28px, 5vh, 56px);
     perspective: 800px;
+    /* 第一百八十一批（主人"左右内容不能超过页面 max width"）：溢出裁剪 ——
+       两侧远卡超出容器部分不可见，与渐隐 opacity 配合形成干净的渐入渐出 */
+    overflow: hidden;
     touch-action: pan-y; /* 横向拖拽由 JS 接管，纵向滚动留给页面 */
     user-select: none;
   }
   @media (max-width: 768px) {
-    .skewed-carousel { --sc-card-w: 150px; --sc-gap: 18px; }
+    .skewed-carousel { --sc-card-w: 170px; --sc-gap: 18px; }
   }
   .skewed-strip {
     position: relative;
-    height: calc(var(--sc-card-w) * 4 / 3 + 46px); /* 卡片 3:4 + 下方标题行 */
+    height: calc(var(--sc-card-w) * 4 / 3 + 40px); /* 卡片 3:4 + 底部呼吸 */
   }
   .skewed-card {
     position: absolute;
@@ -3073,7 +3076,7 @@
     background: var(--color-alt);
     border: 1px solid var(--color-rule);
     box-shadow: 0 10px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
-    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
     transform-style: preserve-3d;
     will-change: transform;
     cursor: grab;
@@ -3119,33 +3122,35 @@
     opacity: 0.85;
     transition: filter 0.4s ease, opacity 0.4s ease;
   }
-  /* 左右按钮 */
+  /* 底部控制行（第一百八十一批 主人"箭头放在底部位置"）：
+     箭头与圆点同一行居中 —— [‹] ● ● ● ● [›] */
+  .skewed-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 22px;
+  }
   .skewed-arrow {
-    position: absolute;
-    top: 40%;
-    transform: translateY(-50%);
     z-index: 3;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     border: 1px solid var(--color-rule);
     background: color-mix(in srgb, var(--color-paper) 80%, transparent);
     color: var(--color-ink);
-    font-size: 18px;
+    font-size: 17px;
     line-height: 1;
     cursor: pointer;
     transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   }
   .skewed-arrow:hover { background: var(--color-accent); border-color: var(--color-accent); color: #ffffff; }
-  .skewed-arrow:active { transform: translateY(-50%) scale(0.94); }
-  .skewed-arrow.prev { left: 4px; }
-  .skewed-arrow.next { right: 4px; }
-  /* 底部圆点 */
+  .skewed-arrow:active { transform: scale(0.94); }
+  /* 底部圆点（在控制行内，不再独立 margin） */
   .skewed-dots {
     display: flex;
     justify-content: center;
     gap: 8px;
-    margin-top: 18px;
   }
   .skewed-dot {
     width: 7px;
