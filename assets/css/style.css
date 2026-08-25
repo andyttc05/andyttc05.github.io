@@ -1373,9 +1373,11 @@
      背景透明：露出全屏 canvas 粒子背景（canvas-nest / ribbons）。
      排版：eyebrow 呼应 hero 的 WELCOME TO 模式（mono + accent 短线），
      五字 Serif 加大为视觉主角，副文案小号收尾——三行层级靠字号与留白。 */
-  /* story-pin 是独立 section,加 contain 防止 sticky 字滑出影响其他区域 */
+  /* story-pin 独立 section。曾加 contain: layout paint 做重排隔离，但 WebKit 已知 bug：
+     contain 容器内的 position:sticky 在 Safari 不生效 → 过渡带不钉住，五字未滑完直接滚到「落」屏
+     （Chrome 正常）。JS 只写 transform/opacity（合成层属性，不触发重排），移除 contain 无性能代价。
+     第一百六十七批（2026-08-25）：移除 contain，修复 Safari 过渡带提前到落。 */
   .story-pin {
-    contain: layout paint;
     position: relative;
     /* 100vh 可视区 + 滚动动画区（--pin-scroll，JS 同步读取同一变量）。
        2000px = 全显驻留 600px（停留观看）+ 五字滑出 1100px（每字 220px）+ 眉标/副题 300px */
@@ -1520,9 +1522,9 @@
      字体:巨字 IBM Plex Serif / 副文案 IBM Plex Sans / 章节号 IBM Plex Mono。
      章节号(01-05)参与滚动 scrub 自上滑入/上滑出(与巨字同拍)。
      移动端:单列堆叠 + 短行程(--pin-ext 移动 80vh)。 */
-  /* vs-slides 5 屏是大块,加 contain 让 sticky 屏变化不影响其他屏 */
+  /* vs-slides 5 屏。同第一百六十七批：contain 会让 Safari 上内部 .vslide sticky 失效，
+     已移除（.story-pin 同款修复，保证 Safari 5 屏钉住也正常）。 */
   .vs-slides {
-    contain: layout paint style;
     position: relative;
     --nav-h: 80px; /* 桌面 nav 高度(nav-inner height clamp 上限),给 .vslide sticky 让位 */
     /* 每屏滚动行程:222.2vh(2026-08-19 精确达标版,原 220vh)——Apple 风格 scrollytelling 标准:
