@@ -291,6 +291,15 @@
       box-shadow 0.3s ease,
       backdrop-filter 0.3s ease;
   }
+  /* 第一百六十九批（2026-08-25 主人"切换黑夜模式导航栏闪烁"）：
+     主题切换瞬间（script.js applyTheme 加 .theme-switching，双 rAF 后移除）——
+     页面背景瞬变而 nav 半透明背景渐变 0.3s → 中间帧灰蓝发闪；
+     backdrop-filter 的 GPU 采样重建滞后也闪。切换期间禁两者，nav 与背景同步瞬切，
+     结束后恢复，第一百五十一批的滚动状态平滑过渡不受影响。 */
+  html.theme-switching .nav {
+    transition: none;
+    backdrop-filter: none;
+  }
   /* 滚动后：背景保持半透明，启用毛玻璃（此时 nav 下方真有内容值得模糊）；
      用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
   .nav.scrolled {
