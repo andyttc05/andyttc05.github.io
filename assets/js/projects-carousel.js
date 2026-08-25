@@ -66,9 +66,10 @@
       var x = off * (W + G);
       var rot = -off * ROT; /* 左卡 +ROT°（右缘朝前）/ 右卡 -ROT° —— 消失点纵深 */
       var sc = off === 0 ? 1 : 0.85;
-      /* 第一百八十一批（主人"左右内容渐入渐出"）：非活动卡随 |off| 渐隐
-         （off=0→1 / ±1→0.55 / ±2→0.3 / ±3→0.17），配合容器 overflow 裁剪 */
-      var op = off === 0 ? 1 : Math.pow(0.55, Math.abs(off));
+      /* 第一百八十三批（主人"最边边卡片被切割"）：±2 以内渐隐（1/0.55/0.3），
+         ±3 及更远 opacity 归零 —— 不再在容器边缘露出 90° 侧边/切割线，
+         与 mask 遮罩配合两侧平滑淡出 */
+      var op = Math.abs(off) > 2 ? 0 : (off === 0 ? 1 : Math.pow(0.55, Math.abs(off)));
       cards[i].style.transform =
         'translateX(' + x + 'px) rotateY(' + rot + 'deg) scale(' + sc + ')';
       cards[i].style.opacity = op.toFixed(2);

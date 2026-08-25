@@ -3057,9 +3057,11 @@
     padding-right: 16px;
     padding-block: clamp(28px, 5vh, 56px);
     perspective: 800px;
-    /* 第一百八十一批（主人"左右内容不能超过页面 max width"）：溢出裁剪 ——
-       两侧远卡超出容器部分不可见，与渐隐 opacity 配合形成干净的渐入渐出 */
-    overflow: hidden;
+    /* 第一百八十三批（主人"最边边卡片被切割"）：overflow:hidden 会把最外侧可见卡
+       （±2 卡右缘超容器 31px）硬切出截面 —— 改用 mask 渐变遮罩，左右边缘平滑淡出，
+       无硬切；±3+ 卡由 JS opacity 归零 + mask 尾部淡出自然消失。 */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%);
     touch-action: pan-y; /* 横向拖拽由 JS 接管，纵向滚动留给页面 */
     user-select: none;
   }
@@ -3125,12 +3127,8 @@
     opacity: 0.85;
     font-family: var(--font-body);
   }
-  /* 非活动卡标题模糊（React Bits Title Blur 同款）—— 卡片本身清晰，标题失焦 */
-  .skewed-card:not(.is-active) .skewed-card-title {
-    filter: blur(2px);
-    opacity: 0.85;
-    transition: filter 0.4s ease, opacity 0.4s ease;
-  }
+  /* 第一百八十三批（主人"背后卡片模糊效果奇怪"）：移除标题 blur ——
+     旋转+渐隐下 2px 模糊显糊；景深交给 opacity 渐隐 + mask 遮罩即可，干净 */
   /* 底部控制行（第一百八十一批 主人"箭头放在底部位置"）：
      箭头与圆点同一行居中 —— [‹] ● ● ● ● [›] */
   .skewed-controls {
