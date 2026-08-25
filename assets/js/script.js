@@ -1560,14 +1560,23 @@
         }
         lastSy = sy;
         if (first) { pEff = p; first = false; }
-        var k = Math.max(0.12, Math.min(0.3, 0.3 - vel / 6000)); /* 第一百五十九批：快滚更跟手，消双重平滑拖尾 */
-        var kf = 1 - Math.pow(1 - k, Math.min(3, dt * 60));
-        pEff += (p - pEff) * kf;
+        /* 第一百七十六批（2026-08-25 主人"过渡带和落之间来回滑动动画奇怪"）：
+           pEff lerp 平滑跟随移除 —— 滞后造成同一 scrollY 位置的字状态随滚动方向
+           不同（一深一浅/相位差），来回滑动观感不对称。直接位置驱动（pEff=p）
+           与 vslide 引擎（落眸笑歌触直接 p）统一，任何方向滑动严格对称跟手。
+           代价：失去惯性拖尾（滚动跟手，位置与滚动同步）。vel/k/kf 为死计算。 */
+        pEff = p;
 
-        if (Math.abs(p - pEff) < 0.002) pEff = p;
-
-        /* 滚动方向簿记（entryStarted 重置判定用） */
-        if (lastSy >= 0 && sy !== lastSy) { scrollDir = sy > lastSy ? 1 : -1; }
+        /* 滚动方向簿记（entryStarted 重置判定用）。
+           第一百七十六批（2026-08-25 主人"过渡带和落之间来回滑动动画奇怪"）：
+           pEff lerp 平滑跟随在方向反转时滞后于 p → 同一 scrollY 位置的字状态
+           随方向不同（一深一浅/相位差），来回滑动观感不对称。方向反转瞬间
+           pEff 立即对齐 p（下一帧从真实位置继续），单向滚动丝滑不受影响。 */
+        if (lastSy >= 0 && sy !== lastSy) {
+          var nd = sy > lastSy ? 1 : -1;
+          if (scrollDir !== 0 && scrollDir !== nd) { pEff = p; }
+          scrollDir = nd;
+        }
 
         /* 第一百五十八批（2026-08-24 主人"手机版五幕雨滑动流畅"）：
            离屏快路径 —— 过渡带已完全滚出视口顶部（sy > hb+ps）且入场动画已播完，
@@ -1596,7 +1605,20 @@
            （sy > hb+ps，过渡带已整体在视口上方）时 eEff 仍会爬过 0.12，触发登场
            rAF 在屏外空转 ~2s，与五屏 scrub 抢主线程；现在只有过渡带仍与视口
            相交（sy ≤ hb+ps）才触发登场。 */
-        if (!entryStarted && e >= 0.12 && sy <= hb + ps + 1) { entryStarted = true; entryT0 = nowMs; }
+        if (!entryStarted && e >= 0.12 && sy <= hb + ps + 1) {
+          entryStarted = true;
+          /* 第一百七十六批（2026-08-25 主人"过渡带和落之间来回滑动动画奇怪"）：
+             从下方（落眸笑歌触）向上滚回过渡带时（sy > hb，字行在视口上方之外），
+             若从头重播入场（entryT0=now），en 时间驱动 5.4s 与滚动位置脱节 →
+             字不受滚动控制"自己淡入"，来回滑动观感奇怪。此时入场视为已播完
+             （entryT0 前移），字纯位置驱动，与向下滚出严格对称。
+             仅从 Hero 首次进入（sy ≤ hb）播入场动画。 */
+          if (sy > hb) {
+            entryT0 = performance.now() - (n * ENTRY_STAGGER + ENTRY_MS + TAIL_DELAY + TAIL_MS);
+          } else {
+            entryT0 = nowMs;
+          }
+        }
         /* 第一百五十二批：入场动画播放期间（en 未走完）不重置 —— 刷新恢复
            scrollY 时 hb 可能因字体/图片加载短暂波动，若在播放中触发重置，
            en 冻结在中间值 = 五字半透明卡住（用户反馈"过渡带刷新卡住"）。
