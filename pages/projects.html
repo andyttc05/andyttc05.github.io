@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="本猫的项目 — 敲过的代码和做过的东西">
+<meta name="theme-color" content="#f8fafc">
+<title>项目 — rain.meow</title>
+<script>
+  /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+</script>
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+  /* 加载页关键定位（第一百四十五批）：先于 loader.css 就位 —— 首帧即全屏覆盖 + 主题底色 */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
+  }
+  html.theme-dark #pageLoader {
+    background: var(--color-paper, #0f172a);
+    color: var(--color-ink, #e2e8f0);
+  }
+  /* 项目页内容占位（第一百七十八批）：标题/描述定稿后，项目卡片列表待后续批次填充 */
+  .projects-empty {
+    text-align: center;
+    font-family: var(--font-head, 'IBM Plex Serif', serif);
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    color: var(--color-muted);
+    padding-block: clamp(40px, 6vh, 72px);
+  }
+</style>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
+     替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
+     中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
+<link rel="stylesheet" href="../assets/css/fonts.css?v=1">
+<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
+     独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
+<link rel="stylesheet" href="../assets/css/loader.css?v=3">
+<link rel="stylesheet" href="../assets/css/style.css?v=272">
+</head>
+<body>
+
+  <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+       https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
+       三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+       渐进式加载：不再等图片，window load + 字体就绪即放行 —— 图片不阻塞首屏渲染；
+       其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
+       script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
+       noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+  <div id="pageLoader" role="status" aria-label="页面加载中">
+    <div class="page-loader-three" aria-hidden="true">
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+    </div>
+  </div>
+  <noscript><style>#pageLoader{display:none}</style></noscript>
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
+       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
+       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
+
+  <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <a href="#projects-intro" class="skip-link">跳到主要内容</a>
+
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
+      <ul class="nav-links">
+        <li class="nav-hover-indicator" aria-hidden="true"></li>
+        <li><a href="projects.html" aria-current="page">项目</a></li>
+        <li><a href="coming-soon.html">动态</a></li>
+        <li><a href="coming-soon.html">照片</a></li>
+        <li><a href="about.html">关于</a></li>
+      </ul>
+      <div class="nav-actions">
+        <span class="nav-actions-indicator" aria-hidden="true"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+        </button>
+        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="nav-icon-label">EN</span>
+        </a>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
+    <header class="nav-menu-header">
+      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="nav-menu-body">
+      <ul class="nav-menu-links">
+        <li><a href="projects.html" aria-current="page"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="coming-soon.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+      </ul>
+    </div>
+    <footer class="nav-menu-footer">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
+        <span class="nav-menu-action-hit">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabelMobile">Dark</span>
+        </span>
+      </button>
+      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）">
+        <span class="nav-menu-action-hit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span>EN</span>
+        </span>
+      </a>
+    </footer>
+  </nav>
+
+  <main class="about-main">
+    <!-- === 项目页：标题区（第一百七十八批 2026-08-25 主人"设计项目页面的标题和描述，
+         参考关于页面"）===
+         主标题「本猫手作」居中 + accent 高亮（hl 手作），描述一句话 ——
+         与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。 -->
+    <header class="about-hero">
+      <h1 class="about-title" aria-label="本猫手作"><span class="about-title-char">本</span><span class="about-title-char">猫</span><span class="about-title-char hl">手</span><span class="about-title-char hl">作</span></h1>
+      <p class="about-hero-desc">敲过的代码、做出来的东西，都堆在这儿，欢迎来逛逛</p>
+    </header>
+
+    <!-- === 项目列表（占位）：具体卡片待后续批次填充 === -->
+    <section class="about-bento" id="projects-intro" aria-label="项目列表">
+      <p class="projects-empty">项目陆续整理中，先把想法一个个敲成真的</p>
+    </section>
+  </main>
+
+  <!-- nav 已解析完，立即设好主题文字 label（与首页同款，同步执行防闪） -->
+  <script>
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    d && (d.textContent = label);
+    m && (m.textContent = label);
+  </script>
+
+  <!-- 全屏动态背景（与 index.html 同款配置）：canvas-nest 粒子 + ribbons 飘带 -->
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
+
+  <script src="../assets/js/loader.js?v=5" defer></script>
+  <script src="../assets/js/script.js?v=135" defer></script>
+</body>
+</html>
