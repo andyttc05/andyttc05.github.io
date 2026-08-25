@@ -25,12 +25,13 @@
 
   var index = 0;
   var cards = [];
-  var W = 200, G = 28; /* 卡片宽 + 间距（读 CSS 变量，resize 重算） */
+  var W = 200, G = 28, ROT = 30; /* 卡片宽/间距/每档旋转角（读 CSS 变量，resize 重算） */
 
   function measure() {
     var cs = getComputedStyle(root);
     W = parseFloat(cs.getPropertyValue('--sc-card-w')) || 200;
     G = parseFloat(cs.getPropertyValue('--sc-gap')) || 28;
+    ROT = parseFloat(cs.getPropertyValue('--sc-rot')) || 30;
   }
 
   function render() {
@@ -63,7 +64,7 @@
     for (var i = 0; i < cards.length; i++) {
       var off = i - index;
       var x = off * (W + G);
-      var rot = -off * 60; /* 左卡 +60°（右缘朝前）/ 右卡 -60° —— 消失点纵深 */
+      var rot = -off * ROT; /* 左卡 +ROT°（右缘朝前）/ 右卡 -ROT° —— 消失点纵深 */
       var sc = off === 0 ? 1 : 0.85;
       /* 第一百八十一批（主人"左右内容渐入渐出"）：非活动卡随 |off| 渐隐
          （off=0→1 / ±1→0.55 / ±2→0.3 / ±3→0.17），配合容器 overflow 裁剪 */

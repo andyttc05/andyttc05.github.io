@@ -3043,11 +3043,18 @@
   .skewed-carousel {
     --sc-card-w: 230px;
     --sc-gap: 28px;
-    --sc-rot: 60deg;
+    --sc-rot: 30deg;
     --sc-scale: 0.85;
     position: relative;
-    max-width: 880px;
-    margin: 0 auto;
+    /* 第一百八十二批（主人"卡片区域长度和页面 max-width 对齐，参考导航栏"）：
+       nav-inner / about-main 均为 1200px。about-main 有 16px 左右 padding 会吃窄内容区，
+       用负 margin + 加宽 max-width 补偿 → 轮播内容宽 = 1200px 与导航栏内容严格对齐。 */
+    max-width: calc(1200px + 32px);
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
     padding-block: clamp(28px, 5vh, 56px);
     perspective: 800px;
     /* 第一百八十一批（主人"左右内容不能超过页面 max width"）：溢出裁剪 ——
@@ -3078,6 +3085,8 @@
     box-shadow: 0 10px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
     transform-style: preserve-3d;
+    /* 注：preserve-3d 下 backface-visibility 不生效（组内元素无法独立藏背面）——
+       90°+ 卡片靠容器 overflow 裁剪 + opacity 渐隐自然消失，无需 backface */
     will-change: transform;
     cursor: grab;
   }
