@@ -3115,12 +3115,14 @@
     );
     transition: opacity 0.4s ease;
   }
-  /* 第一百八十八批（主人"调回原版默认"）：原版 Title Blur —— 非活动卡标题
-     模糊 2px（文字恢复显示，撤销第一百八十四/一百八十五批的隐藏规则） */
-  .skewed-card:not(.is-active) .skewed-card-title {
-    filter: blur(2px);
-    opacity: 0.85;
-    transition: filter 0.4s ease, opacity 0.4s ease;
+  /* 第一百八十九批（主人"只有中间卡片才显示字体，背后卡片不要显示字体"）：
+     撤销第一百八十八批的 Title Blur —— 文字整体隐藏（包括标题 + 描述 + 编号），
+     只留 accent 渐变色块（批量保留视觉差）。背景色块保留不动（第一百八十五批）。 */
+  .skewed-card:not(.is-active) .skewed-card-no,
+  .skewed-card:not(.is-active) .skewed-card-title,
+  .skewed-card:not(.is-active) .skewed-card-desc {
+    opacity: 0;
+    transition: opacity 0.4s ease;
   }
   .skewed-card-no {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
