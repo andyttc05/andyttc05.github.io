@@ -1807,65 +1807,45 @@
        优化（p 缓存 / touch 禁 blur）承担。 */
 
     /* === 第一百七十一批：刷新滚动位置统一恢复（跨浏览器一致） ===
-       问题（2026-08-25 主人反馈，batch-172 升级）：
-       - Safari：在「落眸笑歌触」任意屏 Cmd+R 刷新 → 滚动位置丢回顶部（原生恢复
-         失败/被覆盖，显示 Hero）—— headless 无法复现，只能接管
-       - Chrome：过渡带中段刷新 → 动画状态与位置错位（load 兜底已修）
-       方案（batch-172 改为完全接管，不依赖原生恢复与单次时机）：
-       - history.scrollRestoration = 'manual' —— 禁用浏览器原生恢复，杜绝
-         Safari 的失败/晚到覆盖（恢复源只有一个：我们）
-       - 滚动节流（100ms）+ pagehide（刷新前必触发）把 scrollY 存入 sessionStorage
-       - 恢复时机多次尝试：pageReady（loader 解锁，overflow 已移除）→ load+300ms
-         → 每 300ms 轮询直到成功（布局/字体稳定后 scrollHeight 完整，避免 clamp） */
+       问题（2026-08-25 主人反馈，batch-175 反转）：
+       - 原 batch-171/172 实现"刷新恢复滚动位置"（当时 Safari 丢位置被当 bug）。
+       - 主人明确新语义：刷新 = 重新开始 = 回到页面正面（顶部），不能停留在
+         页面中间（方便调试检查）。且点击 rain.meow logo 要回到 Hero 页。
+       方案：
+       - history.scrollRestoration = 'manual' —— 禁用浏览器原生恢复（否则刷新
+         会停留中间）
+       - reload 后滚回顶部（pageReady 解锁 + load 兜底）
+       - .nav-brand 点击：首页内 → 平滑回顶（不整页重载）；其他页 → 正常跳转首页 */
     (function () {
-      /* key 按页面路径区分 —— index/about 各自记录，避免跨页污染 */
-      var KEY = 'rm-scroll-restore:' + (location.pathname || '/');
-      var timer = null;
-
-      /* 禁用原生滚动恢复：Safari 在 sticky 长页上原生恢复失败/晚到覆盖
-         （Cmd+R 回 Hero），统一 JS 接管后所有浏览器行为一致 */
+      /* 禁用原生滚动恢复：刷新后浏览器不恢复旧位置 → 天然停在顶部 */
       try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
 
-      function save() {
-        try { sessionStorage.setItem(KEY, String(window.scrollY || 0)); } catch (e) {}
+      /* 仅刷新（reload）回顶；首次导航/后退（bfcache 或 back_forward）不干预 */
+      var navType = 'navigate';
+      try {
+        var navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
+        if (navEntries && navEntries[0]) navType = navEntries[0].type;
+      } catch (e) {}
+
+      if (navType === 'reload') {
+        function toTop() {
+          if ((window.scrollY || 0) > 0) window.scrollTo(0, 0);
+        }
+        document.addEventListener('pageReady', function () { setTimeout(toTop, 0); });
+        window.addEventListener('load', function () { setTimeout(toTop, 100); });
       }
 
-      /* 滚动停止 100ms 后记录（刷新前必然已经存过） */
-      window.addEventListener('scroll', function () {
-        if (timer) return;
-        timer = setTimeout(function () { timer = null; save(); }, 100);
-      }, { passive: true });
-
-      /* 刷新/离开页面前必触发 → 保存最新位置（最后的兜底） */
-      window.addEventListener('pagehide', save);
-
-      var restored = false;
-      function tryRestore() {
-        if (restored) return;
-        try {
-          var saved = parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0;
-          if (saved <= 0) { restored = true; return; }
-          var max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
-          if (saved > max) {
-            if (max < 50) return;    /* 布局未就绪（高度不足），等下一轮轮询 */
-            saved = Math.max(0, max); /* 目标超界，钳到最大滚动 */
-          }
-          var sy = window.scrollY || 0;
-          if (Math.abs(sy - saved) < 50) { restored = true; return; } /* 已到位 */
-          window.scrollTo(0, saved);
-          /* 确认到位后再停（布局可能继续变化，漂移时轮询继续修正） */
-          setTimeout(function () {
-            if (Math.abs((window.scrollY || 0) - saved) < 50) restored = true;
-          }, 200);
-        } catch (e) { restored = true; }
+      /* rain.meow logo 回 Hero（第一百七十五批）：
+         href="index.html" 整页重载在首页内会停留中间（浏览器恢复位置）。
+         改为拦截：首页内 → 平滑回顶；其他页 → 正常跳转首页 */
+      var brand = document.querySelector('.nav-brand');
+      if (brand) {
+        brand.addEventListener('click', function (e) {
+          var isIndex = location.pathname === '/' ||
+            location.pathname.toLowerCase().endsWith('/index.html');
+          if (!isIndex) return; /* 非首页 → 走默认 href 跳转 */
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
       }
-
-      /* 多次尝试：pageReady（loader 解锁）→ load 兜底 → 轮询（布局终态） */
-      document.addEventListener('pageReady', function () { setTimeout(tryRestore, 0); });
-      window.addEventListener('load', function () { setTimeout(tryRestore, 300); });
-      var pollN = 0;
-      var poll = setInterval(function () {
-        tryRestore();
-        if (restored || ++pollN > 10) clearInterval(poll); /* 最多 ~3s */
-      }, 300);
     })();
