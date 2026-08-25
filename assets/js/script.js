@@ -1107,20 +1107,18 @@
          Safari(WebKit) 稳定版 26/27 的 CSS scroll-driven animations 在 sticky 屏上
          animation-range 起点计算有 bug —— 首屏「落」入场 range 起点偏早，第一百
          六十一批的 inShift 延后不生效，过渡带（五幕雨）还没滑完「落」已开始入场。
-         Chrome/Firefox 正常；headless nightly WebKit 正常、Safari 稳定版复现。
-         降级方案：Safari/WebKit 强制走 JS scrub 路径（第一百六十一批 pBase 延后
-         是纯 JS 计算，行为与 Chrome 一致），并注入 style 禁用 CSS scroll-driven
-         动画（浏览器仍支持 scroll(root)，否则 CSS 动画 + JS 引擎双驱动错乱）。
-         其余浏览器保持 CSS 路径（合成器线程，性能优）。UA 检测排除含 Chromium/
-         Edge/Opera 的引擎（其 UA 也带 AppleWebKit 标记）。 */
-      if (cssDriven &&
-          /AppleWebKit/.test(navigator.userAgent) &&
-          !/Chrome|Chromium|Edg|OPR|CriOS|FxiOS/.test(navigator.userAgent)) {
+         第一百七十三批（2026-08-25 主人"不同浏览器显示效果要一致"）：
+         双路径（CSS scroll-driven vs JS scrub）本身就有行为差异（渲染时机、插值
+         细节），Safari 又叠加 range bug —— 彻底统一：全浏览器强制走同一套 JS
+         scrub 引擎（第一百六十一批 pBase 延后 + 第一百七十批 measure 修复都是纯
+         JS 计算，两引擎逐帧一致），并注入 style 禁用 CSS scroll-driven 动画防
+         双驱动。CSS 路径代码（applyRanges 等）保留为死代码，不启用。 */
+      if (cssDriven) {
         cssDriven = false;
-        var safariNoAnim = document.createElement('style');
-        safariNoAnim.textContent =
+        var noScrollAnim = document.createElement('style');
+        noScrollAnim.textContent =
           '.vslide-glyph,.vslide-meta,.vslide-sub,.vslide-poem,.vslide-visual{animation:none!important}';
-        document.head.appendChild(safariNoAnim);
+        document.head.appendChild(noScrollAnim);
       }
       /* 入场错峰区间（占行程比例）：与 setFrame delayMap/winMap 一一对应 */
       var RANGE_IN = {
