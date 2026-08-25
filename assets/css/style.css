@@ -3113,7 +3113,14 @@
     );
     transition: opacity 0.4s ease;
   }
-  .skewed-card:not(.is-active) .skewed-card-inner { opacity: 0; }
+  /* 第一百八十五批（主人"背后卡片要有背景，只是不要显示文字"）：
+     非活动卡保留 accent 渐变背景色块，仅隐藏文字三元素（编号/标题/描述） */
+  .skewed-card:not(.is-active) .skewed-card-no,
+  .skewed-card:not(.is-active) .skewed-card-title,
+  .skewed-card:not(.is-active) .skewed-card-desc {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
   .skewed-card-no {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px;

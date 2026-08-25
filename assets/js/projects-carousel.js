@@ -25,13 +25,14 @@
 
   var index = 0;
   var cards = [];
-  var W = 200, G = 28, ROT = 30; /* 卡片宽/间距/每档旋转角（读 CSS 变量，resize 重算） */
+  var W = 200, G = 28, ROT = 20, SC = 0.92; /* 卡片宽/间距/每档旋转角/非活动缩放（读 CSS 变量，resize 重算） */
 
   function measure() {
     var cs = getComputedStyle(root);
     W = parseFloat(cs.getPropertyValue('--sc-card-w')) || 200;
     G = parseFloat(cs.getPropertyValue('--sc-gap')) || 28;
-    ROT = parseFloat(cs.getPropertyValue('--sc-rot')) || 30;
+    ROT = parseFloat(cs.getPropertyValue('--sc-rot')) || 20;
+    SC = parseFloat(cs.getPropertyValue('--sc-scale')) || 0.92;
   }
 
   function render() {
@@ -61,11 +62,17 @@
 
   function update() {
     measure();
-    for (var i = 0; i < cards.length; i++) {
+    var n = cards.length;
+    for (var i = 0; i < n; i++) {
       var off = i - index;
+      /* 第一百八十五批（主人"卡片左右移动无限循环"）：环形最短距离 ——
+         从 0 → n-1（或反向）时目标卡从相邻侧滑入（off = ±1 而非 ±5），
+         无限循环无瞬跳；两端各有 off=±3 的隐藏卡做缓冲 */
+      if (off > n / 2) off -= n;
+      if (off < -n / 2) off += n;
       var x = off * (W + G);
       var rot = -off * ROT; /* 左卡 +ROT°（右缘朝前）/ 右卡 -ROT° —— 消失点纵深 */
-      var sc = off === 0 ? 1 : 0.85;
+      var sc = off === 0 ? 1 : SC;
       /* 第一百八十三批（主人"最边边卡片被切割"）：±2 以内渐隐（1/0.55/0.3），
          ±3 及更远 opacity 归零 —— 不再在容器边缘露出 90° 侧边/切割线，
          与 mask 遮罩配合两侧平滑淡出 */
@@ -79,14 +86,13 @@
     for (var d = 0; d < dots.length; d++) {
       dots[d].classList.toggle('is-active', d === index);
     }
-    /* 非循环：首/尾禁用方向（视觉降透明） */
-    if (prevBtn) prevBtn.style.opacity = index === 0 ? 0.35 : 1;
-    if (nextBtn) nextBtn.style.opacity = index === cards.length - 1 ? 0.35 : 1;
   }
 
   function go(i) {
-    if (i < 0 || i >= cards.length || i === index) return;
-    index = i;
+    var n = cards.length;
+    if (!n) return;
+    /* 无限循环：越界 wrap（负索引归一化） */
+    index = ((i % n) + n) % n;
     update();
   }
   function next() { go(index + 1); }
