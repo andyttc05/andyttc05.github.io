@@ -44,25 +44,23 @@
     --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
     --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
   }
-  /* OKLCH 升级层 — 第八批 audit 优化：
-     现代浏览器（Chrome 111+/Safari 15.4+/Firefox 113+）走 oklch()，
-     老浏览器 / 无 @supports 环境走上方 hex fallback（行内双语法）。
-     为什么用 OKLCH：
-     1. 感知一致的 lightness/chroma — hex 调暗/调亮时 hue 飘移，
-        OKLCH 的 L/C 三轴独立可控，调色更稳。
-     2. dark/light 主题切换时 hue 268°↔275° 这种微漂移肉眼不可见。
-     3. 未来加新 token 直接对齐 Tailwind v4 OKLCH 色板，无需手算 hex。
+  /* 颜色 token（第一百七十四批 2026-08-25：全站统一 sRGB 色域）
+     原为 OKLCH（Chrome 111+/Safari 15.4+），但 Safari 把未声明色彩空间的颜色
+     映射到 Display P3、Chrome 严格 sRGB → 同一 oklch 值两浏览器观感不同
+     （Safari 更鲜艳/Chrome 更灰），主人要求"不同浏览器显示效果一致"。
+     全部颜色已转为等价 sRGB hex（coloraide 精确转换），两浏览器按同一
+     sRGB 渲染，严格一致。@supports gate 保留（检测语法，无害）。
      注意：--color-paper-rgb / --color-accent-rgb 是给 RGBA 调用用的三元组，
      canvas-nest.js / canvas-ribbons.js / script.js 都通过 getComputedStyle 读它们作为 rgba 参数，
-     这两枚 token 必须继续以 R,G,B 整数形式保留（不能用 OKLCH 替代）。 */
+     这两枚 token 必须继续以 R,G,B 整数形式保留。 */
   @supports (color: oklch(0% 0 0)) {
     :root {
-      --color-ink:     oklch(20.77% 0.040 265.8);   /* slate-900 */
-      --color-paper:   oklch(98.42% 0.003 247.9);   /* slate-50  */
-      --color-accent:  oklch(54.61% 0.215 262.9);   /* blue-600  */
-      --color-muted:   oklch(44.55% 0.037 257.3);   /* slate-600 */
-      --color-rule:    oklch(86.90% 0.020 252.9);   /* slate-300 */
-      --color-alt:     oklch(96.83% 0.007 247.9);   /* slate-100 */
+      --color-ink:     #0f172a;   /* slate-900 */
+      --color-paper:   #f8fafc;   /* slate-50  */
+      --color-accent:  #2563eb;   /* blue-600  */
+      --color-muted:   #475569;   /* slate-600 */
+      --color-rule:    #cbd5e1;   /* slate-300 */
+      --color-alt:     #f1f5f9;   /* slate-100 */
       /* 新拟态 oklch 版：第五十七批全系蓝调——面 = 蓝白(比纸底蓝一档)，
          暗影 = 蓝灰，浅底上高光隐入背景、暗影定深浅；b1/b2 两级蓝分层。
          第五十八批：暗影 alpha 0.55-0.6（light）/ 0.7-0.85（dark）收敛减重。
@@ -70,12 +68,12 @@
          "冷↔冷偏紫"色彩感，避免单调同 hue。
          第六十二批：年轻活力化 —— 蓝系整体提鲜（chroma 上调），新增珊瑚橙 --neu-coral
          做 5-10% 暖色点缀（chip hover 名），主蓝 + 珊瑚橙 = 标准活力配方 */
-      --neu-b1-surface:      oklch(100% 0 0);  /* 统一卡片色：纯白（第七十二批） */
+      --neu-b1-surface:      #ffffff;  /* 统一卡片色：纯白（第七十二批） */
       /* 第六十一批：标题字体 token —— Baloo 2（圆润可爱）+ Noto Sans SC fallback（中文兜底）。
          第六十六批：回归 IBM Plex 系列（主人钟意主页原字体）—— head=Serif / body=Sans */
       --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
       --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
-      --hero-greet:    oklch(62.31% 0.188 259.8);   /* blue-500 sub-accent */
+      --hero-greet:    #3b82f6;   /* blue-500 sub-accent */
       /* 5 段色调 OKLCH（2026-08-19 优化）：L/C/h 三轴独立可控,
          落 18% 最沉 / 眸 54% 沉 / 笑 63% 亮 / 歌 58% 中 / 触 64% 亮 ——
          L 节奏:沉-中-亮,跨 27-63%(原 36-52% 太密);
@@ -83,34 +81,34 @@
       /* 5 段色调 OKLCH(2026-08-19 第二轮：拉宽 L 节奏,落不再接近黑):
          L 阶梯 27→48→60→60→63 = 落最暗 / 眸沉 / 笑亮 / 歌中 / 触亮
          hue 200°→230°→263°→282°→285° = 85° 跨度 */
-      --glyph-fall:    oklch(27.00% 0.130 282.0);   /* 落 — indigo-900 深紫蓝 */
-      --glyph-focus:   oklch(48.00% 0.200 263.0);   /* 眸 — blue-700   海蓝 */
-      --glyph-bloom:   oklch(63.00% 0.150 230.0);   /* 笑 — sky-500    晴朗天蓝 */
-      --glyph-swing:   oklch(60.00% 0.180 285.0);   /* 歌 — violet-500 紫罗兰 */
-      --glyph-reach:   oklch(60.00% 0.130 200.0);   /* 触 — cyan-600   清透青蓝 */
+      --glyph-fall:    #221362;   /* 落 — indigo-900 深紫蓝 */
+      --glyph-focus:   #1950cc;   /* 眸 — blue-700   海蓝 */
+      --glyph-bloom:   #0096c6;   /* 笑 — sky-500    晴朗天蓝 */
+      --glyph-swing:   #796ae5;   /* 歌 — violet-500 紫罗兰 */
+      --glyph-reach:   #009298;   /* 触 — cyan-600   清透青蓝 */
     }
     :root.theme-dark {
-      --color-ink:     oklch(92.88% 0.013 255.5);   /* slate-200 */
-      --color-paper:   oklch(20.77% 0.040 265.8);   /* slate-900 */
-      --color-accent:  oklch(71.37% 0.143 254.6);   /* blue-400  */
-      --color-muted:   oklch(71.07% 0.035 256.8);   /* slate-400 */
+      --color-ink:     #e2e8f0;   /* slate-200 */
+      --color-paper:   #0f172a;   /* slate-900 */
+      --color-accent:  #60a5fa;   /* blue-400  */
+      --color-muted:   #94a3b8;   /* slate-400 */
       /* --color-rule  dark 用 rgba(148,163,184,0.16) 半透明叠加，保持文字层
          上的 hairline 细节；OKLCH 等价表达：oklch(71% 0.035 257 / 16%) */
-      --color-rule:    oklch(71.07% 0.035 256.8 / 0.16);
-      --color-alt:     oklch(26.12% 0.040 263.5);   /* 深蓝灰 */
+      --color-rule:    #94a3b829;
+      --color-alt:     #1a2438;   /* 深蓝灰 */
       /* 新拟态 dark：surface 比 paper(slate-900) 亮一档；暗影近黑、高光微亮蓝灰。
          第六十二批：提鲜 + 珊瑚橙 --neu-coral（年轻活力） */
-      --neu-b1-surface:      oklch(29.50% 0.050 250.0);
+      --neu-b1-surface:      #182e45;
       --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
       --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
-      --hero-greet:    oklch(82.76% 0.101 230.3);   /* sky-300 */
+      --hero-greet:    #7dd3fc;   /* sky-300 */
       /* 5 段 dark OKLCH（2026-08-19 同步优化）：L 提到 70-85% 区间,
          hue 维持与 light 一致,仅提亮 2-3 阶;chroma 微降避免深底刺眼 */
-      --glyph-fall:    oklch(75.00% 0.110 275.0);   /* 落 — indigo-300 浅紫蓝 */
-      --glyph-focus:   oklch(70.00% 0.180 260.0);   /* 眸 — blue-400   亮蓝 */
-      --glyph-bloom:   oklch(76.00% 0.140 225.0);   /* 笑 — sky-400    天蓝 */
-      --glyph-swing:   oklch(78.00% 0.130 285.0);   /* 歌 — violet-300 浅紫 */
-      --glyph-reach:   oklch(80.00% 0.130 200.0);   /* 触 — cyan-400   亮青 */
+      --glyph-fall:    #9aa8f4;   /* 落 — indigo-300 浅紫蓝 */
+      --glyph-focus:   #629dff;   /* 眸 — blue-400   亮蓝 */
+      --glyph-bloom:   #1bc3f3;   /* 笑 — sky-400    天蓝 */
+      --glyph-swing:   #b0adff;   /* 歌 — violet-300 浅紫 */
+      --glyph-reach:   #28d6df;   /* 触 — cyan-400   亮青 */
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -238,11 +236,11 @@
     position: fixed; top: 0; left: 0;
     width: 100%; height: 3px;
     background: linear-gradient(90deg,
-      oklch(45% 0.190 287) 0%,
-      oklch(50% 0.200 263) 30%,
-      oklch(63% 0.150 230) 55%,
-      oklch(60% 0.180 285) 78%,
-      oklch(60% 0.130 200) 100%);
+      #5536b6 0%,
+      #1f57d3 30%,
+      #0096c6 55%,
+      #796ae5 78%,
+      #009298 100%);
     transform: scaleX(0);
     transform-origin: left center;
     z-index: 200;
@@ -251,11 +249,11 @@
   }
   :root.theme-dark .scroll-progress {
     background: linear-gradient(90deg,
-      oklch(80% 0.110 275) 0%,
-      oklch(75% 0.180 260) 30%,
-      oklch(82% 0.140 225) 55%,
-      oklch(82% 0.130 285) 78%,
-      oklch(84% 0.130 200) 100%);
+      #aab9ff 0%,
+      #7daeff 30%,
+      #5ed4ff 55%,
+      #bdbcff 78%,
+      #3fe4ec 100%);
   }
   @media (max-width: 768px) {
     .scroll-progress { height: 2px; }
@@ -1015,7 +1013,7 @@
      （入场 delay 0.21s 不拖累 hover）。 */
   .hero.entered .hero-text > .hero-cta:hover {
     transform: translateY(-1px);
-    background: oklch(48% 0.220 262.9);
+    background: #0d4cd7;
     box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 32%, transparent);
     transition:
       transform 0.25s ease,
@@ -1027,7 +1025,7 @@
      与联系卡 :active scale(0.98) 同款按压语汇，让实色 CTA 也有"按下去"手感） */
   .hero.entered .hero-text > .hero-cta:active {
     transform: translateY(0) scale(0.97);
-    background: oklch(42% 0.225 262.9);
+    background: #0038bf;
     box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 24%, transparent);
     transition-delay: 0s;
   }
@@ -1619,11 +1617,11 @@
   .vslide-rule { display: block; width: 22px; height: 1px; background: currentColor; opacity: 0.45; flex: none; }
   .vslide-kind { font-weight: 400; opacity: 0.72; }
   /* 5 段 meta 色调 —— 用各自主色,小标比大字略暗 */
-  .vslide[data-anim="fall"]  .vslide-meta { color: color-mix(in oklab, var(--glyph-fall)  85%, var(--color-ink) 15%); }
-  .vslide[data-anim="focus"] .vslide-meta { color: color-mix(in oklab, var(--glyph-focus) 85%, var(--color-ink) 15%); }
-  .vslide[data-anim="bloom"] .vslide-meta { color: color-mix(in oklab, var(--glyph-bloom) 85%, var(--color-ink) 15%); }
-  .vslide[data-anim="swing"] .vslide-meta { color: color-mix(in oklab, var(--glyph-swing) 85%, var(--color-ink) 15%); }
-  .vslide[data-anim="reach"] .vslide-meta { color: color-mix(in oklab, var(--glyph-reach) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="fall"]  .vslide-meta { color: color-mix(in srgb, var(--glyph-fall)  85%, var(--color-ink) 15%); }
+  .vslide[data-anim="focus"] .vslide-meta { color: color-mix(in srgb, var(--glyph-focus) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="bloom"] .vslide-meta { color: color-mix(in srgb, var(--glyph-bloom) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="swing"] .vslide-meta { color: color-mix(in srgb, var(--glyph-swing) 85%, var(--color-ink) 15%); }
+  .vslide[data-anim="reach"] .vslide-meta { color: color-mix(in srgb, var(--glyph-reach) 85%, var(--color-ink) 15%); }
   /* 巨字居中(cb 眸/触)时,meta 跟大字对位 → 顶居中。
      不用 translateX(-50%) 居中 —— JS 滚动 scrub 每帧覆写 transform,translateX 会被挤掉;
      left+right+margin auto 纯静态居中,与 JS 位移(translate3d)共存 */
@@ -1701,11 +1699,11 @@
     vertical-align: middle;
   }
   /* 5 段引子色调 —— 主色 72% + ink 28%(亮色主题:柔和色调;暗色主题:降阶彩色) */
-  .vslide[data-anim="fall"]  .vslide-sub { color: color-mix(in oklab, var(--glyph-fall)  72%, var(--color-ink) 28%); }
-  .vslide[data-anim="focus"] .vslide-sub { color: color-mix(in oklab, var(--glyph-focus) 72%, var(--color-ink) 28%); }
-  .vslide[data-anim="bloom"] .vslide-sub { color: color-mix(in oklab, var(--glyph-bloom) 72%, var(--color-ink) 28%); }
-  .vslide[data-anim="swing"] .vslide-sub { color: color-mix(in oklab, var(--glyph-swing) 72%, var(--color-ink) 28%); }
-  .vslide[data-anim="reach"] .vslide-sub { color: color-mix(in oklab, var(--glyph-reach) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="fall"]  .vslide-sub { color: color-mix(in srgb, var(--glyph-fall)  72%, var(--color-ink) 28%); }
+  .vslide[data-anim="focus"] .vslide-sub { color: color-mix(in srgb, var(--glyph-focus) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="bloom"] .vslide-sub { color: color-mix(in srgb, var(--glyph-bloom) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="swing"] .vslide-sub { color: color-mix(in srgb, var(--glyph-swing) 72%, var(--color-ink) 28%); }
+  .vslide[data-anim="reach"] .vslide-sub { color: color-mix(in srgb, var(--glyph-reach) 72%, var(--color-ink) 28%); }
   /* 两行诗:row3 中下部(start 贴行顶 + margin-top 拉开与引子的距离 → 屏幕 ~65% 处),
      字号更小 + 行距更开(编辑式留白感);2026-08-18 加,scrub 锚点复用 sub(见 script.js el 缓存) */
   /* 诗行(2026-08-19 重构):
@@ -1740,11 +1738,11 @@
     transform: translateY(-0.1em);
   }
   /* 5 段诗句色调 —— 主色 50% + ink 50%(比引子更柔) */
-  .vslide[data-anim="fall"]  .vslide-poem { color: color-mix(in oklab, var(--glyph-fall)  50%, var(--color-ink) 50%); }
-  .vslide[data-anim="focus"] .vslide-poem { color: color-mix(in oklab, var(--glyph-focus) 50%, var(--color-ink) 50%); }
-  .vslide[data-anim="bloom"] .vslide-poem { color: color-mix(in oklab, var(--glyph-bloom) 50%, var(--color-ink) 50%); }
-  .vslide[data-anim="swing"] .vslide-poem { color: color-mix(in oklab, var(--glyph-swing) 50%, var(--color-ink) 50%); }
-  .vslide[data-anim="reach"] .vslide-poem { color: color-mix(in oklab, var(--glyph-reach) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="fall"]  .vslide-poem { color: color-mix(in srgb, var(--glyph-fall)  50%, var(--color-ink) 50%); }
+  .vslide[data-anim="focus"] .vslide-poem { color: color-mix(in srgb, var(--glyph-focus) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="bloom"] .vslide-poem { color: color-mix(in srgb, var(--glyph-bloom) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="swing"] .vslide-poem { color: color-mix(in srgb, var(--glyph-swing) 50%, var(--color-ink) 50%); }
+  .vslide[data-anim="reach"] .vslide-poem { color: color-mix(in srgb, var(--glyph-reach) 50%, var(--color-ink) 50%); }
 
   /* AI 图:透明 WebP 角色立绘,统一底部对齐(align-self:end 覆盖默认 center)。
      盒子不设 aspect-ratio → 高度跟随 img 自身比例(width 100% / height auto),
@@ -2074,7 +2072,8 @@
        之前整体 accent 是单色基调，`.hl` 没对比度；改 ink 后"本猫"的 accent 才有视觉差 */
     color: var(--color-ink);
     text-shadow:
-      0 0 1px oklch(from var(--color-ink) l c h / 0.10);
+      /* 第一百七十四批：oklch 相对色语法换 color-mix 等价（全站统一 sRGB 色域） */
+      0 0 1px color-mix(in srgb, var(--color-ink) 10%, transparent);
   }
   /* 第四十五批：标题重点字配色——主标题 hl 用 accent 重墨（字重 800 + accent ink），
      小标题 hl 用 accent 中等字重（font-weight 600）。同款 hl 类在 .about-sub 也复用 */
