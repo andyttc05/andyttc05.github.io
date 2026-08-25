@@ -1082,6 +1082,25 @@
          两端同用 scroll(root)，避免"CSS 生效但 JS 没跳走"或反过来的不一致。 */
       var cssDriven = false;
       try { cssDriven = !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll(root)')); } catch (e) {}
+      /* 第一百七十批（2026-08-25 主人"Safari 五幕雨还没结束就到落"）：
+         Safari(WebKit) 稳定版 26/27 的 CSS scroll-driven animations 在 sticky 屏上
+         animation-range 起点计算有 bug —— 首屏「落」入场 range 起点偏早，第一百
+         六十一批的 inShift 延后不生效，过渡带（五幕雨）还没滑完「落」已开始入场。
+         Chrome/Firefox 正常；headless nightly WebKit 正常、Safari 稳定版复现。
+         降级方案：Safari/WebKit 强制走 JS scrub 路径（第一百六十一批 pBase 延后
+         是纯 JS 计算，行为与 Chrome 一致），并注入 style 禁用 CSS scroll-driven
+         动画（浏览器仍支持 scroll(root)，否则 CSS 动画 + JS 引擎双驱动错乱）。
+         其余浏览器保持 CSS 路径（合成器线程，性能优）。UA 检测排除含 Chromium/
+         Edge/Opera 的引擎（其 UA 也带 AppleWebKit 标记）。 */
+      if (cssDriven &&
+          /AppleWebKit/.test(navigator.userAgent) &&
+          !/Chrome|Chromium|Edg|OPR|CriOS|FxiOS/.test(navigator.userAgent)) {
+        cssDriven = false;
+        var safariNoAnim = document.createElement('style');
+        safariNoAnim.textContent =
+          '.vslide-glyph,.vslide-meta,.vslide-sub,.vslide-poem,.vslide-visual{animation:none!important}';
+        document.head.appendChild(safariNoAnim);
+      }
       /* 入场错峰区间（占行程比例）：与 setFrame delayMap/winMap 一一对应 */
       var RANGE_IN = {
         meta:   [0,      0.187],
@@ -1158,6 +1177,15 @@
              钉住但 p=0(全隐)的"锁屏空带",且 p=1 比释放晚 navH px。
          几何实测后 ext/top 与 URL 栏状态无关(iOS 收起/展开不重算,节奏稳定)。 */
       function measure() {
+        /* 第一百七十批（2026-08-25 主人"Safari 五幕雨还没结束就到落"）：
+           measure 先同步真实 scrollY —— IO 回调/invalidate 触发 measure 时，
+           IIFE 的 sy 可能还是旧值（初始 0 或上次滚动值），导致
+           d.top = r.top + sy - off 算错（首屏「落」d.top 被算成 ~1113 而非
+           wrapTop 2734）→ 后续所有 p 提前 ~1600px → 过渡带（五幕雨）未滑完
+           「落」已入场+离场。Chrome 走 CSS 路径时 reapplyRanges 在 measure 前
+           已赋 sy（无此问题）；Safari 降级 JS 路径后暴露。此处统一取真实值，
+           CSS 路径的 reapplyRanges 重复赋值无害。 */
+        sy = window.scrollY || 0;
         var w = window.innerWidth;
         if (w !== lastW) {
           lastW = w;
