@@ -3032,3 +3032,129 @@
     }
   }
 
+
+  /* === 项目页 · Skewed Carousel（第一百八十批 2026-08-25 主人"用 skewed 动画展示项目"）===
+     原生实现（站点零第三方依赖，React Bits Pro Skewed Carousel 同款效果）：
+     - 卡片条横向排开，活动卡居中正对；每远离活动卡一档绕 Y 轴旋转 60° + 缩放 0.85，
+       标题模糊 2px；容器 perspective 800px 营造消失点深度。
+     - 卡片 transform 由 projects-carousel.js 逐卡写入（offset 驱动），transition 平滑。
+     - 交互：左右按钮 / 底部圆点 / 拖拽 / 键盘 ← →。
+     与 about 页 .about-bento 同宽容器，移动端卡片宽自动收窄。 */
+  .skewed-carousel {
+    --sc-card-w: 200px;
+    --sc-gap: 28px;
+    --sc-rot: 60deg;
+    --sc-scale: 0.85;
+    position: relative;
+    max-width: 880px;
+    margin: 0 auto;
+    padding-block: clamp(28px, 5vh, 56px);
+    perspective: 800px;
+    touch-action: pan-y; /* 横向拖拽由 JS 接管，纵向滚动留给页面 */
+    user-select: none;
+  }
+  @media (max-width: 768px) {
+    .skewed-carousel { --sc-card-w: 150px; --sc-gap: 18px; }
+  }
+  .skewed-strip {
+    position: relative;
+    height: calc(var(--sc-card-w) * 4 / 3 + 46px); /* 卡片 3:4 + 下方标题行 */
+  }
+  .skewed-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--sc-card-w);
+    aspect-ratio: 3 / 4;
+    margin-left: calc(var(--sc-card-w) / -2);
+    margin-top: calc(var(--sc-card-w) * 4 / 3 / -2);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-alt);
+    border: 1px solid var(--color-rule);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-style: preserve-3d;
+    will-change: transform;
+    cursor: grab;
+  }
+  .skewed-card.is-dragging { transition: none; cursor: grabbing; }
+  .skewed-card.is-active { z-index: 2; }
+  /* 卡片内容：编号 + 标题 + 描述（色块占位，后续批次换真实项目图/色） */
+  .skewed-card-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 6px;
+    height: 100%;
+    padding: 14px;
+    color: var(--color-paper);
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-accent) 82%, #ffffff 0%) 0%,
+      color-mix(in srgb, var(--color-accent) 62%, var(--color-ink) 38%) 100%
+    );
+  }
+  .skewed-card-no {
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    opacity: 0.8;
+  }
+  .skewed-card-title {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.25;
+  }
+  .skewed-card-desc {
+    font-size: 11px;
+    line-height: 1.5;
+    opacity: 0.85;
+    font-family: var(--font-body);
+  }
+  /* 非活动卡标题模糊（React Bits Title Blur 同款）—— 卡片本身清晰，标题失焦 */
+  .skewed-card:not(.is-active) .skewed-card-title {
+    filter: blur(2px);
+    opacity: 0.85;
+    transition: filter 0.4s ease, opacity 0.4s ease;
+  }
+  /* 左右按钮 */
+  .skewed-arrow {
+    position: absolute;
+    top: 40%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--color-rule);
+    background: color-mix(in srgb, var(--color-paper) 80%, transparent);
+    color: var(--color-ink);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  }
+  .skewed-arrow:hover { background: var(--color-accent); border-color: var(--color-accent); color: #ffffff; }
+  .skewed-arrow:active { transform: translateY(-50%) scale(0.94); }
+  .skewed-arrow.prev { left: 4px; }
+  .skewed-arrow.next { right: 4px; }
+  /* 底部圆点 */
+  .skewed-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .skewed-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: var(--color-rule);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .skewed-dot.is-active { background: var(--color-accent); transform: scale(1.25); }
