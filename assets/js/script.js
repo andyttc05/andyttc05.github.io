@@ -69,6 +69,14 @@
         var tau = Math.min(tDist, tVel);
         var kd = 1 - Math.exp(-dt / tau);
         var next = cur + delta * kd;
+        /* 第一百六十九批（2026-08-25 主人"进度条不能到最右/最左"）：
+           浏览器把 window.scrollTo 的浮点坐标四舍五入（实测 0.66→1、2.5→3），
+           lerp 收尾时 next 被取整 → cur 卡在距 target 1px 处 → delta 恒非 0、
+           rAF 空转死循环，滚动永远差 1px 到位，顶部进度条到不了 0%/100%。
+           修法：向 target 方向取整（向上滚 floor / 向下滚 ceil），每帧至少推进
+           1px，单调收敛且最终精确落位（与程序化 scrollTo 行为一致）。 */
+        if (delta < 0) { next = Math.floor(next); }
+        else if (delta > 0) { next = Math.ceil(next); }
         if (ad < MIN_STEP) {
           next = target;
           target = null;
@@ -157,6 +165,14 @@
     var isDark = document.documentElement.classList.contains('theme-dark');
 
     function applyTheme(dark, persist) {
+      /* 第一百六十九批（2026-08-25 主人"切换黑夜模式导航栏闪烁"）：
+         nav 半透明背景有 0.3s transition（第一百五十一批为滚动状态平滑而加），
+         主题切换时页面背景瞬变、nav 背景却渐变 → 中间帧灰蓝发闪；scrolled 态
+         backdrop-filter 采样重建滞后也闪。切换期间给 html 加 .theme-switching
+         （CSS 禁 nav 的 transition + backdrop-filter），与背景同步瞬切，
+         双 rAF（新主题渲染 2 帧）后移除，不影响滚动状态的平滑过渡。 */
+      var root = document.documentElement;
+      root.classList.add('theme-switching');
       isDark = dark;
       document.documentElement.classList.toggle('theme-dark', dark);
       var label = dark ? 'Light' : 'Dark';
@@ -172,6 +188,11 @@
       if (persist !== false) {
         localStorage.setItem('rainmeow-theme', dark ? 'dark' : 'light');
       }
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          root.classList.remove('theme-switching');
+        });
+      });
     }
     function toggleTheme() {
       applyTheme(!isDark);
@@ -1788,47 +1809,65 @@
        优化（p 缓存 / touch 禁 blur）承担。 */
 
     /* === 第一百七十一批：刷新滚动位置统一恢复（跨浏览器一致） ===
-       问题（2026-08-25 主人反馈）：
-       - Safari：在「落眸笑歌触」任意屏 Cmd+R 刷新 → 滚动位置丢回顶部（原生
-         恢复失败，显示 Hero）
-       - Chrome：过渡带中段刷新 → 动画状态与位置错位（已由上面 load 兜底修复）
-       方案：JS 接管滚动恢复 ——
-       - 滚动节流（300ms）+ pagehide（刷新前必触发）把 scrollY 存入 sessionStorage
-       - 刷新后 loader 解锁（pageReady，此时 html.page-loading 的 overflow 已移除、
-         可滚动）→ 检测原生恢复是否生效；失效则 scrollTo 恢复
-       - load + 600ms 兜底（loader 异常未派发 pageReady 时）
-       scrollTo 触发 scroll 事件 → 过渡带/vslide 引擎自然同步，无需额外处理。 */
+       问题（2026-08-25 主人反馈，batch-172 升级）：
+       - Safari：在「落眸笑歌触」任意屏 Cmd+R 刷新 → 滚动位置丢回顶部（原生恢复
+         失败/被覆盖，显示 Hero）—— headless 无法复现，只能接管
+       - Chrome：过渡带中段刷新 → 动画状态与位置错位（load 兜底已修）
+       方案（batch-172 改为完全接管，不依赖原生恢复与单次时机）：
+       - history.scrollRestoration = 'manual' —— 禁用浏览器原生恢复，杜绝
+         Safari 的失败/晚到覆盖（恢复源只有一个：我们）
+       - 滚动节流（100ms）+ pagehide（刷新前必触发）把 scrollY 存入 sessionStorage
+       - 恢复时机多次尝试：pageReady（loader 解锁，overflow 已移除）→ load+300ms
+         → 每 300ms 轮询直到成功（布局/字体稳定后 scrollHeight 完整，避免 clamp） */
     (function () {
-      var KEY = 'rm-scroll-restore';
+      /* key 按页面路径区分 —— index/about 各自记录，避免跨页污染 */
+      var KEY = 'rm-scroll-restore:' + (location.pathname || '/');
       var timer = null;
+
+      /* 禁用原生滚动恢复：Safari 在 sticky 长页上原生恢复失败/晚到覆盖
+         （Cmd+R 回 Hero），统一 JS 接管后所有浏览器行为一致 */
+      try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
 
       function save() {
         try { sessionStorage.setItem(KEY, String(window.scrollY || 0)); } catch (e) {}
       }
 
-      /* 滚动停止 300ms 后记录（高频滚动只存最后一次） */
+      /* 滚动停止 100ms 后记录（刷新前必然已经存过） */
       window.addEventListener('scroll', function () {
         if (timer) return;
-        timer = setTimeout(function () { timer = null; save(); }, 300);
+        timer = setTimeout(function () { timer = null; save(); }, 100);
       }, { passive: true });
 
-      /* 刷新/离开页面前必触发 → 保存最新位置 */
+      /* 刷新/离开页面前必触发 → 保存最新位置（最后的兜底） */
       window.addEventListener('pagehide', save);
 
-      function restore() {
+      var restored = false;
+      function tryRestore() {
+        if (restored) return;
         try {
           var saved = parseInt(sessionStorage.getItem(KEY) || '0', 10) || 0;
-          if (saved <= 0) return;
+          if (saved <= 0) { restored = true; return; }
           var max = (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0);
-          if (saved > max) saved = Math.max(0, max);
+          if (saved > max) {
+            if (max < 50) return;    /* 布局未就绪（高度不足），等下一轮轮询 */
+            saved = Math.max(0, max); /* 目标超界，钳到最大滚动 */
+          }
           var sy = window.scrollY || 0;
-          if (Math.abs(sy - saved) < 50) return; /* 原生恢复已生效，幂等跳过 */
+          if (Math.abs(sy - saved) < 50) { restored = true; return; } /* 已到位 */
           window.scrollTo(0, saved);
-        } catch (e) {}
+          /* 确认到位后再停（布局可能继续变化，漂移时轮询继续修正） */
+          setTimeout(function () {
+            if (Math.abs((window.scrollY || 0) - saved) < 50) restored = true;
+          }, 200);
+        } catch (e) { restored = true; }
       }
 
-      /* loader 解锁滚动后恢复（pageReady 派发时 page-loading 已移除） */
-      document.addEventListener('pageReady', function () { setTimeout(restore, 0); });
-      /* 兜底：loader 异常未派发 pageReady → load + 600ms 再试 */
-      window.addEventListener('load', function () { setTimeout(restore, 600); });
+      /* 多次尝试：pageReady（loader 解锁）→ load 兜底 → 轮询（布局终态） */
+      document.addEventListener('pageReady', function () { setTimeout(tryRestore, 0); });
+      window.addEventListener('load', function () { setTimeout(tryRestore, 300); });
+      var pollN = 0;
+      var poll = setInterval(function () {
+        tryRestore();
+        if (restored || ++pollN > 10) clearInterval(poll); /* 最多 ~3s */
+      }, 300);
     })();
