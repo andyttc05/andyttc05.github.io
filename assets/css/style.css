@@ -3043,8 +3043,8 @@
   .skewed-carousel {
     --sc-card-w: 230px;
     --sc-gap: 28px;
-    --sc-rot: 30deg;
-    --sc-scale: 0.85;
+    --sc-rot: 20deg;
+    --sc-scale: 0.92;
     position: relative;
     /* 第一百八十二批（主人"卡片区域长度和页面 max-width 对齐，参考导航栏"）：
        nav-inner / about-main 均为 1200px。about-main 有 16px 左右 padding 会吃窄内容区，
@@ -3056,7 +3056,9 @@
     padding-left: 16px;
     padding-right: 16px;
     padding-block: clamp(28px, 5vh, 56px);
-    perspective: 800px;
+    /* 第一百八十四批（主人"背后卡片被压扁"）：perspective 800 → 1400 ——
+       近大远小附加收缩减弱，旋转卡视觉宽更接近真实（配合 --sc-rot 20°/档） */
+    perspective: 1400px;
     /* 第一百八十三批（主人"最边边卡片被切割"）：overflow:hidden 会把最外侧可见卡
        （±2 卡右缘超容器 31px）硬切出截面 —— 改用 mask 渐变遮罩，左右边缘平滑淡出，
        无硬切；±3+ 卡由 JS opacity 归零 + mask 尾部淡出自然消失。 */
@@ -3095,6 +3097,7 @@
   .skewed-card.is-dragging { transition: none; cursor: grabbing; }
   .skewed-card.is-active { z-index: 2; }
   /* 卡片内容：编号 + 标题 + 描述（色块占位，后续批次换真实项目图/色） */
+  /* 第一百八十四批（主人"只有中间卡片显示字体"）：非活动卡只留色块，不显示文字 */
   .skewed-card-inner {
     display: flex;
     flex-direction: column;
@@ -3108,7 +3111,9 @@
       color-mix(in srgb, var(--color-accent) 82%, #ffffff 0%) 0%,
       color-mix(in srgb, var(--color-accent) 62%, var(--color-ink) 38%) 100%
     );
+    transition: opacity 0.4s ease;
   }
+  .skewed-card:not(.is-active) .skewed-card-inner { opacity: 0; }
   .skewed-card-no {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px;
