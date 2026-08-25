@@ -3182,3 +3182,21 @@
     transition: background 0.2s ease, transform 0.2s ease;
   }
   .skewed-dot.is-active { background: var(--color-accent); transform: scale(1.25); }
+
+  /* === 项目页 · 一屏内完整显示（第一百八十六批 2026-08-25 主人"项目页面电脑应一页显示全部"）===
+     标题区复用 about-hero（与关于页对齐），轮播区垂直空间压缩 ——
+     卡片尺寸不变，压缩容器/控制行/底部留白，让 1280×800 桌面视口整页无滚动。
+     .projects-bento 覆盖全局 .about-bento 的大 padding（底部 9.5vw 留白是
+     about 内容流用的，项目页只有轮播不需要）。 */
+  .projects-bento {
+    padding-block: clamp(20px, 2.5vh, 28px) clamp(32px, 5vh, 56px);
+  }
+  .projects-bento .skewed-carousel {
+    padding-block: clamp(8px, 1.5vh, 16px);
+  }
+  .projects-bento .skewed-strip {
+    height: calc(var(--sc-card-w) * 4 / 3 + 24px);
+  }
+  .projects-bento .skewed-controls {
+    margin-top: 14px;
+  }
