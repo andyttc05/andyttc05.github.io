@@ -3041,44 +3041,57 @@
      - 交互：左右按钮 / 底部圆点 / 拖拽 / 键盘 ← →。
      与 about 页 .about-bento 同宽容器，移动端卡片宽自动收窄。 */
   .skewed-carousel {
-    /* 第一百九十一批（主人"背景卡片左右只有一张，区域还有很多空间"）：
-       60° 时 ±1 卡投影仅 98px 且 ±2 卡 opacity 0.3 太淡 → 背景卡"只有一张"、
-       两侧空旷。旋转角 60°→30°：±1 卡投影 98→175px（旋转 30° 明显大卡）、
-       scale 0.85→0.88；±2 卡投影宽不变（旋转 60°），gap 46 保持边缘贴容器 */
-    --sc-card-w: 230px;
-    --sc-gap: 46px;
-    --sc-rot: 30deg;
-    --sc-scale: 0.88;
+    /* 第二百批（主人"优化滑动卡片的排版和大小"）：卡片 200→240、gap 28→32 ——
+       图片卡更大更透气；±2 卡外缘 ~656px 由容器 mask 4% 羽化收边（边缘窥卡），
+       无硬切。旋转仍 60°、非活动缩放 0.85（第一百九十二批原版参数保留）。
+       第二百六十二批（主人"卡片大一点 / 电脑一页显示 / 要显示+1 +2 卡"）：
+       卡片 240→260、gap 32→20 —— 容器同步加宽到 1440，宽屏下 ±2 卡完整
+       入画（不再被 mask 切掉），1280 视口仍一页放下（见 .projects-main）。 */
+    --sc-card-w: 260px;
+    --sc-gap: 20px;
+    --sc-rot: 60deg;
+    --sc-scale: 0.85;
     position: relative;
     /* 第一百八十二批（主人"卡片区域长度和页面 max-width 对齐，参考导航栏"）：
        nav-inner / about-main 均为 1200px。about-main 有 16px 左右 padding 会吃窄内容区，
-       用负 margin + 加宽 max-width 补偿 → 轮播内容宽 = 1200px 与导航栏内容严格对齐。 */
-    max-width: calc(1200px + 32px);
+       用负 margin + 加宽 max-width 补偿 → 轮播内容宽 = 1200px 与导航栏内容严格对齐。
+       第二百六十二批：轮播区 max-width 提到 1440 —— 配合 .projects-main 加宽，
+       宽屏下 ±2 卡完整入画（step 280，±2 外缘 690px，容器半宽 720 放得下）。 */
+    max-width: calc(1440px + 32px);
     width: calc(100% + 32px);
     margin-left: -16px;
     margin-right: -16px;
     padding-left: 16px;
     padding-right: 16px;
     padding-block: clamp(28px, 5vh, 56px);
-    /* 第一百八十八批：perspective 恢复原版默认 800（强消失点纵深） */
-    perspective: 800px;
+    /* 第一百九十三批（主人"没复刻成功"）：perspective 移到 .skewed-strip ——
+       perspective 属性只作用于"直接子元素"的 3D 变换，原来放在本容器时卡片是
+       .skewed-strip 的子元素，800px 消失点纵深从未生效（rotateY 呈平面压缩） */
     /* 第一百八十三批（主人"最边边卡片被切割"）：overflow:hidden 会把最外侧可见卡
        （±2 卡右缘超容器 31px）硬切出截面 —— 改用 mask 渐变遮罩，左右边缘平滑淡出，
        无硬切；±3+ 卡由 JS opacity 归零 + mask 尾部淡出自然消失。 */
     /* 第一百九十批：渐隐区 12%→4%（±2 卡现在贴到容器边缘，12% 会把它们
-       淡没，卡片区域看起来"比导航栏短"；4% 只保留最边缘羽化防硬切，
-       渐隐效果交给 JS opacity 1/0.55/0.3） */
+       淡没，卡片区域看起来"比导航栏短"；4% 只保留最边缘羽化防硬切。
+       卡片本身的渐隐交给 JS 逐帧 opacity（第一百九十四批：|t|∈[1,2] 线性 1→0） */
     -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
     mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
     touch-action: pan-y; /* 横向拖拽由 JS 接管，纵向滚动留给页面 */
     user-select: none;
   }
   @media (max-width: 768px) {
-    .skewed-carousel { --sc-card-w: 170px; --sc-gap: 18px; }
+    .skewed-carousel { --sc-card-w: 160px; --sc-gap: 16px; }
   }
   .skewed-strip {
     position: relative;
     height: calc(var(--sc-card-w) * 4 / 3 + 40px); /* 卡片 3:4 + 底部呼吸 */
+    /* 2026-08-30（主人"卡片可拖动区域显示可拖动"）：卡片外的条带空白 = 可拖动区域
+       → grab；卡片本身 pointer 优先（可点击优先于可拖动），见 .skewed-card */
+    cursor: grab;
+    /* 第一百九十三批：perspective 移到这里 —— 卡片是它的直接子元素，3D 纵深正式生效。
+       第一百九十六批（主人"±2 与±1 倾斜相反 / 卡片太细"）：800→1400 —— 原 800 下
+       离轴卡片（±228px/±456px）被透视压成细条，且 ±2 卡角度越过翻转角（tanθ>d/m）
+       正面翻到背面，看着与±1 反向；1400 减弱压缩、翻转角提高，卡片保持正面朝前 */
+    perspective: 1400px;
   }
   .skewed-card {
     position: absolute;
@@ -3093,109 +3106,129 @@
     background: var(--color-alt);
     border: 1px solid var(--color-rule);
     box-shadow: 0 10px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
-    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
-    /* 第一百八十八批（主人"调回原版默认" 60°/档）：去掉 preserve-3d（它会让
-       backface-visibility 失效），启用 backface hidden —— rotateY 超 90° 的
-       ±2/±3 卡背面朝观察者即自动隐藏，60° 强旋转下不再出现镜像卡片 */
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    /* 第一百九十三批：transform/opacity 由 projects-carousel.js 每帧 rAF 写入
+       （连续轨道偏移驱动，原版同款机制），移除 CSS transition 防双重驱动 */
+    /* 第一百九十二批（主人"和原版一模一样"）：恢复 backface 可见 —— 原版
+       rotateY 超 90° 的 ±2 卡呈细长边缘（半宽镜像投影），是消失点纵深的一部分；
+       当前色块卡背对镜像不可见，后续换真实项目图即与原版观感一致 */
     will-change: transform;
-    cursor: grab;
+    /* 2026-08-30（主人"卡片显示可点击 / 可点击优先于可拖动"）：所有卡片 → pointer ——
+       点侧卡居中、点活动仓库卡打开链接；卡片上的光标胜过条带 grab。
+       真正按住拖动时由 is-dragging 接管为 grabbing（含活动链接卡，修掉旧
+       .is-active.has-link 高优先级在拖动时压住 grabbing 的问题）。 */
+    cursor: pointer;
   }
-  .skewed-card.is-dragging { transition: none; cursor: grabbing; }
+  .skewed-card.is-dragging,
+  .skewed-strip.is-dragging { cursor: grabbing; }
   .skewed-card.is-active { z-index: 2; }
-  /* 卡片内容：编号 + 标题 + 描述（色块占位，后续批次换真实项目图/色） */
+  /* 第二百批：卡片背景换真实图片 —— 图片铺满整卡，文字层盖在底部渐变遮罩上
+     （遮罩保证浅色图上文字仍可读）；编号+标题仅在活动卡显示（第一百八十九批规则） */
+  .skewed-card-img {
+    /* 第二百三十一批（主人"图片边边有白边"）：inset -6px 让图片每边溢出 6px ——
+       内容滞后（media translateX ±6px）与 3D 旋转/缩放时的亚像素缝隙，都不会
+       露出卡片底色的白边（media overflow:hidden 裁掉溢出部分） */
+    position: absolute;
+    inset: -6px;
+    z-index: 0;
+    width: calc(100% + 12px);
+    height: calc(100% + 12px);
+    object-fit: cover;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  /* 第二百二十六批（主人"鼠标悬浮在卡片上，卡片图片微微放大"）：
+     媒体层包住图片 —— JS 内容滞后写在 .skewed-card-media 上、CSS 悬浮缩放写在
+     .skewed-card-img 上，互不冲突；hover 时图片 scale(1.07) 轻微放大，
+     overflow:hidden 裁边不外溢；进出共用同一缓动（snappy 减速） */
+  .skewed-card-media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: inherit;
+  }
+  /* 第二百五十一批（主人"取消卡片背景放大"）：hover 放大彻底移除（含 media 层
+     scale 与 transition），不再有任何鼠标悬浮缩放动效；is-moving 兜底规则一并删除。 */
+  /* 第二百四十七批（主人"参考美团 app 影院电影卡片设计"）：基于 z-index
+     给侧卡片图片加模糊 —— 中心主卡 z=2 清晰、±1 z=1 轻度模糊（2px）、
+     ±2 z=0 较强模糊（4px）。配合 JS 缩放与透明度分级，"影院下一场预告"
+     的视觉层级一目了然。filter 触发 GPU 合成层，吸附阶段 frame 不掉。 */
+  .skewed-card[style*="z-index: 2"] .skewed-card-img,
+  .skewed-card[style*="z-index: 3"] .skewed-card-img { filter: none; }
+  .skewed-card[style*="z-index: 1"] .skewed-card-img { filter: blur(2px); }
+  /* 第二百六十二批（主人"要显示+1 +2 卡片"）：±2 模糊 4px→2.5px ——
+     卡片加大后 ±2 更清晰可辨，配合 JS opacity 0.55→0.7 提升"远景预览"可见度 */
+  .skewed-card[style*="z-index: 0"] .skewed-card-img { filter: blur(2.5px); }
   .skewed-card-inner {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     gap: 6px;
     height: 100%;
-    padding: 14px;
-    color: var(--color-paper);
-    background: linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--color-accent) 82%, #ffffff 0%) 0%,
-      color-mix(in srgb, var(--color-accent) 62%, var(--color-ink) 38%) 100%
-    );
-    transition: opacity 0.4s ease;
+    padding: 16px;
+    color: #ffffff;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.78) 0%, rgba(2, 6, 23, 0.38) 36%, transparent 56%);
   }
+  /* 第二百五十三批（主人反复"还有回弹"）：文字显隐从 0.4s 渐变改即时 ——
+     滑动 94ms 摆好后编号/标题还在 0.4s 淡入淡出，视觉上"卡停好了还有动作"，
+     正是反复感知到的"回弹/多余动作"。改 transition: none，文字随卡片一体
+     即时显隐（美团影院卡片同款）。 */
   /* 第一百八十九批（主人"只有中间卡片才显示字体，背后卡片不要显示字体"）：
-     撤销第一百八十八批的 Title Blur —— 文字整体隐藏（包括标题 + 描述 + 编号），
-     只留 accent 渐变色块（批量保留视觉差）。背景色块保留不动（第一百八十五批）。 */
+     文字整体隐藏（编号 + 标题 + 副标题），只留图片；背景图片保留不动。
+     2026-08-30：副标题 .skewed-card-desc 与标题同规则（仅活动卡显示） */
   .skewed-card:not(.is-active) .skewed-card-no,
   .skewed-card:not(.is-active) .skewed-card-title,
   .skewed-card:not(.is-active) .skewed-card-desc {
     opacity: 0;
-    transition: opacity 0.4s ease;
   }
   .skewed-card-no {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 2px;
-    opacity: 0.8;
+    opacity: 0.85;
   }
   .skewed-card-title {
     font-family: var(--font-head);
     font-weight: 700;
-    font-size: 18px;
+    font-size: 22px;
     line-height: 1.25;
+    text-shadow: 0 1px 12px rgba(2, 6, 23, 0.35);
   }
+  /* 2026-08-30：真实项目标题为仓库名（长、等宽）—— 用等宽小字 + 允许断行，
+     避免 22px 衬线体下 andyttc05.github.io 这类长名挤成三行 */
+  .skewed-card-title.is-repo {
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  /* 2026-08-30：真实项目副标题（仅活动卡显示，随标题同显隐） */
   .skewed-card-desc {
-    font-size: 11px;
-    line-height: 1.5;
-    opacity: 0.85;
-    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.45;
+    opacity: 0.82;
+    text-shadow: 0 1px 8px rgba(2, 6, 23, 0.35);
   }
+  /* 2026-08-30：cursor 规则已统一到 .skewed-card / .skewed-strip（见上），此条废弃移除 */
   /* 第一百八十三批（主人"背后卡片模糊效果奇怪"）：移除标题 blur ——
      旋转+渐隐下 2px 模糊显糊；景深交给 opacity 渐隐 + mask 遮罩即可，干净 */
-  /* 底部控制行（第一百八十一批 主人"箭头放在底部位置"）：
-     箭头与圆点同一行居中 —— [‹] ● ● ● ● [›] */
-  .skewed-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    margin-top: 22px;
-  }
-  .skewed-arrow {
-    z-index: 3;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid var(--color-rule);
-    background: color-mix(in srgb, var(--color-paper) 80%, transparent);
-    color: var(--color-ink);
-    font-size: 17px;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
-  }
-  .skewed-arrow:hover { background: var(--color-accent); border-color: var(--color-accent); color: #ffffff; }
-  .skewed-arrow:active { transform: scale(0.94); }
-  /* 底部圆点（在控制行内，不再独立 margin） */
-  .skewed-dots {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-  }
-  .skewed-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    border: none;
-    padding: 0;
-    background: var(--color-rule);
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-  }
-  .skewed-dot.is-active { background: var(--color-accent); transform: scale(1.25); }
+  /* 第二百批（主人"去掉底部栏"）：移除箭头 + 圆点控制行（HTML/JS 同步移除），
+     交互改由横向拖拽 / 键盘 ←→ / 滚轮纵向滚动承担 */
 
   /* === 项目页 · 一屏内完整显示（第一百八十六批 2026-08-25 主人"项目页面电脑应一页显示全部"）===
      标题区复用 about-hero（与关于页对齐），轮播区垂直空间压缩 ——
      卡片尺寸不变，压缩容器/控制行/底部留白，让 1280×800 桌面视口整页无滚动。
      .projects-bento 覆盖全局 .about-bento 的大 padding（底部 9.5vw 留白是
      about 内容流用的，项目页只有轮播不需要）。 */
+  /* 第二百六十二批（主人"卡片大一点 / 电脑一页显示 / 要显示+1 +2 卡片"）：
+     .projects-main 加宽到 1440（仅项目页）—— 轮播容器 1440 对齐，
+     宽屏下 ±2 卡（外缘 690px）完整入画；hero 标题/描述居中不受影响；
+     垂直方向 1280×800 依旧一页无滚动（strip 高 260*4/3+24 ≈ 371px）。 */
+  .projects-main {
+    max-width: 1440px;
+  }
   .projects-bento {
     padding-block: clamp(20px, 2.5vh, 28px) clamp(32px, 5vh, 56px);
   }
@@ -3204,7 +3237,4 @@
   }
   .projects-bento .skewed-strip {
     height: calc(var(--sc-card-w) * 4 / 3 + 24px);
-  }
-  .projects-bento .skewed-controls {
-    margin-top: 14px;
   }
