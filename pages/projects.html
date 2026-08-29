@@ -41,7 +41,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=3">
-<link rel="stylesheet" href="../assets/css/style.css?v=287">
+<link rel="stylesheet" href="../assets/css/style.css?v=308">
 </head>
 <body>
 
@@ -148,28 +148,26 @@
     </footer>
   </nav>
 
-  <main class="about-main">
+  <main class="about-main projects-main">
     <!-- === 项目页：标题区（第一百七十八批 2026-08-25 主人"设计项目页面的标题和描述，
          参考关于页面"）===
          主标题「猫窝工坊」居中 + accent 高亮（hl 工坊），描述一句话 ——
          与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。 -->
     <header class="about-hero">
       <h1 class="about-title" aria-label="猫窝工坊"><span class="about-title-char">猫</span><span class="about-title-char">窝</span><span class="about-title-char hl">工</span><span class="about-title-char hl">坊</span></h1>
-      <p class="about-hero-desc">敲过的代码、做出来的东西，都堆在这儿，欢迎来逛逛</p>
+      <p class="about-hero-desc">敲过的代码、做出来的东西，都堆在这儿。</p>
     </header>
 
-    <!-- === 项目列表：Skewed Carousel（第一百八十批 2026-08-25 主人"用 skewed 动画展示项目"）
-         原生实现（零第三方依赖）：活动卡居中正对，两侧卡片随距离旋转 60°/档 + 缩放 0.85，
-         消失点纵深；按钮/圆点/拖拽/键盘切换。数据与逻辑：../assets/js/projects-carousel.js
-         （PROJECTS 数组占位，主人替换真实项目） -->
+    <!-- === 项目列表：Skewed Carousel（第一百八十批 2026-08-25 主人"用 skewed 动画展示项目"；
+         第一百九十三批 2026-08-26 重写引擎，对齐 React Bits Pro 原版"连续轨道偏移"机制 ——
+         整条卡片带滑动时每张卡持续倾斜+缩放，非离散档位跳变；perspective 移到 strip 正式生效）
+         第二百批 2026-08-29（主人"背景换 4 张图 / 只留 4 张卡 / 去掉底部栏 / 滚轮也能滑动"）：
+         卡片背景为真实图片（assets/images/projects/），无底部圆点与箭头栏；
+         交互：横向拖拽 / 键盘 ←→ / 滚轮与触控板纵向滚动。
+         数据与逻辑：../assets/js/projects-carousel.js（PROJECTS 数组） -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表">
       <div class="skewed-carousel" id="skewedCarousel" aria-label="项目轮播">
         <div class="skewed-strip"></div>
-        <div class="skewed-controls">
-          <button class="skewed-arrow prev" aria-label="上一个项目">&#8249;</button>
-          <div class="skewed-dots"></div>
-          <button class="skewed-arrow next" aria-label="下一个项目">&#8250;</button>
-        </div>
       </div>
     </section>
   </main>
@@ -191,6 +189,6 @@
   <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=135" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=6" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=74" defer></script></script>
 </body>
 </html>
