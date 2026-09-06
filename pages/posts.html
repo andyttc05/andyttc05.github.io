@@ -355,6 +355,9 @@
   max-height: 76vh;
   width: auto; height: auto;
   object-fit: contain;
+  /* v9.13：origin 0 0 —— 缩放引擎的 translate∘scale 公式按左上原点推导，
+     默认 50% 50% 会让锚定坐标整体偏移 (1-s)·w/2 造成漂移 */
+  transform-origin: 0 0;
   transform: scale(.97);
   transition: transform .25s cubic-bezier(0.22,1,0.36,1);
 }
@@ -1020,7 +1023,8 @@
 
     /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
     /* v9.11 灵敏度收敛（主人"缩放太灵敏"）：滚轮每格 1.22→1.09（1.22^n 连乘太冲，
-       5 格就 ×2.7）；捏合从 1:1 直映射改 0.65 指数阻尼（同样张幅只走 ~2/3 距离） */
+       5 格就 ×2.7）；捏合从 1:1 直映射改 0.65 指数阻尼（同样张幅只走 ~2/3 距离）
+       v9.13（主人"缩放位置为点击位置"）：wheel/dblclick/pinch 全部锚定指针位置 */
     var LB_WHEEL = 1.09;
     var LB_PINCH_DAMP = 0.65;
     var lbZoom = 1, lbPanX = 0, lbPanY = 0;
@@ -1058,30 +1062,48 @@
       lbClampPan();
       im.style.transform = 'translate(' + lbPanX + 'px,' + lbPanY + 'px) scale(' + lbZoom + ')';
     }
-    /* 围绕画面中心放大/缩小（平移量等比缩放保持中心点不动） */
-    function zoomBy(f) {
+    /* v9.13（主人"缩放位置为点击位置"）：缩放锚定到指针/捏合中点 —— 光标下的
+       像素在缩放前后保持原位（旧版围绕画面中心放大，指针处的细节会滑开）。
+       数学：screen = translate(t) ∘ scale(s)；指针到图片原点距离 a=cx-ox-tx，
+       缩放 k 倍后 t' = a_cursor - k*(a_cursor - t)（a_cursor=cx-ox）。 */
+    function zoomAnchor(f, cx, cy) {
+      var im = curImg(); if (!im) return;
       var old = Math.max(lbZoom, 1);
-      lbZoom = Math.min(4.5, lbZoom * f);
-      if (lbZoom < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
-      else { var k = lbZoom / old; lbPanX *= k; lbPanY *= k; }
+      var nz = Math.min(4.5, lbZoom * f);
+      if (nz < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(); return; }
+      var r = lbPhoto.getBoundingClientRect();
+      var ox = im.offsetLeft, oy = im.offsetTop;
+      var acx = cx - r.left - ox, acy = cy - r.top - oy;
+      var k = nz / old;
+      lbZoom = nz;
+      lbPanX = acx - k * (acx - lbPanX);
+      lbPanY = acy - k * (acy - lbPanY);
       applyLbView();
     }
-    function zoomToggle() {
-      if (lbZoom > 1.005) resetLbView();
+    /* 围绕画面中心放大/缩小（平移量等比缩放保持中心点不动）—— 保留给无坐标调用 */
+    function zoomBy(f) {
+      var im = curImg(); if (!im) return;
+      var r = lbPhoto.getBoundingClientRect();
+      zoomAnchor(f, r.left + r.width / 2, r.top + r.height / 2);
+    }
+    function zoomToggle(cx, cy) {
+      if (lbZoom > 1.005) { resetLbView(); return; }
       /* v9.12（主人"点击一下时不要缩放太多"）：双击档位 2.6 → 1.8 ——
-         一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调 */
-      else { lbZoom = 1.8; lbPanX = 0; lbPanY = 0; applyLbView(); }
+         一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调。
+         v9.13：由画面中心放大改为锚定点击处（zoomAnchor，未缩放时 pan=0，
+         光标下像素直接成为放大后的视觉中心） */
+      zoomAnchor(1.8, cx, cy);
     }
 
     lbPhoto.addEventListener('dblclick', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       e.preventDefault();
-      zoomToggle();
+      zoomToggle(e.clientX, e.clientY);
     });
     lbPhoto.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       e.preventDefault();
-      zoomBy(e.deltaY < 0 ? LB_WHEEL : 1 / LB_WHEEL);
+      zoomAnchor(e.deltaY < 0 ? LB_WHEEL : 1 / LB_WHEEL, e.clientX, e.clientY);
     }, { passive: false });
 
     /* 指针统一处理：鼠标滚轮外的手势 —— 双指捏合缩放 / 单指（或鼠标）拖动平移 /
@@ -1095,7 +1117,13 @@
         lbDrag = null;
         var ids = Array.from(lbPtrs.keys());
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
-        lbPinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: lbZoom };
+        /* v9.13：记录捏合初始中点（ax,ay）作缩放锚点 —— 缩放围绕两指初始中点进行，
+           不随手指移动漂移 */
+        lbPinch = {
+          d0: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+          z0: lbZoom,
+          ax: (a.x + b.x) / 2, ay: (a.y + b.y) / 2
+        };
         lbPhoto.classList.add('no-anim');
       } else if (lbZoom > 1.005) {
         lbDrag = { x: e.clientX, y: e.clientY, px: lbPanX, py: lbPanY };
@@ -1111,9 +1139,17 @@
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
         var d = Math.hypot(a.x - b.x, a.y - b.y);
         var nz = lbPinch.z0 * Math.pow(d / lbPinch.d0, LB_PINCH_DAMP);
-        if (nz < 1.005) nz = 1;
-        lbZoom = Math.min(4.5, nz);
-        if (lbZoom <= 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
+        if (nz < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(true); return; }
+        nz = Math.min(4.5, nz);
+        /* v9.13：围绕捏合初始中点缩放（锚定），公式与 zoomAnchor 同源 */
+        var im = curImg(); if (!im) return;
+        var r = lbPhoto.getBoundingClientRect();
+        var ox = im.offsetLeft, oy = im.offsetTop;
+        var acx = lbPinch.ax - r.left - ox, acy = lbPinch.ay - r.top - oy;
+        var k = nz / lbPinch.z0;
+        lbZoom = nz;
+        lbPanX = acx - k * (acx - lbPanX);
+        lbPanY = acy - k * (acy - lbPanY);
         applyLbView(true);
       } else if (lbDrag) {
         lbPanX = lbDrag.px + (e.clientX - lbDrag.x);
