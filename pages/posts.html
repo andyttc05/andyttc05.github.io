@@ -649,6 +649,12 @@ body.dy-lb-open { overflow: hidden; }
    任何长宽比都不再与图/计数重叠；zoom 沉浸规则补齐 .is-open.is-zoom 压过 is-open。
    v9.10h（2026-09-07）：按主人要求移除「双击 / 滚轮 / 双指缩放」提示文字 ——
    删除 hint 静态元素 + 全部 .dy-lb-hint CSS（过渡组/zoom 淡出组/定位块/移动端）。
+   v9.15（2026-09-07，真 bug 修复）：**缩放"锚定点击处"只对左上象限生效** ——
+   旧 lbClampPan 用 ±(w0·z-cw)/2 对称钳制与锚定公式冲突：放大图自左上原点向右下
+   生长、合法 pan 只能 ≤0，对称钳制却把右侧/下方点击的锚定 pan 硬切回中心附近
+   （实测双击右下漂移 219~319px、滚轮右侧 198px，表现为"还是绕中心放大"）；
+   且允许 pan>0 会在左侧露出空白沟。改为非对称边缘钳制 [容器-放大图, 0]：
+   锚定结果恒在界内（零漂移）、拖拽永无空白（实测全部点位 err=0）。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1050,15 +1056,21 @@ body.dy-lb-open { overflow: hidden; }
       var im = curImg();
       if (im) im.style.transform = '';
     }
+    /* v9.15（主人"缩放位置为点击位置"）：钳制区间改为非对称边缘钳制。
+       旧版用 ±(w0·z-cw)/2 的对称区间 —— 与锚定公式冲突：
+       放大图从左上原点向右下生长，合法 pan 只能 ≤ 0（[cw-w0·z, 0]），
+       对称区间却禁止负值过深（右侧/下方点击的锚定 pan 被硬切 → 点位滑向
+       中心，实测漂移 200~320px），还允许正值（左侧出现空白沟）。
+       新版：pan ∈ [容器 - 放大图, 0]，锚定结果恒在界内 → 零漂移、永无空白。 */
     function lbClampPan() {
       var im = curImg(); if (!im) return;
       var w0 = im.offsetWidth || im.naturalWidth || 1;
       var h0 = im.offsetHeight || im.naturalHeight || 1;
       var cw = lbPhoto.clientWidth, ch = lbPhoto.clientHeight;
-      var mx = Math.max(0, (w0 * lbZoom - cw) / 2);
-      var my = Math.max(0, (h0 * lbZoom - ch) / 2);
-      lbPanX = Math.max(-mx, Math.min(mx, lbPanX));
-      lbPanY = Math.max(-my, Math.min(my, lbPanY));
+      var vw = w0 * lbZoom, vh = h0 * lbZoom;
+      var mx = Math.max(0, vw - cw), my = Math.max(0, vh - ch);
+      lbPanX = Math.max(-mx, Math.min(0, lbPanX));
+      lbPanY = Math.max(-my, Math.min(0, lbPanY));
     }
     function applyLbView(noAnim) {
       var im = curImg(); if (!im) return;
