@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="本猫的项目 — 敲过的代码和做过的东西">
-<meta name="theme-color" content="#f8fafc">
+<html lang="zh-CN" data-page-node-id="Bm5bWmuxJyiADSIGHE7QrE">
+<head data-page-node-id="cJ7TS2e0bwSoncrknSeYP9">
+<meta charset="UTF-8" data-page-node-id="28SqVd7EaCAhIS1nzHozrO">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="HjJ5OZMSzpguY6V6G0EBpk">
+<meta name="description" content="本猫的项目 — 敲过的代码和做过的东西" data-page-node-id="Av4AWEO69stM1jQbS0NZBX">
+<meta name="theme-color" content="#f8fafc" data-page-node-id="Eh7YvcSGpDQlcVGqMBc1lW">
 <title>项目 — rain.meow</title>
 <script>
   /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
@@ -30,20 +30,20 @@
     color: var(--color-ink, #e2e8f0);
   }
 </style>
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="5yFPXOykMzgELb443IiWSO">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2" data-page-node-id="kxmPDnucYOZHDgMTnJBhAr">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2" data-page-node-id="R278d4DK3zjavit9uQiVb3">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=1">
-<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=1" data-page-node-id="NBDWVuhiTlDQFf46L6NUUX">
+<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="lCdVug9OEenWPlazPlLmc0">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=3">
-<link rel="stylesheet" href="../assets/css/style.css?v=308">
+<link rel="stylesheet" href="../assets/css/loader.css?v=3" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
+<link rel="stylesheet" href="../assets/css/style.css?v=308" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
-<body>
+<body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
   <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
        https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
@@ -54,14 +54,14 @@
        就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
        script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
        noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
-  <div id="pageLoader" role="status" aria-label="页面加载中">
-    <div class="page-loader-three" aria-hidden="true">
-      <div class="page-loader-dot"></div>
-      <div class="page-loader-dot"></div>
-      <div class="page-loader-dot"></div>
+  <div id="pageLoader" role="status" aria-label="页面加载中" data-page-node-id="OtWLDy7CE5ooAkeGu3NoNS">
+    <div class="page-loader-three" aria-hidden="true" data-page-node-id="W5vD7HTjgIA9xk19cm3S6A">
+      <div class="page-loader-dot" data-page-node-id="iL3yKFhEHrk5C9fhNCC49h"></div>
+      <div class="page-loader-dot" data-page-node-id="eJV5Cc4XULE9UEo9SAmC0n"></div>
+      <div class="page-loader-dot" data-page-node-id="vCt6FNoKDzGDwf5ydLZ37a"></div>
     </div>
   </div>
-  <noscript><style>#pageLoader{display:none}</style></noscript>
+  <noscript data-page-node-id="WHoEWANCSGAd80QhFWA56C"><style>#pageLoader{display:none}</style></noscript>
   <script>
     /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
        load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
@@ -81,81 +81,81 @@
   </script>
 
   <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
-  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true" data-page-node-id="F60Ar9mESw6A9W973BbXLJ"></div>
 
-  <a href="#projects-intro" class="skip-link">跳到主要内容</a>
+  <a href="#projects-intro" class="skip-link" data-page-node-id="qzvqvxBHMmJqC5vSCBm1rJ">跳到主要内容</a>
 
-  <nav class="nav" id="nav">
-    <div class="nav-inner">
-      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
-      <ul class="nav-links">
-        <li class="nav-hover-indicator" aria-hidden="true"></li>
-        <li><a href="projects.html" aria-current="page">项目</a></li>
-        <li><a href="coming-soon.html">动态</a></li>
-        <li><a href="coming-soon.html">照片</a></li>
-        <li><a href="about.html">关于</a></li>
+  <nav class="nav" id="nav" data-page-node-id="1mtOHxoyZL41Ot5zuTUfVa">
+    <div class="nav-inner" data-page-node-id="G5ZvavAb7gcbnu6H5hHHGf">
+      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页" data-page-node-id="3lcCMRY9mcpDnTpTTycpAU">rain.meow</a>
+      <ul class="nav-links" data-page-node-id="JiXUwjpwIMXDXmTO743G7e">
+        <li class="nav-hover-indicator" aria-hidden="true" data-page-node-id="7DkC7pJ6rBv6YHMdiWVG4e"></li>
+        <li data-page-node-id="cAV3ED4MVDFbs7Uom7lG8Z"><a href="projects.html" aria-current="page" data-page-node-id="ksXlsDsvK3p8XBxuhaUimt">项目</a></li>
+        <li data-page-node-id="mEGBifUKNb4dSEKBDm4uTR"><a href="posts.html" data-page-node-id="ZbZcNRJeNdiGtYAzfMaR5D">动态</a></li>
+        <li data-page-node-id="ynE41SElS1648IHiSf4a4V"><a href="coming-soon.html" data-page-node-id="r2pD1n7Bew6wYX1BCaJ48E">照片</a></li>
+        <li data-page-node-id="B58AAISDEbVFTFgge6iBeb"><a href="about.html" data-page-node-id="P8JfZi4UlGC6lA0fcioW9O">关于</a></li>
       </ul>
-      <div class="nav-actions">
-        <span class="nav-actions-indicator" aria-hidden="true"></span>
-        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
-          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+      <div class="nav-actions" data-page-node-id="1ImfedD6gerzqHWbn9W36B">
+        <span class="nav-actions-indicator" aria-hidden="true" data-page-node-id="pdsHtdjbx7KlF0XZyvOFN1"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题" data-page-node-id="o0wZFukSDE7KsIiYzUa3Gc">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="JuaRCqTVDSapS9SCT2oxet"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" data-page-node-id="IaTye9rvqfhjYqfVCTk6Ad"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="uxzHocUqFybsVd6qspPU4I"><circle cx="12" cy="12" r="5" data-page-node-id="x08Ep7cdR5C7zYgfRuB2O2"/><line x1="12" y1="1" x2="12" y2="3" data-page-node-id="NgGFMQNHwjZNGfDqGXA0FX"/><line x1="12" y1="21" x2="12" y2="23" data-page-node-id="K9isN89vZ9vgqzC0zFN6Q4"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-page-node-id="TPEaWKBVmK4NvGg8ub5mUT"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-page-node-id="RbXpTv3kZf0DWc4dlpSVkz"/><line x1="1" y1="12" x2="3" y2="12" data-page-node-id="Ppct5TOEynKTBDmkU1xcPH"/><line x1="21" y1="12" x2="23" y2="12" data-page-node-id="Q6H1pK51M1NlrkNTf1xYmL"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-page-node-id="4V9scNySUbcCh5v8TSsAsk"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-page-node-id="AVDMMN1JJUubwnxAuQey2L"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop" data-page-node-id="nuKOTYEDskdcOaFesTcarc">Dark</span>
         </button>
-        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-          <span class="nav-icon-label">EN</span>
+        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）" data-page-node-id="JT1Rmrmrfq4AVNEfyFzYnf">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="oX0VnBbyxrMQvRpwEb7f7u"><circle cx="12" cy="12" r="10" data-page-node-id="z4I8Rx5DVOAoLAjkwwOBDK"/><line x1="2" y1="12" x2="22" y2="12" data-page-node-id="dGjpR0HKlXUxiOfW4hVKoI"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" data-page-node-id="1VPpQGNVdJVmFno8g75oKp"/></svg>
+          <span class="nav-icon-label" data-page-node-id="F1aHRy3tDUoKUOiwGrBsfa">EN</span>
         </a>
-        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
-          <span></span><span></span><span></span>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false" data-page-node-id="JXtVmf8sUTldlp7KEAms67">
+          <span data-page-node-id="5zvw1tjRlbf02dOEul3FLY"></span><span data-page-node-id="7hpzumCSftCS4ulxf9Ihru"></span><span data-page-node-id="FTol1fKa9F1sqv6yZTLXvm"></span>
         </button>
       </div>
     </div>
   </nav>
 
-  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
-    <header class="nav-menu-header">
-      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
-      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true" data-page-node-id="APqwhITpdrEaF6ht3R9NU0">
+    <header class="nav-menu-header" data-page-node-id="3E2B9XRVY0UfdYKd4Qjo8V">
+      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单" data-page-node-id="lPguIhMUANl74nYKnVRyfy">rain.meow</a>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单" data-page-node-id="UjA0zMRsOSvdQMqXCMfRnf">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="NdKkQOAt93zS1kxfw2uEG2">
+          <line x1="18" y1="6" x2="6" y2="18" data-page-node-id="iIcK5f99a1YDCChadrz51F"/>
+          <line x1="6" y1="6" x2="18" y2="18" data-page-node-id="G3NzmEwxS2if9R3xFLWord"/>
         </svg>
       </button>
     </header>
-    <div class="nav-menu-body">
-      <ul class="nav-menu-links">
-        <li><a href="projects.html" aria-current="page"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="coming-soon.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="coming-soon.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+    <div class="nav-menu-body" data-page-node-id="AH9Y28LJ42rddfmHXGBRQo">
+      <ul class="nav-menu-links" data-page-node-id="qtVBXK4zCVb9dt0sWGTtDO">
+        <li data-page-node-id="dkdx8ngqFLB9ZlZDwK1wkm"><a href="projects.html" aria-current="page" data-page-node-id="FKatlIJZpny6UIlSx0uSL9"><span class="label" data-page-node-id="OcB0b2XoKFsovxRk0w5Ety">项目</span><span class="arrow" data-page-node-id="Cl6TUE59NOWAdKzeu5bGqm">&rarr;</span></a></li>
+        <li data-page-node-id="lunddGTIQyxSx5WJe6rwGB"><a href="posts.html" data-page-node-id="4G5L6a8W7eofUljSJ1YEhw"><span class="label" data-page-node-id="rIHQfU2BKeWt3JiNQko9N6">动态</span><span class="arrow" data-page-node-id="tnF7xszUsBVkA5piGtqhPd">&rarr;</span></a></li>
+        <li data-page-node-id="SXQVSHHm664oWTyGXed5Fb"><a href="coming-soon.html" data-page-node-id="kYGl1DLpzhvjcTonGa48iR"><span class="label" data-page-node-id="FL8CrvZvGQ26zWkc8IcDjc">相册</span><span class="arrow" data-page-node-id="JEYPyBylhLy7lfS3RzKBwb">&rarr;</span></a></li>
+        <li data-page-node-id="l5NNXpKrkrG1bIvEL24IWU"><a href="about.html" data-page-node-id="jf6pABNO4Uz5SuQRPdsvEh"><span class="label" data-page-node-id="EXl5nbhOoHBJj3FF8pE5zs">关于</span><span class="arrow" data-page-node-id="bzaeJc8hhf5p0GkIBFiYxt">&rarr;</span></a></li>
       </ul>
     </div>
-    <footer class="nav-menu-footer">
-      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
-        <span class="nav-menu-action-hit">
-          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <span id="themeLabelMobile">Dark</span>
+    <footer class="nav-menu-footer" data-page-node-id="M1PIwcjK99XzM4Xg7vaLFw">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题" data-page-node-id="WQo552GrPkAJjew5kPNdlR">
+        <span class="nav-menu-action-hit" data-page-node-id="xNofbDEYIGDHUUgQOaSULB">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="afrD3DUSNTpzt3d8uDGdCO"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" data-page-node-id="2cpOsChoAjTGlWAOXKOYHu"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="NpEM4N5IaRvG9JDrICtSU5"><circle cx="12" cy="12" r="5" data-page-node-id="0YTJOKcmjZ02pkAxusMump"/><line x1="12" y1="1" x2="12" y2="3" data-page-node-id="XRmSNlkISoCGet9p2JEGub"/><line x1="12" y1="21" x2="12" y2="23" data-page-node-id="EfwRYpWtNh5Sz4AGj1Mc1M"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-page-node-id="5aYvEY90Hcyjiy4WoGqlxK"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-page-node-id="v6RPw9ekivfAVpQeIXQUNc"/><line x1="1" y1="12" x2="3" y2="12" data-page-node-id="sEzumkZql7PMRxcsF2CaRx"/><line x1="21" y1="12" x2="23" y2="12" data-page-node-id="UmeprQYSS4yFZQtWIUR8le"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-page-node-id="h4bDvUSFFpL5f89R9IyZ7y"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-page-node-id="WtODMssvlbfZ4f6mkEIl5Q"/></svg>
+          <span id="themeLabelMobile" data-page-node-id="iZFReaL7RbGSdkVuPbzuUW">Dark</span>
         </span>
       </button>
-      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）">
-        <span class="nav-menu-action-hit">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-          <span>EN</span>
+      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）" data-page-node-id="vDSOlQGlpEl8UGPjsgvrG5">
+        <span class="nav-menu-action-hit" data-page-node-id="Y7POGZzievwS7UuURAKlh5">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="uDExUcRkUiwcVNBcFACYWd"><circle cx="12" cy="12" r="10" data-page-node-id="SnjL7nCmYLgHf5wLCb2Eiu"/><line x1="2" y1="12" x2="22" y2="12" data-page-node-id="FtZC1yoq6wAlvJflXJjqH1"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" data-page-node-id="XrcMc0XSuFT5Ha1xGBGNQp"/></svg>
+          <span data-page-node-id="Hw9ajAnd2CEJDXONPeyYUW">EN</span>
         </span>
       </a>
     </footer>
   </nav>
 
-  <main class="about-main projects-main">
+  <main class="about-main projects-main" data-page-node-id="j8CySoXL42mM5QJDSIrC9g">
     <!-- === 项目页：标题区（第一百七十八批 2026-08-25 主人"设计项目页面的标题和描述，
          参考关于页面"）===
          主标题「猫窝工坊」居中 + accent 高亮（hl 工坊），描述一句话 ——
          与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。 -->
-    <header class="about-hero">
-      <h1 class="about-title" aria-label="猫窝工坊"><span class="about-title-char">猫</span><span class="about-title-char">窝</span><span class="about-title-char hl">工</span><span class="about-title-char hl">坊</span></h1>
-      <p class="about-hero-desc">敲过的代码、做出来的东西，都堆在这儿。</p>
+    <header class="about-hero" data-page-node-id="EOy30PMWp9ByIkNM5Y35US">
+      <h1 class="about-title" aria-label="猫窝工坊" data-page-node-id="Iou4yYu55oHrMP1O2ww0sC"><span class="about-title-char" data-page-node-id="Cap8d4ZLCMcXihFYQZcWPs">猫</span><span class="about-title-char" data-page-node-id="P9BYKuEyAkqYZY6gj8FsSk">窝</span><span class="about-title-char hl" data-page-node-id="nfZZZkoIVD6veqhQk9cBHQ">工</span><span class="about-title-char hl" data-page-node-id="DAWqPoGmII8iYvdOL2rQId">坊</span></h1>
+      <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这儿。</p>
     </header>
 
     <!-- === 项目列表：Skewed Carousel（第一百八十批 2026-08-25 主人"用 skewed 动画展示项目"；
@@ -165,9 +165,9 @@
          卡片背景为真实图片（assets/images/projects/），无底部圆点与箭头栏；
          交互：横向拖拽 / 键盘 ←→ / 滚轮与触控板纵向滚动。
          数据与逻辑：../assets/js/projects-carousel.js（PROJECTS 数组） -->
-    <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表">
-      <div class="skewed-carousel" id="skewedCarousel" aria-label="项目轮播">
-        <div class="skewed-strip"></div>
+    <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
+      <div class="skewed-carousel" id="skewedCarousel" aria-label="项目轮播" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
+        <div class="skewed-strip" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
       </div>
     </section>
   </main>
@@ -189,6 +189,6 @@
   <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=135" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=74" defer></script></script>
+  <script src="../assets/js/projects-carousel.js?v=88" defer></script></script>
 </body>
 </html>
