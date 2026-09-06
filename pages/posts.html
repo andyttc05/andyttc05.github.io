@@ -1019,6 +1019,10 @@
     }
 
     /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
+    /* v9.11 灵敏度收敛（主人"缩放太灵敏"）：滚轮每格 1.22→1.09（1.22^n 连乘太冲，
+       5 格就 ×2.7）；捏合从 1:1 直映射改 0.65 指数阻尼（同样张幅只走 ~2/3 距离） */
+    var LB_WHEEL = 1.09;
+    var LB_PINCH_DAMP = 0.65;
     var lbZoom = 1, lbPanX = 0, lbPanY = 0;
     var lbPtrs = new Map();       /* pointerId -> {x,y} */
     var lbPinch = null;           /* {d0,z0} 捏合基准 */
@@ -1075,7 +1079,7 @@
     lbPhoto.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       e.preventDefault();
-      zoomBy(e.deltaY < 0 ? 1.22 : 1 / 1.22);
+      zoomBy(e.deltaY < 0 ? LB_WHEEL : 1 / LB_WHEEL);
     }, { passive: false });
 
     /* 指针统一处理：鼠标滚轮外的手势 —— 双指捏合缩放 / 单指（或鼠标）拖动平移 /
@@ -1104,7 +1108,7 @@
         var ids = Array.from(lbPtrs.keys());
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
         var d = Math.hypot(a.x - b.x, a.y - b.y);
-        var nz = lbPinch.z0 * d / lbPinch.d0;
+        var nz = lbPinch.z0 * Math.pow(d / lbPinch.d0, LB_PINCH_DAMP);
         if (nz < 1.005) nz = 1;
         lbZoom = Math.min(4.5, nz);
         if (lbZoom <= 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
