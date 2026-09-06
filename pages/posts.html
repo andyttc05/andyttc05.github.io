@@ -621,7 +621,7 @@ body.dy-lb-open { overflow: hidden; }
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
   <script src="../assets/js/loader.js?v=5" defer></script>
-  <script src="../assets/js/script.js?v=135" defer></script>
+  <script src="../assets/js/script.js?v=136" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.json 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
@@ -655,6 +655,10 @@ body.dy-lb-open { overflow: hidden; }
    （实测双击右下漂移 219~319px、滚轮右侧 198px，表现为"还是绕中心放大"）；
    且允许 pan>0 会在左侧露出空白沟。改为非对称边缘钳制 [容器-放大图, 0]：
    锚定结果恒在界内（零漂移）、拖拽永无空白（实测全部点位 err=0）。
+   v9.16（2026-09-07，真 bug 修复）：**灯箱期间页面滚动锁不死** —— body overflow
+   hidden 只挡原生手势；script.js 站级滚轮平滑引擎（wheel→rAF→window.scrollTo）
+   照样把页面滚走。新增 window.__wheelLock(true/false)：引擎锁定后忽略滚轮、
+   清插值（script.js 第一百七十批）；openLb/closeLb 切换调用。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1012,14 +1016,19 @@ body.dy-lb-open { overflow: hidden; }
       renderLb();
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
-      /* v9.14：锁页面滚动（放大拖拽 / 灯箱内手势不再带动背景页面） */
+      /* v9.14：锁页面滚动（放大拖拽 / 灯箱内手势不再带动背景页面）
+         v9.16：真正锁死 —— 站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
+         滚动，CSS overflow:hidden 拦不住它；__wheelLock(true) 让引擎在灯箱打开期间
+         忽略滚轮并清掉进行中的插值（见 script.js 第一百七十批） */
       document.body.classList.add('dy-lb-open');
+      if (window.__wheelLock) window.__wheelLock(true);
     }
     function closeLb() {
       lb.classList.remove('is-open');
       lb.setAttribute('aria-hidden', 'true');
       resetLbView();
       document.body.classList.remove('dy-lb-open');
+      if (window.__wheelLock) window.__wheelLock(false);
       /* 下一帧清空内容，避免下一次打开时短暂闪烁旧图 */
       setTimeout(function () {
         if (!lb.classList.contains('is-open')) {
