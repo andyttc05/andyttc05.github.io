@@ -659,6 +659,10 @@ body.dy-lb-open { overflow: hidden; }
    hidden 只挡原生手势；script.js 站级滚轮平滑引擎（wheel→rAF→window.scrollTo）
    照样把页面滚走。新增 window.__wheelLock(true/false)：引擎锁定后忽略滚轮、
    清插值（script.js 第一百七十批）；openLb/closeLb 切换调用。
+   v9.17（2026-09-07，主人"图片放大还是太灵敏 + 双指可以滑动图片"）：
+   滚轮缩放按【位移量】归一（每 100px ×1.05，不再每事件 ×1.09 连乘 —— 触控板
+   细碎事件不再爆量）；触控板手势路由：捏合(Ctrl+滚轮)=缩放 / 放大后双指滑=平移 /
+   未放大横滑=翻页；鼠标整格滚轮保留缩放通路。指针捏合阻尼 0.65→0.58。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1013,6 +1017,7 @@ body.dy-lb-open { overflow: hidden; }
       /* 「+更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
       if (node.classList.contains('is-more') && idx < list.length - 1) idx += 1;
       lbIndex = idx;
+      resetLbGesture();   /* v9.17：新开灯箱 → 清手势会话（翻页/缩放模式） */
       renderLb();
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
@@ -1047,14 +1052,26 @@ body.dy-lb-open { overflow: hidden; }
     /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
     /* v9.11 灵敏度收敛（主人"缩放太灵敏"）：滚轮每格 1.22→1.09（1.22^n 连乘太冲，
        5 格就 ×2.7）；捏合从 1:1 直映射改 0.65 指数阻尼（同样张幅只走 ~2/3 距离）
-       v9.13（主人"缩放位置为点击位置"）：wheel/dblclick/pinch 全部锚定指针位置 */
-    var LB_WHEEL = 1.09;
-    var LB_PINCH_DAMP = 0.65;
+       v9.13（主人"缩放位置为点击位置"）：wheel/dblclick/pinch 全部锚定指针位置
+       v9.17（主人"图片放大还是太灵敏"）：滚轮按【位移量】归一缩放，不再按事件数连乘 ——
+       触控板一次手势拆成几十个 deltaY=1~10 的小事件，旧逻辑每事件 ×1.09 累积爆炸；
+       现统一每 100px 滚轮位移 ×LB_WHEEL，鼠标一格(≈100-120px)与触控板同距离手感一致。
+       触控板手势映射：双指捏合(ctrlKey+wheel)→缩放；已放大时双指滑动→平移图片；
+       未放大时双指横向滑动→切换照片；鼠标滚轮(整格/大 delta)→始终缩放。 */
+    var LB_WHEEL = 1.05;          /* 每 100px 位移缩放倍率（旧 1.09/事件 → 位移归一后总手感更缓） */
+    var LB_WHEEL_REF = 100;       /* 参考位移 px */
+    var LB_PINCH_DAMP = 0.58;     /* 指针捏合阻尼：0.65 → 0.58（同样张幅更缓） */
+    var LB_SWIPE_PX = 55;         /* 触控板横向翻页累积阈值 */
+    var LB_MOUSE_DY = 50;         /* ≥此 deltaY 视为鼠标整格（单事件大步长）→ 缩放而非平移 */
+    var LB_ZOOMED = 1.02;         /* 「已放大」行为阈值（拖拽/双指平移/翻页 vs 滚轮继续放大）：
+                                     低于此值一律继续滚轮放大 —— 避免触控板细滑刚越过 1.005 就被
+                                     当成平移、放大到一半卡住（v9.17 阈值统一基准） */
     var lbZoom = 1, lbPanX = 0, lbPanY = 0;
     var lbPtrs = new Map();       /* pointerId -> {x,y} */
     var lbPinch = null;           /* {d0,z0} 捏合基准 */
     var lbDrag = null;            /* {x,y,px,py} 拖动基准 */
     var lbSwipe0 = null;          /* 触摸翻页起点 */
+    var lbSwipeD = 0, lbSwipeT = 0, lbSwipeFired = false; /* 触控板横向翻页累积器（每会话一次） */
 
     function curImg() { return lbPhoto.querySelector('img'); }
     function resetLbView() {
@@ -1064,6 +1081,12 @@ body.dy-lb-open { overflow: hidden; }
       lb.classList.remove('is-zoom');   /* v9.10f：退出缩放 → UI 淡回 */
       var im = curImg();
       if (im) im.style.transform = '';
+    }
+    /* 翻页/手势会话状态独立于缩放视图：navLb→renderLb→resetLbView 不能清掉
+       swipe 已触发标记（否则同一次横扫会在翻页后二次触发、连跳两张） */
+    function resetLbGesture() {
+      lbSwipeD = 0; lbSwipeT = 0; lbSwipeFired = false;
+      lbWheelMode = null; lbWheelLast = 0;
     }
     /* v9.15（主人"缩放位置为点击位置"）：钳制区间改为非对称边缘钳制。
        旧版用 ±(w0·z-cw)/2 的对称区间 —— 与锚定公式冲突：
@@ -1083,11 +1106,17 @@ body.dy-lb-open { overflow: hidden; }
     }
     function applyLbView(noAnim) {
       var im = curImg(); if (!im) return;
-      var zoomed = lbZoom > 1.005;
+      /* 双阈值（v9.17）：
+         paint  = lbZoom>1.0005 —— 位移归一的触控板小增量逐帧上屏（单事件 ×1.0015，
+                   若等到 1.005 才上屏，慢速放大会在 1.0 处卡顿/被清掉）
+         zoomed = lbZoom>LB_ZOOMED(1.02) —— UI 沉浸 / grab 光标 / 拖拽平移 的门槛，
+                   低于它滚轮仍继续放大（防细滑刚过 1.005 就切平移、放大卡死） */
+      var paint = lbZoom > 1.0005;
+      var zoomed = lbZoom > LB_ZOOMED;
       lbPhoto.classList.toggle('is-zoom', zoomed);
       lb.classList.toggle('is-zoom', zoomed);   /* v9.10f：缩放态沉浸 —— UI 淡出 */
       lbPhoto.classList.toggle('no-anim', !!noAnim);
-      if (!zoomed) { im.style.transform = ''; return; }
+      if (!paint) { im.style.transform = ''; return; }
       lbClampPan();
       im.style.transform = 'translate(' + lbPanX + 'px,' + lbPanY + 'px) scale(' + lbZoom + ')';
     }
@@ -1095,19 +1124,39 @@ body.dy-lb-open { overflow: hidden; }
        像素在缩放前后保持原位（旧版围绕画面中心放大，指针处的细节会滑开）。
        数学：screen = translate(t) ∘ scale(s)；指针到图片原点距离 a=cx-ox-tx，
        缩放 k 倍后 t' = a_cursor - k*(a_cursor - t)（a_cursor=cx-ox）。 */
-    function zoomAnchor(f, cx, cy) {
+    function zoomAnchor(f, cx, cy, noAnim) {
       var im = curImg(); if (!im) return;
       var old = Math.max(lbZoom, 1);
       var nz = Math.min(4.5, lbZoom * f);
-      if (nz < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(); return; }
+      /* 归一闪光：位移归一后单事件增量可 <0.5%（如触控板 -3px → ×1.0015），
+         旧版"nz<1.005 一律回 1"会把放大方向的小增量也吞掉 —— 连续小滚轮
+         永远放不大。回 1 只应在缩小方向（f<1，滚到接近原始尺寸时吸附回正）。 */
+      if (nz < 1.005 && f < 1) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(noAnim); return; }
       var r = lbPhoto.getBoundingClientRect();
       var ox = im.offsetLeft, oy = im.offsetTop;
       var acx = cx - r.left - ox, acy = cy - r.top - oy;
       var k = nz / old;
-      lbZoom = nz;
+      lbZoom = Math.max(1.0005, nz);
       lbPanX = acx - k * (acx - lbPanX);
       lbPanY = acy - k * (acy - lbPanY);
-      applyLbView();
+      applyLbView(noAnim);
+    }
+    /* v9.17：把滚轮位移归一成缩放倍率 —— 按【位移量】指数定标而非按事件连乘。
+       触控板细碎小事件（deltaY ±1~10）不再各自放大，连续手势总放大只与
+       累计位移成正比：factor = LB_WHEEL^( |位移| / 100 )。鼠标一格 ~100-120px。 */
+    function wheelZoomFactor(ev) {
+      var d = ev.deltaY;
+      if (ev.deltaMode === 1) d *= 40;            /* 行 → px（整格鼠标） */
+      else if (ev.deltaMode === 2) d *= (window.innerHeight || 800);
+      if (!d || isNaN(d)) return 0;
+      var m = Math.min(4, Math.abs(d) / LB_WHEEL_REF); /* 单事件位移封顶 400px，防飞掷爆跳 */
+      var f = Math.pow(LB_WHEEL, m);
+      return d < 0 ? f : 1 / f;                    /* 上滚放大、下滚缩小 */
+    }
+    function wheelZoom(ev, cx, cy) {
+      var f = wheelZoomFactor(ev);
+      if (f === 0 || f === 1) return;
+      zoomAnchor(f, cx, cy, ev.deltaMode === 0);   /* pixel 模式（连续/触控板）→ 无过渡跟手 */
     }
     /* 围绕画面中心放大/缩小（平移量等比缩放保持中心点不动）—— 保留给无坐标调用 */
     function zoomBy(f) {
@@ -1116,7 +1165,7 @@ body.dy-lb-open { overflow: hidden; }
       zoomAnchor(f, r.left + r.width / 2, r.top + r.height / 2);
     }
     function zoomToggle(cx, cy) {
-      if (lbZoom > 1.005) { resetLbView(); return; }
+      if (lbZoom > LB_ZOOMED) { resetLbView(); return; }
       /* v9.12（主人"点击一下时不要缩放太多"）：双击档位 2.6 → 1.8 ——
          一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调。
          v9.13：由画面中心放大改为锚定点击处（zoomAnchor，未缩放时 pan=0，
@@ -1129,10 +1178,72 @@ body.dy-lb-open { overflow: hidden; }
       e.preventDefault();
       zoomToggle(e.clientX, e.clientY);
     });
+    /* v9.17 滚轮手势路由（触控板 + 鼠标统一）——
+       会话制：两次 wheel 间隔 <150ms 视为同一手势；模式在会话【开头】定一次，
+       中途不翻转。这解决静态阈值 bug：从原始尺寸连续上滑放大，刚越过 1.02 就
+       被当平移切走 → 放大永远卡在 ~1.02（实测 20 事件全到、z 冻结 1.0207）。
+       会话规则：
+         · ctrlKey+wheel（触控板捏合 / Ctrl+滚轮）→ 恒缩放（位移归一）
+         · 鼠标整格（行模式 / |Δ|≥50px 大步长）→ 恒缩放（保留滚轮缩放通路）
+         · 触控板细滑新会话：已放大(>1.02) → 平移；未放大 → 放大
+           同一会话中途状态变了也不切 —— 慢滑从 1.0 一路放到 2.0 不卡壳
+         · 横向：已放大 → 平移；未放大 → 翻页（一个会话只翻一张） */
+    var LB_GEST = 300;            /* 手势会话间隔（ms）：两次 wheel 在此间隔内 = 同一手势。
+                                     浏览器可能把分散的滚轮事件合批送达（实测 Chromium
+                                     间隔 ~200ms 的事件被并成一发），300ms 保证合批后的
+                                     会话仍连续 —— 缩放中途不因"过 1.02"被切成平移 */
+    var lbWheelMode = null;       /* 'zoom' | 'pan' —— 当前会话模式 */
+    var lbWheelLast = 0;
+    function lbWheelCont() {
+      var n = Date.now();
+      var c = (n - lbWheelLast) < LB_GEST;
+      lbWheelLast = n;
+      return c;
+    }
     lbPhoto.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
+      var dx = e.deltaX || 0, dy = e.deltaY || 0;
+      var horiz = Math.abs(dx) > Math.abs(dy) * 1.2;
+      var mouseLike = e.deltaMode === 1 || Math.abs(dy) >= LB_MOUSE_DY || Math.abs(dx) >= LB_MOUSE_DY;
+      var zoomed = lbZoom > LB_ZOOMED;
+      if (e.ctrlKey) {                       /* 捏合 / Ctrl+滚轮 → 缩放 */
+        e.preventDefault();
+        wheelZoom(e, e.clientX, e.clientY);
+        return;
+      }
+      if (horiz) {
+        e.preventDefault();
+        if (zoomed) {                        /* 放大中：双指横滑 → 平移 */
+          lbPanX -= dx;
+          applyLbView(true);
+          return;
+        }
+        /* 未放大：横滑翻页 —— 一个会话只翻一张，停顿 220ms 开启新会话 */
+        var now = Date.now();
+        if (now - lbSwipeT > 220) { lbSwipeD = 0; lbSwipeFired = false; }
+        lbSwipeD += dx; lbSwipeT = now;
+        if (!lbSwipeFired && Math.abs(lbSwipeD) >= LB_SWIPE_PX) {
+          /* 滚动语义：deltaX>0 = 向右滚动 = 等效手指向左滑内容 → 下一张
+             （与触摸翻页 dir = dx<0 → +1 对齐：内容都向左滑进下一张） */
+          lbSwipeFired = true;
+          navLb(lbSwipeD > 0 ? 1 : -1);
+        }
+        return;
+      }
+      /* 纵向 */
       e.preventDefault();
-      zoomAnchor(e.deltaY < 0 ? LB_WHEEL : 1 / LB_WHEEL, e.clientX, e.clientY);
+      if (mouseLike) { wheelZoom(e, e.clientX, e.clientY); return; }  /* 鼠标整格恒缩放 */
+      /* 触控板细滑：会话开头定一次模式 */
+      if (!lbWheelCont()) {
+        lbWheelMode = zoomed ? 'pan' : 'zoom';
+        if (lbWheelMode === 'pan') lbPhoto.classList.add('no-anim');
+      }
+      if (lbWheelMode === 'pan') {
+        lbPanY -= dy;                        /* 双指竖滑 → 图片跟手平移 */
+        applyLbView(true);
+      } else {
+        wheelZoom(e, e.clientX, e.clientY);  /* 未放大 → 竖滑放大（会话内跨 1.02 不切） */
+      }
     }, { passive: false });
 
     /* 指针统一处理：鼠标滚轮外的手势 —— 双指捏合缩放 / 单指（或鼠标）拖动平移 /
@@ -1154,7 +1265,7 @@ body.dy-lb-open { overflow: hidden; }
           ax: (a.x + b.x) / 2, ay: (a.y + b.y) / 2
         };
         lbPhoto.classList.add('no-anim');
-      } else if (lbZoom > 1.005) {
+      } else if (lbZoom > LB_ZOOMED) {
         lbDrag = { x: e.clientX, y: e.clientY, px: lbPanX, py: lbPanY };
         lbPhoto.classList.add('dragging', 'no-anim');
       }
@@ -1193,7 +1304,7 @@ body.dy-lb-open { overflow: hidden; }
       if (lbPtrs.size === 1) {
         var r = lbPtrs.values().next().value;
         lbDrag = null;
-        if (lbZoom > 1.005) {
+        if (lbZoom > LB_ZOOMED) {
           lbDrag = { x: r.x, y: r.y, px: lbPanX, py: lbPanY };
           lbPhoto.classList.add('dragging');
         }
@@ -1201,7 +1312,7 @@ body.dy-lb-open { overflow: hidden; }
         lbDrag = null;
         lbPhoto.classList.remove('no-anim', 'dragging');
         /* 未缩放时触摸横滑 50px+ 翻页 */
-        if (was === 1 && e.pointerType === 'touch' && lbZoom <= 1.005 && lbSwipe0) {
+        if (was === 1 && e.pointerType === 'touch' && lbZoom <= LB_ZOOMED && lbSwipe0) {
           var dx = e.clientX - lbSwipe0.x;
           var dy = e.clientY - lbSwipe0.y;
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) navLb(dx < 0 ? 1 : -1);
@@ -1223,7 +1334,7 @@ body.dy-lb-open { overflow: hidden; }
     document.addEventListener('keydown', function (e) {
       if (!lb.classList.contains('is-open')) return;
       if (e.key === 'Escape') {
-        if (lbZoom > 1.005) resetLbView();
+        if (lbZoom > LB_ZOOMED) resetLbView();
         else closeLb();
       }
       else if (e.key === 'ArrowLeft') navLb(-1);
