@@ -39,11 +39,18 @@
       var MIN_STEP = 0.3;                   /* 到位判定阈值（px） */
       var lastInputV = 0;                   /* 最近一次 wheel 输入速度（px/事件） */
       var lastT = 0;
+      /* 第一百七十批（2026-09-07 主人"灯箱打开期间你还没锁死页面滚动"）：
+         全屏覆盖层滚动锁 —— 本引擎用 window.scrollTo 程序化滚动，CSS overflow:hidden
+         拦不住它（隐藏 ≠ 不可程序化滚动）。凡需锁页面的覆盖层（灯箱等）在打开/关闭时
+         调用 window.__wheelLock(true/false)：锁定后 wheel 直接忽略、清掉进行中的插值，
+         页面彻底钉死；未锁定时行为与原来完全一致。 */
+      var wheelLocked = false;
       function maxScroll() {
         return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       }
       function frame(now) {
         if (target === null) { raf = null; return; }
+        if (wheelLocked) { target = null; raf = null; return; }
         var dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 1 / 60;
         lastT = now;
         var cur = window.scrollY;
@@ -88,6 +95,9 @@
       }
       window.addEventListener('wheel', function (e) {
         if (!e.deltaY) return;
+        /* 第一百七十批：覆盖层锁定期内直接忽略滚轮（不累加目标、不 preventDefault——
+           原生滚动已由覆盖层自己的 overflow:hidden 挡掉，灯箱内缩放手势照常冒泡处理） */
+        if (wheelLocked) return;
         e.preventDefault();
         var delta = e.deltaY;
         var max = maxScroll();
@@ -101,6 +111,11 @@
       }, { passive: false });
       window.__wheelPause = function () {
         target = null;
+        if (raf !== null) { cancelAnimationFrame(raf); raf = null; }
+      };
+      window.__wheelLock = function (on) {
+        wheelLocked = !!on;
+        if (wheelLocked) { target = null; lastT = 0; }
         if (raf !== null) { cancelAnimationFrame(raf); raf = null; }
       };
     })();
