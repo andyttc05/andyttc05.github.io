@@ -607,6 +607,11 @@
     m && (m.textContent = label);
   </script>
 
+  <!-- 全屏动态背景（2026-09-07 主人"动态页面要和其他页面一样有同款背景"）：canvas-nest 粒子
+       + ribbons 飘带，与 index/about/projects 同款配置；script.js 主题切换经
+       window.RainNest/RainRibbons.setColor 联动 -->
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
   <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=135" defer></script>
 
