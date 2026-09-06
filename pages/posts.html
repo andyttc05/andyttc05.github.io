@@ -389,33 +389,15 @@
 /* 灯箱：上一张 / 下一张 / 计数（缩放态沉浸淡出，见下方） */
 .dy-lb-close,
 .dy-lb-nav,
-.dy-lb-counter,
-.dy-lb-hint {
+.dy-lb-counter {
   transition: opacity .22s ease, background .2s ease, transform .2s ease;
 }
-/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 提示 / 计数 / 翻页 / 关闭淡出，
+/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 计数 / 翻页 / 关闭淡出，
    避免与放大平移中的图片重叠；ESC / 双击退出缩放后恢复。 */
-.dy-lb.is-zoom .dy-lb-hint,
 .dy-lb.is-zoom .dy-lb-counter,
 .dy-lb.is-zoom .dy-lb-nav,
 .dy-lb.is-zoom .dy-lb-close {
   opacity: 0; pointer-events: none;
-}
-/* v9.10g：提示 pill 固定在视口底部、counter 正上方（不再贴在照片框内），
-   打开即见；竖图撑满 76vh 时也不会与图/计数重叠 */
-.dy-lb-hint {
-  position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%);
-  padding: 6px 12px; border-radius: 20px;
-  background: rgba(255,255,255,.14); color: rgba(255,255,255,.9);
-  font: 11px/1 var(--font-body); letter-spacing: .08em;
-  white-space: nowrap;
-  pointer-events: none; opacity: 0; transition: opacity .3s ease;
-}
-.dy-lb.is-open .dy-lb-hint { opacity: 1; }
-/* is-open 与 is-zoom 同时存在（缩放中）→ 提示必须淡出 —— 特异性压过上方 is-open 规则 */
-.dy-lb.is-open.is-zoom .dy-lb-hint { opacity: 0; pointer-events: none; }
-@media (max-width: 600px) {
-  .dy-lb-hint { bottom: 62px; font-size: 10px; padding: 5px 10px; }
 }
 .dy-lb-nav {
   position: absolute; top: 50%; transform: translateY(-50%);
@@ -612,8 +594,6 @@
     <button class="dy-lb-nav dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张" hidden data-page-node-id="xY2aB4tH3pK9wQ8zN7mFv6">‹</button>
     <button class="dy-lb-nav dy-lb-next" id="dyLbNext" type="button" aria-label="下一张" hidden data-page-node-id="nL5cD8eJ2fG6hI3kM1oPq0">›</button>
     <div class="dy-lb-photo" id="dyLbPhoto" data-page-node-id="RhYmU0T7lYAhMFwEQMhw8j"></div>
-    <!-- v9.10g：提示 pill 固定视口底部（counter 上方），不再贴照片框内 —— 竖图撑满时不与图/counter 挤叠 -->
-    <span class="dy-lb-hint" aria-hidden="true" data-page-node-id="h8nK2wX4qR9sZ1cF5vT7yB">双击 / 滚轮 / 双指缩放</span>
     <div class="dy-lb-counter" id="dyLbCounter" aria-live="polite" data-page-node-id="vB1nX4yH6zL9aC2eF5gI8j"></div>
   </div>
 
@@ -654,6 +634,8 @@
    photo 底 = counter 顶、hint 与其挤叠**。photo max-height 86→76vh 预留底部净空；
    hint 从「photo 框内 bottom」改为「.dy-lb 固定 bottom:74（counter 上方）」静态元素，
    任何长宽比都不再与图/计数重叠；zoom 沉浸规则补齐 .is-open.is-zoom 压过 is-open。
+   v9.10h（2026-09-07）：按主人要求移除「双击 / 滚轮 / 双指缩放」提示文字 ——
+   删除 hint 静态元素 + 全部 .dy-lb-hint CSS（过渡组/zoom 淡出组/定位块/移动端）。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -987,7 +969,6 @@
         im.decoding = 'async';
         im.draggable = false;
         lbPhoto.appendChild(im);
-        /* v9.10g：缩放提示改为静态 HTML（lb 层），不再随图生成 */
       } else if (ph.emoji) {
         var sp = document.createElement('span');
         sp.className = 'dy-lb-emoji';
