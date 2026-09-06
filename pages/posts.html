@@ -1068,7 +1068,9 @@
     }
     function zoomToggle() {
       if (lbZoom > 1.005) resetLbView();
-      else { lbZoom = 2.6; lbPanX = 0; lbPanY = 0; applyLbView(); }
+      /* v9.12（主人"点击一下时不要缩放太多"）：双击档位 2.6 → 1.8 ——
+         一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调 */
+      else { lbZoom = 1.8; lbPanX = 0; lbPanY = 0; applyLbView(); }
     }
 
     lbPhoto.addEventListener('dblclick', function (e) {
