@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="0qO5eAcnrcKdhoqT78CyD4">
+<head data-page-node-id="p4DWBPmlzUfJjEJHTSniKR">
+<meta charset="UTF-8" data-page-node-id="IFkSz2HYbvBTd68x7B3rH9">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="E05y3sH8pVzxQukNpVwOfD">
+<meta name="description" content="动态 — 时雨时猫的记录，雨落下的每一个瞬间" data-page-node-id="cYFWgVbsctEcAITv9fXYsk">
+<meta name="theme-color" content="#f8fafc" data-page-node-id="qbPp5toAwE72xHJMYlZMwU">
+<title>动态 — rain.meow</title>
+<script>
+  /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+</script>
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+  /* 加载页关键定位（第一百四十五批）：先于 loader.css 就位 —— 首帧即全屏覆盖 + 主题底色 */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
+  }
+  html.theme-dark #pageLoader {
+    background: var(--color-paper, #0f172a);
+    color: var(--color-ink, #e2e8f0);
+  }
+</style>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="NLmhu38PNUwQKVngJenFTp">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2" data-page-node-id="dzOtL5NkPZOkuYiRP6Ge5c">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2" data-page-node-id="UFNlyLOZmCnmL9leCPVQ9X">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22）：woff2 本地化，中文走系统字体回退 -->
+<link rel="stylesheet" href="../assets/css/fonts.css?v=1" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
+<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
+<!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
+<link rel="stylesheet" href="../assets/css/loader.css?v=3" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
+<link rel="stylesheet" href="../assets/css/style.css?v=308" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+
+<style>
+/* ================================================================
+   动态页 v9 · 朋友圈实用版（2026-09-06 移植）
+   参考微信朋友圈：无头像、朋友圈标准图片网格（单图 4:3 / 2+ 统一 1:1
+   宫格 3=左大右二）、日期分组头（8月30日 + 周日）+ 每条仅时刻。
+   v9.5（本版）：右栏 = 文字月份目录（原索引）+ 单一迷你月历，跟随
+   正在阅读的月份切换（不再每月堆一张）。
+   配色全部继承站内 tokens；类名 dy- 前缀防冲突。
+   ================================================================ */
+
+/* ---- 内容容器：整宽（与导航栏同宽 1200）---- */
+.dy-feed {
+  width: 100%;
+  padding: clamp(10px, 1.6vw, 18px) 0 clamp(72px, 11vw, 128px);
+}
+
+/* ---- 两栏：左内容流 + 右月历（桌面 ≥920px；窄屏收一列） ---- */
+.dy-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(150px, 13.5vw, 190px);
+  gap: clamp(36px, 6vw, 88px);
+  align-items: start;
+}
+
+/* 右栏 sticky 索引（v9.5）：文字月份目录（原索引内容）+ 单一当前月迷你日历 */
+.dy-side {
+  position: sticky; top: clamp(78px, 12vh, 116px);
+  min-width: 0;
+}
+.dy-idx { display: flex; flex-direction: column; }
+
+/* 年份头：大衬线年号 + hairline 收边（月份目录的 TOC 骨架，同 v9.3） */
+.dy-idx-year {
+  margin: 0 0 14px;
+  font: 600 clamp(25px, 2.4vw, 32px)/1 var(--font-head);
+  letter-spacing: .04em; color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+.dy-idx-year::after {
+  content: ""; display: block; margin-top: 12px;
+  height: 1px; background: var(--color-rule);
+}
+
+/* 文字月份目录（原本索引：圆点 + 月名 + 条数；当前月 accent 实心点） */
+.dy-ml { display: flex; flex-direction: column; }
+.dy-ml-row {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 6px 2px;
+  background: none; border: 0; cursor: pointer;
+  text-align: left;
+  font: 13px/1 var(--font-body); color: var(--color-muted);
+  letter-spacing: .08em;
+  user-select: none; -webkit-user-select: none;
+  transition: color .3s ease;
+}
+.dy-ml-row:focus { outline: none; }
+.dy-ml-row:focus-visible { outline: 2px solid rgba(var(--color-accent-rgb), .5); outline-offset: 2px; border-radius: 4px; }
+.dy-ml-row:hover { color: var(--color-accent); }
+.dy-ml-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--color-muted); opacity: .35;
+  transition: opacity .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.dy-ml-row:hover .dy-ml-dot { opacity: .85; background: var(--color-accent); }
+.dy-ml-row.is-active { color: var(--color-ink); }
+.dy-ml-row.is-active .dy-ml-dot {
+  opacity: 1; background: var(--color-accent);
+  transform: scale(1.12); box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), .14);
+}
+.dy-ml-yr { font: 10px/1 var(--font-body); color: var(--color-muted); letter-spacing: 0; }
+.dy-ml-n {
+  margin-left: auto;
+  font: 500 12px/1 var(--font-mono); color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.dy-ml-row.is-active .dy-ml-n,
+.dy-ml-row:hover .dy-ml-n { color: var(--color-accent); }
+
+/* 单一迷你月历：跟随正在阅读的月份切换（不再每月一张堆叠） */
+.dy-cal { margin-top: 20px; }
+.dy-cal-head {
+  display: flex; align-items: baseline; gap: 6px;
+  margin: 0 0 9px;
+  font: 600 14px/1 var(--font-head); letter-spacing: .12em;
+  color: var(--color-ink);
+}
+.dy-cal-yr { font: 500 10px/1 var(--font-body); color: var(--color-muted); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.dy-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dy-cal-wk { font: 9px/1 var(--font-body); color: var(--color-muted); opacity: .7; text-align: center; padding: 1px 0 3px; }
+.dy-cal-d {
+  display: flex; align-items: center; justify-content: center;
+  height: 23px; border-radius: 7px;
+  font: 500 10px/1 var(--font-body); color: var(--color-muted); opacity: .4;
+  font-variant-numeric: tabular-nums;
+}
+/* 有记的日子：accent 浅底 + accent 数字（深浅主题通吃） */
+.dy-cal-d.has {
+  opacity: 1; color: var(--color-accent); cursor: pointer;
+  background: rgba(var(--color-accent-rgb), .15);
+  font-weight: 700;
+  transition: transform .16s ease, background .16s ease;
+}
+.dy-cal-d.has:hover { background: rgba(var(--color-accent-rgb), .24); transform: scale(1.12); }
+.dy-side-foot { margin-top: 20px; font: 12px/1.6 var(--font-body); color: var(--color-muted); letter-spacing: .06em; }
+.dy-side-foot b { font-weight: 600; color: var(--color-ink); font-variant-numeric: tabular-nums; }
+
+.dy-stream { min-width: 0; width: 100%; }
+
+/* v9.10 · 版式 A（博客/公众号式）：桌面左栏内图文统一居中阅读栏 680px ——
+   日期头 / 正文 / 图片墙在栏内同宽、零缝隙；栏两侧留白左右对称（页面留白，
+   不是"图旁边空一块"）。右栏月历仍在容器右缘。
+   教训来源：v9.8 620 居中限栏 + v9.9 整宽 900 而图墙 560 —— 文字与图墙不同宽，
+   无论靠左/居中，墙两侧必有一块悬空；A 解法是让文字和图墙共用同一 680 栏。 */
+@media (min-width: 921px) {
+  /* v9.10b：流栏默认 stretch（去掉居中）→ 左缘贴轨道起点，
+     与导航栏内容左缘（.nav-inner padding 16 内侧）精确对齐；
+     右栏日历仍贴容器右缘。留白只出现在 流栏右侧 → 日历 之间。 */
+  .dy-stream { max-width: 680px; }
+}
+
+/* ---- 日期分组头 ---- */
+.dy-day {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: clamp(38px, 5vw, 54px) 0 clamp(8px, 1vw, 12px);
+}
+/* 首个日期组与右栏索引齐顶（仅桌面双栏）：.dy-list 首子其实是隐藏的空态 <p>，
+   :first-child 匹配不到 → 用 :first-of-type；移动单栏保留组间呼吸 */
+@media (min-width: 921px) {
+  .dy-day:first-child, .dy-day:first-of-type { margin-top: 0; }
+}
+.dy-day-label {
+  flex-shrink: 0;
+  font: 600 clamp(17px, 1.9vw, 20px)/1 var(--font-head);
+  letter-spacing: .06em; color: var(--color-ink);
+}
+.dy-day-wk {
+  flex-shrink: 0;
+  font: 12px/1 var(--font-body); color: var(--color-muted);
+  letter-spacing: .14em;
+}
+.dy-day-line { flex: 1; height: 1px; background: var(--color-rule); align-self: center; }
+
+/* 月份跳转：目标留出 sticky 导航高度；点击时日期头闪烁 accent */
+.dy-day { scroll-margin-top: calc(64px + 24px); }
+.dy-day.flash .dy-day-label { color: var(--color-accent); }
+.dy-day.flash .dy-day-line { background: var(--color-accent); opacity: .45; }
+.dy-day.flash .dy-day-label,
+.dy-day.flash .dy-day-line { transition: color .5s ease, background .5s ease; }
+
+/* ---- 条目（无卡片，hairline 分隔）---- */
+.dy-item {
+  padding: clamp(22px, 2.8vw, 30px) 0 clamp(24px, 3vw, 34px);
+}
+.dy-item + .dy-item { border-top: 1px solid var(--color-rule); }
+
+/* 正文：整宽排铺，字号随宽稍放大 */
+.dy-text {
+  font: clamp(16px, 1.5vw, 18px)/1.95 var(--font-body);
+  color: var(--color-ink);
+  white-space: pre-wrap; word-break: break-word;
+}
+.dy-text.collapsed {
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dy-expand {
+  margin-top: 6px; background: none; border: none; padding: 0;
+  font: 14px var(--font-body); color: var(--color-accent); cursor: pointer;
+}
+.dy-expand:hover { text-decoration: underline; }
+
+/* 引文：不特殊打扮，仅衬线稍大，保持可读 */
+.dy-item.is-quote .dy-text {
+  font: italic 600 19px/1.95 var(--font-head); color: var(--color-ink);
+}
+
+/* ---- 朋友圈标准图片网格（v9.10 · 版式 A：栏内满宽与正文同宽） ---- */
+.dy-images {
+  width: 100%; margin: 16px 0 0;
+  display: grid;
+}
+.dy-img {
+  position: relative; overflow: hidden; cursor: zoom-in;
+  aspect-ratio: 1/1; border-radius: 6px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
+    linear-gradient(140deg, var(--g1), var(--g2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(20px, 1.8vw, 28px);
+  transition: filter .25s ease;
+}
+.dy-img:hover { filter: brightness(1.07); }
+/* 真实图片：绝对覆盖；emoji / 渐变作为兜底（src 缺失时仍能用） */
+.dy-img > img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block; border-radius: inherit;
+}
+/* 「+N 更多」叠加层：覆盖在第 9 张格子上。
+   v9.10e（再放大）：数字 24→28px、标注 11→13px 仍主次分明 ——
+   主人两轮反馈「太小」；此前 30px 显大只因两行同字号，28+13 在单格 221 上
+   数字占 ~13%，标注清晰但不再喧宾。 */
+.dy-more {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  background: rgba(10, 13, 18, .50); color: #fff;
+  font: 600 clamp(20px, 2.4vw, 28px)/1 var(--font-head); letter-spacing: .03em;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
+  pointer-events: none;
+}
+.dy-more small {
+  margin-top: 6px; font: 600 clamp(11px, 1.3vw, 13px)/1 var(--font-body);
+  opacity: .95; letter-spacing: .16em;
+  text-shadow: 0 1px 6px rgba(0,0,0,.35);
+}
+.dy-img.is-more { cursor: zoom-in; }
+
+/* 图片网格（v9.10 · 版式 A）：栏内一律与正文同宽满栏 —— 图文零缝隙。
+   栏本身 ~680，故 3×3 单格 ≈221px（朋友圈原始尺寸，不再显大）。 */
+/* 1 张：单图 4:3，插图式 */
+.dy-images.dy-c1 { width: 100%; }
+.dy-images.dy-c1 .dy-img {
+  aspect-ratio: 4/3; border-radius: 10px;
+  font-size: clamp(30px, 3.2vw, 44px);
+}
+/* 2 张：两枚方图 */
+.dy-images.dy-c2 {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+/* 3 张：左大（占 2/3 宽、跨两行）+ 右 2 小 */
+.dy-images.dy-c3 {
+  grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr;
+  gap: 8px;
+}
+.dy-images.dy-c3 .dy-img:first-child { grid-row: span 2; }
+/* 4 张：2×2 */
+.dy-images.dy-c4 {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+/* 6 张：3×2 / 9 张：3×3 —— 满栏宽（栏宽即阅读宽，无需再收窄） */
+.dy-images.dy-c6 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.dy-images.dy-c9 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+/* 多图圆角随格缩小 */
+.dy-images.dy-c2 .dy-img, .dy-images.dy-c4 .dy-img { border-radius: 8px; }
+.dy-images.dy-c3 .dy-img { border-radius: 8px; }
+.dy-images.dy-c3 .dy-img:first-child { border-radius: 10px; }
+
+/* 渐变占位 tone（同 posts.json 的 dy-g* 映射） */
+.dy-g1  { --g1:#a5c8f5; --g2:#3b6fd4; }
+.dy-g2  { --g1:#f3b3ae; --g2:#c95c53; }
+.dy-g3  { --g1:#a8ddb5; --g2:#3f8f5c; }
+.dy-g4  { --g1:#f6d695; --g2:#c9932f; }
+.dy-g5  { --g1:#c9bcf0; --g2:#6d54b8; }
+.dy-g6  { --g1:#93dbe4; --g2:#2b8296; }
+.dy-g7  { --g1:#f2b6d3; --g2:#b8478a; }
+.dy-g8  { --g1:#f7c49b; --g2:#c9722f; }
+.dy-g9  { --g1:#b3bcf5; --g2:#4a55b8; }
+.dy-g10 { --g1:#b8e0c8; --g2:#4a8f6d; }
+.dy-g11 { --g1:#e8c9b0; --g2:#a87048; }
+.dy-g12 { --g1:#c7d9f0; --g2:#5a7fb0; }
+
+/* ---- 每条时刻（灰小字，悬停 title 看完整时间）---- */
+.dy-time {
+  display: inline-block; margin-top: 12px;
+  font: 12px var(--font-mono); color: var(--color-muted);
+  font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  cursor: default;
+}
+
+/* ---- 空态 / 加载失败 ---- */
+.dy-empty {
+  margin: clamp(24px, 4vw, 40px) 0;
+  font: 14px/1.8 var(--font-body); color: var(--color-muted);
+  text-align: center;
+}
+
+/* ---- 灯箱 ---- */
+.dy-lb {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 5vw;
+  background: rgba(10,13,18,.86);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+.dy-lb.is-open { opacity: 1; pointer-events: auto; }
+.dy-lb-photo {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  max-width: min(92vw, 960px);
+  max-height: 86vh;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
+    linear-gradient(140deg, var(--g1), var(--g2));
+  box-shadow: 0 40px 90px rgba(0,0,0,.5);
+  overflow: hidden;
+  transform: scale(.97);
+  transition: transform .25s cubic-bezier(0.22,1,0.36,1);
+}
+.dy-lb.is-open .dy-lb-photo { transform: none; }
+.dy-lb-photo > img {
+  display: block;
+  max-width: min(92vw, 960px);
+  max-height: 86vh;
+  width: auto; height: auto;
+  object-fit: contain;
+  transform: scale(.97);
+  transition: transform .25s cubic-bezier(0.22,1,0.36,1);
+}
+.dy-lb.is-open .dy-lb-photo > img { transform: none; }
+/* v9.8 缩放：is-zoom 后内联 transform（scale + translate）驱动，拖拽平移 */
+.dy-lb-photo > img {
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+.dy-lb-photo.is-zoom { cursor: grab; }
+.dy-lb-photo.is-zoom.dragging { cursor: grabbing; }
+.dy-lb-photo.is-zoom > img {
+  transition: transform .18s cubic-bezier(0.22,1,0.36,1);
+  cursor: grab;
+}
+.dy-lb-photo.is-zoom.dragging > img,
+.dy-lb-photo.no-anim > img { transition: none !important; }
+.dy-lb-photo > .dy-lb-hint {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  padding: 5px 10px; border-radius: 20px;
+  background: rgba(255,255,255,.14); color: rgba(255,255,255,.9);
+  font: 11px/1 var(--font-body); letter-spacing: .08em;
+  pointer-events: none; opacity: 0; transition: opacity .3s ease;
+}
+.dy-lb.is-open .dy-lb-photo > .dy-lb-hint { opacity: 1; }
+.dy-lb-photo.is-zoom .dy-lb-hint { display: none; }
+.dy-lb-photo > .dy-lb-emoji {
+  font-size: clamp(60px, 10vw, 120px);
+  line-height: 1;
+  padding: 40px;
+}
+.dy-lb-close {
+  position: absolute; top: 22px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.08); color: #fff;
+  font: 15px var(--font-body); cursor: pointer;
+}
+.dy-lb-close:hover { background: rgba(255,255,255,.20); }
+
+/* 灯箱：上一张 / 下一张 / 计数（缩放态沉浸淡出，见 v9.10f 下方） */
+.dy-lb-close,
+.dy-lb-nav,
+.dy-lb-counter {
+  transition: opacity .22s ease, background .2s ease, transform .2s ease;
+}
+/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 计数 / 翻页 / 关闭淡出，
+   避免与放大平移中的图片重叠；ESC / 双击退出缩放后恢复。
+   原 hint pill（is-zoom 时 display:none）同时解决「提示与计数叠一起」。 */
+.dy-lb.is-zoom .dy-lb-counter,
+.dy-lb.is-zoom .dy-lb-nav,
+.dy-lb.is-zoom .dy-lb-close {
+  opacity: 0; pointer-events: none;
+}
+.dy-lb-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.08); color: #fff;
+  font: 600 22px/1 var(--font-body);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.dy-lb-nav:hover { background: rgba(255,255,255,.20); }
+.dy-lb-nav[hidden] { display: none; }
+.dy-lb-prev { left: 24px; }
+.dy-lb-next { right: 24px; }
+.dy-lb-counter {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  font: 12px/1 var(--font-mono); color: rgba(255,255,255,.85);
+  letter-spacing: .14em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .dy-lb-prev { left: 10px; width: 42px; height: 42px; }
+  .dy-lb-next { right: 10px; width: 42px; height: 42px; }
+  .dy-lb-counter { bottom: 14px; }
+}
+
+/* ---- 入场（轻）---- */
+.dy-item, .dy-day {
+  opacity: 0; transform: translateY(12px);
+  transition: opacity .5s cubic-bezier(0.22,1,0.36,1), transform .5s cubic-bezier(0.22,1,0.36,1);
+}
+.dy-item.is-visible, .dy-day.is-visible { opacity: 1; transform: none; }
+
+/* ---- 移动端 ---- */
+@media (max-width: 920px) {
+  .dy-layout { display: block; }
+  .dy-side { display: none; }
+  .dy-stream { width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .dy-day { margin-top: clamp(30px, 6vw, 42px); }
+  .dy-text { font-size: 16px; }
+  .dy-text.collapsed { -webkit-line-clamp: 4; }
+  .dy-images.dy-c1 { max-width: 100%; }
+  .dy-images.dy-c1 .dy-img { border-radius: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dy-item, .dy-day { opacity: 1; transform: none; }
+}
+</style>
+
+</head>
+<body data-page-node-id="Whtz3fnqsa8tIvNcp3tJ3l">
+
+  <!-- 全屏加载页（第一百四十七批）：taozhiyy 同款 three-body loader。
+       样式：loader.css；逻辑：loader.js（放行时给 <html> 加 .page-ready）。
+       noscript 兜底：JS 禁用时直接隐藏加载页。 -->
+  <div id="pageLoader" role="status" aria-label="页面加载中" data-page-node-id="XfmMNGEsNUJj3yaGRCwtuB">
+    <div class="page-loader-three" aria-hidden="true" data-page-node-id="F91TH8KF9gUAXeNlfbHVmh">
+      <div class="page-loader-dot" data-page-node-id="SgJ8tesGIyTEELDP9ZWV7B"></div>
+      <div class="page-loader-dot" data-page-node-id="vQt4DqHEXd29l1QAH21MmM"></div>
+      <div class="page-loader-dot" data-page-node-id="dHC2JA8uvvoDFHlWKPmERg"></div>
+    </div>
+  </div>
+  <noscript data-page-node-id="Se6dYguxec5W3GhGXHVBH8"><style>#pageLoader{display:none}</style></noscript>
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时，load+2s 后强制解除加载页 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
+
+  <!-- 页面滑动进度条：与其余页面同款，script.js 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true" data-page-node-id="mRjzKkvH4IT2WAH6XSwMn6"></div>
+
+  <a href="#dy" class="skip-link" data-page-node-id="2simF6l7peYEmtQU8GpLhm">跳到主要内容</a>
+
+  <nav class="nav" id="nav" data-page-node-id="Hr3Yeue4nyhwJDI44PALM6">
+    <div class="nav-inner" data-page-node-id="vWnwFsBjGkpvN7rwYeNALV">
+      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页" data-page-node-id="wmeUj5nZEXPS2XgpAIb1aE">rain.meow</a>
+      <ul class="nav-links" data-page-node-id="2PibO6BezdBPEWDrlZXpwH">
+        <li class="nav-hover-indicator" aria-hidden="true" data-page-node-id="B10EnhNqQqGjM3QZdFDWvo"></li>
+        <li data-page-node-id="cDiUIdhp2pXMpYmEwy3kmx"><a href="projects.html" data-page-node-id="B240CnpG2YmpFmvuyit9OK">项目</a></li>
+        <li data-page-node-id="sjKlzas7W2YSYg0NvEYZ3c"><a href="posts.html" aria-current="page" data-page-node-id="2oR9BFM7UYAN5yA6Ucmdzc">动态</a></li>
+        <li data-page-node-id="kvEYqHVjdD9DR8H8Mt5DIf"><a href="coming-soon.html" data-page-node-id="85Z1rlc91yTRNMhstmMyYf">照片</a></li>
+        <li data-page-node-id="K6mhdXsFMGbCFdlRlFpeNU"><a href="about.html" data-page-node-id="1a9Of3SuuoqeHSMnpFstSS">关于</a></li>
+      </ul>
+      <div class="nav-actions" data-page-node-id="nFy6LcufMwfOB9Zenb8ggv">
+        <span class="nav-actions-indicator" aria-hidden="true" data-page-node-id="DXSIJ9tSMCLL81Tfc7bQ8Q"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题" data-page-node-id="LbgqDMwT4bUUuPdAz563MF">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="GAztprtOo4F2anBbsCZOu8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" data-page-node-id="lDRw8qEd41BPEeWCoPjS1u"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="yTmcG0AJLiecQG9Q0AboX8"><circle cx="12" cy="12" r="5" data-page-node-id="2PEHkxqwCs8ZeX0cD2tT6g"/><line x1="12" y1="1" x2="12" y2="3" data-page-node-id="ps50lqK1f8Br5P8DM8luKQ"/><line x1="12" y1="21" x2="12" y2="23" data-page-node-id="Y3YL8Q2cxbQlU7Yb21GViu"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-page-node-id="H2zSheHJC5PMwXK3QrIFYz"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-page-node-id="oE4F3HeRUQRW8JigJiC0UH"/><line x1="1" y1="12" x2="3" y2="12" data-page-node-id="W0MyZEkgzXpdJJrMbCTUIg"/><line x1="21" y1="12" x2="23" y2="12" data-page-node-id="pPBbPKWWBHYrHnc85GkUX6"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-page-node-id="6hqeT6CApDba9p66au2LYI"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-page-node-id="FIugDyOUqEpLtsijFseYGc"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop" data-page-node-id="FoC7ZqDAfFiFSyzlEfMVQQ">Dark</span>
+        </button>
+        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）" data-page-node-id="bNcEi5016eHIi7WhezYAsM">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="f3DNVYVzc2YjV8eHgRIB61"><circle cx="12" cy="12" r="10" data-page-node-id="6yVUctm09pEzbX3BV4trYZ"/><line x1="2" y1="12" x2="22" y2="12" data-page-node-id="QoxZYor5Q1jgMjnjrE3E98"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" data-page-node-id="M5GVW3XwHH4OiSOxhJyW4d"/></svg>
+          <span class="nav-icon-label" data-page-node-id="adjKJquU5HMRvZOJcuAycr">EN</span>
+        </a>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false" data-page-node-id="yrUsNh5UCJ3vWak11g8lsI">
+          <span data-page-node-id="xOyOGR5yghhrVB1iQptz1d"></span><span data-page-node-id="cdrHQS53Q5R67NQj9Sypts"></span><span data-page-node-id="PAmpfmYTgFkUbrTE05UKpb"></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true" data-page-node-id="HZyNNwKqrJMVHYFK30zshL">
+    <header class="nav-menu-header" data-page-node-id="9r77lOuHW7er0MGbIpImK2">
+      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单" data-page-node-id="GAtS5c4sHLbSpL3IKFPY4i">rain.meow</a>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单" data-page-node-id="pG79IaW5cT7sOAeWBj3OGg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="TVWx0BH5wfM4D3MI91dfin">
+          <line x1="18" y1="6" x2="6" y2="18" data-page-node-id="mD4WAOxe3eQOfh5VCpDBpo"/>
+          <line x1="6" y1="6" x2="18" y2="18" data-page-node-id="ujiHBTtjMJh45ppJxYYgVg"/>
+        </svg>
+      </button>
+    </header>
+    <div class="nav-menu-body" data-page-node-id="y9Ob8Eb59B8DfQIGDaDtgr">
+      <ul class="nav-menu-links" data-page-node-id="WeQNgCZ4WNJExDc2goCGDF">
+        <li data-page-node-id="CIIwP6mr7xvr1efd98cAMD"><a href="projects.html" data-page-node-id="m0KV5iZ3lSqAlrcKj7UlVI"><span class="label" data-page-node-id="GEHVDpkHLJ3LrovPvaahka">项目</span><span class="arrow" data-page-node-id="YVt7YnjIiRINW1nFUqEJnL">&rarr;</span></a></li>
+        <li data-page-node-id="L5mUiVYrMyRuvavQncGgf0"><a href="posts.html" aria-current="page" data-page-node-id="BvrPuGWRIk0CBuFQqwVZUn"><span class="label" data-page-node-id="MRvLu3VSyBApVYruTk51Zs">动态</span><span class="arrow" data-page-node-id="ohgVRHOwcZxzvbliHpa9zv">&rarr;</span></a></li>
+        <li data-page-node-id="8fQEdlIYObinqXLlcD0bvP"><a href="coming-soon.html" data-page-node-id="DmwgzPhH1eg3YysmQJjOjD"><span class="label" data-page-node-id="iY1IBn7K75Y1rAW3lSr6Rt">相册</span><span class="arrow" data-page-node-id="wPUMFTimDa3D3UjbO2dVcV">&rarr;</span></a></li>
+        <li data-page-node-id="mCCv9XIpiEODCiLWE4hPFZ"><a href="about.html" data-page-node-id="N6u2weUfEb5gl3LIKf9FQK"><span class="label" data-page-node-id="y2KQdftFw7MOvfx9RzzxSS">关于</span><span class="arrow" data-page-node-id="HDG5PR1qm9qxcEjL5yOwwi">&rarr;</span></a></li>
+      </ul>
+    </div>
+    <footer class="nav-menu-footer" data-page-node-id="De3vTyNqTLzDExVXU1qa16">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题" data-page-node-id="9XyHQvYsqLKSdi4XzYgppK">
+        <span class="nav-menu-action-hit" data-page-node-id="9CW3ADe3rPHh3Hk38b4U68">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="nFdY2AwAaEqT2gHqYSwyY8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" data-page-node-id="RvESoPqdBgOgOnMCbnMq7k"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="UYHQsB9sRpmEOey81Nr2FJ"><circle cx="12" cy="12" r="5" data-page-node-id="IzmbaBK3HUXqCu9tX3m5Z4"/><line x1="12" y1="1" x2="12" y2="3" data-page-node-id="xUQAUPaCI6hLNwVRfA7UN8"/><line x1="12" y1="21" x2="12" y2="23" data-page-node-id="C0vPupnPGAEoLREmLG6zuT"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" data-page-node-id="hWllHElqDVAKyMiuiush97"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" data-page-node-id="CDCJNiVoU3df1EellPjJ3F"/><line x1="1" y1="12" x2="3" y2="12" data-page-node-id="q2QKMb7vJj13aLZYt6AvId"/><line x1="21" y1="12" x2="23" y2="12" data-page-node-id="I2WEp7VY78iRUzvnjbO0J5"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" data-page-node-id="vynf3e4N0ubfHfs4lV25iK"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" data-page-node-id="k2tJiuuZFUdlUYW1upgUNP"/></svg>
+          <span id="themeLabelMobile" data-page-node-id="0HxV3WAEVXLCpzOHzyTKro">Dark</span>
+        </span>
+      </button>
+      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）" data-page-node-id="SHdSoirE2Kto1zwgzR4VVF">
+        <span class="nav-menu-action-hit" data-page-node-id="OISFKvfA8waMKw7nF6MXbT">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="nED8xZEWsRlfPFMWYbajgA"><circle cx="12" cy="12" r="10" data-page-node-id="6PfHe2hasHwa1uKyxnzoTr"/><line x1="2" y1="12" x2="22" y2="12" data-page-node-id="GsgWaYOOJRfXjKXcwrNjRj"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" data-page-node-id="cjQ4YRtRmXfg0CJ0rO9tT6"/></svg>
+          <span data-page-node-id="nCqszqOblUkgwPvKgGujGA">EN</span>
+        </span>
+      </a>
+    </footer>
+  </nav>
+
+  <main class="about-main" id="dy" data-page-node-id="fhTqxTu20lLG6y8eK9T6fc">
+
+    <!-- === 标题区（与「关于」「项目」同款：about-hero + about-title + about-hero-desc）===
+         2026-09-05 主人「移除动态页上方设计，标题和副标题参考关于和项目」——
+         删掉朋友圈式全宽封面（渐变天空 + 雨丝动画 + 叠放头像），改成站内统一标题区。 -->
+    <header class="about-hero">
+      <h1 class="about-title" aria-label="雨落笔记"><span class="about-title-char">雨</span><span class="about-title-char">落</span><span class="about-title-char hl">笔</span><span class="about-title-char hl">记</span></h1>
+      <p class="about-hero-desc">下雨、拍照、写点字 —— 想到什么就记一笔</p>
+    </header>
+
+    <div class="dy-feed">
+      <div class="dy-layout">
+
+        <!-- 内容流（DOM 在前：窄屏/读屏先读正文；桌面由 grid 置于左列） -->
+        <div class="dy-stream">
+          <div class="dy-list" id="dyList" role="feed" aria-label="动态列表">
+            <!-- 条目由 assets/data/posts.json 渲染（见页尾脚本）：v9.5 内容流 + 右栏索引 -->
+            <p class="dy-empty" id="dyEmpty" hidden>动态加载失败，稍后再来看看。</p>
+          </div>
+        </div>
+
+        <!-- 右侧索引 v9.5：文字月份目录（原索引）+ 单一迷你月历（跟随滚动切换当前月） -->
+        <aside class="dy-side" id="dySide" aria-label="动态索引" hidden>
+          <div class="dy-idx" id="dyIdx">
+            <h2 class="dy-idx-year" id="dyIdxYear" aria-hidden="true"></h2>
+            <nav class="dy-ml" id="dyMl" aria-label="月份归档"></nav>
+            <div class="dy-cal" id="dyCal"></div>
+          </div>
+          <p class="dy-side-foot" id="dySideFoot"></p>
+        </aside>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 灯箱 -->
+  <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" data-page-node-id="rJNIVkRb7yC3EALjcHx30a">
+    <button class="dy-lb-close" id="dyLbClose" type="button" aria-label="关闭" data-page-node-id="i57wXYfQY3BdVYHoo613vZ">✕</button>
+    <button class="dy-lb-nav dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张" hidden data-page-node-id="xY2aB4tH3pK9wQ8zN7mFv6">‹</button>
+    <button class="dy-lb-nav dy-lb-next" id="dyLbNext" type="button" aria-label="下一张" hidden data-page-node-id="nL5cD8eJ2fG6hI3kM1oPq0">›</button>
+    <div class="dy-lb-photo" id="dyLbPhoto" data-page-node-id="RhYmU0T7lYAhMFwEQMhw8j"></div>
+    <div class="dy-lb-counter" id="dyLbCounter" aria-live="polite" data-page-node-id="vB1nX4yH6zL9aC2eF5gI8j"></div>
+  </div>
+
+  <!-- nav 已解析完，立即设好主题文字 label（与其余页面同款） -->
+  <script>
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    d && (d.textContent = label);
+    m && (m.textContent = label);
+  </script>
+
+  <script src="../assets/js/loader.js?v=5" defer></script>
+  <script src="../assets/js/script.js?v=135" defer></script>
+
+  <!-- 动态页逻辑 v9：从 assets/data/posts.json 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
+       v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
+   v9.6（2026-09-07）：真实图片支持（photos[*].src）+ 「+更多」叠加层（>9 张时，第 9 格显示 +N）
+   + 灯箱上下张导航（键盘 ← → / 按钮 / 触摸滑动）。
+   v9.8（2026-09-07）：灯箱支持缩放 —— 双击/滚轮/双指捏合放大、拖动平移，缩放时 ESC 先退出缩放。
+   v9.9（2026-09-07）：版面回归与导航栏同宽的整宽（去掉 620 居中限栏）；
+   图片墙一律左对齐正文左缘 + 多图 ≤560 紧凑上限（不再居中悬空、也不会整幅铺开）。
+   v9.10（2026-09-07，版式 A 定稿）：桌面左栏内图文统一居中阅读栏 680px ——
+   日期头/正文/图墙栏内同宽零缝隙、两侧留白对称（博客式）；右栏月历仍在右缘。
+   图墙取消 ≤560 cap，随栏宽满栏（3×3 单格 ≈221px）。
+   v9.10b（2026-09-07）：流栏去居中改默认 stretch → 左缘贴轨道起点，
+   与导航栏内容左缘（.nav-inner padding 16 内侧）精确对齐（1280/1440/移动 全档一致）。
+   v9.10c（2026-09-07）：「+4 更多」蒙层字号收敛 —— 数字 30→≤20px；并把
+   「更多」二字从普通 span 改为 <small>（原本漏挂 small 类/标签，两行同字号）。
+   v9.10d（2026-09-07）：重设计蒙层 —— 数字 24px + 「更多」11px 主次层级
+   （20/10 太小 → 中间档），text-shadow 兜底亮部照片、蒙层 .55→.50。
+   v9.10e（2026-09-07）：再放大 —— 数字 24→28px、「更多」11→13px（主人仍嫌小）。
+   v9.10f（2026-09-07）：灯箱缩放态 → 沉浸查看 —— is-zoom 同步到 .dy-lb，
+   计数/翻页/关闭淡出（opacity 0 + pointer-events none），不再与放大后的图重叠；
+   ESC / 双击退出缩放后 UI 淡回。hint pill 缩放时本就 display:none。
+   换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
+  <script>
+  (function () {
+    'use strict';
+
+    var WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    var MONTH = ['一月', '二月', '三月', '四月', '五月', '六月',
+                 '七月', '八月', '九月', '十月', '十一月', '十二月'];
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function toDate(iso) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(iso || '');
+      if (!m) return new Date(NaN);
+      return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+    }
+    function fmtTime(d) {
+      return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + WEEK[d.getDay()] +
+             ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function fmtFull(d) {
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+             ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function gridClass(n) {
+      if (n === 1) return 'dy-c1';
+      if (n === 2) return 'dy-c2';
+      if (n === 3) return 'dy-c3';
+      if (n === 4) return 'dy-c4';
+      if (n <= 6) return 'dy-c6';
+      return 'dy-c9';
+    }
+    function el(tag, cls, text) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+
+    /* ---------- 数据源：静态 JSON（换 GitHub Issues 只改这里） ---------- */
+    function loadPosts() {
+      return fetch('../assets/data/posts.json?v=2', { cache: 'no-cache' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (data) { return data.posts || []; });
+    }
+
+    /* ---------- 渲染 ---------- */
+    function buildItem(post) {
+      var d = toDate(post.date);
+      var valid = !isNaN(d);
+      var item = el('article', 'dy-item' + (post.quote ? ' is-quote' : ''));
+
+      if (post.text) item.appendChild(el('p', 'dy-text', post.text));
+
+      var photos = post.photos || [];
+      if (photos.length) {
+        var visible = Math.min(photos.length, 9);
+        var grid = el('div', 'dy-images ' + gridClass(visible));
+        var i;
+        for (i = 0; i < visible; i++) {
+          var ph = photos[i];
+          var tile = el('div', 'dy-img ' + (ph.tone || 'dy-g1'));
+          tile.dataset.idx = String(i);
+          if (ph.src) {
+            var img = document.createElement('img');
+            img.src = ph.src;
+            img.alt = ph.alt || '';
+            img.loading = i === 0 ? 'eager' : 'lazy';
+            img.decoding = 'async';
+            tile.appendChild(img);
+          } else if (ph.emoji) {
+            tile.appendChild(document.createTextNode(ph.emoji));
+          }
+          /* 第 9 格叠加「+N 更多」蒙层（N = 隐藏的张数） */
+          if (i === 8 && photos.length > 9) {
+            tile.classList.add('is-more');
+            var more = el('span', 'dy-more', '+' + (photos.length - 9));
+            more.appendChild(el('small', '', '更多'));
+            tile.appendChild(more);
+          }
+          grid.appendChild(tile);
+        }
+        item.appendChild(grid);
+      }
+
+      /* 让灯箱拿到本条的全部照片 + 索引（不局限于前 9 张） */
+      item._dyPhotos = photos;
+
+      var t = el('time', 'dy-time', valid ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : '');
+      if (valid) { t.setAttribute('datetime', post.date); t.title = fmtFull(d); }
+      item.appendChild(t);
+      return item;
+    }
+
+    function render(posts) {
+      var wrap = document.getElementById('dyList') || document.querySelector('.dy-list');
+      var empty = document.getElementById('dyEmpty');
+      if (!wrap) return;
+
+      var list = posts.slice().sort(function (a, b) {
+        return toDate(b.date) - toDate(a.date);
+      });
+      if (!list.length) { if (empty) empty.hidden = false; return; }
+      if (empty) empty.hidden = true;
+
+      var now = new Date();
+      var frag = document.createDocumentFragment();
+      var lastDayKey = null;
+      var lastMonthKey = null;
+      var months = [];   /* 新→旧：[{y,m}] 有动态的月份 */
+      var counts = {};   /* 'y-mm-dd' -> 当日条数（喂迷你月历） */
+
+      list.forEach(function (post) {
+        var d = toDate(post.date);
+        var dayKey = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        var monKey = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+        counts[dayKey] = (counts[dayKey] || 0) + 1;
+
+        if (dayKey !== lastDayKey) {
+          lastDayKey = dayKey;
+          var head = el('div', 'dy-day');
+          head.id = 'dy-d-' + dayKey;
+          if (monKey !== lastMonthKey) {
+            lastMonthKey = monKey;
+            months.push({ y: d.getFullYear(), m: d.getMonth() + 1 });
+          }
+          var label = (d.getFullYear() !== now.getFullYear() ? d.getFullYear() + '年' : '') +
+                      (d.getMonth() + 1) + '月' + d.getDate() + '日';
+          head.appendChild(el('span', 'dy-day-label', label));
+          head.appendChild(el('span', 'dy-day-wk', WEEK[d.getDay()]));
+          head.appendChild(el('span', 'dy-day-line'));
+          frag.appendChild(head);
+        }
+        frag.appendChild(buildItem(post));
+      });
+
+      wrap.appendChild(frag);
+      fillCal(months, counts, list.length);
+    }
+
+    /* ---------- 右侧索引：文字月份目录（原本内容）+ 单一迷你月历 ---------- */
+    var calYears = {};    /* mkey('y-mm') -> {y,m}，有动态的月份 */
+    var calCounts = {};   /* 'y-mm-dd' -> 当日条数 */
+    var topYear = 0;      /* 最新月份所在年（年份头） */
+    var curMKey = null;   /* 月历当前展示的月份 */
+
+    function monthCount(y, m, counts) {
+      var pre = y + '-' + pad(m) + '-', n = 0, k;
+      for (k in counts) {
+        if (counts.hasOwnProperty(k) && k.indexOf(pre) === 0) n += counts[k];
+      }
+      return n;
+    }
+
+    function fillCal(months, counts, total) {
+      var side = document.getElementById('dySide');
+      if (!side || !months.length) return;
+      calCounts = counts;
+      calYears = {};
+      months.forEach(function (m) { calYears[m.y + '-' + pad(m.m)] = m; });
+      topYear = months[0].y;
+
+      document.getElementById('dyIdxYear').textContent = String(topYear);
+
+      var ml = document.getElementById('dyMl');
+      ml.innerHTML = '';
+      months.forEach(function (m) {
+        var row = el('button', 'dy-ml-row');      /* button：键盘可达的目录项 */
+        row.type = 'button';
+        row.setAttribute('data-mkey', m.y + '-' + pad(m.m));
+        row.appendChild(el('span', 'dy-ml-dot'));
+        row.appendChild(el('span', 'dy-ml-name', MONTH[m.m - 1]));
+        if (m.y !== topYear) row.appendChild(el('span', 'dy-ml-yr', String(m.y)));
+        row.appendChild(el('span', 'dy-ml-n', String(monthCount(m.y, m.m, counts))));
+        ml.appendChild(row);
+      });
+
+      setActiveMonth(months[0].y + '-' + pad(months[0].m));
+      document.getElementById('dySideFoot').innerHTML = '共 <b>' + total + '</b> 条动态';
+      side.hidden = false;
+    }
+
+    /* 切换当前月：文字目录高亮 + （必要时）重绘单一月历 */
+    function setActiveMonth(mkey) {
+      Array.prototype.forEach.call(document.querySelectorAll('.dy-ml-row'), function (r) {
+        r.classList.toggle('is-active', r.getAttribute('data-mkey') === mkey);
+      });
+      if (mkey !== curMKey) drawCal(mkey);
+    }
+
+    /* 画一张月历（周一开头；有记日子点亮、可点击跳当天） */
+    function drawCal(mkey) {
+      var m = calYears[mkey];
+      if (!m) return;
+      curMKey = mkey;
+      var cal = document.getElementById('dyCal');
+      cal.innerHTML = '';
+
+      var head = el('header', 'dy-cal-head');
+      head.appendChild(el('span', '', MONTH[m.m - 1]));
+      if (m.y !== topYear) head.appendChild(el('span', 'dy-cal-yr', String(m.y)));
+      cal.appendChild(head);
+
+      var grid = el('div', 'dy-cal-grid');
+      ['一', '二', '三', '四', '五', '六', '日'].forEach(function (w) {
+        grid.appendChild(el('span', 'dy-cal-wk', w));
+      });
+
+      var first = new Date(m.y, m.m - 1, 1);
+      var lead = (first.getDay() + 6) % 7;          /* 周一起排 */
+      var dim = new Date(m.y, m.m, 0).getDate();
+      var i;
+      for (i = 0; i < lead; i++) grid.appendChild(el('span', 'dy-cal-d'));
+      for (i = 1; i <= dim; i++) {
+        var key = m.y + '-' + pad(m.m) + '-' + pad(i);
+        var d = el('span', 'dy-cal-d' + (calCounts[key] ? ' has' : ''), String(i));
+        if (calCounts[key]) {
+          d.setAttribute('data-date', key);
+          d.title = (m.y !== topYear ? m.y + '年 ' : '') + m.m + '月' + i + '日 · ' + calCounts[key] + ' 条';
+        }
+        grid.appendChild(d);
+      }
+      cal.appendChild(grid);
+    }
+
+    /* 索引点击：文字月份 → 跳到该月最早一天；日历有记日 → 跳到当天。都带日期头闪烁 */
+    function flashDay(h) {
+      var prev = document.querySelector('.dy-day.flash');
+      if (prev) prev.classList.remove('flash');
+      h.classList.add('flash');
+      setTimeout(function () { h.classList.remove('flash'); }, 900);
+    }
+    document.addEventListener('click', function (e) {
+      var row = e.target.closest ? e.target.closest('.dy-ml-row') : null;
+      if (row) {
+        var mk = row.getAttribute('data-mkey');
+        setActiveMonth(mk);
+        var h = document.querySelector('.dy-day[id^="dy-d-' + mk + '"]');
+        if (h) {
+          flashDay(h);
+          h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return;
+      }
+      var d = e.target.closest ? e.target.closest('.dy-cal-d.has') : null;
+      if (!d) return;
+      var hd = document.getElementById('dy-d-' + d.getAttribute('data-date'));
+      if (hd) {
+        flashDay(hd);
+        hd.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    /* 目录高亮 + 单月历切换：滚动时标出当前所在月份 */
+    function updateSpy() {
+      var marks = document.querySelectorAll('.dy-day[id^="dy-d-"]');
+      if (!marks.length) return;
+      var cur = null;
+      Array.prototype.forEach.call(marks, function (m) {
+        if (m.getBoundingClientRect().top <= 190) cur = m;
+      });
+      if (!cur) cur = marks[0];
+      setActiveMonth(cur.id.slice(5, 12));          /* 'dy-d-2026-08-30' → '2026-08' */
+    }
+    var spyPending = false;
+    function onScrollSpy() {
+      if (spyPending) return;
+      spyPending = true;
+      requestAnimationFrame(function () {
+        updateSpy();
+        spyPending = false;
+      });
+    }
+    document.addEventListener('scroll', onScrollSpy, { passive: true });
+
+    /* ---------- 长文折叠：展开 ↔ 收起 双向切换（v9.7） ---------- */
+    function setupCollapse() {
+      var maxLines = window.innerWidth <= 600 ? 4 : 6;
+      var lh = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.9;
+      var max = lh * maxLines + 4;
+      Array.prototype.forEach.call(document.querySelectorAll('.dy-text'), function (t) {
+        if (t.dataset.done) return;
+        t.dataset.done = '1';
+        var need = t.scrollHeight > max;
+        var userExpanded = t.dataset.expanded === '1';
+        if (!need && !userExpanded) return;
+
+        /* 需要折叠 or 用户已手动展开 → 都挂按钮（当前状态决定文案） */
+        if (need && !userExpanded) t.classList.add('collapsed');
+        var btn = el('button', 'dy-expand', t.classList.contains('collapsed') ? '展开全文' : '收起');
+        btn.type = 'button';
+        btn.setAttribute('aria-expanded', t.classList.contains('collapsed') ? 'false' : 'true');
+        t.parentNode.insertBefore(btn, t.nextSibling);
+        btn.addEventListener('click', function () {
+          var nowCollapsed = t.classList.toggle('collapsed');
+          t.dataset.expanded = nowCollapsed ? '' : '1';
+          btn.textContent = nowCollapsed ? '展开全文' : '收起';
+          btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+        });
+      });
+    }
+
+    /* ---------- 灯箱（事件委托；支持多张照片上下张 / 滑动） ---------- */
+    var lb = document.getElementById('dyLb');
+    var lbPhoto = document.getElementById('dyLbPhoto');
+    var lbPrev = document.getElementById('dyLbPrev');
+    var lbNext = document.getElementById('dyLbNext');
+    var lbCounter = document.getElementById('dyLbCounter');
+    var lbPhotos = [];      /* 当前条目的全部照片 */
+    var lbIndex = 0;        /* 当前展示的索引 */
+
+    function clearLbTone() {
+      var cls = lbPhoto.classList;
+      for (var i = cls.length - 1; i >= 0; i--) {
+        if (/^dy-g\d+$/.test(cls[i])) cls.remove(cls[i]);
+      }
+    }
+    function renderLb() {
+      resetLbView();
+      lbPhoto.innerHTML = '';
+      clearLbTone();
+      var ph = lbPhotos[lbIndex];
+      if (!ph) { lb.classList.remove('is-open'); return; }
+      if (ph.tone) lbPhoto.classList.add(ph.tone);
+      if (ph.src) {
+        var im = document.createElement('img');
+        im.src = ph.src;
+        im.alt = ph.alt || '';
+        im.decoding = 'async';
+        im.draggable = false;
+        lbPhoto.appendChild(im);
+        /* v9.8 缩放提示（打开即见，缩放后隐藏） */
+        var hint = document.createElement('span');
+        hint.className = 'dy-lb-hint';
+        hint.textContent = '双击 / 滚轮 / 双指缩放';
+        lbPhoto.appendChild(hint);
+      } else if (ph.emoji) {
+        var sp = document.createElement('span');
+        sp.className = 'dy-lb-emoji';
+        sp.textContent = ph.emoji;
+        lbPhoto.appendChild(sp);
+      }
+      lbCounter.textContent = (lbIndex + 1) + ' / ' + lbPhotos.length;
+      var multi = lbPhotos.length > 1;
+      lbPrev.hidden = !multi;
+      lbNext.hidden = !multi;
+    }
+    function openLb(node) {
+      var item = node.closest ? node.closest('.dy-item') : null;
+      var list = (item && item._dyPhotos) || [];
+      if (!list.length) return;
+      lbPhotos = list;
+      var idx = parseInt(node.dataset.idx || '0', 10);
+      if (isNaN(idx)) idx = 0;
+      /* 「+更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
+      if (node.classList.contains('is-more') && idx < list.length - 1) idx += 1;
+      lbIndex = idx;
+      renderLb();
+      lb.classList.add('is-open');
+      lb.setAttribute('aria-hidden', 'false');
+    }
+    function closeLb() {
+      lb.classList.remove('is-open');
+      lb.setAttribute('aria-hidden', 'true');
+      resetLbView();
+      /* 下一帧清空内容，避免下一次打开时短暂闪烁旧图 */
+      setTimeout(function () {
+        if (!lb.classList.contains('is-open')) {
+          lbPhoto.innerHTML = '';
+          lbPhotos = [];
+          lbIndex = 0;
+        }
+      }, 260);
+    }
+    function navLb(dir) {
+      if (!lbPhotos.length) return;
+      lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
+      renderLb();
+    }
+
+    /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
+    var lbZoom = 1, lbPanX = 0, lbPanY = 0;
+    var lbPtrs = new Map();       /* pointerId -> {x,y} */
+    var lbPinch = null;           /* {d0,z0} 捏合基准 */
+    var lbDrag = null;            /* {x,y,px,py} 拖动基准 */
+    var lbSwipe0 = null;          /* 触摸翻页起点 */
+
+    function curImg() { return lbPhoto.querySelector('img'); }
+    function resetLbView() {
+      lbZoom = 1; lbPanX = 0; lbPanY = 0;
+      lbPinch = null; lbDrag = null; lbSwipe0 = null;
+      lbPhoto.classList.remove('is-zoom', 'dragging', 'no-anim');
+      lb.classList.remove('is-zoom');   /* v9.10f：退出缩放 → UI 淡回 */
+      var im = curImg();
+      if (im) im.style.transform = '';
+    }
+    function lbClampPan() {
+      var im = curImg(); if (!im) return;
+      var w0 = im.offsetWidth || im.naturalWidth || 1;
+      var h0 = im.offsetHeight || im.naturalHeight || 1;
+      var cw = lbPhoto.clientWidth, ch = lbPhoto.clientHeight;
+      var mx = Math.max(0, (w0 * lbZoom - cw) / 2);
+      var my = Math.max(0, (h0 * lbZoom - ch) / 2);
+      lbPanX = Math.max(-mx, Math.min(mx, lbPanX));
+      lbPanY = Math.max(-my, Math.min(my, lbPanY));
+    }
+    function applyLbView(noAnim) {
+      var im = curImg(); if (!im) return;
+      var zoomed = lbZoom > 1.005;
+      lbPhoto.classList.toggle('is-zoom', zoomed);
+      lb.classList.toggle('is-zoom', zoomed);   /* v9.10f：缩放态沉浸 —— UI 淡出 */
+      lbPhoto.classList.toggle('no-anim', !!noAnim);
+      if (!zoomed) { im.style.transform = ''; return; }
+      lbClampPan();
+      im.style.transform = 'translate(' + lbPanX + 'px,' + lbPanY + 'px) scale(' + lbZoom + ')';
+    }
+    /* 围绕画面中心放大/缩小（平移量等比缩放保持中心点不动） */
+    function zoomBy(f) {
+      var old = Math.max(lbZoom, 1);
+      lbZoom = Math.min(4.5, lbZoom * f);
+      if (lbZoom < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
+      else { var k = lbZoom / old; lbPanX *= k; lbPanY *= k; }
+      applyLbView();
+    }
+    function zoomToggle() {
+      if (lbZoom > 1.005) resetLbView();
+      else { lbZoom = 2.6; lbPanX = 0; lbPanY = 0; applyLbView(); }
+    }
+
+    lbPhoto.addEventListener('dblclick', function (e) {
+      if (!lb.classList.contains('is-open') || !curImg()) return;
+      e.preventDefault();
+      zoomToggle();
+    });
+    lbPhoto.addEventListener('wheel', function (e) {
+      if (!lb.classList.contains('is-open') || !curImg()) return;
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.22 : 1 / 1.22);
+    }, { passive: false });
+
+    /* 指针统一处理：鼠标滚轮外的手势 —— 双指捏合缩放 / 单指（或鼠标）拖动平移 /
+       未缩放时的触摸横滑翻页 */
+    lbPhoto.addEventListener('pointerdown', function (e) {
+      if (!lb.classList.contains('is-open') || !curImg()) return;
+      lbPhoto.setPointerCapture(e.pointerId);
+      lbPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      lbSwipe0 = { x: e.clientX, y: e.clientY };
+      if (lbPtrs.size === 2) {
+        lbDrag = null;
+        var ids = Array.from(lbPtrs.keys());
+        var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
+        lbPinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: lbZoom };
+        lbPhoto.classList.add('no-anim');
+      } else if (lbZoom > 1.005) {
+        lbDrag = { x: e.clientX, y: e.clientY, px: lbPanX, py: lbPanY };
+        lbPhoto.classList.add('dragging', 'no-anim');
+      }
+    });
+    lbPhoto.addEventListener('pointermove', function (e) {
+      if (!lbPtrs.has(e.pointerId)) return;
+      var p = lbPtrs.get(e.pointerId);
+      p.x = e.clientX; p.y = e.clientY;
+      if (lbPtrs.size === 2 && lbPinch) {
+        var ids = Array.from(lbPtrs.keys());
+        var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
+        var d = Math.hypot(a.x - b.x, a.y - b.y);
+        var nz = lbPinch.z0 * d / lbPinch.d0;
+        if (nz < 1.005) nz = 1;
+        lbZoom = Math.min(4.5, nz);
+        if (lbZoom <= 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
+        applyLbView(true);
+      } else if (lbDrag) {
+        lbPanX = lbDrag.px + (e.clientX - lbDrag.x);
+        lbPanY = lbDrag.py + (e.clientY - lbDrag.y);
+        applyLbView(true);
+      }
+    }, { passive: false });
+    function lbEndPointer(e) {
+      var was = lbPtrs.size;
+      lbPtrs.delete(e.pointerId);
+      lbPinch = null;
+      if (lbPtrs.size === 1) {
+        var r = lbPtrs.values().next().value;
+        lbDrag = null;
+        if (lbZoom > 1.005) {
+          lbDrag = { x: r.x, y: r.y, px: lbPanX, py: lbPanY };
+          lbPhoto.classList.add('dragging');
+        }
+      } else if (lbPtrs.size === 0) {
+        lbDrag = null;
+        lbPhoto.classList.remove('no-anim', 'dragging');
+        /* 未缩放时触摸横滑 50px+ 翻页 */
+        if (was === 1 && e.pointerType === 'touch' && lbZoom <= 1.005 && lbSwipe0) {
+          var dx = e.clientX - lbSwipe0.x;
+          var dy = e.clientY - lbSwipe0.y;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) navLb(dx < 0 ? 1 : -1);
+        }
+      }
+      lbSwipe0 = null;
+    }
+    lbPhoto.addEventListener('pointerup', lbEndPointer);
+    lbPhoto.addEventListener('pointercancel', lbEndPointer);
+
+    document.addEventListener('click', function (e) {
+      var img = e.target.closest ? e.target.closest('.dy-img') : null;
+      if (img) { openLb(img); return; }
+      if (e.target === lb) { closeLb(); return; }
+    });
+    document.getElementById('dyLbClose').addEventListener('click', closeLb);
+    lbPrev.addEventListener('click', function (e) { e.stopPropagation(); navLb(-1); });
+    lbNext.addEventListener('click', function (e) { e.stopPropagation(); navLb(1); });
+    document.addEventListener('keydown', function (e) {
+      if (!lb.classList.contains('is-open')) return;
+      if (e.key === 'Escape') {
+        if (lbZoom > 1.005) resetLbView();
+        else closeLb();
+      }
+      else if (e.key === 'ArrowLeft') navLb(-1);
+      else if (e.key === 'ArrowRight') navLb(1);
+    });
+
+    /* ---------- 入场 stagger ---------- */
+    function initEntrance() {
+      var els = Array.prototype.slice.call(document.querySelectorAll('.dy-item, .dy-day'));
+      if (!('IntersectionObserver' in window)) {
+        els.forEach(function (x) { x.classList.add('is-visible'); });
+        return;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.filter(function (e) { return e.isIntersecting; })
+          .sort(function (a, b) {
+            return (a.target.compareDocumentPosition(b.target) & 4) ? -1 : 1;
+          })
+          .forEach(function (e, i) {
+            e.target.style.transitionDelay = (i * 70) + 'ms';
+            e.target.classList.add('is-visible');
+            io.unobserve(e.target);
+          });
+      }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
+      els.forEach(function (x) { io.observe(x); });
+    }
+
+    /* ---------- 启动 ---------- */
+    loadPosts().then(function (posts) {
+      render(posts);
+      setupCollapse();
+      initEntrance();
+      updateSpy();
+    }).catch(function (err) {
+      console.error('[posts] 加载失败：', err);
+      var empty = document.getElementById('dyEmpty');
+      if (empty) empty.hidden = false;
+    });
+
+    var rt;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () {
+        Array.prototype.forEach.call(document.querySelectorAll('.dy-text[data-done]'), function (t) {
+          delete t.dataset.done;
+          /* 只回退到“默认折叠态”：手动展开过的（data-expanded=1）保留展开 */
+          if (t.dataset.expanded !== '1') t.classList.remove('collapsed');
+          var n = t.nextElementSibling;
+          if (n && n.classList.contains('dy-expand')) n.remove();
+        });
+        setupCollapse();
+      }, 180);
+    });
+  })();
+  </script>
+</body>
+</html>

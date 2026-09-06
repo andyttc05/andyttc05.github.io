@@ -314,13 +314,16 @@
     /* max-width 1200px：介于 Bootstrap container-xl(1140) 和 container-xxl(1320) 之间的中间值，
        导航栏 / 未来正文统一用这个宽度，1920 屏两侧各留 360px，比例舒服不空荡。
        屏幕 < 1200 时实际为 100% 宽（容器被屏宽兜住）。
-       height 用 clamp() 让 768-1024px 之间从 56 渐变到 80，避免断崖式跳变。
+       height 用 clamp() 让 768-1024px 之间从 56 渐变到 64，避免断崖式跳变。
+       桌面档位定 64px（2026-09-05 调优，原 80px 偏重）：参考 Material 3 Top App Bar
+       标准 64dp / 导航规范 web 顶栏 56-64px / 主流极简站（GitHub 62、Vercel~64）。
+       粘性栏高度每减 1px 首屏内容多露 1px；移动端 56px 保持不动（iOS44/Android56 标准内）。
        safe-area-inset-* (2026-08-20): iPhone 灵动岛/底部 home indicator 适配,
        viewport-fit=cover 时浏览器把 safe-area-inset 暴露给 CSS, nav 内容贴到屏幕物理边缘但不贴 home indicator */
     max-width: 1200px; margin: 0 auto;
     padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
     display: flex; align-items: center;
-    height: clamp(56px, calc(9.375vw - 16px), 80px);
+    height: clamp(56px, calc(3.125vw + 32px), 64px);
   }
   /* 滚动后：背景略微加深以保持可读性，但仍保持半透明，
      让滚动内容继续从玻璃下透出（真正的毛玻璃导航） */
@@ -382,8 +385,9 @@
 
   .nav-brand {
     font-family: 'IBM Plex Serif', 'Plex Serif FB', serif; font-weight: 700; font-style: italic;
-    /* font-size 用 clamp() 让 768-1024px 之间从 30 渐变到 40，跟 .nav-inner 高度同步缩放 */
-    font-size: clamp(30px, calc(3.906vw), 40px); letter-spacing: -0.5px;
+    /* font-size 用 clamp() 让 768-1024px 之间从 30 渐变到 34，跟 .nav-inner 高度同步缩放
+       （2026-09-05：桌面 40 → 34px，与 64px 栏高保持约 1:2 字高比，原 40px 是为 80px 栏配的） */
+    font-size: clamp(30px, calc(1.5625vw + 18px), 34px); letter-spacing: -0.5px;
     color: var(--color-ink); text-decoration: none;
     margin-right: 36px; flex-shrink: 0;
     transition: color 0.2s ease;
@@ -466,8 +470,9 @@
   /* === drawer header === */
   .nav-menu-header {
     display: flex; justify-content: space-between; align-items: center;
-    /* padding 16×24：让 header 总高 = max(brand 44, close 48) + 16+16 = 80px，
-       跟桌面顶栏 .nav-inner 80px 同高 → 同一品牌厚度感一致 */
+    /* padding 16×24：让 header 总高 = max(brand 44, close 48) + 16+16 = 80px。
+       历史基准：曾与桌面顶栏 80px 同高（nav 2026-09-05 已调至 64px）。抽屉实际仅在
+       ≤768px 渲染（hamburger 出现），渲染高度由移动覆盖 padding 26/25 ≈99px 决定 */
     padding: 16px 24px;
     height: auto;
     flex-shrink: 0;
@@ -785,7 +790,7 @@
        hero-text 底部 padding = --hero-anchor（JS 实测 (内容高-图高)/2），
        把 layer-3 的 margin-top:auto 落点从 hero 底抬到图片底 → 图片居中 + 第三层跟图片底部对齐。
        nav 高度公式与 .nav-inner 的 height clamp 完全一致，hero 恰好补满首屏剩余空间 */
-    min-height: calc(100svh - clamp(56px, 9.375vw - 16px, 80px));
+    min-height: calc(100svh - clamp(56px, calc(3.125vw + 32px), 64px));
     display: grid;
     /* 立绘列略宽于文字列：立绘是视觉主角（v35 前为 1.08fr/0.92fr，照片偏小） */
     grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
@@ -1533,7 +1538,7 @@
      已移除（.story-pin 同款修复，保证 Safari 5 屏钉住也正常）。 */
   .vs-slides {
     position: relative;
-    --nav-h: 80px; /* 桌面 nav 高度(nav-inner height clamp 上限),给 .vslide sticky 让位 */
+    --nav-h: 64px; /* 桌面 nav 高度(nav-inner height clamp 上限 64px),给 .vslide sticky 让位 */
     /* 每屏滚动行程:222.2vh(2026-08-19 精确达标版,原 220vh)——Apple 风格 scrollytelling 标准:
        每屏场景 150-400vh ✓ / 文字屏 1500-2000px ✓ / 1000px ≈ 1s ✓ / 5 段总 10000-20000px ✓。
        222.2vh × 900px 视口 = 2000px/屏 = 文字屏上限;5 屏 = 10000px = 5 段页下限,双标精确命中 */
@@ -1559,16 +1564,16 @@
            连续滚动时永远有内容在换场,无空帧。重叠区两屏同时钉住:
            下屏(DOM 靠后)叠在上屏之上,视觉 = 交叉淡化,双向滚动对称。
      公式:M = 屏高 + 重叠 = (100svh - navH) + ov。navH/ov 变量继承自 .vs-slides
-     (mobile 56/120, desktop 80/180)。 */
+     (mobile 56/120, desktop 64/180)。 */
   .vslide-wrap:not(:last-child) {
-    margin-bottom: calc(-1 * (100svh - var(--nav-h, 80px) + var(--pin-ov, 0px)));
+    margin-bottom: calc(-1 * (100svh - var(--nav-h, 64px) + var(--pin-ov, 0px)));
   }
   /* 钉住的全屏卡:sticky 在 wrap 滚动区间内固定于视口顶部(页面不移动)。
      top 设为 nav 高度 → vslide 钉在 nav 下方,内容不被浮 nav 遮。 */
   .vslide {
     position: sticky;
-    top: var(--nav-h, 80px);
-    height: calc(100svh - var(--nav-h, 80px));
+    top: var(--nav-h, 64px);
+    height: calc(100svh - var(--nav-h, 64px));
     background: transparent;
     overflow: hidden;
   }
@@ -2163,7 +2168,7 @@
     min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
   }
   /* 滚动驱动入场/出场（第九十四批恢复）+ 第一百零一批 @supports 门控：
-     view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 80px nav 遮）
+     view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 64px nav 遮）
      entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁。
      无 view() 支持的浏览器不播动画，卡片保持基础样式全显（见 .about-sub 同款注释） */
   @supports (animation-timeline: view()) {
