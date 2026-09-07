@@ -385,41 +385,17 @@ body.dy-lb-open { overflow: hidden; }
   line-height: 1;
   padding: 40px;
 }
-.dy-lb-close {
-  position: absolute; top: 22px; right: 24px;
-  width: 40px; height: 40px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.08); color: #fff;
-  font: 15px var(--font-body); cursor: pointer;
-}
-.dy-lb-close:hover { background: rgba(255,255,255,.20); }
-
-/* 灯箱：上一张 / 下一张 / 计数（缩放态沉浸淡出，见下方） */
-.dy-lb-close,
-.dy-lb-nav,
+/* 灯箱：计数（缩放态沉浸淡出，见下方）—— v9.20 移除 ✕ / ‹ › 按钮
+   （主人"移除左右滑动按钮和交叉按钮显示，参考苹果设计"）：翻页交给手势
+   （触控板双指横滑 / 鼠标按住左右拖 / 键盘 ←→），关闭交给 点空白 / ESC。 */
 .dy-lb-counter {
-  transition: opacity .22s ease, background .2s ease, transform .2s ease;
+  transition: opacity .22s ease;
 }
-/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 计数 / 翻页 / 关闭淡出，
-   避免与放大平移中的图片重叠；ESC / 双击退出缩放后恢复。 */
-.dy-lb.is-zoom .dy-lb-counter,
-.dy-lb.is-zoom .dy-lb-nav,
-.dy-lb.is-zoom .dy-lb-close {
+/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 计数淡出，避免与放大平移中的图片重叠；
+   ESC / 双击退出缩放后恢复。 */
+.dy-lb.is-zoom .dy-lb-counter {
   opacity: 0; pointer-events: none;
 }
-.dy-lb-nav {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  width: 48px; height: 48px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.08); color: #fff;
-  font: 600 22px/1 var(--font-body);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.dy-lb-nav:hover { background: rgba(255,255,255,.20); }
-.dy-lb-nav[hidden] { display: none; }
-.dy-lb-prev { left: 24px; }
-.dy-lb-next { right: 24px; }
 .dy-lb-counter {
   position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
   font: 12px/1 var(--font-mono); color: rgba(255,255,255,.85);
@@ -430,8 +406,6 @@ body.dy-lb-open { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 600px) {
-  .dy-lb-prev { left: 10px; width: 42px; height: 42px; }
-  .dy-lb-next { right: 10px; width: 42px; height: 42px; }
   .dy-lb-counter { bottom: 14px; }
 }
 
@@ -598,9 +572,6 @@ body.dy-lb-open { overflow: hidden; }
 
   <!-- 灯箱 -->
   <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" data-page-node-id="rJNIVkRb7yC3EALjcHx30a">
-    <button class="dy-lb-close" id="dyLbClose" type="button" aria-label="关闭" data-page-node-id="i57wXYfQY3BdVYHoo613vZ">✕</button>
-    <button class="dy-lb-nav dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张" hidden data-page-node-id="xY2aB4tH3pK9wQ8zN7mFv6">‹</button>
-    <button class="dy-lb-nav dy-lb-next" id="dyLbNext" type="button" aria-label="下一张" hidden data-page-node-id="nL5cD8eJ2fG6hI3kM1oPq0">›</button>
     <div class="dy-lb-photo" id="dyLbPhoto" data-page-node-id="RhYmU0T7lYAhMFwEQMhw8j"></div>
     <div class="dy-lb-counter" id="dyLbCounter" aria-live="polite" data-page-node-id="vB1nX4yH6zL9aC2eF5gI8j"></div>
   </div>
@@ -667,6 +638,14 @@ body.dy-lb-open { overflow: hidden; }
    v9.17 矫枉过正 —— ×1.05/100px + 捏合阻尼 0.58 双双过缓。回摆到适中档：
    位移倍率 ×1.05→×1.12/100px（鼠标一格 ≈×1.15，同浏览器 Ctrl+滚轮档位）；
    捏合阻尼 0.58→0.8（苹果照片 App 近 1:1 直跟，张幅 ×2 → ×1.74）。双击 1.8 不动。
+   v9.20（2026-09-07，主人"触控板/鼠标左右滑动翻页 + 点空白关闭 + 移除 ‹›✕ 按钮，参考苹果设计"）：
+   灯箱去按钮化（Apple Quick Look / 照片全屏 同款）：
+   ① 翻页 = 手势：未缩放单指左右拖（鼠标/触控板/触摸统一）—— 图跟手、边界弹性 1/4、
+      松手 ≥70px 滑出切换 / 不足回弹；触控板双指横滑与键盘 ←→ 保留。
+   ② 关闭 = 点空白：图外背景 或 图四周 letterbox 空隙（指针捕获会把 click 目标
+      重定向到容器 → 用 pointerdown 落点是否在图上来判"空白"，lbDown）；
+      拖/平移后跟的 click 400ms 内抑制（lbSwpEnd）。ESC 照旧。
+   ③ ✕ / ‹ / › 三按钮从 DOM/CSS/JS 全移除，仅留底部计数。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -974,8 +953,6 @@ body.dy-lb-open { overflow: hidden; }
     /* ---------- 灯箱（事件委托；支持多张照片上下张 / 滑动） ---------- */
     var lb = document.getElementById('dyLb');
     var lbPhoto = document.getElementById('dyLbPhoto');
-    var lbPrev = document.getElementById('dyLbPrev');
-    var lbNext = document.getElementById('dyLbNext');
     var lbCounter = document.getElementById('dyLbCounter');
     var lbPhotos = [];      /* 当前条目的全部照片 */
     var lbIndex = 0;        /* 当前展示的索引 */
@@ -1007,9 +984,6 @@ body.dy-lb-open { overflow: hidden; }
         lbPhoto.appendChild(sp);
       }
       lbCounter.textContent = (lbIndex + 1) + ' / ' + lbPhotos.length;
-      var multi = lbPhotos.length > 1;
-      lbPrev.hidden = !multi;
-      lbNext.hidden = !multi;
     }
     function openLb(node) {
       var item = node.closest ? node.closest('.dy-item') : null;
@@ -1078,14 +1052,18 @@ body.dy-lb-open { overflow: hidden; }
     var lbZoom = 1, lbPanX = 0, lbPanY = 0;
     var lbPtrs = new Map();       /* pointerId -> {x,y} */
     var lbPinch = null;           /* {d0,z0} 捏合基准 */
-    var lbDrag = null;            /* {x,y,px,py} 拖动基准 */
-    var lbSwipe0 = null;          /* 触摸翻页起点 */
-    var lbSwipeD = 0, lbSwipeT = 0, lbSwipeFired = false; /* 触控板横向翻页累积器（每会话一次） */
+    var lbDrag = null;            /* {x,y,px,py} 拖动基准（已缩放 = 平移） */
+    var lbSwp = null;             /* v9.20 拖动翻页（未缩放单指，鼠标/触摸通用）：{x0,y0,on}
+                                     按住图片左右拖 → 图片跟手，松手过阈切换 / 不足回弹 */
+    var lbSwpEnd = 0;             /* 最近一次拖动/平移结束时刻 —— 抑制随后的 click 误关灯箱 */
+    var lbDown = null;            /* 最近一次 pointerdown：{t, img} —— img=按时落在图上
+                                     （指针捕获会把 click 目标重定向到容器，判空白要靠按下点） */
+    var lbSwipeD = 0, lbSwipeT = 0, lbSwipeFired = false; /* 触控板横向滚轮翻页累积器（每会话一次） */
 
     function curImg() { return lbPhoto.querySelector('img'); }
     function resetLbView() {
       lbZoom = 1; lbPanX = 0; lbPanY = 0;
-      lbPinch = null; lbDrag = null; lbSwipe0 = null;
+      lbPinch = null; lbDrag = null; lbSwp = null;
       lbPhoto.classList.remove('is-zoom', 'dragging', 'no-anim');
       lb.classList.remove('is-zoom');   /* v9.10f：退出缩放 → UI 淡回 */
       var im = curImg();
@@ -1096,6 +1074,7 @@ body.dy-lb-open { overflow: hidden; }
     function resetLbGesture() {
       lbSwipeD = 0; lbSwipeT = 0; lbSwipeFired = false;
       lbWheelMode = null; lbWheelLast = 0;
+      lbSwp = null;
     }
     /* v9.15（主人"缩放位置为点击位置"）：钳制区间改为非对称边缘钳制。
        旧版用 ±(w0·z-cw)/2 的对称区间 —— 与锚定公式冲突：
@@ -1255,15 +1234,22 @@ body.dy-lb-open { overflow: hidden; }
       }
     }, { passive: false });
 
-    /* 指针统一处理：鼠标滚轮外的手势 —— 双指捏合缩放 / 单指（或鼠标）拖动平移 /
-       未缩放时的触摸横滑翻页 */
+    /* 指针统一处理：滚轮外手势 —— 双指捏合缩放 / 已缩放单指拖动平移 /
+       未缩放单指左右拖动翻页（Apple Quick Look 式：图跟手、松手过阈切换或回弹，
+       鼠标 / 触控板 / 触摸 通用）。lbDown 记下按时是否落在图上 —— 灯箱指针捕获后
+       click 的目标会被重定向到容器，判断"点的是图还是空白"要靠按下点。 */
     lbPhoto.addEventListener('pointerdown', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       lbPhoto.setPointerCapture(e.pointerId);
       lbPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      lbSwipe0 = { x: e.clientX, y: e.clientY };
+      var im = curImg();
+      lbDown = {
+        t: Date.now(),
+        img: !!(im && (e.target === im || e.target.tagName === 'IMG' ||
+             (e.target.classList && e.target.classList.contains('dy-lb-emoji'))))
+      };
       if (lbPtrs.size === 2) {
-        lbDrag = null;
+        lbDrag = null; lbSwp = null;
         var ids = Array.from(lbPtrs.keys());
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
         /* v9.13：记录捏合初始中点（ax,ay）作缩放锚点 —— 缩放围绕两指初始中点进行，
@@ -1277,6 +1263,8 @@ body.dy-lb-open { overflow: hidden; }
       } else if (lbZoom > LB_ZOOMED) {
         lbDrag = { x: e.clientX, y: e.clientY, px: lbPanX, py: lbPanY };
         lbPhoto.classList.add('dragging', 'no-anim');
+      } else if (!lbSwp) {
+        lbSwp = { x0: e.clientX, y0: e.clientY, on: false };   /* 预备拖动翻页 */
       }
     });
     lbPhoto.addEventListener('pointermove', function (e) {
@@ -1304,10 +1292,34 @@ body.dy-lb-open { overflow: hidden; }
         lbPanX = lbDrag.px + (e.clientX - lbDrag.x);
         lbPanY = lbDrag.py + (e.clientY - lbDrag.y);
         applyLbView(true);
+      } else if (lbSwp && lbPtrs.size === 1) {
+        /* 未缩放拖动翻页：横向意图（>8px 且显著大于纵向）才进入跟手，锁定 X 轴 */
+        var dx = e.clientX - lbSwp.x0;
+        var dy = e.clientY - lbSwp.y0;
+        if (!lbSwp.on) {
+          if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+            lbSwp.on = true;
+            lbPhoto.classList.add('no-anim');
+          } else if (Math.abs(dy) > 12) {
+            lbSwp = null;                  /* 竖向拖动不算翻页，留给 click 语义 */
+            return;
+          } else return;
+        }
+        var tx = dx;
+        /* 边界弹性：第一张往右 / 最后一张往左 只跟 1/4 —— 提示到头，松手回弹 */
+        if ((lbIndex === 0 && tx > 0) || (lbIndex === lbPhotos.length - 1 && tx < 0)) tx *= 0.25;
+        var im = curImg();
+        if (im) im.style.transform = 'translateX(' + tx + 'px)';
       }
     }, { passive: false });
     function lbEndPointer(e) {
       var was = lbPtrs.size;
+      var moved = false;
+      if (lbSwp) {
+        moved = Math.abs(e.clientX - lbSwp.x0) > 10 || Math.abs(e.clientY - lbSwp.y0) > 10;
+      } else if (lbDrag) {
+        moved = Math.abs(e.clientX - lbDrag.x) > 10 || Math.abs(e.clientY - lbDrag.y) > 10;
+      }
       lbPtrs.delete(e.pointerId);
       lbPinch = null;
       if (lbPtrs.size === 1) {
@@ -1317,29 +1329,47 @@ body.dy-lb-open { overflow: hidden; }
           lbDrag = { x: r.x, y: r.y, px: lbPanX, py: lbPanY };
           lbPhoto.classList.add('dragging');
         }
+        lbSwp = null;
       } else if (lbPtrs.size === 0) {
-        lbDrag = null;
         lbPhoto.classList.remove('no-anim', 'dragging');
-        /* 未缩放时触摸横滑 50px+ 翻页 */
-        if (was === 1 && e.pointerType === 'touch' && lbZoom <= LB_ZOOMED && lbSwipe0) {
-          var dx = e.clientX - lbSwipe0.x;
-          var dy = e.clientY - lbSwipe0.y;
-          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) navLb(dx < 0 ? 1 : -1);
+        if (was === 1 && lbSwp && lbSwp.on && lbZoom <= LB_ZOOMED) {
+          /* 拖动翻页结算：位移 ≥70px 且未撞边界 → 当前图滑出后切换；否则回弹 */
+          var dx2 = e.clientX - lbSwp.x0;
+          var im = curImg();
+          if (im && Math.abs(dx2) >= 70 &&
+              !(lbIndex === 0 && dx2 > 0) &&
+              !(lbIndex === lbPhotos.length - 1 && dx2 < 0)) {
+            im.style.transform = 'translateX(' + (dx2 > 0 ? 1 : -1) * lbPhoto.clientWidth + 'px)';
+            lbSwpEnd = Date.now();
+            lbSwp = null;
+            setTimeout(function () { navLb(dx2 > 0 ? -1 : 1); }, 220);
+            return;
+          }
+          lbSwp = null;
+          if (im) applyLbView();          /* 带 transition 回弹（no-anim 已移除） */
+          lbSwpEnd = Date.now();
+          return;
         }
+        lbDrag = null;
+        lbSwp = null;
       }
-      lbSwipe0 = null;
+      if (moved) lbSwpEnd = Date.now();
     }
     lbPhoto.addEventListener('pointerup', lbEndPointer);
     lbPhoto.addEventListener('pointercancel', lbEndPointer);
 
+    /* v9.20：关闭灯箱 = 点空白（图外背景 / 图四周 letterbox 空隙）+ ESC ——
+       左右切换由手势/键盘承担，无任何可见按钮 */
     document.addEventListener('click', function (e) {
       var img = e.target.closest ? e.target.closest('.dy-img') : null;
       if (img) { openLb(img); return; }
-      if (e.target === lb) { closeLb(); return; }
+      if (!lb.classList.contains('is-open')) return;
+      if (Date.now() - lbSwpEnd < 400) return;          /* 拖动/平移后跟的 click 不关 */
+      if (e.target === lb) { closeLb(); return; }        /* 图外大背景 */
+      var onPhoto = e.target.closest ? !!e.target.closest('.dy-lb-photo') : e.target === lbPhoto;
+      var onVisual = lbDown && (Date.now() - lbDown.t < 800) && lbDown.img; /* 按时落在图上 */
+      if (onPhoto && !onVisual) closeLb();               /* 图外空隙（letterbox）→ 关 */
     });
-    document.getElementById('dyLbClose').addEventListener('click', closeLb);
-    lbPrev.addEventListener('click', function (e) { e.stopPropagation(); navLb(-1); });
-    lbNext.addEventListener('click', function (e) { e.stopPropagation(); navLb(1); });
     document.addEventListener('keydown', function (e) {
       if (!lb.classList.contains('is-open')) return;
       if (e.key === 'Escape') {
