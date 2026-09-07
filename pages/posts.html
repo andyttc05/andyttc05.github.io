@@ -646,6 +646,10 @@ body.dy-lb-open { overflow: hidden; }
       重定向到容器 → 用 pointerdown 落点是否在图上来判"空白"，lbDown）；
       拖/平移后跟的 click 400ms 内抑制（lbSwpEnd）。ESC 照旧。
    ③ ✕ / ‹ / › 三按钮从 DOM/CSS/JS 全移除，仅留底部计数。
+   v9.21（2026-09-07，主人"捏合没变化、整体都慢、各操作体验要一致"）：三路提速到
+   苹果照片近 1:1 直跟 —— 普通滚轮/双指上下滑 ×1.12→×1.2/100px；触控板捏合
+   (ctrlKey+wheel) 独立高增益 ×1.6/100px（捏合张幅小，与滑动同基准会几乎无感，
+   150px 张幅 ≈×2.0）；触屏双指捏合阻尼 0.8→1.0（1:1）；双击 1.8→2.0 与捏合约齐。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1033,17 +1037,24 @@ body.dy-lb-open { overflow: hidden; }
        v9.13（主人"缩放位置为点击位置"）：wheel/dblclick/pinch 全部锚定指针位置
        v9.17（主人"图片放大还是太灵敏"）：滚轮按【位移量】归一缩放，不再按事件数连乘 ——
        触控板一次手势拆成几十个 deltaY=1~10 的小事件，旧逻辑每事件 ×1.09 累积爆炸；
-       现统一每 100px 滚轮位移 ×LB_WHEEL，鼠标一格(≈100-120px)与触控板同距离手感一致。
+       现统一每 100px 滚轮位移 ×倍率，鼠标一格(≈100-120px)与触控板同距离手感一致。
        触控板手势映射：双指捏合(ctrlKey+wheel)→缩放；已放大时双指滑动→平移图片；
-       未放大时双指横向滑动→切换照片；鼠标滚轮(整格/大 delta)→始终缩放。 */
-    var LB_WHEEL = 1.12;          /* 每 100px 位移缩放倍率：1.05(太缓)→1.12 适中。
-                                     鼠标一格 ≈100-120px → ×1.12~1.15/格，接近浏览器
-                                     Ctrl+滚轮(≈×1.1~1.2/格)与预览类应用的手感；
-                                     触控板细滑仍按位移归一，不会回到每事件爆量 */
+       未放大时双指横向滑动→切换照片；鼠标滚轮(整格/大 delta)→始终缩放。
+       v9.21（主人"触控板捏合还是慢、整体都慢、各操作手感要一致"）：三路统一提速到
+       苹果照片近 1:1 直跟 —— 捏合与普通滑动/滚轮分不同基准：捏合是手指张幅换缩放
+       （张幅小，给高增益 LB_PINCH_WHEEL，150px 张幅 ≈ ×2.0）；普通滚轮/双指上下滑
+       是整段手势换缩放（位移大，×1.2/100px 即可同档）；触屏双指阻尼拉满 1:1；
+       双击档 1.8→2.0 与捏合约齐。 */
+    var LB_WHEEL = 1.2;           /* 普通滚轮/双指上下滑：每 100px 位移 ×1.2
+                                     （1.12→1.2 提速；鼠标一格 ≈100-120px → ×1.2~1.25/格） */
     var LB_WHEEL_REF = 100;       /* 参考位移 px */
-    var LB_PINCH_DAMP = 0.8;      /* 触屏双指捏合阻尼：0.58(太缓)→0.8 适中。
-                                     苹果照片 App 捏合近乎 1:1 直跟；0.8 保留轻微
-                                     阻尼防抖，双指张幅 ×2 → 放大 ×1.74（0.58 仅 ×1.49） */
+    var LB_PINCH_WHEEL = 1.6;     /* 触控板捏合(ctrlKey+wheel)：每 100px 张幅 ×1.6
+                                     —— 捏合单事件 delta 远小于双指滑动的位移，同用 1.2
+                                     会几乎没反应（v9.19 的 1.12 正是如此）；1.6 使一次
+                                     自然张合(≈150px)≈ ×2.0，接近苹果照片 1:1 直跟 */
+    var LB_PINCH_DAMP = 1.0;      /* 触屏双指捏合阻尼：0.8→1.0 = 1:1 直跟（苹果照片同款：
+                                     双指张幅 ×2 → 放大正好 ×2；1.0 即完全跟随，无阻尼） */
+    var LB_DBL = 2.0;             /* 双击档位：1.8→2.0（与捏合一次自然张合约齐，见 v9.21） */
     var LB_SWIPE_PX = 55;         /* 触控板横向翻页累积阈值 */
     var LB_MOUSE_DY = 50;         /* ≥此 deltaY 视为鼠标整格（单事件大步长）→ 缩放而非平移 */
     var LB_ZOOMED = 1.02;         /* 「已放大」行为阈值（拖拽/双指平移/翻页 vs 滚轮继续放大）：
@@ -1131,18 +1142,20 @@ body.dy-lb-open { overflow: hidden; }
     }
     /* v9.17：把滚轮位移归一成缩放倍率 —— 按【位移量】指数定标而非按事件连乘。
        触控板细碎小事件（deltaY ±1~10）不再各自放大，连续手势总放大只与
-       累计位移成正比：factor = LB_WHEEL^( |位移| / 100 )。鼠标一格 ~100-120px。 */
-    function wheelZoomFactor(ev) {
+       累计位移成正比：factor = base^( |位移| / 100 )。鼠标一格 ~100-120px。
+       v9.21：倍率按输入类型分 base —— 触控板捏合(ctrlKey)是手指张幅换缩放，
+       张幅小要用高增益 LB_PINCH_WHEEL；普通滑动/鼠标位移大用 LB_WHEEL。 */
+    function wheelZoomFactor(ev, base) {
       var d = ev.deltaY;
       if (ev.deltaMode === 1) d *= 40;            /* 行 → px（整格鼠标） */
       else if (ev.deltaMode === 2) d *= (window.innerHeight || 800);
       if (!d || isNaN(d)) return 0;
       var m = Math.min(4, Math.abs(d) / LB_WHEEL_REF); /* 单事件位移封顶 400px，防飞掷爆跳 */
-      var f = Math.pow(LB_WHEEL, m);
+      var f = Math.pow(base, m);
       return d < 0 ? f : 1 / f;                    /* 上滚放大、下滚缩小 */
     }
     function wheelZoom(ev, cx, cy) {
-      var f = wheelZoomFactor(ev);
+      var f = wheelZoomFactor(ev, ev.ctrlKey ? LB_PINCH_WHEEL : LB_WHEEL);
       if (f === 0 || f === 1) return;
       zoomAnchor(f, cx, cy, ev.deltaMode === 0);   /* pixel 模式（连续/触控板）→ 无过渡跟手 */
     }
@@ -1157,8 +1170,9 @@ body.dy-lb-open { overflow: hidden; }
       /* v9.12（主人"点击一下时不要缩放太多"）：双击档位 2.6 → 1.8 ——
          一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调。
          v9.13：由画面中心放大改为锚定点击处（zoomAnchor，未缩放时 pan=0，
-         光标下像素直接成为放大后的视觉中心） */
-      zoomAnchor(1.8, cx, cy);
+         光标下像素直接成为放大后的视觉中心）。
+         v9.21：1.8 → LB_DBL(2.0) —— 与捏合一次自然张合约齐，各操作档位一致 */
+      zoomAnchor(LB_DBL, cx, cy);
     }
 
     lbPhoto.addEventListener('dblclick', function (e) {
