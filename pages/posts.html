@@ -663,8 +663,19 @@ body.dy-lb-open { overflow: hidden; }
    三处加固 —— ① 翻页请求不再被吞：滑出动画期间的翻页记入 lbFlipQ 完成后自动接力
    （旧：动画中请求静默丢弃，极端时序旧图已滑出 → 灯箱空等）；② 入场动画兜底：
    目标图未加载完先等待（≤800ms，超时直接显示），入场 320ms 后强制清 transform ——
-   任何引擎过渡不触发也不会永久停在 offscreen；③ 前后张预载（打开灯箱/navLb 即
+   任何引擎过渡不触发也不会永久停在 offscreen；   ③ 前后张预载（打开灯箱/navLb 即
    预热相邻图），逐张浏览不再因网络加载空屏。滑出完成即放行新手势（fired 复位）。
+   v9.25（2026-09-07，主人"双指移动和双指捏合的体验不是很好，网上搜搜逻辑设计"）：
+   对照行业共识（ctrlKey 分离缩放/平移 + 焦点连续跟随 + 位移归一）重构两处手势：
+   ① 双指移动 —— 已放大时横/纵/斜向像素滚动全部平移且【两轴同时跟手】（旧逻辑
+      |dx|>1.2|dy| 判主轴向只动一轴 → 斜滑抖动）；鼠标整格判定只认 deltaMode===1，
+      删 |Δ|≥50px 启发式（触控板快速甩动的惯性事件 delta 可达 50~100px，旧判定把
+      甩动中途切成缩放，和平移打架）；滚轮监听器从图片上提到整层灯箱 —— 暗背景
+      上也能捏合/横滑（Quick Look 全屏语义）。
+   ② 双指捏合 —— 触屏捏合由"锚死手势起点中点"改【连续焦点跟随】：
+      t' = A2 - k·(A1 - t)（A1/A2 = 上一帧/当前手指中点）→ 边张合边平移时内容点
+      恒压手指中点下（纯张合退化为经典锚定；纯平移 k=1 时精确跟手）；缩放锚点
+      若落在图片外（触控板捏合事件坐标 = 上次鼠标停留位）回落图片中心。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1142,7 +1153,9 @@ body.dy-lb-open { overflow: hidden; }
                                      双指张幅 ×2 → 放大正好 ×2；1.0 即完全跟随，无阻尼） */
     var LB_DBL = 2.0;             /* 双击档位：1.8→2.0（与捏合一次自然张合约齐，见 v9.21） */
     var LB_SWIPE_PX = 55;         /* 触控板横向翻页累积阈值 */
-    var LB_MOUSE_DY = 50;         /* ≥此 deltaY 视为鼠标整格（单事件大步长）→ 缩放而非平移 */
+    /* v9.25：鼠标整格判定只认 deltaMode===1（真鼠标行模式），阈值常量仅作残余
+       参考（像素模式不再用 |Δ| 判缩放 —— 触控板快速甩动的惯性单事件可达
+       50~100px，旧阈值 50 会把甩动中途切成缩放；见路由注释③） */
     var LB_ZOOMED = 1.02;         /* 「已放大」行为阈值（拖拽/双指平移/翻页 vs 滚轮继续放大）：
                                      低于此值一律继续滚轮放大 —— 避免触控板细滑刚越过 1.005 就被
                                      当成平移、放大到一半卡住（v9.17 阈值统一基准） */
@@ -1271,30 +1284,50 @@ body.dy-lb-open { overflow: hidden; }
       zoomToggle(e.clientX, e.clientY);
     });
     /* v9.17 滚轮手势路由（触控板 + 鼠标统一）——
-       v9.23 简化：触控板双指=移动语义，不再兼任缩放（主人"双指上下滑缩放和双指
-       移动有冲突"）→ 细滑永不缩放；缩放只走 捏合 / 双击 / 鼠标整格滚轮。
-       路由规则：
-         · ctrlKey+wheel（触控板捏合 / Ctrl+滚轮）→ 恒缩放（位移归一）
-         · 鼠标整格（行模式 / |Δ|≥50px 大步长）→ 恒缩放（保留滚轮缩放通路）
-         · 横向：已放大 → 平移；未放大 → 翻页（一个会话只翻一张）
-         · 纵向触控板细滑：已放大 → 平移；未放大 → 无操作 */
+       v9.23：触控板双指=移动语义，不再兼任缩放（主人"双指上下滑缩放和双指移动
+       有冲突"）→ 细滑永不缩放；缩放只走 捏合 / 双击 / 鼠标整格滚轮。
+       v9.25（主人"双指移动和双指捏合的体验不是很好"）对照行业做法重构：
+       ① 监听器从图片区提到整层灯箱 —— Quick Look 全屏语义：在暗背景上也能
+          捏合/横滑，不必把光标悬在图条上；
+       ② 已放大时任何方向的双指滑动都是平移，且【两轴都跟】—— 旧逻辑按
+          |dx|>1.2|dy| 判主轴向、只动一轴，斜向滑动会被拦腰切成抖动；
+       ③ 鼠标整格判定只认 deltaMode===1（真鼠标行模式）；删掉 |Δ|≥50px 启发式
+          作为缩放条件 —— 触控板快速甩动的惯性单事件 deltaY 可达 50~100px，
+          旧判定把甩动中途切成缩放，与平移打架（这正是"双指移动不丝滑"的一个
+          真因）。像素模式大 delta 只可能是鼠标高精度轮，仍按平移处理；
+       ④ 缩放锚点若落在图片外（触控板捏合事件坐标 = 上次鼠标停留位，常不在
+          图上）→ 回退到图片中心，不再把画面甩向无意义处。
+       路由规则（v9.25 定稿）：
+         · ctrlKey+wheel（触控板捏合 / Ctrl+滚轮）→ 恒缩放（锚点：光标在图内用
+           光标，否则图片中心）
+         · 鼠标整格（deltaMode===1 行模式）→ 恒缩放（保留滚轮缩放通路）
+         · 已放大：一切像素滚动（横/纵/斜）→ 平移，两轴同时跟手
+         · 未放大：横向为主 → 翻页（一个会话只翻一张）；纵向像素细滑 → 无操作 */
     var lbWheelMode = null;       /* 历史遗留（v9.23 起细滑不再缩放，仅横向/平移在用） */
     var lbWheelLast = 0;
-    lbPhoto.addEventListener('wheel', function (e) {
+    /* v9.25：缩放锚点辅助 —— 光标在图片范围外（暗背景 / 计数条 / 触控板捏合
+       的陈旧坐标）时回落图片中心。Quick Look 语义：捏合总能缩在画面上。 */
+    function lbAnchorPt(cx, cy) {
+      var r = lbPhoto.getBoundingClientRect();
+      if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) return { x: cx, y: cy };
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    lb.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       var dx = e.deltaX || 0, dy = e.deltaY || 0;
       var horiz = Math.abs(dx) > Math.abs(dy) * 1.2;
-      var mouseLike = e.deltaMode === 1 || Math.abs(dy) >= LB_MOUSE_DY || Math.abs(dx) >= LB_MOUSE_DY;
+      var lineMode = e.deltaMode === 1;
       var zoomed = lbZoom > LB_ZOOMED;
       if (e.ctrlKey) {                       /* 捏合 / Ctrl+滚轮 → 缩放 */
         e.preventDefault();
-        wheelZoom(e, e.clientX, e.clientY);
+        var ap = lbAnchorPt(e.clientX, e.clientY);
+        wheelZoom(e, ap.x, ap.y);
         return;
       }
       if (horiz) {
         e.preventDefault();
-        if (zoomed) {                        /* 放大中：双指横滑 → 平移 */
-          lbPanX -= dx;
+        if (zoomed) {                        /* 放大中横滑 → 平移（两轴都跟，不吞纵向） */
+          lbPanX -= dx; lbPanY -= dy;
           applyLbView(true);
           return;
         }
@@ -1334,15 +1367,20 @@ body.dy-lb-open { overflow: hidden; }
         }, 150);
         return;
       }
-      /* 纵向 */
+      /* 纵向为主 / 纯纵向 */
       e.preventDefault();
-      if (mouseLike) { wheelZoom(e, e.clientX, e.clientY); return; }  /* 鼠标整格恒缩放 */
-      /* 触控板双指竖滑：双指=移动语义（v9.23，主人"竖滑缩放与双指移动冲突"）——
-         已放大 → 图片跟手平移；未放大 → 无操作（缩放请用捏合 / 双击 / 鼠标滚轮） */
-      if (zoomed) {
-        lbPanY -= dy;
-        applyLbView(true);
+      if (lineMode) {                        /* 鼠标整格（行模式）→ 恒缩放（含缩小） */
+        var ap2 = lbAnchorPt(e.clientX, e.clientY);
+        wheelZoom(e, ap2.x, ap2.y);
+        return;
       }
+      if (zoomed) {                          /* 像素细滑（触控板双指/高精度轮）→ 平移，
+                                                两轴都跟 —— 斜向不再丢分量 */
+        lbPanX -= dx; lbPanY -= dy;
+        applyLbView(true);
+        return;
+      }
+      /* 未放大 + 像素细滑 → 无操作（v9.23：双指=移动语义，未放大没得移） */
     }, { passive: false });
 
     /* 指针统一处理：滚轮外手势 —— 双指捏合缩放 / 已缩放单指拖动平移 /
@@ -1363,12 +1401,16 @@ body.dy-lb-open { overflow: hidden; }
         lbDrag = null; lbSwp = null;
         var ids = Array.from(lbPtrs.keys());
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
-        /* v9.13：记录捏合初始中点（ax,ay）作缩放锚点 —— 缩放围绕两指初始中点进行，
-           不随手指移动漂移 */
+        /* v9.13 起记录捏合基准；v9.25 改为【连续焦点跟随】：不再把锚点锁死在
+           两指初始中点 —— 若手指一边张合一边平移（或单指动了），内容点必须
+           始终压在手指中点下。每帧用上一帧中点 A1 与当前中点 A2 做重锚定：
+           t' = A2 - k·(A1 - t)，k = 当前缩放/上一帧缩放。
+           A1=A2（纯张合）时退化为经典锚定公式；k=1（纯平移）时 t'=t+(A2-A1)
+           —— 内容精确跟手平移。 */
         lbPinch = {
           d0: Math.hypot(a.x - b.x, a.y - b.y) || 1,
           z0: lbZoom,
-          ax: (a.x + b.x) / 2, ay: (a.y + b.y) / 2
+          mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2
         };
         lbPhoto.classList.add('no-anim');
       } else if (lbZoom > LB_ZOOMED) {
@@ -1387,17 +1429,22 @@ body.dy-lb-open { overflow: hidden; }
         var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
         var d = Math.hypot(a.x - b.x, a.y - b.y);
         var nz = lbPinch.z0 * Math.pow(d / lbPinch.d0, LB_PINCH_DAMP);
-        if (nz < 1.005) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(true); return; }
+        if (nz < 1) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(true); return; }
         nz = Math.min(4.5, nz);
-        /* v9.13：围绕捏合初始中点缩放（锚定），公式与 zoomAnchor 同源 */
         var im = curImg(); if (!im) return;
         var r = lbPhoto.getBoundingClientRect();
         var ox = im.offsetLeft, oy = im.offsetTop;
-        var acx = lbPinch.ax - r.left - ox, acy = lbPinch.ay - r.top - oy;
-        var k = nz / lbPinch.z0;
-        lbZoom = nz;
-        lbPanX = acx - k * (acx - lbPanX);
-        lbPanY = acy - k * (acy - lbPanY);
+        /* v9.25 连续焦点跟随（见 pointerdown 注释）：A1=上一帧中点（屏幕坐标，
+           A2=当前中点）；图局部坐标 = 屏幕坐标 - (容器偏移 + 图偏移)。
+           k 用【上一帧已上屏的缩放】而不是手势起点 z0 —— 与公式
+           t' = A2 - k·(A1 - t) 匹配，纯缩放与缩放+平移混合同步成立 */
+        var m1x = lbPinch.mx, m1y = lbPinch.my;
+        var m2x = (a.x + b.x) / 2, m2y = (a.y + b.y) / 2;
+        lbPinch.mx = m2x; lbPinch.my = m2y;
+        var k = nz / Math.max(lbZoom, 1e-6);
+        lbZoom = Math.max(1.0005, nz);
+        lbPanX = (m2x - r.left - ox) - k * ((m1x - r.left - ox) - lbPanX);
+        lbPanY = (m2y - r.top - oy) - k * ((m1y - r.top - oy) - lbPanY);
         applyLbView(true);
       } else if (lbDrag) {
         lbPanX = lbDrag.px + (e.clientX - lbDrag.x);
