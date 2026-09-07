@@ -650,6 +650,11 @@ body.dy-lb-open { overflow: hidden; }
    苹果照片近 1:1 直跟 —— 普通滚轮/双指上下滑 ×1.12→×1.2/100px；触控板捏合
    (ctrlKey+wheel) 独立高增益 ×1.6/100px（捏合张幅小，与滑动同基准会几乎无感，
    150px 张幅 ≈×2.0）；触屏双指捏合阻尼 0.8→1.0（1:1）；双击 1.8→2.0 与捏合约齐。
+   v9.22（2026-09-07，主人"左右滑动不丝滑、没有动画"）：横滑改苹果 Quick Look 式
+   全程动画 —— 双指横滑时图片实时跟手（no-anim），停顿 150ms 结算：过阈 → 旧图
+   滑出(260ms) → 新图从同侧滑入(animLbIn 预置 offscreen 再带回过渡，无闪帧)；
+   不足 → 带动画弹回。拖动翻页松手同样走 lbFlipTo（原先只有旧图滑出、新图硬切）。
+   键盘 ←→ 保留即时响应但新图滑入。lbFlipping 锁旧图滑出阶段防连跳。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1026,9 +1031,35 @@ body.dy-lb-open { overflow: hidden; }
       }, 260);
     }
     function navLb(dir) {
-      if (!lbPhotos.length) return;
+      if (!lbPhotos.length || lbFlipping) return;   /* v9.22：旧图滑出期间锁重复翻页 */
       lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
       renderLb();
+      animLbIn(dir);
+    }
+    /* v9.22 新图滑入：先移到行进方向一侧（不可见），下帧带回过渡滑到原位。
+       renderLb 同步替换 DOM、浏览器尚未绘制 → 先落位 offscreen 不会闪帧 */
+    function animLbIn(dir) {
+      var im = curImg(); if (!im) return;
+      var W = lbPhoto.clientWidth || 1;
+      lbPhoto.classList.add('no-anim');
+      im.style.transform = 'translateX(' + (dir * W) + 'px)';
+      void im.offsetWidth;                          /* 强制提交 offscreen 起点 */
+      lbPhoto.classList.remove('no-anim');
+      im.style.transform = '';
+    }
+    /* v9.22 完整翻页动画（跟手拖/横滑过阈用）：旧图沿行进方向滑出 → navLb →
+       新图从行进方向滑入。dir = 照片增量：+1 下一张（内容向左），-1 上一张 */
+    function lbFlipTo(dir) {
+      var im = curImg();
+      if (!im || lbFlipping) return;
+      var W = lbPhoto.clientWidth || 1;
+      lbFlipping = true;
+      lbPhoto.classList.remove('no-anim');          /* 恢复过渡 → 从当前位置滑出 */
+      im.style.transform = 'translateX(' + (-dir * W) + 'px)';
+      setTimeout(function () {
+        lbFlipping = false;
+        navLb(dir);
+      }, 260);                                      /* 匹配 .25s 过渡 + 余量 */
     }
 
     /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
@@ -1070,6 +1101,8 @@ body.dy-lb-open { overflow: hidden; }
     var lbDown = null;            /* 最近一次 pointerdown：{t, img} —— img=按时落在图上
                                      （指针捕获会把 click 目标重定向到容器，判空白要靠按下点） */
     var lbSwipeD = 0, lbSwipeT = 0, lbSwipeFired = false; /* 触控板横向滚轮翻页累积器（每会话一次） */
+    var lbSwipeST = null;         /* v9.22 横滑停止计时器 —— 停顿 150ms 结算翻页/回弹 */
+    var lbFlipping = false;       /* v9.22 翻页动画中：旧图滑出阶段锁定，禁止重复翻页 */
 
     function curImg() { return lbPhoto.querySelector('img'); }
     function resetLbView() {
@@ -1084,6 +1117,7 @@ body.dy-lb-open { overflow: hidden; }
        swipe 已触发标记（否则同一次横扫会在翻页后二次触发、连跳两张） */
     function resetLbGesture() {
       lbSwipeD = 0; lbSwipeT = 0; lbSwipeFired = false;
+      if (lbSwipeST) { clearTimeout(lbSwipeST); lbSwipeST = null; }
       lbWheelMode = null; lbWheelLast = 0;
       lbSwp = null;
     }
@@ -1220,16 +1254,40 @@ body.dy-lb-open { overflow: hidden; }
           applyLbView(true);
           return;
         }
-        /* 未放大：横滑翻页 —— 一个会话只翻一张，停顿 220ms 开启新会话 */
+        /* 未放大：双指横滑翻页 —— 图实时跟手（v9.22），停顿 150ms 结算：
+           位移过阈 → 滑出+滑入动画切图；不足 → 回弹。一个会话只翻一张。
+           滚动语义：deltaX>0 = 向右滚动 = 等效手指向左滑内容 → 下一张（dir +1）；
+           内容向左滑 = translateX 负向（tx = -累积），与触摸拖拽 dir 语义对齐 */
         var now = Date.now();
-        if (now - lbSwipeT > 220) { lbSwipeD = 0; lbSwipeFired = false; }
-        lbSwipeD += dx; lbSwipeT = now;
-        if (!lbSwipeFired && Math.abs(lbSwipeD) >= LB_SWIPE_PX) {
-          /* 滚动语义：deltaX>0 = 向右滚动 = 等效手指向左滑内容 → 下一张
-             （与触摸翻页 dir = dx<0 → +1 对齐：内容都向左滑进下一张） */
-          lbSwipeFired = true;
-          navLb(lbSwipeD > 0 ? 1 : -1);
+        if (now - lbSwipeT > 220) {                 /* 新手势会话：复位 */
+          lbSwipeD = 0; lbSwipeFired = false;
+          if (lbSwipeST) { clearTimeout(lbSwipeST); lbSwipeST = null; }
+          lbPhoto.classList.remove('no-anim');
         }
+        lbSwipeT = now;
+        if (lbSwipeFired) return;                   /* 本次已翻过：吞掉惯性尾巴 */
+        lbSwipeD += dx;
+        var im2 = curImg();
+        var tx2 = -lbSwipeD;
+        /* 边界弹性：第一张右拉 / 最后一张左拉 只跟 1/4 —— 松手回弹提示到头 */
+        if ((lbIndex === 0 && tx2 > 0) || (lbIndex === lbPhotos.length - 1 && tx2 < 0)) tx2 *= 0.25;
+        lbPhoto.classList.add('no-anim');           /* 跟手期间无过渡 */
+        if (im2) im2.style.transform = 'translateX(' + tx2 + 'px)';
+        if (lbSwipeST) clearTimeout(lbSwipeST);     /* 停顿 150ms = 手势结束 → 结算 */
+        lbSwipeST = setTimeout(function () {
+          lbSwipeST = null;
+          var can = Math.abs(lbSwipeD) >= LB_SWIPE_PX &&
+                    !(lbIndex === 0 && lbSwipeD < 0) &&          /* 第一张不能再往「上一张」滑 */
+                    !(lbIndex === lbPhotos.length - 1 && lbSwipeD > 0); /* 末张不再往「下一张」滑 */
+          if (can) {
+            lbSwipeFired = true;                    /* 本会话不再翻（等 220ms 新会话） */
+            lbFlipTo(lbSwipeD > 0 ? 1 : -1);
+          } else {
+            var im3 = curImg();
+            lbPhoto.classList.remove('no-anim');    /* 恢复过渡 → 带动画弹回 */
+            if (im3) im3.style.transform = '';
+          }
+        }, 150);
         return;
       }
       /* 纵向 */
@@ -1347,16 +1405,15 @@ body.dy-lb-open { overflow: hidden; }
       } else if (lbPtrs.size === 0) {
         lbPhoto.classList.remove('no-anim', 'dragging');
         if (was === 1 && lbSwp && lbSwp.on && lbZoom <= LB_ZOOMED) {
-          /* 拖动翻页结算：位移 ≥70px 且未撞边界 → 当前图滑出后切换；否则回弹 */
+          /* 拖动翻页结算：位移 ≥70px 且未撞边界 → 滑出换页；否则回弹 */
           var dx2 = e.clientX - lbSwp.x0;
           var im = curImg();
           if (im && Math.abs(dx2) >= 70 &&
               !(lbIndex === 0 && dx2 > 0) &&
               !(lbIndex === lbPhotos.length - 1 && dx2 < 0)) {
-            im.style.transform = 'translateX(' + (dx2 > 0 ? 1 : -1) * lbPhoto.clientWidth + 'px)';
             lbSwpEnd = Date.now();
             lbSwp = null;
-            setTimeout(function () { navLb(dx2 > 0 ? -1 : 1); }, 220);
+            lbFlipTo(dx2 > 0 ? -1 : 1);   /* v9.22：当前位继续滑出 → 新图同侧滑入 */
             return;
           }
           lbSwp = null;
