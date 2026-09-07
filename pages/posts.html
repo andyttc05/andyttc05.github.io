@@ -655,6 +655,10 @@ body.dy-lb-open { overflow: hidden; }
    滑出(260ms) → 新图从同侧滑入(animLbIn 预置 offscreen 再带回过渡，无闪帧)；
    不足 → 带动画弹回。拖动翻页松手同样走 lbFlipTo（原先只有旧图滑出、新图硬切）。
    键盘 ←→ 保留即时响应但新图滑入。lbFlipping 锁旧图滑出阶段防连跳。
+   v9.23（2026-09-07，主人"放大再快一点点，一点点就好 + 移除触控板双指竖滑缩放"）：
+   快一小档 —— 滚轮/鼠标 LB_WHEEL 1.2→1.24、触控板捏合 LB_PINCH_WHEEL 1.6→1.66
+   （150px 张幅 ×2.02→×2.14）；删除双指竖滑的缩放通路：细滑永不缩放（双指=移动
+   语义），未放大竖滑无操作、已放大竖滑专职平移；缩放只剩 捏合 / 双击 / 鼠标整格。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1075,14 +1079,16 @@ body.dy-lb-open { overflow: hidden; }
        苹果照片近 1:1 直跟 —— 捏合与普通滑动/滚轮分不同基准：捏合是手指张幅换缩放
        （张幅小，给高增益 LB_PINCH_WHEEL，150px 张幅 ≈ ×2.0）；普通滚轮/双指上下滑
        是整段手势换缩放（位移大，×1.2/100px 即可同档）；触屏双指阻尼拉满 1:1；
-       双击档 1.8→2.0 与捏合约齐。 */
-    var LB_WHEEL = 1.2;           /* 普通滚轮/双指上下滑：每 100px 位移 ×1.2
-                                     （1.12→1.2 提速；鼠标一格 ≈100-120px → ×1.2~1.25/格） */
+       双击档 1.8→2.0 与捏合约齐。
+       v9.23（主人"快一点点就好 + 移除双指竖滑缩放"）：整体再快一小档 ——
+       LB_WHEEL 1.2→1.24、LB_PINCH_WHEEL 1.6→1.66；同时删除触控板双指竖滑
+       的缩放通路（细滑永不缩放，见路由注释），双指专职移动。 */
+    var LB_WHEEL = 1.24;          /* 鼠标整格/普通滚轮：每 100px 位移 ×1.24（1.2→1.24）
+                                     （鼠标一格 ≈100-120px → ×1.24~1.3/格） */
     var LB_WHEEL_REF = 100;       /* 参考位移 px */
-    var LB_PINCH_WHEEL = 1.6;     /* 触控板捏合(ctrlKey+wheel)：每 100px 张幅 ×1.6
-                                     —— 捏合单事件 delta 远小于双指滑动的位移，同用 1.2
-                                     会几乎没反应（v9.19 的 1.12 正是如此）；1.6 使一次
-                                     自然张合(≈150px)≈ ×2.0，接近苹果照片 1:1 直跟 */
+    var LB_PINCH_WHEEL = 1.66;    /* 触控板捏合(ctrlKey+wheel)：每 100px 张幅 ×1.66
+                                     （1.6→1.66）—— 一次自然张合(≈150px)≈ ×2.14，
+                                     苹果照片 1:1 直跟的手感再跟紧一点 */
     var LB_PINCH_DAMP = 1.0;      /* 触屏双指捏合阻尼：0.8→1.0 = 1:1 直跟（苹果照片同款：
                                      双指张幅 ×2 → 放大正好 ×2；1.0 即完全跟随，无阻尼） */
     var LB_DBL = 2.0;             /* 双击档位：1.8→2.0（与捏合一次自然张合约齐，见 v9.21） */
@@ -1215,27 +1221,15 @@ body.dy-lb-open { overflow: hidden; }
       zoomToggle(e.clientX, e.clientY);
     });
     /* v9.17 滚轮手势路由（触控板 + 鼠标统一）——
-       会话制：两次 wheel 间隔 <150ms 视为同一手势；模式在会话【开头】定一次，
-       中途不翻转。这解决静态阈值 bug：从原始尺寸连续上滑放大，刚越过 1.02 就
-       被当平移切走 → 放大永远卡在 ~1.02（实测 20 事件全到、z 冻结 1.0207）。
-       会话规则：
+       v9.23 简化：触控板双指=移动语义，不再兼任缩放（主人"双指上下滑缩放和双指
+       移动有冲突"）→ 细滑永不缩放；缩放只走 捏合 / 双击 / 鼠标整格滚轮。
+       路由规则：
          · ctrlKey+wheel（触控板捏合 / Ctrl+滚轮）→ 恒缩放（位移归一）
          · 鼠标整格（行模式 / |Δ|≥50px 大步长）→ 恒缩放（保留滚轮缩放通路）
-         · 触控板细滑新会话：已放大(>1.02) → 平移；未放大 → 放大
-           同一会话中途状态变了也不切 —— 慢滑从 1.0 一路放到 2.0 不卡壳
-         · 横向：已放大 → 平移；未放大 → 翻页（一个会话只翻一张） */
-    var LB_GEST = 300;            /* 手势会话间隔（ms）：两次 wheel 在此间隔内 = 同一手势。
-                                     浏览器可能把分散的滚轮事件合批送达（实测 Chromium
-                                     间隔 ~200ms 的事件被并成一发），300ms 保证合批后的
-                                     会话仍连续 —— 缩放中途不因"过 1.02"被切成平移 */
-    var lbWheelMode = null;       /* 'zoom' | 'pan' —— 当前会话模式 */
+         · 横向：已放大 → 平移；未放大 → 翻页（一个会话只翻一张）
+         · 纵向触控板细滑：已放大 → 平移；未放大 → 无操作 */
+    var lbWheelMode = null;       /* 历史遗留（v9.23 起细滑不再缩放，仅横向/平移在用） */
     var lbWheelLast = 0;
-    function lbWheelCont() {
-      var n = Date.now();
-      var c = (n - lbWheelLast) < LB_GEST;
-      lbWheelLast = n;
-      return c;
-    }
     lbPhoto.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open') || !curImg()) return;
       var dx = e.deltaX || 0, dy = e.deltaY || 0;
@@ -1293,16 +1287,11 @@ body.dy-lb-open { overflow: hidden; }
       /* 纵向 */
       e.preventDefault();
       if (mouseLike) { wheelZoom(e, e.clientX, e.clientY); return; }  /* 鼠标整格恒缩放 */
-      /* 触控板细滑：会话开头定一次模式 */
-      if (!lbWheelCont()) {
-        lbWheelMode = zoomed ? 'pan' : 'zoom';
-        if (lbWheelMode === 'pan') lbPhoto.classList.add('no-anim');
-      }
-      if (lbWheelMode === 'pan') {
-        lbPanY -= dy;                        /* 双指竖滑 → 图片跟手平移 */
+      /* 触控板双指竖滑：双指=移动语义（v9.23，主人"竖滑缩放与双指移动冲突"）——
+         已放大 → 图片跟手平移；未放大 → 无操作（缩放请用捏合 / 双击 / 鼠标滚轮） */
+      if (zoomed) {
+        lbPanY -= dy;
         applyLbView(true);
-      } else {
-        wheelZoom(e, e.clientX, e.clientY);  /* 未放大 → 竖滑放大（会话内跨 1.02 不切） */
       }
     }, { passive: false });
 
