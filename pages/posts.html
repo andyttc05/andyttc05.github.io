@@ -659,6 +659,12 @@ body.dy-lb-open { overflow: hidden; }
    快一小档 —— 滚轮/鼠标 LB_WHEEL 1.2→1.24、触控板捏合 LB_PINCH_WHEEL 1.6→1.66
    （150px 张幅 ×2.02→×2.14）；删除双指竖滑的缩放通路：细滑永不缩放（双指=移动
    语义），未放大竖滑无操作、已放大竖滑专职平移；缩放只剩 捏合 / 双击 / 鼠标整格。
+   v9.24（2026-09-07，主人"图片左右滑动有bugs，左右滑动后图片没显示"）：翻页链路
+   三处加固 —— ① 翻页请求不再被吞：滑出动画期间的翻页记入 lbFlipQ 完成后自动接力
+   （旧：动画中请求静默丢弃，极端时序旧图已滑出 → 灯箱空等）；② 入场动画兜底：
+   目标图未加载完先等待（≤800ms，超时直接显示），入场 320ms 后强制清 transform ——
+   任何引擎过渡不触发也不会永久停在 offscreen；③ 前后张预载（打开灯箱/navLb 即
+   预热相邻图），逐张浏览不再因网络加载空屏。滑出完成即放行新手势（fired 复位）。
    换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
   <script>
   (function () {
@@ -1010,6 +1016,7 @@ body.dy-lb-open { overflow: hidden; }
       lbIndex = idx;
       resetLbGesture();   /* v9.17：新开灯箱 → 清手势会话（翻页/缩放模式） */
       renderLb();
+      lbPreloadNear();    /* v9.24：预热相邻两张，翻页不空屏 */
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
       /* v9.14：锁页面滚动（放大拖拽 / 灯箱内手势不再带动背景页面）
@@ -1038,32 +1045,74 @@ body.dy-lb-open { overflow: hidden; }
       if (!lbPhotos.length || lbFlipping) return;   /* v9.22：旧图滑出期间锁重复翻页 */
       lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
       renderLb();
+      lbPreloadNear();    /* v9.24：预热新位置的相邻两张 */
       animLbIn(dir);
     }
     /* v9.22 新图滑入：先移到行进方向一侧（不可见），下帧带回过渡滑到原位。
-       renderLb 同步替换 DOM、浏览器尚未绘制 → 先落位 offscreen 不会闪帧 */
+       renderLb 同步替换 DOM、浏览器尚未绘制 → 先落位 offscreen 不会闪帧。
+       v9.24 加固：目标图未加载完则等它（邻居预载后通常 <40ms），最多等 800ms
+       超时直接显示；入场后 320ms 兜底强制清 transform —— 即使某引擎过渡没触发，
+       图片也绝不可能永远停在 offscreen（「滑动后图片没显示」的根治） */
     function animLbIn(dir) {
       var im = curImg(); if (!im) return;
       var W = lbPhoto.clientWidth || 1;
-      lbPhoto.classList.add('no-anim');
-      im.style.transform = 'translateX(' + (dir * W) + 'px)';
-      void im.offsetWidth;                          /* 强制提交 offscreen 起点 */
-      lbPhoto.classList.remove('no-anim');
-      im.style.transform = '';
+      var go = function () {
+        if (!lb.classList.contains('is-open') || !lbPhoto.contains(im)) return;
+        lbPhoto.classList.add('no-anim');
+        im.style.transform = 'translateX(' + (dir * W) + 'px)';
+        void im.offsetWidth;                          /* 强制提交 offscreen 起点 */
+        lbPhoto.classList.remove('no-anim');
+        im.style.transform = '';
+        /* 兜底：过渡正常时此刻已滑到原位；异常（无过渡/被打断）则强制归位 */
+        setTimeout(function () {
+          if (lbPhoto.contains(im) && document.querySelector('.dy-lb-photo img') === im && !lbFlipping) {
+            im.style.transform = '';
+            lbPhoto.classList.remove('no-anim');
+          }
+        }, 320);
+      };
+      if (im.complete && im.naturalWidth) { go(); return; }
+      var t0 = Date.now();
+      (function wait() {
+        if (!lbPhoto.contains(im)) return;            /* 等待期间已被再次翻页替换 */
+        if (im.complete && im.naturalWidth) { go(); return; }
+        if (Date.now() - t0 > 800) { im.style.transform = ''; return; }  /* 超时：直接显示 */
+        setTimeout(wait, 40);
+      })();
     }
-    /* v9.22 完整翻页动画（跟手拖/横滑过阈用）：旧图沿行进方向滑出 → navLb →
-       新图从行进方向滑入。dir = 照片增量：+1 下一张（内容向左），-1 上一张 */
+    /* v9.24 完整翻页动画（跟手拖/横滑过阈用）：旧图沿行进方向滑出 → navLb →
+       新图从行进方向滑入。dir = 照片增量：+1 下一张（内容向左），-1 上一张。
+       加固：滑出期间再收到翻页请求不再丢弃 —— 记入 lbFlipQ，本张完成后立刻接力
+       （否则旧图已滑出、请求被吞 → 灯箱空着等不到下一张）。完成即清 swipe 会话
+       标记 —— 上一甩的动量已结束（结算要 150ms 静默），下一甩无需再等 220ms */
+    var lbFlipQ = 0;              /* v9.24 翻页接力队列（动画期间的翻页请求） */
     function lbFlipTo(dir) {
       var im = curImg();
-      if (!im || lbFlipping) return;
+      if (!lb.classList.contains('is-open') || !im) { lbFlipQ = 0; return; }
+      if (lbFlipping) { lbFlipQ = dir; return; }      /* 滑出中：排队，完成后接力 */
       var W = lbPhoto.clientWidth || 1;
       lbFlipping = true;
       lbPhoto.classList.remove('no-anim');          /* 恢复过渡 → 从当前位置滑出 */
       im.style.transform = 'translateX(' + (-dir * W) + 'px)';
       setTimeout(function () {
         lbFlipping = false;
+        lbSwipeFired = false;                         /* 本甩动已完结，允许新手势 */
         navLb(dir);
+        if (lbFlipQ && lb.classList.contains('is-open')) {
+          var d = lbFlipQ; lbFlipQ = 0;
+          lbFlipTo(d);                                /* 接力排队的翻页 */
+        }
       }, 260);                                      /* 匹配 .25s 过渡 + 余量 */
+    }
+    /* v9.24：前后张预载 —— 打开灯箱即预热相邻两张（朋友圈浏览几乎总是逐张看，
+       预载后翻页时目标图已解码，入场动画不会因网络等待而空屏） */
+    function lbPreloadNear() {
+      for (var o = -1; o <= 1; o += 2) {
+        var i = lbIndex + o;
+        if (i < 0 || i >= lbPhotos.length) continue;
+        var ph = lbPhotos[i];
+        if (ph && ph.src) { var im = new Image(); im.src = ph.src; }
+      }
     }
 
     /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
@@ -1123,6 +1172,7 @@ body.dy-lb-open { overflow: hidden; }
        swipe 已触发标记（否则同一次横扫会在翻页后二次触发、连跳两张） */
     function resetLbGesture() {
       lbSwipeD = 0; lbSwipeT = 0; lbSwipeFired = false;
+      lbFlipQ = 0; lbFlipping = false;
       if (lbSwipeST) { clearTimeout(lbSwipeST); lbSwipeST = null; }
       lbWheelMode = null; lbWheelLast = 0;
       lbSwp = null;
@@ -1436,8 +1486,8 @@ body.dy-lb-open { overflow: hidden; }
         if (lbZoom > LB_ZOOMED) resetLbView();
         else closeLb();
       }
-      else if (e.key === 'ArrowLeft') navLb(-1);
-      else if (e.key === 'ArrowRight') navLb(1);
+      else if (e.key === 'ArrowLeft') { if (lbFlipping) lbFlipQ = -1; else navLb(-1); }
+      else if (e.key === 'ArrowRight') { if (lbFlipping) lbFlipQ = 1; else navLb(1); }
     });
 
     /* ---------- 入场 stagger ---------- */
