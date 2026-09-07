@@ -19,6 +19,13 @@
     (function () {
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!fine) return;
+      /* 第一百七十一批（2026-09-07 主人"除了主页外，将其他页面的滑动做得和正常页面一样"）：
+         滚轮平滑只保留给主页（五幕雨 scrub 靠连续滚动驱动）。about/posts/projects
+         页 <html data-scroll="native"> → 引擎整体跳过，走浏览器原生滚动：滚轮逐格
+         跟手、触控板原生惯性，观感与普通网页一致。属性化开关：主页不写属性 → 平滑；
+         子页写 native → 直接 return（连 __wheelLock/__wheelPause 都不注册，
+         调用方均有 if 守卫，灯箱锁页退化为 CSS overflow:hidden，原生输入本就挡得住）。 */
+      if (document.documentElement.getAttribute('data-scroll') === 'native') return;
       var target = null, raf = null;
       /* 第一百五十批（2026-08-23 主人"优化网页滑动手感"）：
          对照主流平滑滚动标准（Lenis 手感模型 / 惯性阻尼惯例）重构：
