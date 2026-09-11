@@ -1,4 +1,8 @@
-{
+/* 动态页内容源（原 posts.json）。
+   用 <script src> 加载而不是 fetch：http 与 file:// 双击打开都能读，
+   不需要起本地服务器。内容格式与原来完全一致，直接编辑下面的数组即可。
+   改完记得把 posts.html 里的 ?v=N 加一（控缓存）。 */
+window.__DY_POSTS = {
   "posts": [
     {
       "id": "20260215-trip",
@@ -16,9 +20,8 @@
         { "src": "../assets/images/posts/2026-02-15-09-bookshelf-cat.jpg",   "alt": "书架下蜷着的猫" },
         { "src": "../assets/images/posts/2026-02-15-10-game-event.jpg",      "alt": "情人节游戏活动页" },
         { "src": "../assets/images/posts/2026-02-15-11-boonie-snacks.jpg",   "alt": "两袋熊出没零食" },
-        { "src": "../assets/images/posts/2026-02-15-12-seaside-town.jpg",    "alt": "海边的蓝色屋顶小镇" },
-        { "src": "../assets/images/posts/2026-02-15-13-cat-and-you-end.jpg", "alt": "再遇那只布偶猫" }
+        { "src": "../assets/images/posts/2026-02-15-12-seaside-town.jpg",    "alt": "海边的蓝色屋顶小镇" }
       ]
     }
   ]
-}
+};
