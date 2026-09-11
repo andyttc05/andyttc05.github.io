@@ -307,7 +307,7 @@
 .dy-images.dy-c3 .dy-img { border-radius: 8px; }
 .dy-images.dy-c3 .dy-img:first-child { border-radius: 10px; }
 
-/* 渐变占位 tone（同 posts.json 的 dy-g* 映射） */
+/* 渐变占位 tone（同 posts.js 的 dy-g* 映射） */
 .dy-g1  { --g1:#a5c8f5; --g2:#3b6fd4; }
 .dy-g2  { --g1:#f3b3ae; --g2:#c95c53; }
 .dy-g3  { --g1:#a8ddb5; --g2:#3f8f5c; }
@@ -608,7 +608,7 @@ body.dy-lb-open { overflow: hidden; }
         <!-- 内容流（DOM 在前：窄屏/读屏先读正文；桌面由 grid 置于左列） -->
         <div class="dy-stream">
           <div class="dy-list" id="dyList" role="feed" aria-label="动态列表">
-            <!-- 条目由 assets/data/posts.json 渲染（见页尾脚本）：v9.5 内容流 + 右栏索引 -->
+            <!-- 条目由 assets/data/posts.js 渲染（见页尾脚本）：v9.5 内容流 + 右栏索引 -->
             <p class="dy-empty" id="dyEmpty" hidden>动态加载失败，稍后再来看看。</p>
           </div>
         </div>
@@ -658,7 +658,7 @@ body.dy-lb-open { overflow: hidden; }
   <script src="../assets/js/loader.js?v=5" defer></script>
   <script src="../assets/js/script.js?v=137" defer></script>
 
-  <!-- 动态页逻辑 v9：从 assets/data/posts.json 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
+  <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
    v9.6（2026-09-07）：真实图片支持（photos[*].src）+ 「+更多」叠加层（>9 张时，第 9 格显示 +N）
    + 灯箱上下张导航（键盘 ← → / 按钮）。
@@ -787,14 +787,24 @@ body.dy-lb-open { overflow: hidden; }
       return n;
     }
 
-    /* ---------- 数据源：静态 JSON（换 GitHub Issues 只改这里） ---------- */
+    /* ---------- 数据源：assets/data/posts.js（换 GitHub Issues 只改这里） ----------
+       v9.44：改用 <script src> 取数，不再 fetch。原因：浏览器禁止 file:// 下
+       的 fetch（URL scheme "file" is not supported），双击打开页面会整页空掉；
+       script 标签在 http 与 file 下都能加载，本地预览不必再起服务器。
+       http 下带 ?v=N 控缓存（改了内容记得 +1）；file:// 下带 query 会被当成不同
+       文件路径，故跳过。 */
+    var DY_DATA = '../assets/data/posts.js';
     function loadPosts() {
-      return fetch('../assets/data/posts.json?v=3', { cache: 'no-cache' })
-        .then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
-        .then(function (data) { return data.posts || []; });
+      return new Promise(function (resolve, reject) {
+        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=4');
+        var s = document.createElement('script');
+        s.src = url;
+        s.onload = function () {
+          resolve((window.__DY_POSTS && window.__DY_POSTS.posts) || []);
+        };
+        s.onerror = function () { reject(new Error('无法加载 ' + url)); };
+        document.head.appendChild(s);
+      });
     }
 
     /* ---------- 渲染 ---------- */
@@ -2188,7 +2198,9 @@ body.dy-lb-open { overflow: hidden; }
       initEntrance();
       updateSpy();
     }).catch(function (err) {
-      console.error('[posts] 加载失败：', err);
+      console.error('[posts] 加载失败：', err,
+        '\n  数据源 =', DY_DATA,
+        '\n  协议   =', location.protocol);
       var empty = document.getElementById('dyEmpty');
       if (empty) empty.hidden = false;
     });
