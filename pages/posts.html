@@ -1706,6 +1706,23 @@ body.dy-lb-open { overflow: hidden; }
     var lbGestPeak = 0, lbGestMoved = 0, lbGestTimeo = LB_GEST_IDLE_MIN;
     var lbWheelLastMs = 0, lbPrevGap = 0, lbGapHits = 0, lbMom = false;
     var lbMomAcc = [], lbLastAbs = 0, lbPrevVel = [0, 0], lbPrevStamp = 0;
+    /* v9.46 —— 松手速度必须【在抬手那一刻冻结】，不能一路跟着惯性尾巴衰减。
+       ⚠️ 这一条是真机"连续滑动不丝滑"的根因，headless 的合成流永远看不到：
+       `lbGestPeak` 原来按 **事件个数** ×0.85 衰减。鼠标滚轮的流是"4~6 个大事件、无尾巴"，
+       衰减 6 次还剩 0.38，够用；而 macOS 触控板抬手后系统会继续发**惯性尾巴**
+       （幅值几何衰减、间隔 8→48ms，实测一次快滑有 20~80 个事件），衰减 0.85^n 直接崩到 0.08：
+         手指真实速度 1.5px/ms  →  记账 vm = 0.082  →  低于甩动门槛 0.30  →  **判成慢松手、一页不翻**。
+       尾巴越长（= 滑得越用力）记账速度越低 —— 与事实完全相反。
+       正解：抬手的界线就是 `lbMom` 由 false 翻 true 的那一刻（加速度因子连续 3 次衰减 = 惯性开始）。
+       在那里把速度冻进 `lbGestRel`，之后尾巴只作为"已经兑现的位移"记账，不再参与速度估计。
+       `lbWasMom` 留给接管判据用（见 lbPageWheel：尾巴不许接管自己的动画）。 */
+    var lbGestRel = 0, lbWasMom = false;
+    /* 冻结要"回溯"：惯性识别天生滞后 LB_MOM_SAMPLES(3) 个事件，直接在识别那一刻取
+       `lbGestPeak` 已经白丢 0.85³ ≈ 39%（实测同一手势能读出 0.837 和 1.458 两个值，
+       取决于尾巴的定时抖动）。所以维护一个 8 深的小环，冻结时取环内最大值 = 进入衰减前的峰值。
+       用"环内最大"而不是"逐事件取最大 vPk"：后者会被调度抖动（1~3ms 的异常小间隔
+       算出巨大速度）污染，把慢推误判成甩动。 */
+    var lbPeakRing = [];   /* 深度 8：惯性识别在定时抖动下可能晚到 7 个事件（实测出现过），环要够深才不丢峰值 */
     /* 自适应收尾超时（照抄 wheel-gestures 的 updateWillEndTimeout）：
        ceil(Δt/10)*10*1.2，惯性未识别时翻倍并保底 100ms，再钳到 [110, 420]。
        密推段 Δt≈8ms → ~110ms（响应不受影响）；惯性段 Δt≈150ms → ~360ms（尾巴整段落进同一手势）。 */
@@ -1739,14 +1756,15 @@ body.dy-lb-open { overflow: hidden; }
     function lbGestEnd() {
       if (!lbGestActive) return;
       lbGestActive = false;
+      lbWasMom = lbMom;                 /* 留到下一次输入：尾巴不许接管自己的动画 */
       lbMom = false;
       lbMomAcc.length = 0;
       lbPrevGap = 0; lbGapHits = 0;
       if (!lb.classList.contains('is-open')) { lbGestDir = 0; return; }
-      /* 方向取【本手势主导方向】（由行程定的，稳）；大小取【衰减峰值】（见上）。
+      /* 方向取【本手势主导方向】（由行程定的，稳）；大小取【抬手时冻结的速度】（见上）。
          不用末尾瞬时速度的符号：惯性腿上的 EMA 在接近 0 时符号会抖，会把"下一张"
          判成"上一张"（实测 rehit 出现 dir=-1 → 净翻 0 张）。 */
-      var vm = lbGestPeak;
+      var vm = lbGestRel > 0 ? lbGestRel : lbGestPeak;
       var vS = lbGestDir ? -lbGestDir * vm : lbVX;
       var dec = lbTarget(lbOff, vS, lbGestMoved, lbGestDir, vm);
       lbLastDec = dec;
@@ -1806,8 +1824,13 @@ body.dy-lb-open { overflow: hidden; }
            判错的代价是不对称的：漏判只是把这次输入排到动画之后（旧手感），误判最多让
            画面停一下再继续（lbCommit 里 dir=0 且有承诺页时按位置继续、不回弹），
            两者都不会丢页/反向 —— 所以判据偏敏感一侧。 */
+        /* v9.46：刚结束的手势若是"带惯性尾巴"的（lbWasMom），同向接管必须**要求幅值增长** ——
+           尾巴只会几何衰减、永远不会变大。原来的 0.75× 准入会把尾巴自己的事件当"新手势"
+           （间隔长到 40ms+ 时幅值仍有上次的 ~0.96 倍）→ 掐掉自己刚起飞的翻页动画 →
+           画面停一下再继续，正是"滑动动画很奇怪"。反向接管不变（那是明确改变主意）。 */
+        var grow = lbWasMom ? 1.05 : 0.75;
         intent = (sgnIn !== flying) ||
-                 (gapMs >= 40 && dyAbs >= Math.max(2, lbLastAbs * 0.75));
+                 (gapMs >= 40 && dyAbs >= Math.max(2, lbLastAbs * grow));
       }
       var tookOver = false;
       if (flying && intent && (!lbGestActive || restarted)) { lbWheelTakeover(); tookOver = true; }
@@ -1821,6 +1844,8 @@ body.dy-lb-open { overflow: hidden; }
         var inflight = (lbPending !== null) ? (lbPending - lbIndex) : 0;
         lbGestBaseIdx = lbIndex + inflight;
         lbGestDir = 0; lbGestPeak = 0; lbGestMoved = 0;
+        lbGestRel = 0;                /* v9.46：抬手速度在本段重新冻结 */
+        lbPeakRing.length = 0;
         lbMom = false; lbMomAcc.length = 0;
         lbPrevVel = [0, 0]; lbPrevStamp = 0; lbPrevGap = 0; lbGapHits = 0;
         lbGestTimeo = LB_GEST_IDLE_MIN;
@@ -1844,7 +1869,12 @@ body.dy-lb-open { overflow: hidden; }
           });
           lbMomAcc.push(fac);
           while (lbMomAcc.length > LB_MOM_SAMPLES * 2) lbMomAcc.shift();
-          if (!lbMom && lbDetectMomentum()) lbMom = true;
+          if (!lbMom && lbDetectMomentum()) {
+            lbMom = true;
+            /* v9.46 — 抬手时刻 = 惯性开始的那一刻。取环内最大值（= 衰减前的峰值）当"松手速度"。
+               之后再多的尾巴事件都只记账、不改速度（见 lbGestRel 声明处的推导）。 */
+            lbGestRel = lbPeakRing.length ? Math.max.apply(null, lbPeakRing) : lbGestPeak;
+          }
           lbGestTimeo = lbGestTimeoutMs(dtMs);
           if (lbPrevGap > 0 && dtMs >= lbPrevGap * LB_GAP_GROW) {
             lbGapHits++;
@@ -1861,8 +1891,14 @@ body.dy-lb-open { overflow: hidden; }
       if (vPk > 0 && vPk < 40) {
         /* 峰值按 0.85/事件 衰减：惯性腿本来就在衰减，没有新发力时会自然降下来 ——
            于是"快推一下、再慢慢拖很久"会被读成慢松手（正确），
-           而"快推 + 惯性腿"仍保有足够的峰值（正确）。 */
-        lbGestPeak = Math.max(lbGestPeak * 0.85, vPk);
+           而"快推 + 惯性腿"仍保有足够的峰值（正确）。
+           ⚠️ v9.46：**惯性已识别（lbMom）之后不许再衰减** —— 尾巴的每个事件都会把这个
+           按"事件个数"衰减的峰值往下拽一层，真机 20~80 个尾巴事件足以把 1.5px/ms 拽到 0.08
+           （实测），于是"滑得越用力越判成慢松手"。抬手速度已在 lbGestRel 里冻住，这里只保留
+           "新发力能抬高峰值"的作用。 */
+        lbPeakRing.push(lbGestPeak);
+        if (lbPeakRing.length > 8) lbPeakRing.shift();
+        lbGestPeak = Math.max(lbMom ? lbGestPeak : lbGestPeak * 0.85, vPk);
         /* 速度 EMA，符号取 off 空间：scroll 正 → off 减 → d(off)/dt 为负 */
         lbVX = 0.6 * lbVX + 0.4 * (-scroll / Math.max(dtMs, 1e-3));
       }
@@ -1879,6 +1915,7 @@ body.dy-lb-open { overflow: hidden; }
         T: lbAnim ? lbAnim.T : null, vel: lbVel, vx: lbVX,
         queue: lbPending, owed: lbPending, base: lbGestBaseIdx,
         act: lbGestActive, moved: lbGestMoved, peak: lbGestPeak, dir: lbGestDir,
+        rel: lbGestRel, wasMom: lbWasMom,
         timeo: lbGestTimeo, mom: lbMom,
         page: lbPageUnit(), step: lbStep(1), deck: !!lbDeck(),
         eff: +lbEff().toFixed(2), rubber: LB_RUBBER_C, n: lbPhotos.length,
