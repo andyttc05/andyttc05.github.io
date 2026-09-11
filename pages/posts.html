@@ -39,6 +39,7 @@
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=3" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
 <link rel="stylesheet" href="../assets/css/style.css?v=308" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/vendor/swiper/swiper-bundle.min.css?v=1">
 
 <style>
 /* ================================================================
@@ -336,105 +337,80 @@
   text-align: center;
 }
 
-/* ---- 灯箱 ---- */
-/* v9.14（主人"图片放大时怎么可以滑动页面"）：灯箱打开 → 锁 body 滚动
-   （body.dy-lb-open，由 openLb/closeLb 切换）；touch-action:none 保证触摸手势
-   不会把背后的页面滚走 —— 放大拖拽 / 翻页都发生在灯箱内部。 */
+/* ---- 灯箱 v10（Swiper 11）----
+   DOM：.dy-lb（背景层）> .dy-lb-swiper > .swiper-wrapper > .swiper-slide.dy-lb-slide
+   图片包在 Swiper 的 .swiper-zoom-container 里 —— 捏合 / 双击 / 放大后平移都由
+   Swiper 的 zoom 模块负责。这里只管"长什么样"。 */
 body.dy-lb-open { overflow: hidden; }
 .dy-lb {
   position: fixed; inset: 0; z-index: 200;
-  display: flex; align-items: center; justify-content: center;
-  padding: 5vw;
   background: rgba(10,13,18,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   opacity: 0; pointer-events: none;
   transition: opacity .25s ease;
+  /* 灯箱内不产生任何原生滚动 / 原生缩放；croll 也不再传给背后的页面 */
   touch-action: none;
-  /* v9.35：邻图停在屏幕外等入场 —— 裁到视口边界，绝不产生横向滚动/布局溢出 */
   overflow: hidden;
 }
 .dy-lb.is-open { opacity: 1; pointer-events: auto; }
-.dy-lb-photo {
-  position: relative;
+
+/* Swiper 本体铺满视口。翻页是 GPU 合成的 translate，不再有 JS 逐帧写 transform */
+.dy-lb-swiper, .dy-lb-swiper .swiper-wrapper, .dy-lb-slide { height: 100%; width: 100%; }
+.dy-lb-slide {
   display: flex; align-items: center; justify-content: center;
-  max-width: min(92vw, 960px);
-  max-height: 76vh;   /* v9.10g：86→76vh，给底部 UI（提示/计数）留净空 —— 竖图不再顶到 counter */
-  /* v9.31：图片态下舞台完全无框（无 bg / shadow / radius / overflow）——
-     之前 v9.30 的渐变 + 圆角 + 阴影在 contain-fit 图四周形成明显的"灰框框住"；
-     叠加上 union 撑大后残影更重（邻居图的尺寸差变成可视化的卡片边界）。
-     现在舞台对图片不可见 —— 图片直接铺到 dialog backdrop 上，无任何裁剪/装饰边。
-     emoji 兜底态（无 src）走 :not(.is-img) 重新挂回渐变 tile。 */
-  transform: scale(.97);
-  /* 尺寸不再过渡：v9.31 取消了 union 撑大（舞台只跟当前图尺寸），整页不再
-     有"翻页瞬间舞台伸缩"的视觉跳变，width/height 过渡也失去意义 —— 删。 */
-  transition: transform .25s cubic-bezier(0.22,1,0.36,1);
+  overflow: hidden;
 }
-/* emoji 占位 / 无实图时的兜底 tile（保留原渐变 + 阴影 + 圆角，与之前观感一致） */
-.dy-lb-photo:not(.is-img) {
+/* 缩放容器必须撑满 slide：Swiper zoom 用它的尺寸推导平移边界 */
+.dy-lb-slide .swiper-zoom-container {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+/* 选择器要多一层：swiper-bundle.css 里有 `.swiper-zoom-container>img`
+   (0,2,1)，同权重下它排在我的样式表之后会赢 —— 那会把图铺满整屏（100%×100%）。
+   提到 (0,3,1) 稳定压住，保住原来的 96vw × 76vh 阅读框。 */
+.dy-lb .dy-lb-slide .swiper-zoom-container > img {
+  display: block;
+  max-width: min(92vw, 960px);
+  max-height: 76vh;   /* 给底部计数留净空：竖图不顶到 counter */
+  width: auto; height: auto;
+  object-fit: contain;
+  user-select: none; -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+/* 放大后可拖拽 → 抓手光标（Swiper 给当前 slide 打 swiper-slide-zoomed） */
+.dy-lb-slide.swiper-slide-zoomed { cursor: grab; }
+.dy-lb-slide.swiper-slide-zoomed:active { cursor: grabbing; }
+/* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
+.dy-lb-slide .dy-lb-emoji {
+  font-size: clamp(60px, 10vw, 120px);
+  line-height: 1;
+  padding: 40px;
   border-radius: 10px;
   background:
     radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
     linear-gradient(140deg, var(--g1), var(--g2));
   box-shadow: 0 40px 90px rgba(0,0,0,.5);
-  overflow: hidden;
 }
-.dy-lb.is-open .dy-lb-photo { transform: none; }
-.dy-lb-photo > img {
-  display: block;
-  max-width: min(92vw, 960px);
-  max-height: 76vh;
-  width: auto; height: auto;
-  object-fit: contain;
-  /* v9.13：origin 0 0 —— 缩放引擎的 translate∘scale 公式按左上原点推导，
-     默认 50% 50% 会让锚定坐标整体偏移 (1-s)·w/2 造成漂移 */
-  transform-origin: 0 0;
-  transform: scale(.97);
-  transition: transform .25s cubic-bezier(0.22,1,0.36,1);
-}
-.dy-lb.is-open .dy-lb-photo > img { transform: none; }
-/* v9.8 缩放：is-zoom 后内联 transform（scale + translate）驱动，拖拽平移 */
-.dy-lb-photo > img {
-  user-select: none; -webkit-user-select: none;
-  touch-action: none;
-}
-.dy-lb-photo.is-zoom { cursor: grab; }
-.dy-lb-photo.is-zoom.dragging { cursor: grabbing; }
-.dy-lb-photo.is-zoom > img {
-  transition: transform .18s cubic-bezier(0.22,1,0.36,1);
-  cursor: grab;
-}
-.dy-lb-photo.is-zoom.dragging > img,
-.dy-lb-photo.no-anim > img { transition: none !important; }
-.dy-lb-photo > .dy-lb-emoji {
-  font-size: clamp(60px, 10vw, 120px);
-  line-height: 1;
-  padding: 40px;
-}
-/* 灯箱：计数（缩放态沉浸淡出，见下方）—— v9.20 移除 ‹ › 按钮（主人"移除
-   左右滑动按钮…参考苹果设计"）；v9.29 恢复左右箭头（主人"新增左右滑动的按钮"），
-   翻页手势/键盘保留；✕ 不恢复 —— 关闭仍交给 点空白 / ESC。 */
-.dy-lb-counter {
-  transition: opacity .22s ease;
-}
-/* v9.10f：缩放（is-zoom）→ 沉浸查看 —— 计数淡出，避免与放大平移中的图片重叠；
-   ESC / 双击退出缩放后恢复。 */
-.dy-lb.is-zoom .dy-lb-counter {
-  opacity: 0; pointer-events: none;
-}
+
+/* 计数：缩放态沉浸淡出（ESC / 双击退出缩放后恢复） */
 .dy-lb-counter {
   position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  z-index: 4;
   font: 12px/1 var(--font-mono); color: rgba(255,255,255,.85);
   letter-spacing: .14em;
   padding: 6px 14px;
   border-radius: 999px;
   background: rgba(255,255,255,.08);
   font-variant-numeric: tabular-nums;
+  transition: opacity .22s ease;
 }
-/* v9.29 左右箭头：半透明毛玻璃圆钮，钉在视口两侧中线（照片居中 → 与图同高）；
-   端到端（首/末张）disabled 淡化提示；缩放态与计数一起淡出（沉浸平移） */
+.dy-lb.is-zoom .dy-lb-counter { opacity: 0; pointer-events: none; }
+
+/* 左右箭头：半透明毛玻璃圆钮，钉在视口两侧中线；端到端 disabled 淡化（不隐藏）
+   缩放态与计数一起淡出（沉浸平移） */
 .dy-lb-arrow {
   position: absolute; top: 50%; transform: translateY(-50%);
-  z-index: 3;
+  z-index: 5;
   display: flex; align-items: center; justify-content: center;
   width: 46px; height: 46px; padding: 0;
   border-radius: 50%;
@@ -450,9 +426,8 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb.is-open .dy-lb-arrow { opacity: 1; pointer-events: auto; }
 .dy-lb-arrow:hover { background: rgba(255,255,255,.18); }
 .dy-lb-arrow:active { transform: translateY(-50%) scale(.92); }
-/* v9.42：禁用态必须让 pointer-events:none 真正赢 —— 旧规则权重 (0,2,0) 低于
-   `.dy-lb.is-open .dy-lb-arrow` (0,3,0)，于是灯箱打开时禁用箭头照样吃点击：
-   点左/右侧那 46px 圆内不会关灯箱（看着灰但"有反应"）。补高权重选择器修掉。 */
+/* v9.42 的权重坑：禁用态必须让 pointer-events:none 真正赢 —— 旧规则 (0,2,0) 低于
+   `.dy-lb.is-open .dy-lb-arrow` (0,3,0)，灯箱打开时禁用箭头照样吃点击。 */
 .dy-lb.is-open .dy-lb-arrow[disabled],
 .dy-lb-arrow[disabled] { opacity: .16; pointer-events: none; }
 .dy-lb-arrow svg { width: 22px; height: 22px; }
@@ -628,9 +603,11 @@ body.dy-lb-open { overflow: hidden; }
 
   </main>
 
-  <!-- 灯箱 -->
+  <!-- 灯箱 v10（Swiper 11；结构与行为说明见页内「灯箱 v10」注释块） -->
   <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" data-page-node-id="rJNIVkRb7yC3EALjcHx30a">
-    <div class="dy-lb-photo" id="dyLbPhoto" data-page-node-id="RhYmU0T7lYAhMFwEQMhw8j"></div>
+    <div class="swiper dy-lb-swiper" id="dyLbSwiper" data-page-node-id="RhYmU0T7lYAhMFwEQMhw8j">
+      <div class="swiper-wrapper" id="dyLbWrapper"></div>
+    </div>
     <div class="dy-lb-counter" id="dyLbCounter" aria-live="polite" data-page-node-id="vB1nX4yH6zL9aC2eF5gI8j"></div>
     <button class="dy-lb-arrow dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张" data-page-node-id="LbP2kQ7vN9xY4cT6eR8gH0j">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -749,7 +726,14 @@ body.dy-lb-open { overflow: hidden; }
       根治"旧图滑出后舞台空着等新图"的 520ms+ 串行延迟与掉链现象；
    ③ 松手/停顿才结算：位移过 ~1/3 页或甩速 >750px/s 换页，否则回弹；
    ④ 全程一条 rAF 补间（可被新输入接管），快速连翻排队接力，不再吞请求。
-   换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。 -->
+   换后端只需改 loadPosts()：GitHub Issues 版返回同样结构的数组即可。
+   v10（2026-09-12，主人"图片滑动完全用不了，去 GitHub 找优秀的滑动设计直接抄一个"）：
+   上面这一整段手写滑动/缩放引擎（v9.8→v9.46）**整体删除**，灯箱换用 Swiper 11
+   （MIT；本地 vendor 在 ../assets/vendor/swiper/）。翻页、惯性尾巴抑制、边界橡皮筋、
+   捏合/双击缩放、放大后平移全部交给库；本页只留打开关闭、计数、箭头、ESC、点空白关闭。
+   记一条教训：手势物理属于"真机才暴露"的问题，自己调参的边际收益远低于直接用经过
+   验证的实现 —— 手写版在 headless 里全绿，真机上照样用不了。 -->
+  <script src="../assets/vendor/swiper/swiper-bundle.min.js?v=1"></script>
   <script>
   (function () {
     'use strict';
@@ -1063,1261 +1047,224 @@ body.dy-lb-open { overflow: hidden; }
       });
     }
 
-    /* ---------- 灯箱（v9.42：看图 + 左右箭头/键盘换张 + 缩放；滑动翻页引擎已按要求整体
-       删除、待重做。完整实现备份在 ~/.workbuddy/scratch/lb-paging-removal/ ---------- */
-    var lb = document.getElementById('dyLb');
-    var lbPhoto = document.getElementById('dyLbPhoto');
-    var lbCounter = document.getElementById('dyLbCounter');
-    var lbPrev = document.getElementById('dyLbPrev');    /* v9.29 左右箭头 */
-    var lbNext = document.getElementById('dyLbNext');
-    var lbPhotos = [];      /* 当前条目的全部照片 */
-    var lbIndex = 0;        /* 当前展示的索引 */
+    /* ======================================================================
+       ---------- 灯箱 v10（Swiper 11）-------------------------------------
+       v9.43–v9.46 那套手写滑动引擎整体删除，换成 Swiper 11（MIT；本地 vendor 在
+       ../assets/vendor/swiper/）。换的理由很简单：滑动/惯性/缩放这类手势物理，成熟
+       库在真机上被验证过千万次；手写版在 headless 全绿、真机却"用不了"，说明缺的
+       不是调参而是覆盖面。
 
-    function clearLbTone() {
-      var cls = lbPhoto.classList;
-      for (var i = cls.length - 1; i >= 0; i--) {
-        if (/^dy-g\d+$/.test(cls[i])) cls.remove(cls[i]);
-      }
+       分工
+         Swiper → 翻页（触控板 wheel / 鼠标拖拽 / 触摸 / 边界橡皮筋）、
+                  缩放（双指捏合 / 双击 / 放大后平移）
+         本页   → 打开关闭、计数器、左右箭头、ESC、点空白关闭、背景锁滚动
+
+       为什么不用自己写"一次手势 = 一张"
+         Swiper 的 mousewheel 只在三种情况推进：① 本事件的位移比上一个大；
+         ② 方向翻转；③ 距上一事件 >150ms。抬手后系统继续发的惯性尾巴是
+         「幅值单调衰减 + 同向 + 间隔 8→48ms」，三个条件都不满足 → 天然被忽略。
+         这正是 v9.46 手写的那条判据，由库保证。
+       参数覆盖：?lbspeed=1.3（过渡时长倍率）、?lbdebug=1（暴露 window.__lb()）
+       ====================================================================== */
+    var lb = document.getElementById('dyLb');
+    var lbCounter = document.getElementById('dyLbCounter');
+    var lbPrev = document.getElementById('dyLbPrev');
+    var lbNext = document.getElementById('dyLbNext');
+    var lbWrap = document.getElementById('dyLbWrapper');
+    var lbPhotos = [];
+    var lbIndex = 0;
+    var lbSwiper = null;
+
+    var LB_ZOOMED = 1.02;      /* "已放大"判定门限 */
+    var LB_ZOOM_MAX = 4;       /* 最大放大倍数 */
+    var LB_SPEED = (function () {
+      var m = /[?&]lbspeed=([0-9.]+)/.exec(location.search);
+      var v = m ? parseFloat(m[1]) : 1;
+      return (v >= 0.4 && v <= 3) ? v : 1;
+    })();
+    var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
+
+    function lbZoomed() {
+      return !!(lbSwiper && lbSwiper.zoom && lbSwiper.zoom.scale > LB_ZOOMED);
     }
-    function renderLb() {
-      resetLbView();
-      lbPhoto.innerHTML = '';
-      clearLbTone();
-      var ph = lbPhotos[lbIndex];
-      if (!ph) { lb.classList.remove('is-open'); return; }
-      if (ph.tone) lbPhoto.classList.add(ph.tone);
-      /* v9.31：图片态打 is-img，让 .dy-lb-photo 去掉渐变 + 阴影 + 圆角 + overflow
-         —— 之前 contain-fit 图四周的"灰框"全部来自这套装饰；emoji 兜底态（无 src）
-         走 :not(.is-img) 仍保留渐变 tile。 */
-      if (ph.src) lbPhoto.classList.add('is-img');
-      else lbPhoto.classList.remove('is-img');
+    function lbSyncCounter() {
+      lbCounter.textContent = lbPhotos.length ? ((lbIndex + 1) + ' / ' + lbPhotos.length) : '';
+    }
+    function lbSyncArrows() {
+      if (!lbSwiper) return;
+      var a = lbSwiper.activeIndex;
+      lbPrev.disabled = a <= 0;
+      lbNext.disabled = a >= lbPhotos.length - 1;
+    }
+    /* 沉浸态（缩放时计数与箭头淡出）。
+       ⚠️ Swiper 的 zoom.scale setter 是【先 emit('zoomChange', 新值) 再赋值】——
+       在回调里读 lbSwiper.zoom.scale 拿到的是**旧值**，于是放大后 is-zoom 反而被摘掉
+       （实测 scale=4 却 is-zoom=false）。必须用事件带过来的第一个参数。 */
+    function lbSyncImmersive(scale) {
+      var z = (typeof scale === 'number') ? (scale > LB_ZOOMED) : lbZoomed();
+      lb.classList.toggle('is-zoom', z);
+    }
+
+    /* 一张 slide。有 src → Swiper 的 zoom 容器 > img；无 src（emoji 兜底）→ span。
+       加载策略：目标 ±2 张 eager（首屏不能等），其余 lazy —— 滑动时再升格。 */
+    function lbMakeSlide(ph, i, idx) {
+      var sl = document.createElement('div');
+      sl.className = 'swiper-slide dy-lb-slide';
       if (ph.src) {
-        var im = lbGetEl(ph);              /* v9.32：复用已解码元素（无重复 decode） */
-        if (im) {
-          im.className = '';
-          im.style.cssText = '';
-          lbPhoto.appendChild(im);
-        }
-      } else if (ph.emoji) {
+        var zc = document.createElement('div');
+        zc.className = 'swiper-zoom-container';
+        var im = document.createElement('img');
+        im.src = ph.src;
+        im.alt = '';
+        im.draggable = false;
+        im.decoding = 'async';
+        im.loading = (Math.abs(i - idx) <= 2) ? 'eager' : 'lazy';
+        zc.appendChild(im);
+        sl.appendChild(zc);
+      } else {
         var sp = document.createElement('span');
         sp.className = 'dy-lb-emoji';
-        sp.textContent = ph.emoji;
-        lbPhoto.appendChild(sp);
+        sp.textContent = ph.emoji || '\u{1F5BC}';
+        sl.appendChild(sp);
       }
-      lbCounter.textContent = (lbIndex + 1) + ' / ' + lbPhotos.length;
-      lbSyncArrows();
+      return sl;
     }
+
+    function lbCreateSwiper() {
+      lbSwiper = new Swiper('#dyLbSwiper', {
+        init: false,
+        speed: Math.round(300 / LB_SPEED),
+        resistanceRatio: 0.65,        /* 到首/末张继续外滑 → 库自带的阻尼回弹 */
+        watchSlidesProgress: true,
+        preloadImages: false,         /* 由 slide 上的 loading 属性决定加载时机 */
+        updateOnImagesReady: false,
+        keyboard: false,              /* 方向键自己接（只认左右，且缩放时不动） */
+        mousewheel: {
+          /* eventsTarget 必须是灯箱根：Swiper 只在"指针已进入容器"或"事件目标在
+             eventsTarget 之内"时才处理 wheel，否则直接 return（什么都不发生）。 */
+          eventsTarget: '#dyLb',
+          forceToAxis: false,         /* 横竖都认（取主轴）—— 与改造前的习惯一致 */
+          releaseOnEdges: false,      /* 到边界仍吃事件 → 交给上面的 resistanceRatio */
+          thresholdDelta: 6,          /* <6px 的抖动不推进（惯性尾巴末端那一小段） */
+        },
+        zoom: {
+          maxRatio: LB_ZOOM_MAX,
+          minRatio: 1,
+          toggle: true,               /* 触摸 double-tap 切换缩放 */
+          containerClass: 'swiper-zoom-container',
+        },
+        on: {
+          slideChange: function (sw) {
+            lbIndex = sw.activeIndex;
+            lbSyncCounter();
+            lbSyncArrows();
+            lbSyncImmersive();
+            /* 升格邻近 slide 的图（lazy → eager），保证下一张已经就位。
+               半径 2：Swiper 过渡期间 activeIndex 已经跳到目标页，±1 只够"眼前那张"，
+               连滑两次时第三张会来不及 —— 没解码的图在 transition 里就是一片空。 */
+            var kids = lbWrap.children;
+            for (var k = Math.max(0, lbIndex - 2); k <= Math.min(kids.length - 1, lbIndex + 2); k++) {
+              var im = kids[k].querySelector('img');
+              if (im && im.loading === 'lazy') im.loading = 'eager';
+            }
+          },
+          zoomChange: function (sw, scale) { lbSyncImmersive(scale); },
+          touchEnd: function () { lbSyncImmersive(); },
+        },
+      });
+      lbSwiper.init();
+
+      /* 双击缩放不用自己接 —— Swiper 的 zoom.toggle 已经把鼠标双击（两次
+         mousedown/up 被 simulateTouch 送成两段 touch）算作 double-tap。实测自己
+         再加一个 dblclick 处理器会和它对着干：库先 toggle 放大到 4，我的处理器
+         紧接着按"已放大"再缩回去 → 净 scale 恒为 1。踩过，留个记号。 */
+      /* 触控板捏合 = ctrl+wheel（macOS）→ 缩放；顺手挡掉浏览器整页缩放 */
+      lb.addEventListener('wheel', function (e) {
+        if (!lb.classList.contains('is-open') || !e.ctrlKey) return;
+        e.preventDefault();
+        if (lbZoomed()) lbSwiper.zoom.out(); else lbSwiper.zoom.in();
+      }, { passive: false });
+
+      lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slidePrev(); });
+      lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slideNext(); });
+    }
+
+    function lbMount(list, idx) {
+      lbPhotos = list;
+      lbWrap.innerHTML = '';
+      for (var i = 0; i < list.length; i++) lbWrap.appendChild(lbMakeSlide(list[i], i, idx));
+      if (!lbSwiper) lbCreateSwiper();
+      lbSwiper.update();
+      lbSwiper.slideTo(idx, 0);
+      lbIndex = idx;
+      lb.classList.remove('is-zoom');
+      lbSyncCounter();
+      lbSyncArrows();
+      if (LB_DEBUG) {
+        window.__lbSwiper = lbSwiper;     /* 验收脚本要能直接戳实例（仅调试态） */
+        window.__lb = function () {
+          return {
+            open: lb.classList.contains('is-open'),
+            idx: lbSwiper ? lbSwiper.activeIndex : 0,
+            n: lbPhotos.length,
+            zoom: (lbSwiper && lbSwiper.zoom) ? lbSwiper.zoom.scale : 1,
+            animating: lbSwiper ? lbSwiper.animating : false,
+            allowPrev: lbSwiper ? lbSwiper.allowSlidePrev : false,
+            allowNext: lbSwiper ? lbSwiper.allowSlideNext : false,
+            progress: lbSwiper ? lbSwiper.progress : 0,
+          };
+        };
+      }
+    }
+
     function openLb(node) {
       var item = node.closest ? node.closest('.dy-item') : null;
       var list = (item && item._dyPhotos) || [];
       if (!list.length) return;
-      lbPhotos = list;
       var idx = parseInt(node.dataset.idx || '0', 10);
       if (isNaN(idx)) idx = 0;
-      /* 「+更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
+      /* 「+N 更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
       if (node.classList.contains('is-more') && idx < list.length - 1) idx += 1;
-      lbIndex = idx;
-      lbGestBaseIdx = idx;   /* v9.43：手势起始索引 = UIKit 的 indexOfCellBeforeDragging */
-      resetLbView();         /* v9.42：新开灯箱 → 回到未缩放 + 单轨归零 */
-      renderLb();
-      lbPreloadAll();     /* v9.32：全量预载建元素 —— 首次滑动的 deck 也已解码，无闪烁 */
-      lbPreloadNear();    /* v9.43：邻图（±2）先挂好，拖动中被揭开的那张必须已可见 */
-      lbPaint();          /* 建完 deck 后同步一次位置（off=0） */
+      lbMount(list, idx);
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
-      /* v9.14：锁页面滚动（放大拖拽 / 灯箱内手势不再带动背景页面）
-         v9.16：真正锁死 —— 站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
-         滚动，CSS overflow:hidden 拦不住它；__wheelLock(true) 让引擎在灯箱打开期间
-         忽略滚轮并清掉进行中的插值（见 script.js 第一百七十批） */
+      /* 锁背后页面的滚动：站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
+         滚动，CSS overflow:hidden 拦不住它 —— 必须显式告诉它灯箱开着。 */
       document.body.classList.add('dy-lb-open');
       if (window.__wheelLock) window.__wheelLock(true);
     }
+
     function closeLb() {
       lb.classList.remove('is-open');
       lb.setAttribute('aria-hidden', 'true');
-      resetLbView();
+      lb.classList.remove('is-zoom');
+      if (lbSwiper && lbSwiper.zoom) lbSwiper.zoom.out();
       document.body.classList.remove('dy-lb-open');
       if (window.__wheelLock) window.__wheelLock(false);
-      /* 下一帧清空内容，避免下一次打开时短暂闪烁旧图 */
-      setTimeout(function () {
-        if (!lb.classList.contains('is-open')) {
-          lbPhoto.innerHTML = '';
-          lbPhotos = [];
-          lbIndex = 0;
-        }
-      }, 260);
-    }
-    /* v9.43：箭头 / 键盘换张 —— 走同一条单轨引擎（也是"滑过去"，不再是瞬时跳变），
-       与手势共用 lbGoPage/lbFlip：飞行中自动排一页（不吞、不连翻），到头回弹。 */
-    function navLb(dir) {
-      if (!lbPhotos.length || !lb.classList.contains('is-open')) return;
-      if (lbZoom > LB_ZOOMED) return;               /* R8：缩放态禁翻页 */
-      if (lbBusy) { lbOwePage(dir); return; }       /* 动画在飞：记一笔（不吞） */
-      lbGestBaseIdx = lbIndex;
-      lbPending = lbIndex + dir;
-      lbFlip(dir, null, true);                      /* nav 档：定长 380ms 的一条曲线 */
     }
 
-    /* v9.29 左右箭头：首/末张禁用（淡化）提示 —— 索引变化后由 renderLb 同步
-       （v9.42：翻页引擎已删，箭头/键盘现在走 navLb 的瞬时换张 + 重渲染） */
-    function lbSyncArrows() {
-      if (!lbPrev || !lbNext) return;
-      var n = lbPhotos.length;
-      lbPrev.disabled = !n || lbIndex <= 0;
-      lbNext.disabled = !n || lbIndex >= n - 1;
-    }
-    if (lbPrev) lbPrev.addEventListener('click', function (e) {
-      e.stopPropagation();          /* 不冒泡到 document 的"点空白关闭"判定 */
-      navLb(-1);
-    });
-    if (lbNext) lbNext.addEventListener('click', function (e) {
-      e.stopPropagation();
-      navLb(1);
-    });
-    /* ============== v9.32 闪烁根治：全量预载 + 已解码元素复用 ==============
-       主人 2026-09-09「滑动图片时，图片出现闪烁」：旧逻辑每挂一次 deck 都
-       document.createElement 一张新 <img> —— 浏览器缓存里虽有数据，但 decode
-       仍是异步的（~20-80ms），滑到一半新图还是空白 → 闪烁帧。
-       行业做法（Swiper preloadImages / 通用 decode-aware 换图）：预载相邻图、
-       只有完全加载后才替换显示。本页更进一步：开灯箱就把 13 张全部建成
-       <img> 元素（lbGetEl 缓存），首图渲染与 deck 挂载一律【复用已解码元素】——
-       同一 src 一生只 decode 一次，之后每次滑入都是立即上屏，无空白帧。
-       元素只能出现在 DOM 一处 → 每次挂载（主图 / deck / 提升）都重新设
-       className+inline style；renderLb 先 innerHTML='' 清场再挂。 */
-    var lbImgCache = {};   /* src -> <img>（已建元素，通常已解码；尺寸也读它） */
-    function lbGetEl(ph) {
-      if (!ph || !ph.src) return null;
-      var el = lbImgCache[ph.src];
-      if (el) return el;
-      el = document.createElement('img');
-      el.src = ph.src;
-      el.alt = ph.alt || '';
-      el.decoding = 'async';
-      el.draggable = false;
-      lbImgCache[ph.src] = el;
-      return el;
-    }
-    function lbPreloadAll() {
-      for (var i = 0; i < lbPhotos.length; i++) {
-        if (lbPhotos[i] && lbPhotos[i].src) lbGetEl(lbPhotos[i]);
-      }
-    }
-    /* ================== v9.43 单轨滑动引擎（苹果照片式分页）==================
-       被否掉的上一版（v9.27~v9.41）根因（主人 2026-09-11）：目标写成「起始索引 ± 1」
-       且阈值只有 0.14 页 —— 慢拖过 150px 就判定翻页，剩下 86% 的行程被迫在 ~100ms
-       内走完，中段速度冲到 ~11px/ms。这不是时长问题，是**判定规则**问题。
-
-       本版三处结构性改动（依据 WWDC18《Designing Fluid Interfaces》的动量投影 +
-       UIScrollView 分页委托的行业共识）：
-         ① 目标页 = 动量投影 + 位移共同决定（lbTarget）：快甩看方向、慢松手"过半才翻"。
-            于是慢松手后剩余行程**必然 ≤ 半页** —— 这是"不被弹射"的结构保证。
-         ② 落位曲线只有一条、速度单调不增（lbAnimTo）：x = D·(1−(1−u)^n)，峰值就在松手
-            那一帧，u=1 时位移精确落在目标（0 误差）。
-            · 不做"指数衰减 + 零起速缓动"的拼接：d=0.99 的惯性里程只有 99.5·v₀ px
-              （v₀=1.5px/ms → 149px），一页却是 ~1140px —— 纯指数走不完、渐近挂死，
-              而"零起速的尾段"就是速度重新抬升，与「松手后只减速」直接冲突。
-            · 不用 easeOutCubic：它把 60% 位移塞进 26% 时间、后 40% 耗 74% 时间，
-              正是主人说的"滑到中间、慢慢停下、再爬完剩下的"。
-         ③ 位移严格单调朝目标走 → 回弹永不越过原位。
-
-       ⚠ 与提示词 R4 的偏差：R4 要求"有速度/无速度"两档运动。两档合并成一条曲线
-       （理由见②），峰值 = max(松手速度, n·D/T) 出现在松手瞬间，之后单调衰减到 0 ——
-       §2-3「平稳补完剩下那一点」与 §2-5「松手后只会变慢」同时成立。实测数字见交付说明。 */
-
-    /* ---- 常量（集中一处便于调参；URL 可覆盖：?lbspeed=1.3 / ?lbrubber=0.35）---- */
-    var LB_DECEL = 0.99;        /* UIScrollViewDecelerationRateFast —— 分页同款（投影用） */
-    var LB_FLICK_V = 0.30;      /* 甩动门槛 px/ms：超过即"明确要走一张" */
-    var LB_PASS_RATIO = 0.50;   /* 慢松手"过半才翻"的界线 */
-    var LB_EASE_POW = 1.6;      /* 落位曲线指数 n（峰值/均速 = n）：1=匀速(落地硬撞)、
-                                   2=抛物减速、3=easeOutCubic(被否)。1.6 让末段只剩
-                                   16% 峰值速度（落地柔和），峰值又只有均速的 1.6 倍 */
-    var LB_V_SNAP = 0.90;       /* 无速度档参考速度 px/ms（T = n·D/vRef 的分母下限） */
-    var LB_V_FLICK = 1.60;      /* 有速度档参考速度 px/ms */
-    var LB_T_SNAP_MIN = 170, LB_T_SNAP_MAX = 340;   /* 无速度档（慢松手回弹）时长区间 ms
-                                   —— 保持原值：这是"我改主意了"，慢一点更柔，不是"翻页" */
-    var LB_T_FLICK_MIN = 110, LB_T_FLICK_MAX = 280; /* 有速度档时长区间 ms
-                                   v9.45：400→280。一页行程 ~890px 时旧值恒被上限钳住 → 每次
-                                   翻页固定 416ms 自走；实测"最后事件 → 落位"共 551ms
-                                   （134ms 判定延迟 + 416ms 动画），手速稍快输入全落在动画里。 */
-    var LB_NAV_T = 380;         /* 箭头/键盘（无手势速度、整页行程）的目标时长 ms */
-    var LB_SETTLE_EPS = 2;      /* 落定阈值 px。不用 0.35：临界阻尼的渐近尾段是看不见的
-                                   亚像素爬行，白拖 ~100ms；本曲线 u=1 精确到位，eps 只作
-                                   "已在目标附近"的短路 */
-    var LB_RUBBER_C = 0.36;     /* 边界阻尼系数（v9.45：0.55→0.36，与 iOS 同一形态但更涩：
-                                   dim≈1067px 时 300px 拉动 → 96px 可见位移（旧值 143px）。
-                                   越界的那一下幅度小 = "到头了"更明确，回弹也更短） */
-    var LB_PAGE_MARGIN = 20;    /* 屏外净空 px：入场/出场都不啃屏幕边 */
-    var LB_SPEED = (function () {   /* 手感倍率：T /= LB_SPEED（1 = 出厂） */
-      var m = /[?&]lbspeed=([0-9]*\.?[0-9]+)/.exec(location.search);
-      var v = m ? parseFloat(m[1]) : 1;
-      return (isFinite(v) && v > 0) ? Math.max(0.5, Math.min(3, v)) : 1;
-    })();
-    var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
-    (function () {              /* ?lbrubber=0.35 → 边界更涩（300px 拉动 < 100px） */
-      var m = /[?&]lbrubber=([0-9]*\.?[0-9]+)/.exec(location.search);
-      if (m) { var v = parseFloat(m[1]); if (isFinite(v) && v > 0) LB_RUBBER_C = Math.min(1, v); }
-    })();
-
-    /* 苹果 WWDC18 的动量投影（**不是** 教科书 v²/(2a)）：project(v px/s, d) = (v/1000)·d/(1−d)。
-       d=0.99 时 ≈ v·0.099 px —— 一次 1.5px/ms 的甩动"惯性里程"只有 149px，一页 1140px。
-       所以目标页不可能靠惯性自然跑到，必须"由落点决定目标、再由落位曲线强制执行"。 */
-    function lbProject(vMs) { return vMs * 1000 / 1000 * LB_DECEL / (1 - LB_DECEL); }
-
-    /* ---- R3 松手判定表（唯一入口：指针与滚轮共用）----
-         off      : 轨道位移 px（负 = 已滑向下一张）
-         vMs      : 松手速度 px/ms（= d(off)/dt；负 = 朝下一张）
-         traveled : 本手势累计行程 px（滚轮路径传 lbGestMoved；指针路径传 |off|）
-         gdir     : 本手势主导方向 +1 下一张 / -1 上一张（慢松手时用它，不用 off 的符号 ——
-                    因为接管上一段动画时 off 可能还停在反方向）
-         vMag     : 速度大小的覆盖值（触控板用"衰减峰值"代表松手速度，见 lbGestEnd 注释）
-       返回 dir=0 表示不翻页（回弹）。 */
-    function lbTarget(off, vMs, traveled, gdir, vMag) {
-      var S = lbPageUnit();
-      var av = (vMag === undefined || vMag === null) ? Math.abs(vMs) : vMag;
-      var mil = lbProject(av);                       /* 惯性里程 px */
-      var sgn = Math.abs(vMs) > 1e-3 ? (vMs < 0 ? -1 : 1) : (gdir || 1);
-      var land = off + sgn * mil;                    /* 投影落点 */
-      var pass = Math.abs(traveled) / S;             /* 已拖过一页的比例 */
-      var flick = av >= LB_FLICK_V, dir = 0;
-      if (flick) dir = sgn < 0 ? 1 : -1;             /* 甩动：方向即意图，走一张 */
-      else if (pass >= LB_PASS_RATIO) dir = gdir;    /* 慢松手：过半才翻（落点在哪个半页） */
-      return { dir: dir, pass: pass, landed: land, mil: mil, flick: flick, v: vMs, vm: av, off: off, page: S };
-    }
-
-    /* ---- 落位曲线的时长与峰值 ----
-       T = n·D/vRef，再夹到档位区间；夹完用最终 T 反解峰值 vPk = n·D/T（保证精确到位）。
-       **不变式**：T 只随参考速度升高而缩短、随行程增长而变长（且有上限）；
-       绝不会"手势越慢 → 动画越长"（v9.41 的坑：T = T0 − 20|v₀| − 0.02(|d|−460)，
-       慢松手丢掉全部速度折扣、短行程反而加分 → 最慢的手势拿到最长的动画）。 */
-    function lbSettlePlan(D, vIn, flick) {
-      var n = LB_EASE_POW;
-      var vRef = Math.max(vIn, flick ? LB_V_FLICK : LB_V_SNAP);
-      var T = n * D / Math.max(vRef, 1e-6);
-      T = flick ? Math.max(LB_T_FLICK_MIN, Math.min(LB_T_FLICK_MAX, T))
-                : Math.max(LB_T_SNAP_MIN, Math.min(LB_T_SNAP_MAX, T));
-      T = T / LB_SPEED;
-      if (T < 60) T = 60;
-      return { T: T, vPk: n * D / T, vRef: vRef, n: n };
-    }
-
-    /* ---- 唯一的落位驱动：一条 rAF，可被新输入随时接管 ----
-       x(u) = from + D·(1−(1−u)^n)   （u = t/T；u≥1 同帧精确落位并回调）
-       v(u) = n·D/T·(1−u)^(n−1)      （单调不增，峰值在 u=0 即松手那一帧）
-       lbVel 每帧写成当前速度 → 手势接管时可直接继承（速度连续，无起步顿挫）。 */
-    function lbCancelAnim() {
-      if (lbAnim) { if (lbAnim.raf) cancelAnimationFrame(lbAnim.raf); lbAnim = null; }
-    }
-    function lbAnimTo(goal, done, plan) {
-      lbCancelAnim();
-      var from = lbOff, D = goal - from;
-      if (Math.abs(D) < LB_SETTLE_EPS) {         /* 已在目标附近：直接落位，不空跑 */
-        lbOff = goal; lbVel = 0; lbVX = 0; lbPaint();
-        if (done) done();
-        return;
-      }
-      var n = (plan && plan.n) || LB_EASE_POW;
-      var T = (plan && plan.T) || 300;
-      var Af = lbAnim = { raf: 0, done: done, t0: performance.now(),
-                          from: from, D: D, T: T, n: n, goal: goal };
-      var tick = function (now) {
-        if (lbAnim !== Af) return;                 /* 已被接管 / 取消 */
-        var u = (now - Af.t0) / Af.T;
-        if (u >= 1) {                              /* u=1 精确到位，无亚像素爬行 */
-          lbOff = Af.goal; lbVel = 0; lbVX = 0; lbAnim = null;
-          lbPaint();
-          if (done) done();                        /* 同帧落位：调用方立即换页 */
-          return;
-        }
-        if (u < 0) u = 0;
-        lbOff = Af.from + Af.D * (1 - Math.pow(1 - u, Af.n));
-        lbVel = (Af.n * Af.D / Af.T) * Math.pow(1 - u, Af.n - 1);   /* px/ms，带符号 */
-        lbVX = lbVel;
-        lbPaint();
-        Af.raf = requestAnimationFrame(tick);
-      };
-      Af.raf = requestAnimationFrame(tick);
-    }
-
-    /* ---- 单轨状态 ---- */
-    var lbOff = 0;              /* 轨道位移 px：0 = 当前图正中；负 = 已滑向下一张 */
-    var lbDir = 0;              /* 当前挂着的邻图层方向 +1 / -1 / 0 */
-    var lbVX = 0;               /* 最近一次速度 px/ms（= d(off)/dt），手势/接管共用 */
-    var lbVel = 0;              /* 落位动画的逐帧速度 px/ms（接管时继承它） */
-    var lbAnim = null;          /* 落位动画：{raf,t0,from,D,T,n,goal,done} */
-    var lbBusy = false;         /* 一次翻页正在飞（索引尚未自增） */
-    var lbPending = null;       /* 本条链路的【最终目标索引】（绝对页号；null = 无承诺）。
-                                   v9.45 换掉原来的 lbQueued/lbOwed 两个 ±1 计数：连续两次接管
-                                   会把 ±1 覆盖掉 —— 实测三次快甩（间隔 150ms）只翻两页。
-                                   换成绝对值后天然可叠加：接管只是"抓住轨道"，静止动画停在哪、
-                                   承诺到哪一页全都不变，落位回调按 lbPending 继续走。 */
-    /* 记下一笔"要等落位才兑现"的页（链式累加，不覆盖） */
-    function lbOwePage(dir) {
-      lbPending = ((lbPending === null) ? lbIndex : lbPending) + dir;
-    }
-    /* 到达终点就收链，否则再走一步（落位回调专用；不重设终点） */
-    function lbChainNext() {
-      if (lbPending === null) return;
-      if (lbIndex === lbPending) { lbPending = null; return; }
-      var s = lbPending > lbIndex ? 1 : -1;
-      if (lbBusy || !lbCanGo(s)) { lbPending = null; return; }
-      lbFlip(s, null);
-    }
-    var lbPromoWait = null;     /* 提升等待（新 <img> 未解码）：{dk, timer} */
-    var lbLastDec = null;       /* 最近一次判定（?lbdebug=1 读，用于验收报表） */
-
-    function lbW() { var w = lbPhoto.clientWidth; return w > 20 ? w : (window.innerWidth || 800); }
-    /* 视口半宽：舞台居中于视口 → 半屏 = 图中心到屏幕边的距离 */
-    function lbHalf() { return (window.innerWidth || document.documentElement.clientWidth || 800) / 2; }
-    /* 一页行程 = 「整张图完全离开屏幕」的距离（v9.35 定稿，v9.43 沿用）：
-         step = 半屏 + max(当前图宽, 邻图宽)/2 + 净空
-       于是与 off 无关地同时成立：挂载时邻图整张在屏外；翻完时旧图整张已离屏。
-       （两图之间因此可能出现"过道"—— 这是"图窄于屏幕"的必然几何代价，苹果照片同款。） */
-    function lbStep(dir) {
-      var W = lbW();
-      if (!dir) return W;
-      var ph = lbPhotos[lbIndex + dir];
-      if (!ph || !ph.src) return W;
-      var nb = lbNaturalBox(ph);
-      if (!nb) return W;
-      var abut = (W + nb.w) / 2;
-      var offScreen = lbHalf() + Math.max(W, nb.w) / 2 + LB_PAGE_MARGIN;
-      return Math.max(abut, offScreen);
-    }
-    function lbPageUnit() { return Math.max(lbW(), lbStep(1), lbStep(-1)); }
-    function lbCanGo(dir) { var i = lbIndex + dir; return i >= 0 && i < lbPhotos.length; }
-    function lbDeck() { return lbPhoto.querySelector('.dy-lb-deck'); }
-    /* 边界阻尼（iOS 同款形态）：越拉越涩。c = LB_RUBBER_C（0.55 = iOS 原值；
-       想更涩（拉到 300px 只走 <100px）用 ?lbrubber=0.35）。 */
-    function lbRubber(o) {
-      var d = lbPageUnit();
-      return (o * d * LB_RUBBER_C) / (d + LB_RUBBER_C * Math.abs(o));
-    }
-    /* 弹性显示位移：第一张右拉 / 末张左拉只在可见位移上打阻尼（lbOff 原值不受影响，
-       于是松手判定仍按手指真实行程 —— 与 v9.36 的封顶语义一致） */
-    function lbEff() {
-      var o = lbOff;
-      if (lbIndex === 0 && o > 0) return lbRubber(o);
-      if (lbIndex === lbPhotos.length - 1 && o < 0) return lbRubber(o);
-      return o;
-    }
-    /* lbRubber 的逆（紧致单调，可逆）：可见位移 → 原始轨迹量。
-       有了它，边界回弹就能【在可见空间】插值 —— 直接决定上屏轨迹，不再被 rubber 的
-       局部斜率调制（旧版在原始空间插值再映射：实测可见速度被压成"起步 0.58px/ms、
-       350ms 里慢慢爬完 143px"，主人读作"动画很奇怪"）。 */
-    function lbInvRubber(v) {
-      var d = lbPageUnit(), s = v < 0 ? -1 : 1, a = Math.abs(v);
-      if (a >= d * 0.98) a = d * 0.98;                  /* 理论渐近，实际到不了 */
-      return s * (a * d) / (LB_RUBBER_C * (d - a));
-    }
-    /* 边界回弹（v9.45）：一条 smoothstep（两端速度为 0）。手指按住越界时速度就是 0，
-       回弹从静止起步才对 —— 峰值落在中段，而不是松手瞬间先冲一下。
-       T 只由【可见】距离决定：143px → 226ms，96px → 198ms（旧版固定 ~350ms）。 */
-    function lbBoundBack(done) {
-      var vis = lbEff();
-      var a = Math.abs(vis);
-      if (a < 0.6) { lbOff = 0; lbVel = 0; lbVX = 0; lbClearDeck(true); lbPaint(); if (done) done(); return; }
-      var T = Math.max(160, Math.min(280, 140 + a * 0.6));
-      lbCancelAnim();
-      var sgn = vis < 0 ? -1 : 1;
-      var Af = lbAnim = { raf: 0, done: done, t0: performance.now(), T: T,
-                          vis: a, sgn: sgn, bound: true, goal: 0, from: lbOff, dt0: performance.now() };
-      var tick = function (now) {
-        if (lbAnim !== Af) return;                       /* 已被接管 */
-        var u = (now - Af.t0) / Af.T;
-        if (u >= 1) {
-          lbAnim = null; lbOff = 0; lbVel = 0; lbVX = 0;
-          lbPaint(); if (done) done(); return;
-        }
-        var s = u * u * (3 - 2 * u);                     /* smoothstep：s'(0)=s'(1)=0 */
-        var prev = lbOff, dt = Math.max(1, now - Af.dt0);
-        lbOff = lbInvRubber(Af.sgn * Af.vis * (1 - s));
-        lbVel = (lbOff - prev) / dt; lbVX = lbVel;       /* 供接管继承（虽然回弹速度很小） */
-        Af.dt0 = now;
-        lbPaint();
-        Af.raf = requestAnimationFrame(tick);
-      };
-      Af.raf = requestAnimationFrame(tick);
-    }
-    /* 一次手势最多一张：位移封顶在一页（跟手仍然 1:1，只是不再往前推进） */
-    function lbCapOne() {
-      var d = lbOff < 0 ? 1 : (lbOff > 0 ? -1 : 0);
-      if (!d) return;
-      var S = lbPageUnit(), a = Math.abs(lbOff);
-      if (a > S) lbOff = -d * S;
-    }
-    /* 手套进行中给舞台挂 no-anim（禁 CSS 过渡）：位移全部由同帧直写/ rAF 接管，
-       否则每帧写 transform 都被 .25s 过渡拖后腿 —— "跟手延迟"的真凶之一 */
-    function lbPageSync() {
-      lbPhoto.classList.toggle('no-anim', !!(lbAnim || lbOff || lbDir || (lbPg && lbPg.on)));
-    }
-    /* v9.37/v9.41 定稿：拖动与滚轮两条路径都【同帧直写】。
-       攒到下帧再写恒定落后一帧（实测残差 = 当次事件幅值 6/12/45/70px），
-       改直写后残差 0.0px（0.6px 合成器量化以内）。 */
-    function lbPaint() {
-      lbPageSync();
-      var o = lbEff();
-      var im = curImg();
-      if (im) im.style.transform = o ? 'translateX(' + o.toFixed(2) + 'px)' : '';
-      /* 邻图叠层随位移实时换边（跨中点 / 反向回拉都跟手；近中点撤层） */
-      var d = 0;
-      if (Math.abs(lbOff) >= 6) d = lbOff < 0 ? 1 : -1;
-      if (d && d !== lbDir && lbCanGo(d)) { lbClearDeck(true); lbMountDeck(d); }
-      else if (!d && lbDir) lbClearDeck(true);
-      var dk = lbDeck();
-      if (dk && lbDir && !lbPromoWait) {
-        /* deck 中心距 = lbStep(dir)：与当前图零重叠（含邻图宽），同排轨道一起动 */
-        dk.style.transform = 'translate(-50%,-50%) translateX(' +
-          (lbDir * lbStep(lbDir) + o).toFixed(2) + 'px)';
-      }
-    }
-    /* 邻图层（v9.32 起复用已解码元素：同一 src 一生只 decode 一次，滑入即上屏）*/
-    function lbMountDeck(dir) {
-      if (lbDir === dir && lbDeck()) return;
-      var ph = lbPhotos[lbIndex + dir];
-      if (!ph || !ph.src) { lbDir = 0; return; }
-      var im = curImg(); if (!im) return;
-      var nb = lbNaturalBox(ph); if (!nb) return;
-      var dk = lbGetEl(ph);
-      if (!dk || dk === im) { lbDir = 0; return; }
-      dk.className = 'dy-lb-deck';
-      dk.style.cssText = 'position:absolute;left:50%;top:50%;' +
-        'width:' + nb.w + 'px;height:' + nb.h + 'px;' +
-        'object-fit:contain;pointer-events:none;will-change:transform;';
-      lbPhoto.appendChild(dk);
-      lbDir = dir;
-      if (!dk.complete || !dk.naturalWidth) {      /* 首次瞬滑可能未解码：load 后按真尺寸重排 */
-        dk.addEventListener('load', function () {
-          if (!lb.classList.contains('is-open') || !lbPhoto.contains(dk)) return;
-          var real = lbNaturalBox(ph); if (!real) return;
-          dk.style.width = real.w + 'px';
-          dk.style.height = real.h + 'px';
-        }, { once: true });
-      }
-    }
-    function lbClearDeck(sync) {
-      var dk = lbDeck();
-      if (dk) dk.parentNode.removeChild(dk);
-      lbDir = 0;
-      if (sync) lbPageSync();
-    }
-    /* 取某张照片在灯箱里的展示尺寸（已缓存取真值，未就绪用 4:3 占位；不放大） */
-    function lbContain(nw, nh) {
-      var maxW = Math.min(window.innerWidth * 0.92, 960);
-      var maxH = window.innerHeight * 0.76;
-      var s = Math.min(maxW / nw, maxH / nh, 1);
-      return { w: Math.round(nw * s), h: Math.round(nh * s) };
-    }
-    function lbNaturalBox(ph) {
-      if (!ph || !ph.src) return { w: 200, h: 200 };      /* emoji 占位 */
-      var im = lbImgCache[ph.src];
-      if (im && im.naturalWidth && im.naturalHeight) return lbContain(im.naturalWidth, im.naturalHeight);
-      var maxW = Math.min(window.innerWidth * 0.92, 960);
-      return { w: maxW, h: Math.round(maxW * 0.75) };
-    }
-    function lbPreloadNear() {
-      for (var o = -2; o <= 2; o++) {
-        if (!o) continue;
-        var ph = lbPhotos[lbIndex + o];
-        if (ph && ph.src) lbGetEl(ph);
-      }
-    }
-    /* ---- 落位换页：把邻图层提升为常驻图（同帧完成，无重渲空窗）----
-       关键（v9.27 的硬教训）：deck 是刚新建的 <img>，解码前布局为 0 —— 立刻替换会把
-       flex 舞台撑塌成 0×0，之后所有手势全部落在暗背景上失效。
-       故分两档：已解码 → 同帧替换；未解码 → 旧图留下当布局锚点、deck 叠在正位继续显示，
-       等 load / 400ms 兜底后再替换。舞台永不塌、画面永不空。 */
-    function lbPromote() {
-      var dk = lbDeck();
-      var ph = lbPhotos[lbIndex];
-      clearLbTone();
-      if (ph && ph.tone) lbPhoto.classList.add(ph.tone);
-      if (ph && ph.src) lbPhoto.classList.add('is-img');
-      lbCounter.textContent = (lbIndex + 1) + ' / ' + lbPhotos.length;
-      lbSyncArrows();
-      if (!dk) { renderLb(); return; }
-      if (dk.complete && dk.naturalWidth > 0) { lbPromoSwap(dk); return; }
-      var im = curImg();
-      if (!im || im === dk) { renderLb(); return; }
-      lbPromoWait = { dk: dk };
-      var fin = function () {
-        if (!lbPromoWait || lbPromoWait.dk !== dk) return;
-        clearTimeout(lbPromoWait.timer);
-        lbPromoWait = null;
-        if (lb.classList.contains('is-open') && lbPhoto.contains(dk)) lbPromoSwap(dk);
-      };
-      dk.addEventListener('load', fin);
-      dk.addEventListener('error', fin);
-      lbPromoWait.timer = setTimeout(fin, 400);
-    }
-    function lbPromoSwap(dk) {
-      if (lbPromoWait) { clearTimeout(lbPromoWait.timer); lbPromoWait = null; }
-      /* v9.33（主人"图片瞬移"）：绝对定位（translate(-50%,-50%)）提升为 flex 常驻子项时
-         内联 transform 被清成 none —— 若 CSS transition 仍在，浏览器会把这次计算值变化
-         当成 .25s 过渡去补间（新图从左上角飘回中心）。全程 no-anim + 强制 reflow 固化。 */
-      lbPhoto.classList.add('no-anim');
-      dk.classList.remove('dy-lb-deck');
-      dk.style.cssText = '';
-      var cur = curImg();
-      if (cur && cur !== dk) lbPhoto.removeChild(cur);
-      lbDir = 0;
-      void lbPhoto.offsetWidth;
-      lbPhoto.classList.remove('no-anim');
-      lbPaint();
-    }
-
-    /* ---- 翻页 / 回弹 / 结算：指针与滚轮共用的唯一出口 ---- */
-    /* target：本条链路的终点页号（默认 lbIndex+dir）。接管链上再翻一页时由 lbCommit 传入
-       —— 因为手势的出发点是【被接管的那一页】(lbGestBaseIdx)，终点也跟着往前挪。 */
-    function lbGoPage(dir, dec, target) {
-      if (!lbPhotos.length || !lb.classList.contains('is-open')) return;
-      if (lbBusy) { lbOwePage(dir); return; }                 /* 飞行中：记一笔（不吞） */
-      if (!lbCanGo(dir)) {                                    /* 到头 → 回弹 */
-        if (Math.abs(lbOff) > LB_SETTLE_EPS) lbSpringBack(dec);
-        return;
-      }
-      lbPending = (target === undefined || target === null) ? lbIndex + dir : target;
-      lbFlip(dir, dec);
-    }
-    function lbFlip(dir, dec, nav) {
-      if (!lbCanGo(dir)) {                                    /* 到头（箭头/键盘直调） */
-        if (Math.abs(lbOff) > LB_SETTLE_EPS) lbSpringBack(null);
-        return;
-      }
-      if (lbPromoWait) { clearTimeout(lbPromoWait.timer); lbPromoWait = null; renderLb(); }
-      lbBusy = true;
-      if (!lbDir) lbMountDeck(dir);
-      var goal = -dir * lbStep(dir);      /* 轨道目标：与 lbPaint 摆 deck 用同一个步长 */
-      var D = Math.abs(goal - lbOff);
-      /* 初速衔接：只有"速度与目标同向"才继承（方向守卫）——反着继承会让画面先反冲 */
-      var vIn = 0;
-      if (dec && dec.v && (goal - lbOff) * dec.v > 0) vIn = Math.abs(dec.v);
-      var plan = nav ? lbNavPlan(D) : lbSettlePlan(D, vIn, true);
-      lbAnimTo(goal, function () {
-        lbBusy = false;
-        if (!lb.classList.contains('is-open')) return;
-        lbIndex += dir;
-        lbOff = 0;
-        lbPromote();
-        lbPreloadNear();
-        lbSwpEnd = Date.now();
-        lbChainNext();          /* 落位后按 lbPending 继续（绝不回弹、绝不丢页） */
-      }, plan);
-    }
-    function lbSpringBack(dec) {
-      lbCancelAnim();
-      lbVX = 0; lbVel = 0;      /* 回弹 = "我没想翻页"：起点速度归零（否则会带惯性冲出 0 再拉回）*/
-      /* 边界（第一张右拉 / 末张左拉）走可见空间的平滑回弹：
-         原始空间的曲线经 lbRubber 映射后，可见速度会被斜率调制 —— 那是"边界动画很奇怪"
-         的来源（实测 143px 走了 350ms，且起步就有 0.58px/ms）。 */
-      var atBound = (lbIndex === 0 && lbOff > 0) ||
-                    (lbIndex === lbPhotos.length - 1 && lbOff < 0);
-      if (atBound) {
-        lbBoundBack(function () { lbSwpEnd = Date.now(); lbPending = null; });
-        return;
-      }
-      var D = Math.abs(lbOff);
-      if (D < LB_SETTLE_EPS) { lbOff = 0; lbClearDeck(true); lbPaint(); lbPending = null; return; }
-      var plan = lbSettlePlan(D, 0, false);
-      lbAnimTo(0, function () {
-        lbOff = 0;
-        lbClearDeck(true);
-        lbSwpEnd = Date.now();
-        lbPending = null;
-      }, plan);
-    }
-    /* 结算：判定表（lbTarget）→ 翻页 / 回弹。指针与滚轮共用。 */
-    function lbCommit(dec) {
-      lbLastDec = dec;
-      var dir = dec.dir;
-      var target = lbGestBaseIdx + dir;
-      if (!dir) {
-        if (lbBusy) return;
-        /* 接管后判定"不翻页"：别回弹到 0（画面会先倒退、再往前冲一次）。按轨道自己的
-           位置分两种：已越过出发页中心（off 与承诺方向同侧）= 继续走完承诺的那一页；
-           被拉回来了 = 撤销承诺、回弹。 */
-        if (lbPending !== null && lbPending !== lbIndex) {
-          var sgnP = lbPending > lbIndex ? 1 : -1;
-          if (lbOff * sgnP < 0) { lbChainNext(); return; }
-          lbPending = null;
-        }
-        lbSpringBack(dec); return;
-      }
-      if (!lbCanGo(lbIndex + dir)) { if (lbBusy) return; lbPending = null; lbSpringBack(dec); return; }
-      /* 明确反向、且落点回到出发页 = 新手势撤销了被打断的那一页（不要再补翻） */
-      if (target === lbIndex) { if (lbBusy) return; lbPending = null; lbSpringBack(dec); return; }
-      lbGoPage(dir, dec, target);
-    }
-    /* 键盘/箭头：无手势速度、整页行程 —— 定长 380ms 的一条曲线（同一条落位曲线） */
-    function lbNavPlan(D) {
-      var T = LB_NAV_T / LB_SPEED;
-      return { T: T, vPk: LB_EASE_POW * D / T, vRef: 0, n: LB_EASE_POW };
-    }
-    /* 捏合/关闭等接管前：立即回正（无动画）—— 与缩放态互斥（R8） */
-    function lbCancelPage() {
-      lbCancelAnim();
-      lbPending = null; lbBusy = false;
-      if (lbPromoWait) { clearTimeout(lbPromoWait.timer); lbPromoWait = null; renderLb(); return; }
-      lbOff = 0; lbVX = 0; lbVel = 0;
-      if (lbDir || lbDeck()) lbClearDeck(true);
-      lbPaint();
-    }
-
-    /* ---- 指针拖动会话（未缩放单指 = 滑动翻页）---- */
-    var lbPg = null;            /* {x0,y0,on,moved,lastX,hist} */
-    /* 松手速度 = 最近 ~100ms 窗口的 Σdx/Σdt（R3）。比"最后两点"抗抖动，也天然把
-       "甩完停一下再抬手"读成慢松手。时间戳一律 performance.now()：ev.timeStamp
-       在部分环境恒等 → Δt=0 → 速度管线静默死掉（踩过的坑）。 */
-    function lbHistVel(hist, now) {
-      if (!hist || hist.length < 2) return 0;
-      var n = hist.length - 1, x1 = hist[n].x, i = n - 1;
-      /* now = 抬手时刻：窗口必须锚在【松手】而不是"最后一次移动"。否则拖着拖着
-         停住 200ms 再抬手，仍会按最后一次移动算速度 → 慢松手被读成甩动。
-         距离最后一次移动超过 90ms 直接判静止（v9.45）。 */
-      var t1 = (now === undefined) ? hist[n].t : now;
-      if (t1 - hist[n].t > 90) return 0;
-      while (i > 0 && t1 - hist[i - 1].t <= 100) i--;
-      var span = t1 - hist[i].t;
-      if (span <= 0) return 0;
-      return (x1 - hist[i].x) / span;        /* px/ms（d(off)/dt 同号） */
-    }
-    function lbSettleP() {
-      lbSwpEnd = Date.now();
-      if (!lb.classList.contains('is-open')) return;
-      lbCapOne();
-      var dir0 = lbOff < 0 ? 1 : (lbOff > 0 ? -1 : 0);
-      var dec = lbTarget(lbOff, lbVX, Math.abs(lbOff), dir0);
-      lbLastDec = dec;
-      lbDLog({ t: Date.now(), w: 'ptr', dir: dec.dir, pass: +dec.pass.toFixed(3),
-        vm: +Math.abs(lbVX).toFixed(3), flick: dec.flick, off: +lbOff.toFixed(0), moved: Math.round(Math.abs(lbOff)), base: lbGestBaseIdx });
-      if (lbBusy) { if (dec.dir) lbOwePage(dec.dir); return; }   /* 飞行中：记一笔，不回弹 */
-      lbCommit(dec);
-    }
-
-    /* ---- 触控板/滚轮连续输入（与指针共用同一条轨、同一张判定表）----
-       两个已知陷阱（都踩过）：
-         ① 手势结束**不能**用固定时间间隔判定：手指抬起后系统惯性事件的间隔会到 60~340ms；
-            固定门槛会把一次物理滑动切成两段（尾巴重设基准 → 位移不过阈 → 回弹把翻页掐掉
-            → "甩了没反应"）。要用"自适应静默超时 + 加速度因子衰减识别惯性"。
-         ② 时间戳必须用 performance.now()（原因见 lbHistVel）。 */
-    var LB_GEST_IDLE_MIN = 110, LB_GEST_IDLE_MAX = 420;
-    var LB_MOM_LO = 0.6, LB_MOM_HI = 1.02, LB_MOM_SAMPLES = 3;
-    var LB_GAP_GROW = 1.6, LB_GAP_HITS = 2;
-    var lbGestActive = false, lbGestBaseIdx = 0, lbGestDir = 0;
-    var lbGestPeak = 0, lbGestMoved = 0, lbGestTimeo = LB_GEST_IDLE_MIN;
-    var lbWheelLastMs = 0, lbPrevGap = 0, lbGapHits = 0, lbMom = false;
-    var lbMomAcc = [], lbLastAbs = 0, lbPrevVel = [0, 0], lbPrevStamp = 0;
-    /* v9.46 —— 松手速度必须【在抬手那一刻冻结】，不能一路跟着惯性尾巴衰减。
-       ⚠️ 这一条是真机"连续滑动不丝滑"的根因，headless 的合成流永远看不到：
-       `lbGestPeak` 原来按 **事件个数** ×0.85 衰减。鼠标滚轮的流是"4~6 个大事件、无尾巴"，
-       衰减 6 次还剩 0.38，够用；而 macOS 触控板抬手后系统会继续发**惯性尾巴**
-       （幅值几何衰减、间隔 8→48ms，实测一次快滑有 20~80 个事件），衰减 0.85^n 直接崩到 0.08：
-         手指真实速度 1.5px/ms  →  记账 vm = 0.082  →  低于甩动门槛 0.30  →  **判成慢松手、一页不翻**。
-       尾巴越长（= 滑得越用力）记账速度越低 —— 与事实完全相反。
-       正解：抬手的界线就是 `lbMom` 由 false 翻 true 的那一刻（加速度因子连续 3 次衰减 = 惯性开始）。
-       在那里把速度冻进 `lbGestRel`，之后尾巴只作为"已经兑现的位移"记账，不再参与速度估计。
-       `lbWasMom` 留给接管判据用（见 lbPageWheel：尾巴不许接管自己的动画）。 */
-    var lbGestRel = 0, lbWasMom = false;
-    /* 冻结要"回溯"：惯性识别天生滞后 LB_MOM_SAMPLES(3) 个事件，直接在识别那一刻取
-       `lbGestPeak` 已经白丢 0.85³ ≈ 39%（实测同一手势能读出 0.837 和 1.458 两个值，
-       取决于尾巴的定时抖动）。所以维护一个 8 深的小环，冻结时取环内最大值 = 进入衰减前的峰值。
-       用"环内最大"而不是"逐事件取最大 vPk"：后者会被调度抖动（1~3ms 的异常小间隔
-       算出巨大速度）污染，把慢推误判成甩动。 */
-    var lbPeakRing = [];   /* 深度 8：惯性识别在定时抖动下可能晚到 7 个事件（实测出现过），环要够深才不丢峰值 */
-    /* 自适应收尾超时（照抄 wheel-gestures 的 updateWillEndTimeout）：
-       ceil(Δt/10)*10*1.2，惯性未识别时翻倍并保底 100ms，再钳到 [110, 420]。
-       密推段 Δt≈8ms → ~110ms（响应不受影响）；惯性段 Δt≈150ms → ~360ms（尾巴整段落进同一手势）。 */
-    function lbGestTimeoutMs(dt) {
-      var t = Math.ceil(dt / 10) * 10 * 1.2;
-      if (!lbMom) t = Math.max(100, t * 2);
-      return Math.max(LB_GEST_IDLE_MIN, Math.min(LB_GEST_IDLE_MAX, Math.round(t)));
-    }
-    /* 惯性识别（照抄 wheel-gestures 的区间判据）。**必须要求"在衰减"**（0 < 因子 < 1）：
-       只判"落在区间"的话，触控板纯纵向滑动时 deltaX 恒为 0、因子 [0,1] 会被当通过，
-       密推段第 6 个事件就被误标成惯性 → 尾巴不触发"重新发力"→ 整段被并进已结算的手势
-       → ~33% 概率的"有时候力度大就是不动"。 */
-    function lbDetectMomentum() {
-      if (lbMomAcc.length < LB_MOM_SAMPLES) return false;
-      var recent = lbMomAcc.slice(-LB_MOM_SAMPLES);
-      return recent.every(function (f) {
-        var moving = f.filter(function (x) { return x > 0; });
-        if (!moving.length) return false;                 /* 全零 = 静止，不是惯性 */
-        var decaying = moving.every(function (x) { return x > 0 && x < 1; });
-        if (!decaying) return false;
-        var same = f.length >= 2 && f[0] > 0 && f[0] < 1 && f[0] === f[1];
-        if (same) return true;
-        return moving.every(function (x) { return x >= LB_MOM_LO && x <= LB_MOM_HI; });
-      });
-    }
-    /* 滚动流静默 → 冻结本段并结算一次（唯一出口）。
-       ⚠ 触控板的"松手速度"取【本手势的衰减峰值】而不是末尾事件的瞬时速度：
-       手指抬起后系统还会继续发惯性事件（幅值小、间隔 60~340ms），末尾速度早已衰减到
-       接近 0；用它会把手感读成"慢松手"，于是一次有力度的滑动被判成不翻页。
-       峰值按 0.85/事件 衰减 —— 惯性腿本来就在衰减，没有新发力时它会自然降下来。 */
-    function lbGestEnd() {
-      if (!lbGestActive) return;
-      lbGestActive = false;
-      lbWasMom = lbMom;                 /* 留到下一次输入：尾巴不许接管自己的动画 */
-      lbMom = false;
-      lbMomAcc.length = 0;
-      lbPrevGap = 0; lbGapHits = 0;
-      if (!lb.classList.contains('is-open')) { lbGestDir = 0; return; }
-      /* 方向取【本手势主导方向】（由行程定的，稳）；大小取【抬手时冻结的速度】（见上）。
-         不用末尾瞬时速度的符号：惯性腿上的 EMA 在接近 0 时符号会抖，会把"下一张"
-         判成"上一张"（实测 rehit 出现 dir=-1 → 净翻 0 张）。 */
-      var vm = lbGestRel > 0 ? lbGestRel : lbGestPeak;
-      var vS = lbGestDir ? -lbGestDir * vm : lbVX;
-      var dec = lbTarget(lbOff, vS, lbGestMoved, lbGestDir, vm);
-      lbLastDec = dec;
-      lbDLog({ t: Date.now(), w: 'wheel', dir: dec.dir, pass: +dec.pass.toFixed(3),
-        vm: +vm.toFixed(3), flick: dec.flick, off: +lbOff.toFixed(0), moved: Math.round(lbGestMoved), base: lbGestBaseIdx });
-      if (lbBusy) { if (dec.dir) lbOwePage(dec.dir); return; }   /* 飞行中：记一笔，不回弹 */
-      lbCommit(dec);
-    }
-    /* 常驻 rAF：只做一件事 —— 发现静默 ≥ 本手势自适应超时就结算。
-       用 rAF 而不是 setTimeout：定时器与渲染帧不同步，且旧版在每个事件里重置定时器，
-       长滑永远攒不满、一停就结算 → 正是"一次手势多张"的来源。 */
-    function lbWheelLoop() {
-      if (lbGestActive) {
-        var now = Date.now();
-        var idle = now - lbWheelLastMs;
-        var limit = lbGestTimeo;
-        /* 间隔**连续 2 次**膨胀（≥上一间隔×1.6）→ 手指与惯性都已停止发力，不必等满 timeo。
-           必须连续 2 次：惯性腿间隔非单调（实测 70→100→130 里夹 58ms 抖动），
-           单次判定会把尾巴切成"新手势"，"超长惯性腿翻 1 张"实测变 0 张。 */
-        if (lbGapHits >= LB_GAP_HITS && lbPrevGap > 0 && idle >= lbPrevGap * LB_GAP_GROW) {
-          limit = Math.min(limit, Math.max(LB_GEST_IDLE_MIN, lbPrevGap));
-        }
-        if (idle >= limit) lbGestEnd();
-      }
-      requestAnimationFrame(lbWheelLoop);
-    }
-    requestAnimationFrame(lbWheelLoop);
-    /* R5 接管（滚轮路径，v9.45）：翻页在飞时来的【新意图】立即抓住轨道 ——
-       掐掉在飞动画、保留当前屏上位移与速度；承诺的那一页不用搬（就在 lbPending 里，
-       落位回调自然继续走）。这是"连续滑动不丝滑"的根因：旧版飞行期间 `if (!lbBusy)`
-       一律不累计位移 → 输入到达时画面完全不理，要等动画自己飞完。 */
-    function lbWheelTakeover() {
-      lbCancelAnim();
-      lbBusy = false;
-      if (Math.abs(lbVel) > 0.02) lbVX = lbVel;
-      lbVel = 0;
-    }
-    /* 滚轮位移落到单轨：scroll 正（右滚/下滚 = 内容向后）→ off 减 → 下一张。
-       翻页在飞时**不**累计（那一页归它自己），但仍记速度/行程供结算判定；
-       若判为"新意图"则先接管（见 lbWheelTakeover）。 */
-    function lbPageWheel(scroll) {
-      var dyAbs = Math.abs(scroll);
-      var t1 = Date.now();
-      var restarted = false;
-      /* ① 手势开始 / ② 惯性中"重新发力" */
-      if (lbGestActive && lbMom && dyAbs > Math.max(2, lbLastAbs * 2)) restarted = true;
-      else if (lbGestActive && t1 - lbWheelLastMs >= lbGestTimeo) restarted = true;
-      /* 接管判据：必须把"手指抬起后系统继续发的惯性尾巴"排除 —— 尾巴与在飞方向同向、
-         幅值单调衰减；接管它等于把引擎自己的动画掐掉改由尾巴驱动（会少翻/抖动）。
-         故只在 ① 反向（明确改变主意）或 ② 同向但重新发力（幅值 ≥ 上次 ×2）时接管。 */
-      var flying = (lbBusy && lbAnim) ? (lbAnim.goal < lbAnim.from ? 1 : -1) : 0;
-      var intent = false;
-      if (flying) {
-        var sgnIn = scroll > 0 ? 1 : -1;
-        var gapMs = t1 - lbWheelLastMs;
-        /* ① 反向 = 明确改变主意；② 隔了一下（≥40ms）又来一个"没怎么衰减"的输入 = 新手势。
-           判错的代价是不对称的：漏判只是把这次输入排到动画之后（旧手感），误判最多让
-           画面停一下再继续（lbCommit 里 dir=0 且有承诺页时按位置继续、不回弹），
-           两者都不会丢页/反向 —— 所以判据偏敏感一侧。 */
-        /* v9.46：刚结束的手势若是"带惯性尾巴"的（lbWasMom），同向接管必须**要求幅值增长** ——
-           尾巴只会几何衰减、永远不会变大。原来的 0.75× 准入会把尾巴自己的事件当"新手势"
-           （间隔长到 40ms+ 时幅值仍有上次的 ~0.96 倍）→ 掐掉自己刚起飞的翻页动画 →
-           画面停一下再继续，正是"滑动动画很奇怪"。反向接管不变（那是明确改变主意）。 */
-        var grow = lbWasMom ? 1.05 : 0.75;
-        intent = (sgnIn !== flying) ||
-                 (gapMs >= 40 && dyAbs >= Math.max(2, lbLastAbs * grow));
-      }
-      var tookOver = false;
-      if (flying && intent && (!lbGestActive || restarted)) { lbWheelTakeover(); tookOver = true; }
-      if (!lbGestActive || restarted) {
-        if (restarted && lbGestActive && !tookOver) lbGestEnd();
-        lbGestActive = true;
-        /* 起始索引要取【上一段翻页动画落位之后】的索引：lbIndex 在飞时还停在旧值，
-           直接取它会让本手势的目标与上一手势正在兑现的那页重合，被守卫吃掉
-           （实测：两次独立手势只翻 1 张）。承诺页在 lbPending 里（接管也不会丢），
-           故出发页 = lbPending（有承诺时）。 */
-        var inflight = (lbPending !== null) ? (lbPending - lbIndex) : 0;
-        lbGestBaseIdx = lbIndex + inflight;
-        lbGestDir = 0; lbGestPeak = 0; lbGestMoved = 0;
-        lbGestRel = 0;                /* v9.46：抬手速度在本段重新冻结 */
-        lbPeakRing.length = 0;
-        lbMom = false; lbMomAcc.length = 0;
-        lbPrevVel = [0, 0]; lbPrevStamp = 0; lbPrevGap = 0; lbGapHits = 0;
-        lbGestTimeo = LB_GEST_IDLE_MIN;
-      }
-      lbWheelLastMs = t1;
-      if (!lbBusy) {                 /* 翻页在飞：位移归那一页，本段只记账 */
-        lbOff -= scroll;
-        lbCapOne();                  /* 视觉上封顶一页（一次手势最多一张） */
-        lbPaint();                   /* 同帧直写（rAF 合并恒落后一帧，残差 = 事件幅值） */
-      }
-      var tEv = performance.now();
-      var dtMs = tEv - (lbPrevStamp || tEv);
-      if (dtMs > 0 && dtMs < 400) {
-        var vNow = [(scroll) / dtMs, (scroll) / dtMs];   /* px/ms，单轴 */
-        if (lbPrevStamp) {
-          var fac = vNow.map(function (v, i) {
-            var p = lbPrevVel[i];
-            if (!p || !isFinite(p) || Math.abs(p) < 1e-6) return v === 0 ? 0 : 1;
-            var r = v / p;
-            return (r > 0 && r < 4) ? r : (v === 0 ? 0 : 1);
-          });
-          lbMomAcc.push(fac);
-          while (lbMomAcc.length > LB_MOM_SAMPLES * 2) lbMomAcc.shift();
-          if (!lbMom && lbDetectMomentum()) {
-            lbMom = true;
-            /* v9.46 — 抬手时刻 = 惯性开始的那一刻。取环内最大值（= 衰减前的峰值）当"松手速度"。
-               之后再多的尾巴事件都只记账、不改速度（见 lbGestRel 声明处的推导）。 */
-            lbGestRel = lbPeakRing.length ? Math.max.apply(null, lbPeakRing) : lbGestPeak;
-          }
-          lbGestTimeo = lbGestTimeoutMs(dtMs);
-          if (lbPrevGap > 0 && dtMs >= lbPrevGap * LB_GAP_GROW) {
-            lbGapHits++;
-            if (lbGapHits >= LB_GAP_HITS) {
-              lbGestTimeo = Math.min(lbGestTimeo, Math.max(LB_GEST_IDLE_MIN, lbPrevGap));
-            }
-          } else lbGapHits = 0;
-          lbPrevGap = dtMs;
-        }
-        lbPrevVel = vNow;
-      }
-      lbPrevStamp = tEv;
-      var vPk = dtMs > 0 ? dyAbs / dtMs : 0;               /* px/ms */
-      if (vPk > 0 && vPk < 40) {
-        /* 峰值按 0.85/事件 衰减：惯性腿本来就在衰减，没有新发力时会自然降下来 ——
-           于是"快推一下、再慢慢拖很久"会被读成慢松手（正确），
-           而"快推 + 惯性腿"仍保有足够的峰值（正确）。
-           ⚠️ v9.46：**惯性已识别（lbMom）之后不许再衰减** —— 尾巴的每个事件都会把这个
-           按"事件个数"衰减的峰值往下拽一层，真机 20~80 个尾巴事件足以把 1.5px/ms 拽到 0.08
-           （实测），于是"滑得越用力越判成慢松手"。抬手速度已在 lbGestRel 里冻住，这里只保留
-           "新发力能抬高峰值"的作用。 */
-        lbPeakRing.push(lbGestPeak);
-        if (lbPeakRing.length > 8) lbPeakRing.shift();
-        lbGestPeak = Math.max(lbMom ? lbGestPeak : lbGestPeak * 0.85, vPk);
-        /* 速度 EMA，符号取 off 空间：scroll 正 → off 减 → d(off)/dt 为负 */
-        lbVX = 0.6 * lbVX + 0.4 * (-scroll / Math.max(dtMs, 1e-3));
-      }
-      if (lbGestDir === 0 && dyAbs > 2) lbGestDir = scroll > 0 ? 1 : -1;
-      lbGestMoved += dyAbs;
-      lbLastAbs = dyAbs;
-    }
-
-    /* ---- 测试桥（仅 ?lbdebug=1 时暴露；不带参数零开销零泄漏）---- */
-    if (LB_DEBUG) window.__lb = function () {
-      return {
-        off: lbOff, idx: lbIndex, busy: lbBusy, anim: !!lbAnim,
-        goal: lbAnim ? lbAnim.goal : null, from: lbAnim ? lbAnim.from : null,
-        T: lbAnim ? lbAnim.T : null, vel: lbVel, vx: lbVX,
-        queue: lbPending, owed: lbPending, base: lbGestBaseIdx,
-        act: lbGestActive, moved: lbGestMoved, peak: lbGestPeak, dir: lbGestDir,
-        rel: lbGestRel, wasMom: lbWasMom,
-        timeo: lbGestTimeo, mom: lbMom,
-        page: lbPageUnit(), step: lbStep(1), deck: !!lbDeck(),
-        eff: +lbEff().toFixed(2), rubber: LB_RUBBER_C, n: lbPhotos.length,
-        open: lb.classList.contains('is-open'), zoom: lbZoom,
-        dec: lbLastDec, decs: lbDecLog
-      };
-    };
-    var lbDecLog = [];   /* 最近判定记录（?lbdebug=1 读；环形，最多 40 条） */
-    function lbDLog(e) {
-      if (!LB_DEBUG) return;
-      e.i = lbDecLog.length ? lbDecLog[lbDecLog.length - 1].i + 1 : 1;
-      lbDecLog.push(e);
-      if (lbDecLog.length > 40) lbDecLog.shift();
-    }
-
-    /* ---------- v9.8 灯箱缩放：scale+translate，双击/滚轮/双指捏合，拖拽平移 ---------- */
-    /* v9.11 灵敏度收敛（主人"缩放太灵敏"）：滚轮每格 1.22→1.09（1.22^n 连乘太冲，
-       5 格就 ×2.7）；捏合从 1:1 直映射改 0.65 指数阻尼（同样张幅只走 ~2/3 距离）
-       v9.13（主人"缩放位置为点击位置"）：wheel/dblclick/pinch 全部锚定指针位置
-       v9.17（主人"图片放大还是太灵敏"）：滚轮按【位移量】归一缩放，不再按事件数连乘 ——
-       触控板一次手势拆成几十个 deltaY=1~10 的小事件，旧逻辑每事件 ×1.09 累积爆炸；
-       现统一每 100px 滚轮位移 ×倍率，鼠标一格(≈100-120px)与触控板同距离手感一致。
-       触控板手势映射：双指捏合(ctrlKey+wheel)→缩放；已放大时双指滑动→平移图片；
-       未放大时双指横向滑动→切换照片；鼠标滚轮(整格/大 delta)→始终缩放。
-       v9.21（主人"触控板捏合还是慢、整体都慢、各操作手感要一致"）：三路统一提速到
-       苹果照片近 1:1 直跟 —— 捏合与普通滑动/滚轮分不同基准：捏合是手指张幅换缩放
-       （张幅小，给高增益 LB_PINCH_WHEEL，150px 张幅 ≈ ×2.0）；普通滚轮/双指上下滑
-       是整段手势换缩放（位移大，×1.2/100px 即可同档）；触屏双指阻尼拉满 1:1；
-       双击档 1.8→2.0 与捏合约齐。
-       v9.23（主人"快一点点就好 + 移除双指竖滑缩放"）：整体再快一小档 ——
-       LB_WHEEL 1.2→1.24、LB_PINCH_WHEEL 1.6→1.66；同时删除触控板双指竖滑
-       的缩放通路（细滑永不缩放，见路由注释），双指专职移动。 */
-    var LB_WHEEL = 1.24;          /* 鼠标整格/普通滚轮：每 100px 位移 ×1.24（1.2→1.24）
-                                     （鼠标一格 ≈100-120px → ×1.24~1.3/格） */
-    var LB_WHEEL_REF = 100;       /* 参考位移 px */
-    var LB_PINCH_WHEEL = 1.66;    /* 触控板捏合(ctrlKey+wheel)：每 100px 张幅 ×1.66
-                                     （1.6→1.66）—— 一次自然张合(≈150px)≈ ×2.14，
-                                     苹果照片 1:1 直跟的手感再跟紧一点 */
-    var LB_PINCH_DAMP = 1.0;      /* 触屏双指捏合阻尼：0.8→1.0 = 1:1 直跟（苹果照片同款：
-                                     双指张幅 ×2 → 放大正好 ×2；1.0 即完全跟随，无阻尼） */
-    var LB_DBL = 2.0;             /* 双击档位：1.8→2.0（与捏合一次自然张合约齐，见 v9.21） */
-    /* v9.25：鼠标整格判定只认 deltaMode===1（真鼠标行模式），阈值常量仅作残余
-       参考（像素模式不再用 |Δ| 判缩放 —— 触控板快速甩动的惯性单事件可达
-       50~100px，旧阈值 50 会把甩动中途切成缩放；见路由注释③） */
-    var LB_ZOOMED = 1.02;         /* 「已放大」行为阈值（拖拽/双指平移/翻页 vs 滚轮继续放大）：
-                                     低于此值一律继续滚轮放大 —— 避免触控板细滑刚越过 1.005 就被
-                                     当成平移、放大到一半卡住（v9.17 阈值统一基准） */
-    var lbZoom = 1, lbPanX = 0, lbPanY = 0;
-    var lbPtrs = new Map();       /* pointerId -> {x,y} */
-    var lbPinch = null;           /* {d0,z0} 捏合基准 */
-    var lbDrag = null;            /* {x,y,px,py} 拖动基准（已缩放 = 平移） */
-    var lbSwpEnd = 0;             /* 最近一次拖动/平移/换页结束时刻 —— 抑制随后的 click 误关灯箱 */
-    var lbDown = null;            /* 最近一次 pointerdown：{t, img} —— img=按时落在图上
-                                     （指针捕获会把 click 目标重定向到容器，判空白要靠按下点） */
-    function curImg() { return lbPhoto.querySelector('img'); }
-    /* ---- 回到「未缩放 + 未翻页」的干净态（开灯箱 / 关灯箱 / ESC 用）----
-       v9.43：翻页引擎接回来了，这里必须把单轨状态一起收干净 —— 否则关闭时半路的
-       位移/邻图层会留给下一次打开（空舞台、错位 deck、残留 transform 的老毛病）。 */
-    function resetLbView() {
-      if (lbPromoWait) { clearTimeout(lbPromoWait.timer); lbPromoWait = null; }
-      lbZoom = 1; lbPanX = 0; lbPanY = 0;
-      lbPinch = null; lbDrag = null;
-      lbPg = null;
-      lbCancelAnim();
-      lbPending = null; lbBusy = false;
-      lbOff = 0; lbDir = 0; lbVX = 0; lbVel = 0;
-      lbGestActive = false; lbGestDir = 0;
-      lbClearDeck(false);
-      lbPhoto.classList.remove('is-zoom', 'dragging', 'no-anim');
-      lb.classList.remove('is-zoom');
-      var im = curImg();
-      if (im) im.style.transform = '';
-    }
-
-    /* v9.15（主人"缩放位置为点击位置"）：钳制区间改为非对称边缘钳制。
-       旧版用 ±(w0·z-cw)/2 的对称区间 —— 与锚定公式冲突：
-       放大图从左上原点向右下生长，合法 pan 只能 ≤ 0（[cw-w0·z, 0]），
-       对称区间却禁止负值过深（右侧/下方点击的锚定 pan 被硬切 → 点位滑向
-       中心，实测漂移 200~320px），还允许正值（左侧出现空白沟）。
-       新版：pan ∈ [容器 - 放大图, 0]，锚定结果恒在界内 → 零漂移、永无空白。 */
-    function lbClampPan() {
-      var im = curImg(); if (!im) return;
-      var w0 = im.offsetWidth || im.naturalWidth || 1;
-      var h0 = im.offsetHeight || im.naturalHeight || 1;
-      var cw = lbPhoto.clientWidth, ch = lbPhoto.clientHeight;
-      var vw = w0 * lbZoom, vh = h0 * lbZoom;
-      var mx = Math.max(0, vw - cw), my = Math.max(0, vh - ch);
-      lbPanX = Math.max(-mx, Math.min(0, lbPanX));
-      lbPanY = Math.max(-my, Math.min(0, lbPanY));
-    }
-    function applyLbView(noAnim) {
-      var im = curImg(); if (!im) return;
-      /* 双阈值（v9.17）：
-         paint  = lbZoom>1.0005 —— 位移归一的触控板小增量逐帧上屏（单事件 ×1.0015，
-                   若等到 1.005 才上屏，慢速放大会在 1.0 处卡顿/被清掉）
-         zoomed = lbZoom>LB_ZOOMED(1.02) —— UI 沉浸 / grab 光标 / 拖拽平移 的门槛，
-                   低于它滚轮仍继续放大（防细滑刚过 1.005 就切平移、放大卡死） */
-      var paint = lbZoom > 1.0005;
-      var zoomed = lbZoom > LB_ZOOMED;
-      lbPhoto.classList.toggle('is-zoom', zoomed);
-      lb.classList.toggle('is-zoom', zoomed);   /* v9.10f：缩放态沉浸 —— UI 淡出 */
-      lbPhoto.classList.toggle('no-anim', !!noAnim);
-      if (!paint) { im.style.transform = ''; return; }
-      lbClampPan();
-      im.style.transform = 'translate(' + lbPanX + 'px,' + lbPanY + 'px) scale(' + lbZoom + ')';
-    }
-    /* v9.13（主人"缩放位置为点击位置"）：缩放锚定到指针/捏合中点 —— 光标下的
-       像素在缩放前后保持原位（旧版围绕画面中心放大，指针处的细节会滑开）。
-       数学：screen = translate(t) ∘ scale(s)；指针到图片原点距离 a=cx-ox-tx，
-       缩放 k 倍后 t' = a_cursor - k*(a_cursor - t)（a_cursor=cx-ox）。 */
-    function zoomAnchor(f, cx, cy, noAnim) {
-      var im = curImg(); if (!im) return;
-      var old = Math.max(lbZoom, 1);
-      var nz = Math.min(4.5, lbZoom * f);
-      /* 归一闪光：位移归一后单事件增量可 <0.5%（如触控板 -3px → ×1.0015），
-         旧版"nz<1.005 一律回 1"会把放大方向的小增量也吞掉 —— 连续小滚轮
-         永远放不大。回 1 只应在缩小方向（f<1，滚到接近原始尺寸时吸附回正）。 */
-      if (nz < 1.005 && f < 1) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(noAnim); return; }
-      var r = lbPhoto.getBoundingClientRect();
-      var ox = im.offsetLeft, oy = im.offsetTop;
-      var acx = cx - r.left - ox, acy = cy - r.top - oy;
-      var k = nz / old;
-      lbZoom = Math.max(1.0005, nz);
-      lbPanX = acx - k * (acx - lbPanX);
-      lbPanY = acy - k * (acy - lbPanY);
-      applyLbView(noAnim);
-    }
-    /* v9.17：把滚轮位移归一成缩放倍率 —— 按【位移量】指数定标而非按事件连乘。
-       触控板细碎小事件（deltaY ±1~10）不再各自放大，连续手势总放大只与
-       累计位移成正比：factor = base^( |位移| / 100 )。鼠标一格 ~100-120px。
-       v9.21：倍率按输入类型分 base —— 触控板捏合(ctrlKey)是手指张幅换缩放，
-       张幅小要用高增益 LB_PINCH_WHEEL；普通滑动/鼠标位移大用 LB_WHEEL。 */
-    function wheelZoomFactor(ev, base) {
-      var d = ev.deltaY;
-      if (ev.deltaMode === 1) d *= 40;            /* 行 → px（整格鼠标） */
-      else if (ev.deltaMode === 2) d *= (window.innerHeight || 800);
-      if (!d || isNaN(d)) return 0;
-      var m = Math.min(4, Math.abs(d) / LB_WHEEL_REF); /* 单事件位移封顶 400px，防飞掷爆跳 */
-      var f = Math.pow(base, m);
-      return d < 0 ? f : 1 / f;                    /* 上滚放大、下滚缩小 */
-    }
-    function wheelZoom(ev, cx, cy) {
-      var f = wheelZoomFactor(ev, ev.ctrlKey ? LB_PINCH_WHEEL : LB_WHEEL);
-      if (f === 0 || f === 1) return;
-      zoomAnchor(f, cx, cy, ev.deltaMode === 0);   /* pixel 模式（连续/触控板）→ 无过渡跟手 */
-    }
-    /* 围绕画面中心放大/缩小（平移量等比缩放保持中心点不动）—— 保留给无坐标调用 */
-    function zoomBy(f) {
-      var im = curImg(); if (!im) return;
-      var r = lbPhoto.getBoundingClientRect();
-      zoomAnchor(f, r.left + r.width / 2, r.top + r.height / 2);
-    }
-    function zoomToggle(cx, cy) {
-      if (lbZoom > LB_ZOOMED) { resetLbView(); return; }
-      /* v9.12（主人"点击一下时不要缩放太多"）：双击档位 2.6 → 1.8 ——
-         一次跳变到 2.6 太冲，1.8 已是可读细节的轻放大；需要更近再用滚轮细调。
-         v9.13：由画面中心放大改为锚定点击处（zoomAnchor，未缩放时 pan=0，
-         光标下像素直接成为放大后的视觉中心）。
-         v9.21：1.8 → LB_DBL(2.0) —— 与捏合一次自然张合约齐，各操作档位一致 */
-      zoomAnchor(LB_DBL, cx, cy);
-    }
-
-    lbPhoto.addEventListener('dblclick', function (e) {
-      if (!lb.classList.contains('is-open') || !curImg()) return;
-      e.preventDefault();
-      zoomToggle(e.clientX, e.clientY);
-    });
-    /* v9.17 滚轮手势路由（触控板 + 鼠标统一）——
-       v9.23：触控板双指=移动语义，不再兼任缩放（主人"双指上下滑缩放和双指移动
-       有冲突"）→ 细滑永不缩放；缩放只走 捏合 / 双击 / 鼠标整格滚轮。
-       v9.25（主人"双指移动和双指捏合的体验不是很好"）对照行业做法重构：
-       ① 监听器从图片区提到整层灯箱 —— Quick Look 全屏语义：在暗背景上也能
-          捏合/横滑，不必把光标悬在图条上；
-       ② 已放大时任何方向的双指滑动都是平移，且【两轴都跟】—— 旧逻辑按
-          |dx|>1.2|dy| 判主轴向、只动一轴，斜向滑动会被拦腰切成抖动；
-       ③ 鼠标整格判定只认 deltaMode===1（真鼠标行模式）；删掉 |Δ|≥50px 启发式
-          作为缩放条件 —— 触控板快速甩动的惯性单事件 deltaY 可达 50~100px，
-          旧判定把甩动中途切成缩放，与平移打架（这正是"双指移动不丝滑"的一个
-          真因）。像素模式大 delta 只可能是鼠标高精度轮，仍按平移处理；
-       ④ 缩放锚点若落在图片外（触控板捏合事件坐标 = 上次鼠标停留位，常不在
-          图上）→ 回退到图片中心，不再把画面甩向无意义处。
-       路由规则（v9.25 定稿）：
-         · ctrlKey+wheel（触控板捏合 / Ctrl+滚轮）→ 恒缩放（锚点：光标在图内用
-           光标，否则图片中心）
-         · 鼠标整格（deltaMode===1 行模式）→ 恒缩放（保留滚轮缩放通路）
-         · 已放大：一切像素滚动（横/纵/斜）→ 平移，两轴同时跟手
-         · 未放大：横向为主 / 纵向像素细滑 → 原为翻页入口（v9.28）——
-           v9.42 引擎已删，现只吞事件；鼠标整格恒缩放不受影响 */
-    /* v9.42：lbWheelMode / lbWheelLast 两个死变量（只被已删的翻页路径使用）一并清掉 */
-    /* v9.25：缩放锚点辅助 —— 光标在图片范围外（暗背景 / 计数条 / 触控板捏合
-       的陈旧坐标）时回落图片中心。Quick Look 语义：捏合总能缩在画面上。 */
-    function lbAnchorPt(cx, cy) {
-      var r = lbPhoto.getBoundingClientRect();
-      if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) return { x: cx, y: cy };
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    lb.addEventListener('wheel', function (e) {
-      if (!lb.classList.contains('is-open') || !curImg()) return;
-      var dx = e.deltaX || 0, dy = e.deltaY || 0;
-      var horiz = Math.abs(dx) > Math.abs(dy) * 1.2;
-      var lineMode = e.deltaMode === 1;
-      var zoomed = lbZoom > LB_ZOOMED;
-      if (e.ctrlKey) {                       /* 捏合 / Ctrl+滚轮 → 缩放 */
-        e.preventDefault();
-        var ap = lbAnchorPt(e.clientX, e.clientY);
-        wheelZoom(e, ap.x, ap.y);
-        return;
-      }
-      if (horiz) {
-        e.preventDefault();
-        if (zoomed) {                        /* 放大中横滑 → 平移（两轴都跟，不吞纵向） */
-          lbPanX -= dx; lbPanY -= dy;
-          applyLbView(true);
-          return;
-        }
-        /* v9.43：未放大横滑 = 翻页（单轨，与指针/上下滑共用一条轨与一张判定表）。
-           滚动语义：deltaX>0 = 向右滚 = 内容向左滑 → 下一张 */
-        lbPageWheel(dx);
-        return;
-      }
-      /* 纵向为主 / 纯纵向 */
-      e.preventDefault();
-      if (lineMode) {                        /* 鼠标整格（行模式）→ 恒缩放（含缩小） */
-        var ap2 = lbAnchorPt(e.clientX, e.clientY);
-        wheelZoom(e, ap2.x, ap2.y);
-        return;
-      }
-      if (zoomed) {                          /* 像素细滑（触控板双指/高精度轮）→ 平移，
-                                                两轴都跟 —— 斜向不再丢分量 */
-        lbPanX -= dx; lbPanY -= dy;
-        applyLbView(true);
-        return;
-      }
-      /* v9.43：未放大 + 像素细滑 → 翻页（触控板双指上下滑；真鼠标整格仍在上面恒走缩放，
-         互不冲突）。下滚 = 下一张 / 上滚 = 上一张。 */
-      lbPageWheel(dy);
-    }, { passive: false });
-
-    /* 指针统一处理：滚轮外手势 —— 双指捏合缩放 / 已缩放单指拖动平移 /
-       未缩放单指左右拖动翻页（Apple Quick Look 式：图跟手、松手过阈切换或回弹，
-       鼠标 / 触控板 / 触摸 通用）。lbDown 记下按时是否落在图上 —— 灯箱指针捕获后
-       click 的目标会被重定向到容器，判断"点的是图还是空白"要靠按下点。 */
-    lbPhoto.addEventListener('pointerdown', function (e) {
-      if (!lb.classList.contains('is-open') || !curImg()) return;
-      lbPhoto.setPointerCapture(e.pointerId);
-      lbPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      var im = curImg();
-      lbDown = {
-        t: Date.now(),
-        img: !!(im && (e.target === im || e.target.tagName === 'IMG' ||
-             (e.target.classList && e.target.classList.contains('dy-lb-emoji'))))
-      };
-      if (lbPtrs.size === 2) {
-        lbCancelPage();                 /* R8：捏合接管 → 翻页立即回正、让位给缩放 */
-        lbPg = null;
-        lbDrag = null;
-        var ids = Array.from(lbPtrs.keys());
-        var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
-        /* v9.13 起记录捏合基准；v9.25 改为【连续焦点跟随】：不再把锚点锁死在
-           两指初始中点 —— 若手指一边张合一边平移（或单指动了），内容点必须
-           始终压在手指中点下。每帧用上一帧中点 A1 与当前中点 A2 做重锚定：
-           t' = A2 - k·(A1 - t)，k = 当前缩放/上一帧缩放。
-           A1=A2（纯张合）时退化为经典锚定公式；k=1（纯平移）时 t'=t+(A2-A1)
-           —— 内容精确跟手平移。 */
-        lbPinch = {
-          d0: Math.hypot(a.x - b.x, a.y - b.y) || 1,
-          z0: lbZoom,
-          mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2
-        };
-        lbPhoto.classList.add('no-anim');
-      } else if (lbZoom > LB_ZOOMED) {
-        lbDrag = { x: e.clientX, y: e.clientY, px: lbPanX, py: lbPanY };
-        lbPhoto.classList.add('dragging', 'no-anim');
-      } else {
-        /* v9.43 未缩放单指：预备滑动翻页（R5 可随时接管）——
-           ① 提升等待中被打断 → 按新索引重建（半个舞台比重建更糟）；
-           ② 动画在飞时按下 = 接管续拖：保留当前屏幕位移（第一段进度不归零）、
-              继承在飞速度（接管瞬间接着原速走，不顿挫）。已承诺的那一页不用搬 ——
-              它在 lbPending 里，落位回调/lbCommit 都会认它。 */
-        var hadPromo = !!lbPromoWait;
-        if (hadPromo) { clearTimeout(lbPromoWait.timer); lbPromoWait = null; renderLb(); }
-        var pending = (lbPending !== null) ? (lbPending - lbIndex) : 0;
-        lbCancelAnim();
-        lbBusy = false;
-        if (Math.abs(lbVel) > 0.02) lbVX = lbVel;
-        lbVel = 0;
-        lbGestBaseIdx = lbIndex + pending;
-        lbPg = { x0: e.clientX, y0: e.clientY, on: false, moved: false,
-                 lastX: e.clientX, hist: [{ t: performance.now(), x: e.clientX }] };
-      }
-    });
-    lbPhoto.addEventListener('pointermove', function (e) {
-      if (!lbPtrs.has(e.pointerId)) return;
-      var p = lbPtrs.get(e.pointerId);
-      p.x = e.clientX; p.y = e.clientY;
-      if (lbPtrs.size === 2 && lbPinch) {
-        var ids = Array.from(lbPtrs.keys());
-        var a = lbPtrs.get(ids[0]), b = lbPtrs.get(ids[1]);
-        var d = Math.hypot(a.x - b.x, a.y - b.y);
-        var nz = lbPinch.z0 * Math.pow(d / lbPinch.d0, LB_PINCH_DAMP);
-        if (nz < 1) { lbZoom = 1; lbPanX = 0; lbPanY = 0; applyLbView(true); return; }
-        nz = Math.min(4.5, nz);
-        var im = curImg(); if (!im) return;
-        var r = lbPhoto.getBoundingClientRect();
-        var ox = im.offsetLeft, oy = im.offsetTop;
-        /* v9.25 连续焦点跟随（见 pointerdown 注释）：A1=上一帧中点（屏幕坐标，
-           A2=当前中点）；图局部坐标 = 屏幕坐标 - (容器偏移 + 图偏移)。
-           k 用【上一帧已上屏的缩放】而不是手势起点 z0 —— 与公式
-           t' = A2 - k·(A1 - t) 匹配，纯缩放与缩放+平移混合同步成立 */
-        var m1x = lbPinch.mx, m1y = lbPinch.my;
-        var m2x = (a.x + b.x) / 2, m2y = (a.y + b.y) / 2;
-        lbPinch.mx = m2x; lbPinch.my = m2y;
-        var k = nz / Math.max(lbZoom, 1e-6);
-        lbZoom = Math.max(1.0005, nz);
-        lbPanX = (m2x - r.left - ox) - k * ((m1x - r.left - ox) - lbPanX);
-        lbPanY = (m2y - r.top - oy) - k * ((m1y - r.top - oy) - lbPanY);
-        applyLbView(true);
-      } else if (lbDrag) {
-        lbPanX = lbDrag.px + (e.clientX - lbDrag.x);
-        lbPanY = lbDrag.py + (e.clientY - lbDrag.y);
-        applyLbView(true);
-      } else if (lbPg && lbPtrs.size === 1) {
-        /* R2 拖动 1:1 + 同帧直写：横向意图（>6px 且显著大于纵向）才进入跟手；
-           激活即从按下点起算（无丢失距离），此后增量直驱 lbOff，事件回调里同步 lbPaint()
-           （攒到 rAF 会恒定落后一帧，实测每帧差 20+px）。拖动期间不做任何判定。 */
-        var ex = e.clientX;
-        var dyv = e.clientY - lbPg.y0;
-        if (!lbPg.on) {
-          if (Math.abs(ex - lbPg.x0) > 6 && Math.abs(ex - lbPg.x0) > Math.abs(dyv) * 1.2) {
-            lbPg.on = true;
-            lbPageSync();
-          } else if (Math.abs(dyv) > 10) {
-            lbPg = null;               /* 竖向拖动不算翻页，留给 click 语义 */
-            return;
-          } else return;
-        }
-        var inc = ex - lbPg.lastX;
-        lbPg.lastX = ex;
-        if (inc && !lbBusy) {          /* 翻页在飞：那一页归它自己，本段只记账 */
-          lbOff += inc;
-          lbCapOne();                  /* 一次手势最多一张（跟手仍 1:1，只是不再推进） */
-        }
-        if (Math.abs(ex - lbPg.x0) > 10) lbPg.moved = true;
-        lbPg.hist.push({ t: performance.now(), x: ex });
-        while (lbPg.hist.length > 10) lbPg.hist.shift();
-        lbVX = lbHistVel(lbPg.hist);   /* 松手速度：最近 ~100ms 窗口的 Σdx/Σdt */
-        lbPaint();
-      }
-    }, { passive: false });
-    function lbEndPointer(e) {
-      var was = lbPtrs.size;
-      var moved = (lbPg && lbPg.moved) || (lbDrag &&
-                   (Math.abs(e.clientX - lbDrag.x) > 10 || Math.abs(e.clientY - lbDrag.y) > 10));
-      lbPtrs.delete(e.pointerId);
-      lbPinch = null;
-      if (lbPtrs.size === 1) {
-        var r = lbPtrs.values().next().value;
-        lbDrag = null;
-        lbPg = null;
-        if (lbZoom > LB_ZOOMED) {
-          lbDrag = { x: r.x, y: r.y, px: lbPanX, py: lbPanY };
-          lbPhoto.classList.add('dragging');
-        }
-      } else if (lbPtrs.size === 0) {
-        lbPhoto.classList.remove('dragging');
-        /* v9.43：未缩放单指滑动抬指 → 结算（判定表 lbTarget → 翻页 / 回弹） */
-        if (was === 1 && lbPg && lbPg.on && lbZoom <= LB_ZOOMED) {
-          lbVX = lbHistVel(lbPg.hist, performance.now());   /* 松手速度锚在抬手时刻 */
-          lbPg = null;
-          lbSettleP();
-          return;
-        }
-        lbPg = null;
-        lbDrag = null;
-        if (!lbAnim && !lbOff) lbPhoto.classList.remove('no-anim');
-      }
-      if (moved) lbSwpEnd = Date.now();
-    }
-    lbPhoto.addEventListener('pointerup', lbEndPointer);
-    lbPhoto.addEventListener('pointercancel', lbEndPointer);
-
-    /* v9.20：关闭灯箱 = 点空白（图外背景 / 图四周 letterbox 空隙）+ ESC ——
-       v9.29 恢复左右箭头（主人"新增左右滑动的按钮"），切换三通道并存：
-       箭头 / 手势（触控板横竖滑 / 拖拽）/ 键盘 ←→；✕ 仍不提供。 */
+    /* 点图打开 / 点空白关闭。箭头和"放大后的拖拽"都不关（后者靠 Swiper 的
+       allowClick —— 拖拽结束那一下的 click 被库吞掉，不会误关）。 */
     document.addEventListener('click', function (e) {
       var img = e.target.closest ? e.target.closest('.dy-img') : null;
       if (img) { openLb(img); return; }
       if (!lb.classList.contains('is-open')) return;
-      if (Date.now() - lbSwpEnd < 400) return;          /* 拖动/平移后跟的 click 不关 */
-      if (e.target === lb) { closeLb(); return; }        /* 图外大背景 */
-      var onPhoto = e.target.closest ? !!e.target.closest('.dy-lb-photo') : e.target === lbPhoto;
-      var onVisual = lbDown && (Date.now() - lbDown.t < 800) && lbDown.img; /* 按时落在图上 */
-      if (onPhoto && !onVisual) closeLb();               /* 图外空隙（letterbox）→ 关 */
+      if (lbSwiper && lbSwiper.allowClick === false) return;
+      if (e.target.closest && (e.target.closest('.dy-lb-arrow') ||
+                               e.target.closest('.dy-lb-slide img'))) return;
+      closeLb();
     });
+    /* ESC：先退缩放再关灯箱。左右键自己接（不用 Swiper 的 keyboard 模块 ——
+       那个连上下键、PageUp/Down 都吃）。缩放中不允许翻页。 */
     document.addEventListener('keydown', function (e) {
       if (!lb.classList.contains('is-open')) return;
       if (e.key === 'Escape') {
-        if (lbZoom > LB_ZOOMED) resetLbView();
-        else closeLb();
+        if (lbZoomed()) lbSwiper.zoom.out(); else closeLb();
+      } else if (e.key === 'ArrowLeft' && !lbZoomed()) {
+        e.preventDefault(); lbSwiper.slidePrev();
+      } else if (e.key === 'ArrowRight' && !lbZoomed()) {
+        e.preventDefault(); lbSwiper.slideNext();
       }
-      else if (e.key === 'ArrowLeft') { navLb(-1); }
-      else if (e.key === 'ArrowRight') { navLb(1); }
     });
 
     /* ---------- 入场 stagger ---------- */
