@@ -1068,13 +1068,39 @@ body.dy-lb-open { overflow: hidden; }
          `params.freeMode && params.freeMode.enabled`），于是滚轮与鼠标拖拽共用
          同一套连续位移；sticky 让松手/手势结束后吸附到最近的整页，
          **nearest = 距离过半才翻、不到一半弹回**，这就是苹果相册的判据。
-         momentum 关掉是为了保住「一次手势 = 一张」：开着时抬手速度会换算成
-         惯性距离，一次甩可以跳过两三张。
+         momentum 关掉是为了不让"抬手速度外推"再多送几张
+         （开着时 velocity×1000ms 的外推会让一次甩跳过两三张）。
          关键：阈值 .5、吸附动画、边界阻尼全部来自库 —— 本页没有一处自己写的
          衰减/平滑系数（v9.43–v9.46 手写四轮就是死在这里）。
-         ⚠️ 唯一补的一层：库在 wheel 上有 500ms 去抖，"手指停住再抬手"这种没有惯性
+         ⚠️ 补的一层：库在 wheel 上有 500ms 去抖，"手指停住再抬手"这种没有惯性
             尾巴的手势会僵半秒。所以本页加了一个 150ms 静默 → 调库的 slideToClosest。
             只改"什么时候吸"，不改"怎么吸"。详见下面 lbIdleTimer。
+
+       一次手势 = 一张（v10.2）
+         ⚠️ 上面那句"momentum:false 就保住一次手势一张"是**错的**（v10.1 的注释），
+            实际只挡住了速度外推。freeMode 给的是"导轨自由移动"，并没有"最多走一张"
+            的约束：导轨走多远，松手就吸到最近的哪一张 —— 而"最近"是相对**你拖到的
+            地方**量的，不是相对起点。实测（probe7）：
+              · 触控板一根手指划 2880px（2.25 张）→ 落在第 2 张（idx 2）
+              · 鼠标拖 2.5 张宽 → 一样落第 2 张
+         苹果相册/PhotoSwipe 的模型是：跟手连续，但**落点最多相邻一张**。
+         PhotoSwipe 就写在 dist/photoswipe.esm.js 的 gesture end 里：
+           if (velocity.x < -MIN_NEXT_SLIDE_SPEED && ratio < 0 || velocity.x < .1 && ratio < -.5) indexDiff = 1;
+           else if (velocity.x >  MIN_NEXT_SLIDE_SPEED && ratio > 0 || velocity.x > -.1 && ratio >  .5) indexDiff = -1;
+         —— 两处都硬写 ±1，再猛也只翻一张；翻不翻分两条判据
+         （速度够：MIN_NEXT_SLIDE_SPEED = 0.5 px/ms；或距离过半）。
+         Swiper 只在【指针】路径有这条规则：shortSwipes 用 longSwipesMs=300ms 判快甩、
+         longSwipes 用 longSwipesRatio=0.5 判距离，两处目标都恒为 g ± slidesPerGroup；
+         **滚轮路径没有** —— StackOverflow「Swiper only go one slide at the time」
+         （75510919）就是这个缺口，下面的答案（thresholdTime/thresholdDelta）作者自己
+         也承认"甩太猛还是会跳多张"。
+         本页的做法：**把导轨夹在「手势起点 ± 一张」之间**（锚点 = 起点所在的整页刻度，
+         直接读库的 snapGrid；顶到边界就不再位移）。导轨最多走一张，之后库怎么吸都只能
+         吸到 起点 / 相邻一张 —— 上面那两条判据原样保留，本页不介入：
+           · 有惯性尾巴 → 库自己的快速通道（阈值 .2/.8，对应 PhotoSwipe 的速度分支）
+           · 没有尾巴   → 下面 LB_IDLE 调 slideToClosest（阈值 .5，对应距离分支）
+         锚点重置的时机 = 库自己认为"上一段结束了"的三个时刻：库做出吸附决策
+         （transitionStart）、指针按下（touchStart）、wheel 静默 LB_IDLE。
        参数覆盖：?lbspeed=1.3（过渡时长倍率）、?lbidle=150（手势结束判定 ms）、
                 ?lbgain=1.5（滚轮位移增益，1 = 1:1）、?lbdebug=1（暴露 window.__lb()）
        ====================================================================== */
@@ -1110,6 +1136,35 @@ body.dy-lb-open { overflow: hidden; }
       return (v >= 0.4 && v <= 3) ? v : 1;
     })();
     var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
+
+    /* ── 一次手势 = 一张：导轨的活动范围 = 「手势起点 ± 一张」（v10.2）
+       lbAnchor = 起点所在的整页刻度（snapGrid 索引），-1 = 当前没有手势、不夹紧。
+       锚点只在手势开始时记一次，所以"顶到边界"之后继续滑也不会再多走一张。 */
+    var lbAnchor = -1;
+
+    function lbAnchorNow() {
+      if (lbAnchor >= 0 || !lbSwiper || !lbSwiper.snapGrid || !lbSwiper.snapGrid.length) return;
+      if (lbZoomed()) return;                 /* 缩放态平移的是图，不是导轨 */
+      var g = lbSwiper.snapGrid, t = lbSwiper.translate, best = 0, bd = Infinity, i, d;
+      for (i = 0; i < g.length; i++) { d = Math.abs(-g[i] - t); if (d < bd) { bd = d; best = i; } }
+      lbAnchor = best;
+    }
+    function lbAnchorDrop() { lbAnchor = -1; }
+
+    /* 把导轨夹回锚点 ± 一张。挂在 setTranslate 事件上 —— 那是库刚把 translate 写进去
+       之后（`s.translate = ...` 在 emit 之前），而且滚轮与鼠标拖拽两条路径都会经过它，
+       所以两条输入共用同一条边界。重复进入时位移已相同 → 立即收敛，不会递归。 */
+    function lbClampRail(sw) {
+      if (lbAnchor < 0 || lbZoomed()) return;
+      var g = sw.snapGrid, n = g.length;
+      if (n < 2) return;
+      var hi = -g[lbAnchor > 0 ? lbAnchor - 1 : 0];            /* 上一张：更靠近 0 */
+      var lo = -g[lbAnchor < n - 1 ? lbAnchor + 1 : n - 1];    /* 下一张：更负 */
+      var v = sw.translate;
+      var c = v < lo ? lo : (v > hi ? hi : v);
+      if (Math.abs(c - v) < 0.5) return;
+      sw.setTranslate(c);
+    }
 
     function lbZoomed() {
       return !!(lbSwiper && lbSwiper.zoom && lbSwiper.zoom.scale > LB_ZOOMED);
@@ -1191,6 +1246,13 @@ body.dy-lb-open { overflow: hidden; }
           containerClass: 'swiper-zoom-container',
         },
         on: {
+          /* 一次手势 = 一张（v10.2）：起点记锚 → 之后每次位移都把导轨夹回锚点 ±1。
+             指针路径在这里记；滚轮路径在下面的 wheel 捕获段记（那里跑在库的处理器之前）。 */
+          touchStart: function () { lbAnchorNow(); },
+          /* 库一旦做出吸附决策（slideTo/transitionTo）这一段就结束了 —— 连甩时下一段
+             要能立刻重新取锚，否则第二下会被并进第一段（连甩三下只翻一张）。 */
+          transitionStart: function () { lbAnchorDrop(); },
+          setTranslate: function (sw) { lbClampRail(sw); },
           slideChange: function (sw) {
             lbIndex = sw.activeIndex;
             lbSyncCounter();
@@ -1239,8 +1301,11 @@ body.dy-lb-open { overflow: hidden; }
       var lbIdleTimer = null;
       lb.addEventListener('wheel', function (e) {
         if (e.ctrlKey) return;
+        if (!lbSwiper || !lb.classList.contains('is-open')) return;
+        lbAnchorNow();                       /* 手势起点：capture 段跑在库的处理器之前 */
         clearTimeout(lbIdleTimer);
         lbIdleTimer = setTimeout(function () {
+          lbAnchorDrop();                    /* 这一段结束 → 松锚，下一段重新记 */
           if (!lbSwiper || !lb.classList.contains('is-open')) return;
           if (!lbSwiper.params.freeMode.enabled || lbSwiper.animating) return;
           var target = lbSwiper.snapGrid[lbSwiper.activeIndex];
@@ -1249,13 +1314,18 @@ body.dy-lb-open { overflow: hidden; }
         }, LB_IDLE);
       }, { capture: true, passive: true });
 
-      lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slidePrev(); });
-      lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slideNext(); });
+      /* 程序化翻页 = 一段新动作：先松锚。
+         ⚠️ 必须显式松 —— 手势结束后锚点还要活到 LB_IDLE（150ms）才失效，而
+         slideTo 是先 setTranslate 再 transitionStart，所以在这段窗口里点箭头
+         会被旧锚夹回去（实测：手势后 130ms 点"下一张"，目标 2 被夹成 1）。 */
+      lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbAnchorDrop(); lbSwiper.slidePrev(); });
+      lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbAnchorDrop(); lbSwiper.slideNext(); });
     }
 
     function lbMount(list, idx) {
       lbPhotos = list;
       lbWrap.innerHTML = '';
+      lbAnchorDrop();                  /* 换一组照片 = 换一套刻度，锚点作废 */
       for (var i = 0; i < list.length; i++) lbWrap.appendChild(lbMakeSlide(list[i], i, idx));
       if (!lbSwiper) lbCreateSwiper();
       lbSwiper.update();
@@ -1273,6 +1343,7 @@ body.dy-lb-open { overflow: hidden; }
             n: lbPhotos.length,
             zoom: (lbSwiper && lbSwiper.zoom) ? lbSwiper.zoom.scale : 1,
             animating: lbSwiper ? lbSwiper.animating : false,
+            anchor: lbAnchor,                 /* 一次手势=一张：手势起点刻度（-1 = 无） */
             allowPrev: lbSwiper ? lbSwiper.allowSlidePrev : false,
             allowNext: lbSwiper ? lbSwiper.allowSlideNext : false,
             progress: lbSwiper ? lbSwiper.progress : 0,
@@ -1302,6 +1373,7 @@ body.dy-lb-open { overflow: hidden; }
       lb.classList.remove('is-open');
       lb.setAttribute('aria-hidden', 'true');
       lb.classList.remove('is-zoom');
+      lbAnchorDrop();
       if (lbSwiper && lbSwiper.zoom) lbSwiper.zoom.out();
       document.body.classList.remove('dy-lb-open');
       if (window.__wheelLock) window.__wheelLock(false);
@@ -1325,9 +1397,9 @@ body.dy-lb-open { overflow: hidden; }
       if (e.key === 'Escape') {
         if (lbZoomed()) lbSwiper.zoom.out(); else closeLb();
       } else if (e.key === 'ArrowLeft' && !lbZoomed()) {
-        e.preventDefault(); lbSwiper.slidePrev();
+        e.preventDefault(); lbAnchorDrop(); lbSwiper.slidePrev();
       } else if (e.key === 'ArrowRight' && !lbZoomed()) {
-        e.preventDefault(); lbSwiper.slideNext();
+        e.preventDefault(); lbAnchorDrop(); lbSwiper.slideNext();
       }
     });
 
