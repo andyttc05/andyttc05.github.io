@@ -1055,16 +1055,28 @@ body.dy-lb-open { overflow: hidden; }
        不是调参而是覆盖面。
 
        分工
-         Swiper → 翻页（触控板 wheel / 鼠标拖拽 / 触摸 / 边界橡皮筋）、
+         Swiper → 翻页（触控板双指 / 鼠标拖拽 / 触摸 / 边界弹性回弹）、
                   缩放（双指捏合 / 双击 / 放大后平移）
          本页   → 打开关闭、计数器、左右箭头、ESC、点空白关闭、背景锁滚动
 
-       为什么不用自己写"一次手势 = 一张"
-         Swiper 的 mousewheel 只在三种情况推进：① 本事件的位移比上一个大；
-         ② 方向翻转；③ 距上一事件 >150ms。抬手后系统继续发的惯性尾巴是
-         「幅值单调衰减 + 同向 + 间隔 8→48ms」，三个条件都不满足 → 天然被忽略。
-         这正是 v9.46 手写的那条判据，由库保证。
-       参数覆盖：?lbspeed=1.3（过渡时长倍率）、?lbdebug=1（暴露 window.__lb()）
+       为什么打开 freeMode + sticky（v10.1，「拖到一半可以拖回来」）
+         默认翻页是【离散】的：滚轮一旦累积够阈值就直接 slideNext，整个过程中
+         translate 只有 0 和 -1280 两个取值 —— 拖到一半也回不来。实测：
+         触控板累计 600px（47% 宽）时已翻页，且去程 60% + 回程 60% 仍停在下一页。
+         freeMode 打开后走的是 mousewheel 模块里那条 freeMode 分支
+         （setTransition(0) + setTranslate() 同帧直写，见 swiper-bundle 里的
+         `params.freeMode && params.freeMode.enabled`），于是滚轮与鼠标拖拽共用
+         同一套连续位移；sticky 让松手/手势结束后吸附到最近的整页，
+         **nearest = 距离过半才翻、不到一半弹回**，这就是苹果相册的判据。
+         momentum 关掉是为了保住「一次手势 = 一张」：开着时抬手速度会换算成
+         惯性距离，一次甩可以跳过两三张。
+         关键：阈值 .5、吸附动画、边界阻尼全部来自库 —— 本页没有一处自己写的
+         衰减/平滑系数（v9.43–v9.46 手写四轮就是死在这里）。
+         ⚠️ 唯一补的一层：库在 wheel 上有 500ms 去抖，"手指停住再抬手"这种没有惯性
+            尾巴的手势会僵半秒。所以本页加了一个 150ms 静默 → 调库的 slideToClosest。
+            只改"什么时候吸"，不改"怎么吸"。详见下面 lbIdleTimer。
+       参数覆盖：?lbspeed=1.3（过渡时长倍率）、?lbidle=150（手势结束判定 ms）、
+                ?lbgain=1.5（滚轮位移增益，1 = 1:1）、?lbdebug=1（暴露 window.__lb()）
        ====================================================================== */
     var lb = document.getElementById('dyLb');
     var lbCounter = document.getElementById('dyLbCounter');
@@ -1079,6 +1091,21 @@ body.dy-lb-open { overflow: hidden; }
     var LB_ZOOM_MAX = 4;       /* 最大放大倍数 */
     var LB_SPEED = (function () {
       var m = /[?&]lbspeed=([0-9.]+)/.exec(location.search);
+      var v = m ? parseFloat(m[1]) : 1;
+      return (v >= 0.4 && v <= 3) ? v : 1;
+    })();
+    /* wheel 静默多久算"手势结束"。150ms 是 Swiper 自己判手势间隔用的值
+       （非 freeMode 分支里 `time > last + 150`）；触控板惯性事件间隔 8→48ms，
+       150ms 的静默不可能是手势中途。可用 ?lbidle= 覆盖。 */
+    var LB_IDLE = (function () {
+      var m = /[?&]lbidle=([0-9]+)/.exec(location.search);
+      var v = m ? parseInt(m[1], 10) : 150;
+      return (v >= 40 && v <= 600) ? v : 150;
+    })();
+    /* 滚轮位移 → 图片位移的增益。1 = 严格 1:1。
+       觉得"太沉、要滑很长才翻页"就调大（1.5 / 2），觉得"太滑"就调小。 */
+    var LB_GAIN = (function () {
+      var m = /[?&]lbgain=([0-9.]+)/.exec(location.search);
       var v = m ? parseFloat(m[1]) : 1;
       return (v >= 0.4 && v <= 3) ? v : 1;
     })();
@@ -1134,18 +1161,28 @@ body.dy-lb-open { overflow: hidden; }
       lbSwiper = new Swiper('#dyLbSwiper', {
         init: false,
         speed: Math.round(300 / LB_SPEED),
-        resistanceRatio: 0.65,        /* 到首/末张继续外滑 → 库自带的阻尼回弹 */
+        resistanceRatio: 0.65,        /* 越界外拖的阻尼（freeMode 下边界回弹由 momentumBounce 负责） */
         watchSlidesProgress: true,
         preloadImages: false,         /* 由 slide 上的 loading 属性决定加载时机 */
         updateOnImagesReady: false,
         keyboard: false,              /* 方向键自己接（只认左右，且缩放时不动） */
+        freeMode: {
+          /* 连续跟手 + 松手吸附到最近整页 =「拖过一半才翻，可以拖回去」的全部机制。
+             ⚠️ 不要再另外接 wheel 自己去写 translate —— 阈值 / 吸附 / 回弹全在库里，
+             自己插一层"虚拟拖拽"就会重新引入设备绑定的衰减退bug（v9.43–v9.46）。 */
+          enabled: true,
+          sticky: true,               /* 吸附到最近一张（判据即 50%，库内部 slideToClosest） */
+          momentum: false,            /* 不要惯性距离 → 一次手势永远只翻一张 */
+          momentumBounce: true,       /* 首/末张继续外拖 → 库自带的弹性回弹 */
+        },
         mousewheel: {
           /* eventsTarget 必须是灯箱根：Swiper 只在"指针已进入容器"或"事件目标在
              eventsTarget 之内"时才处理 wheel，否则直接 return（什么都不发生）。 */
           eventsTarget: '#dyLb',
           forceToAxis: false,         /* 横竖都认（取主轴）—— 与改造前的习惯一致 */
-          releaseOnEdges: false,      /* 到边界仍吃事件 → 交给上面的 resistanceRatio */
-          thresholdDelta: 6,          /* <6px 的抖动不推进（惯性尾巴末端那一小段） */
+          releaseOnEdges: false,      /* 到边界仍吃事件 → 交给上面的弹性回弹 */
+          sensitivity: LB_GAIN,       /* ?lbgain= 调手感（1 = 1:1） */
+          /* thresholdDelta 已去掉：它只在【非】freeMode 的离散分支里生效，现在没用 */
         },
         zoom: {
           maxRatio: LB_ZOOM_MAX,
@@ -1178,12 +1215,39 @@ body.dy-lb-open { overflow: hidden; }
          mousedown/up 被 simulateTouch 送成两段 touch）算作 double-tap。实测自己
          再加一个 dblclick 处理器会和它对着干：库先 toggle 放大到 4，我的处理器
          紧接着按"已放大"再缩回去 → 净 scale 恒为 1。踩过，留个记号。 */
-      /* 触控板捏合 = ctrl+wheel（macOS）→ 缩放；顺手挡掉浏览器整页缩放 */
+      /* 触控板捏合 = ctrl+wheel（macOS）→ 缩放；顺手挡掉浏览器整页缩放。
+         ⚠️ 必须 capture + stopPropagation：Swiper 的 mousewheel 监听器就挂在同一个
+         #dyLb 上（冒泡段）。只 preventDefault 拦不住它 —— 捏合会被当成翻页位移，
+         于是"边放大边滑走"。capture 段在冒泡段之前跑，先把事件吃掉。 */
       lb.addEventListener('wheel', function (e) {
         if (!lb.classList.contains('is-open') || !e.ctrlKey) return;
         e.preventDefault();
+        e.stopPropagation();
         if (lbZoomed()) lbSwiper.zoom.out(); else lbSwiper.zoom.in();
-      }, { passive: false });
+      }, { passive: false, capture: true });
+
+      /* 手势结束 → 立刻吸附（v10.1）。
+         freeMode+sticky 在 wheel 上有一条 500ms 去抖：它是为"抬手后系统还在发惯性尾巴"
+         设计的，所以故意等半秒再吸。实测（probe6）：有惯性尾巴时库自己那条"抬手快速
+         通道" 2~14ms 就触发；**但"手指停住再抬手"和"拖回一半再放开"都没有尾巴**
+         → 图片会在两页中间僵 508ms 才弹回。这恰好是主人要的那种操作。
+         补的这一层只做一件事：wheel 静默 LB_IDLE 毫秒 → 调库自己的 slideToClosest。
+         位移、吸附阈值 .5、动画时长、边界回弹全部还是库的 —— 本页不碰任何系数。
+         为什么不会打架：下一次 wheel 事件进来时，库在 sticky 分支开头会 clearTimeout
+         掉它自己那个 500ms 定时器；所以两者不可能在同一手势里同时发。而没有后续事件时，
+         那次迟到的调用只是"原地再吸一次"，位移不变。 */
+      var lbIdleTimer = null;
+      lb.addEventListener('wheel', function (e) {
+        if (e.ctrlKey) return;
+        clearTimeout(lbIdleTimer);
+        lbIdleTimer = setTimeout(function () {
+          if (!lbSwiper || !lb.classList.contains('is-open')) return;
+          if (!lbSwiper.params.freeMode.enabled || lbSwiper.animating) return;
+          var target = lbSwiper.snapGrid[lbSwiper.activeIndex];
+          if (Math.abs(lbSwiper.getTranslate() - target) < 1) return;   /* 已经在位，别惊动它 */
+          lbSwiper.slideToClosest(lbSwiper.params.speed, true);
+        }, LB_IDLE);
+      }, { capture: true, passive: true });
 
       lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slidePrev(); });
       lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbSwiper.slideNext(); });
