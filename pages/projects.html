@@ -6,6 +6,29 @@
 <meta name="description" content="本猫的项目 — 敲过的代码和做过的东西" data-page-node-id="Av4AWEO69stM1jQbS0NZBX">
 <meta name="theme-color" content="#f8fafc" data-page-node-id="Eh7YvcSGpDQlcVGqMBc1lW">
 <title>项目 — rain.meow</title>
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+     ② 会话标记 rm-visited：本次会话第二次起的导航给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
+<style>
+  html { background: #f8fafc; }
+  html.theme-dark { background: #0f172a; }
+</style>
+<script>
+  try {
+    if (sessionStorage.getItem('rm-visited') === '1') {
+      document.documentElement.classList.add('nav-instant');
+    } else if (!document.prerendering) {
+      sessionStorage.setItem('rm-visited', '1');
+    }
+  } catch (e) {}
+</script>
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
 <script>
   /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
   var saved = localStorage.getItem('rainmeow-theme');
@@ -40,8 +63,8 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="lCdVug9OEenWPlazPlLmc0">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=3" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=308" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
+<link rel="stylesheet" href="../assets/css/style.css?v=309" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -186,9 +209,9 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
 
-  <script src="../assets/js/loader.js?v=5" defer></script>
+  <script src="../assets/js/loader.js?v=6" defer></script>
   <script src="../assets/js/script.js?v=137" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=89" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=91" defer></script>
 </body>
 </html>
