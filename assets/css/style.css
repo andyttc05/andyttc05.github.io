@@ -3051,9 +3051,21 @@
        无硬切。旋转仍 60°、非活动缩放 0.85（第一百九十二批原版参数保留）。
        第二百六十二批（主人"卡片大一点 / 电脑一页显示 / 要显示+1 +2 卡"）：
        卡片 240→260、gap 32→20 —— 容器同步加宽到 1440，宽屏下 ±2 卡完整
-       入画（不再被 mask 切掉），1280 视口仍一页放下（见 .projects-main）。 */
+       入画（不再被 mask 切掉），1280 视口仍一页放下（见 .projects-main）。
+       第二百七十七批（主人"卡片可以做得大一点点"）：把尺寸变成**受约束的阶梯**，
+       不再是一个拍脑袋的常数。约束来自 ±2 卡：它静止时投影外尖到容器中心
+       2·(W+gap) + 0.141·W px（0.141 = ±2 档投影半宽/卡宽，实测），
+       必须 ≤ 容器半宽 − 4% 羽化带，否则主人要看的 "+2 卡" 会糊进遮罩里：
+         2.141·W + 2·gap ≤ 0.46 · min(视口宽, 1440)
+       解出来每档的**上限**：1280→260 / 1366→278 / 1440→296。
+       所以 base 保持 260（1280 上刚好贴住上限，不退化），向上开两档
+       （1366、1440），1440 正好落在主人的屏幕档位上（Liquid Retina 2880 逻辑 1440）。
+       容器 max-width 1440 封顶后，再宽的屏（1512/1728/1920）容器仍是 1440，
+       所以 1440 档的上限对它们同样成立，不需要更高档位。
+       gap 20→16：静止时卡与卡之间的**视觉**间隙由 0.74·W 决定（实测 ~80px），
+       20 与 16 肉眼无差；16 换来 8px 的 ±2 余量。 */
     --sc-card-w: 260px;
-    --sc-gap: 20px;
+    --sc-gap: 16px;
     --sc-rot: 60deg;
     --sc-scale: 0.85;
     position: relative;
@@ -3082,9 +3094,41 @@
     mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
     touch-action: pan-y; /* 横向拖拽由 JS 接管，纵向滚动留给页面 */
     user-select: none;
+    /* 第二百七十七批（手机版排版）：兜住横向溢出。
+       mask **不裁剪布局** —— ±2 卡的 transform 盒（390 屏上右缘到 628px）照样计入
+       scrollable overflow，页面因此可以横向拖出去。实测：线上旧版 390 屏溢出 187px、
+       768 屏 3px；卡片放大后变成 238px / 55px（老问题被放大）。
+       overflow-x: clip 裁在**视口边缘**（容器就是整屏宽），而 ±2 卡超出视口的那一段
+       本来就在屏幕外，所以观感零变化，只是页面不能再横向拖动。
+       用 clip 不用 hidden：hidden 会连带把 overflow-y 变成 auto → 生成滚动容器，
+       可能吃掉卡片的纵向阴影/3D 溢出；clip 不生成滚动容器，y 轴保持 visible。 */
+    overflow-x: clip;
   }
+  /* 第二百七十七批：卡片尺寸阶梯（上限由上面的不等式给出，别再凭感觉加大）。
+     相邻档相差 ~7%，跨档只在拖窗口时可见；同一档内宽屏与窄屏尺寸一致，
+     所以"±2 完整可见"这条在每一档都成立。 */
+  @media (min-width: 1366px) {
+    .skewed-carousel { --sc-card-w: 278px; }               /* 2.141·278+32 = 627 ≤ 0.46·1366 = 628 */
+  }
+  @media (min-width: 1440px) {
+    .skewed-carousel { --sc-card-w: 296px; --sc-gap: 14px; } /* 2.141·296+28 = 661 ≤ 0.46·1440 = 662 */
+  }
+  /* 手机版（≤768）：卡片 160→188（占屏宽 41%→48%），gap 16→12，旋转 60°→52°。
+     旋转角是手机版最划算的旋钮：投影半宽 ∝ cos θ，60°→52° 让 ±1 邻卡的
+     投影宽 +13%（可见宽度 44px→53px @390），"旁边还有卡"的提示更明确，
+     代价只是立体感弱一点。±2 在手机上本来就在屏外，不参与约束。 */
   @media (max-width: 768px) {
-    .skewed-carousel { --sc-card-w: 160px; --sc-gap: 16px; }
+    .skewed-carousel {
+      --sc-card-w: 188px;
+      --sc-gap: 12px;
+      --sc-rot: 52deg;
+    }
+  }
+  /* 320 档（iPhone SE 一代 / 老安卓）：188 在 320 宽上占了 59%，
+     ±1 只剩 16px 露头（实测）——"旁边还有卡"的提示几乎消失。
+     退回 168，±1 恢复 ~26px 可见。 */
+  @media (max-width: 359px) {
+    .skewed-carousel { --sc-card-w: 168px; }
   }
   .skewed-strip {
     position: relative;
@@ -3242,4 +3286,45 @@
   }
   .projects-bento .skewed-strip {
     height: calc(var(--sc-card-w) * 4 / 3 + 24px);
+  }
+
+  /* === 项目页 · 手机版排版（第二百七十七批 2026-09-13 主人"优化一下手机版的排版"）===
+     先量了一遍（v277-layout.js，390×844 / 360×640）：桌面那套垂直节奏搬到手机上
+     得到的是"标题贴顶 + 卡片挤在上半屏 + 底下 300px 空白"，因为
+     .about-hero 的 padding-block 是按"下面还有一大片内容流"设计的，
+     而项目页整页只有 hero + 一条轮播（实测内容高 453px vs 可用高 788px）。
+     改法：主区域撑满视口剩余高度，标题留在顶部，**让轮播吃满剩下的空间、
+     在其中垂直居中** —— 空白被平分成卡片上下的呼吸，而不是全堆在页面底部。
+     min-height 用 svh（小视口单位）：移动浏览器地址栏收放时 100vh 会跳，
+     svh 取地址栏**存在时**的最小值，卡片不会被地址栏顶出去。
+     断点取 900 而不是 768：834/820 的竖屏平板走的是桌面卡片尺寸，
+     但一样是"标题 + 一条轮播"的构图，一样会在底部空出 400px（实测 834×1112）。
+     横屏手机（844×390）命中这条也没有副作用 —— 内容本来就比剩余高度高，
+     min-height 不生效，flex 居中自然退化成普通流。 */
+  @media (max-width: 900px) {
+    .projects-main {
+      /* 导航高度照抄 .nav-inner 的 clamp（768→56、1024→64，中间线性），+1px 下边框。
+         别写死 57：769-900 这一段导航是 58~60px，写死会让 min-height 多留 1~3px →
+         页面永远多出 1~3px 的伪滚动条（实测 834×1112 多 2px）。 */
+      --projects-nav-h: calc(clamp(56px, 3.125vw + 32px, 64px) + 1px);
+      min-height: calc(100svh - var(--projects-nav-h));
+      display: flex;
+      flex-direction: column;
+    }
+    /* 标题区贴顶：留出导航栏以下的常规呼吸，不用 hero 在 about 页的那套大 padding */
+    .projects-main .about-hero {
+      padding-block: clamp(24px, 4.5vh, 40px) 20px;
+    }
+    /* 轮播拿走剩余高度，并在其中居中 */
+    .projects-main .projects-bento {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-block: 0;
+    }
+  }
+  /* 卡片文字层留白收一档：188px 卡上给正文多 4px 宽度 */
+  @media (max-width: 768px) {
+    .skewed-card-inner { padding: 14px; }
   }
