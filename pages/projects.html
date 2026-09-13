@@ -64,7 +64,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=310" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=311" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -181,16 +181,20 @@
       <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这儿。</p>
     </header>
 
-    <!-- === 项目列表：Skewed Carousel（第一百八十批 2026-08-25 主人"用 skewed 动画展示项目"；
-         第一百九十三批 2026-08-26 重写引擎，对齐 React Bits Pro 原版"连续轨道偏移"机制 ——
-         整条卡片带滑动时每张卡持续倾斜+缩放，非离散档位跳变；perspective 移到 strip 正式生效）
-         第二百批 2026-08-29（主人"背景换 4 张图 / 只留 4 张卡 / 去掉底部栏 / 滚轮也能滑动"）：
-         卡片背景为真实图片（assets/images/projects/），无底部圆点与箭头栏；
-         交互：横向拖拽 / 键盘 ←→ / 滚轮与触控板纵向滚动。
+    <!-- === 项目列表：立牌影像排（第二百七十八批 2026-09-13 主人"要不不用现在这款卡片的
+         设计了，换成这网页帆布展示的设计"；参考 tblog.mmzhiku.xyz 首页的 home-blinds-scenes）===
+         每张立牌 = 吊线 + 竖排标签栏（点·眉标·短线·竖排项目名）+ 明信片（胶带 / 序号贴纸 /
+         照片框 / 手绘涂鸦 / 逐字落下的说明 / 右下角歪斜的印章），底部一条方块进度尺。
+         交互：横向拖拽 / 滚轮 / 键盘 ←→ / 点侧卡居中、点当前卡开链接。
+         进度尺的格数由 JS 生成（项目数 × 4，参考站 5 张 20 格），改项目数不用动这里。
          数据与逻辑：../assets/js/projects-carousel.js（PROJECTS 数组） -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
-      <div class="skewed-carousel" id="skewedCarousel" aria-label="项目轮播" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
-        <div class="skewed-strip" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
+      <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
+        <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
+        <div class="pj-meter" role="progressbar" aria-label="项目进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-page-node-id="pjMeter01">
+          <span class="pj-meter__cap" aria-hidden="true"></span>
+          <span class="pj-meter__track"><span class="pj-meter__blocks"></span></span>
+        </div>
       </div>
     </section>
   </main>
@@ -212,6 +216,6 @@
   <script src="../assets/js/loader.js?v=6" defer></script>
   <script src="../assets/js/script.js?v=137" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=93" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=94" defer></script>
 </body>
 </html>
