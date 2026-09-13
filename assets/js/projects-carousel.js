@@ -84,7 +84,8 @@
    - 松手落位改临界阻尼弹簧（ζ=1，w=11，~0.3s 单调无过冲）：替代指数急吸 0.6
      —— 后者从静止起步、按距离跳首帧（速度断裂 = "松手动画奇怪"）；
      弹簧继承 dragTick 实测卡片速度（px/s），甩得快自然更早到、速度全程连续
-   - 弹簧可被任意后续操作接管（stopTick/animateTo 清 SPRING，不打断原则不变）
+   - 弹簧可被任意后续操作接管（stopTick/animateTo 清 SPRING，不打断原则不变；
+     第二百七十六批起弹簧整体换成三次 Hermite 曲线 FIN，接管语义不变）
    第二百七十批 2026-09-06（主人"为什么现在+1/+2卡片不能点击"）：
    - 真机复现（10px 低速抖动点击 +1 卡 → 弹回原位）：真实鼠标按下瞬间普遍带
      8~30px 抖动，超过 8px 拖拽接管阈值即被当"拖动"；低速松开又按"未过半档"
@@ -98,6 +99,9 @@
      后者 ≈0.1s 从静止起步、按剩余距离跳首帧（速度断裂 = 硬停突兀）；弹簧从
      0 速度平滑加速-减速单调落位 ~0.35s（点击/自动 0.5s 与拖拽松手 0.25s
      之间的中间语感），与全站动画语言统一
+     ⚠️ 第二百七十六批实测：这条 ω=18 弹簧留了 133ms 的指数尾巴爬行
+     （落 129.5px 实测 533ms，后 8 帧每帧 <0.5px）= 主人说的"慢慢停下时卡顿"，
+     已被三次 Hermite 曲线取代（见文件头 276 批）
    - deltaMode 归一化：line×20 / page×step —— Safari 物理滚轮常报 line 模式
      （deltaY≈1-3 行），原样累加几乎不动；触控板恒为 pixel 模式不受影响
    - 滑动跟手（0.9 逼近、120ms 停滚判定）未动 —— 主人未反馈该段问题
@@ -127,7 +131,8 @@
      惯性尾巴识别（wTail·wGain·W_RUBBER·W_SPIKE·W_WIN）/ 锚点续接（W_REARM·W_MIN_MS）
    ⚠️ 已知代价（主人明确要求接受）：一次很猛的甩会把导轨一次带出去好几张 ——
    真机探针实测同一个 1440px 触控板手势 = 5 张（正是 273 批要治的现象）。
-   参数覆盖：?cdebug=1（暴露 window.__car() / window.__carAuto()）
+   参数覆盖：?cdebug=1（暴露 window.__car() / window.__carAuto()）、
+            ?cwidle=<ms>（改停滚判定窗口，默认 120ms —— 调小 = 落位更早接上）
 */
 (function () {
   var root = document.getElementById('skewedCarousel');
@@ -354,37 +359,55 @@
   var xTargetPrev = 0;
   var lastFrameT = 0;   /* 第二百六十三批：帧率无关化 —— rAF 时间戳折算 60Hz 帧数，
                              120Hz/ProMotion 屏不再"每帧一次逼近"导致动画实际快一倍 */
-  /* 第二百六十九批（主人"快速甩动不流畅 / 松手动画很奇怪"）：拖拽松手改用
-     临界阻尼弹簧落位（取代指数急吸 0.6）。指数吸附从 0 速度起步、按剩余距离
-     跳首帧（距槽 100px → 首帧 ~60px ≈ 瞬移级加速）—— 无视释放速度、速度断裂
-     = 松手一冲一顿；弹簧 ζ=1（无过冲、单调落位）+ 继承释放速度 → 平滑减速、
-     速度连续。w=22 rad/s：小位移从静止落位 ~0.25s（255 批"快而不硬"甜区，
-     初版 w=11 对 40-100px 短程要 ~0.6s 才收敛 = 拖完还慢慢爬一段，过慢），
-     甩动快则按速度自然更早到；数值积分稳定（w·dt≈0.37<2）。 */
-  var SPRING_W = 22;
-  /* 第二百七十一批（主人"优化结束滑动的动画"，选"舒缓 ~0.35s"）：停滚落位专用
-     ω —— 拖拽松手继承速度（可更快到），滚停时条带已随 0.9 逼近收敛到目标
-     （120ms 静默，初速≈0），纯从静止起弹；w=18 视觉 ~0.35s 落定（阻尼 ζ=1
-     单调无过冲），介于点击/自动 AUTO_K 的 ~0.5s 与拖拽 w=22 的 ~0.25s 之间 */
-  var WHEEL_SNAP_W = 18;
-  var SPRING = null;   /* {t0, target, v} —— v 单位 px/s（t0 首帧 rAF 时间戳补齐） */
+  /* 第二百七十六批 2026-09-13（主人"快速滑动卡片，卡片慢慢停下的动画出现卡顿和不流畅"）：
+     落位动画从**临界阻尼弹簧**（第二百六十九/七十一批）换成**有限时长三次 Hermite
+     曲线（ballistic finish）**。取证脚本 scratch/carousel-sim/v276-jank.js /
+     v276b-trace.js / v276c-traj.js（逐帧采 window.__car() + CDP tracing）：
+       · **主线程不是瓶颈**：rAF 回调实测 0.10ms/帧、Paint 0.04ms/帧、153 帧里
+         PrePaint 共 5.5ms，headless 全程零掉帧（去掉 blur / mask / will-change
+         / box-shadow 四个对照组也一样）。所以"卡顿"不是丢帧，是**运动曲线本身**。
+       · 弹簧 ω=18 落 129.5px **实测 533ms**（设计意图 ~0.35s），其中**后 8 帧
+         （133ms）每帧位移 <0.5px** —— 指数尾巴：位移趋近 0 却永远到不了，肉眼就是
+         "停住不动、动画又没结束"，正是"慢慢停下时卡顿"的来源。
+       · 旧流程还有**两次停顿**：滚轮事件一停，目标冻结 → 导轨 2~3 帧内贴住目标
+         硬停 → 120ms 静默 → 弹簧**再从静止起弹**（首帧就 11.7px/700px/s）。
+         硬停 + 重启 = 观感"顿一下"。
+     新曲线一条公式同时解决三件事：
+         p(s) = (3s² − 2s³) + u0·s(1−s)²          s = t / T ∈ [0,1]
+         三次 Hermite 边值：p(0)=0, p(1)=1, p'(0)=u0, p'(1)=0。
+         · u0 = 0 → smoothstep：静止起步，缓慢加速再缓慢减速 —— 不冲、不"顿"
+           （惯性尾巴已经死掉的快甩走这条：曲线初速 = 0，不再是"停住又窜一下"）
+         · u0 → 3 → 纯减速：从**当前速度**开始单调减速到 0，速度连续、无断裂
+           （鼠标滚轮一梭子推完、或拖拽带着速度松手走这条）
+         · 单调性：p'(s) = (1−s)[6s + u0(1−3s)]，u0 ∈ [0,3] 时恒 ≥0
+           → **结构上不可能过冲**（第二百四十二/二百五十五批"无过冲、无回弹"
+             由数学保证，不是靠调参）；u0 取上限 2.8 留余量
+         · s=1 精确到位、有限时长 —— **没有指数尾巴**，爬行帧实测 ≤2 帧（33ms）
+     时长 T = clamp(3·D / max(|v0|, VFLOOR), TMIN, TMAX)：
+       3D/v0 恰好让曲线初速 = 释放速度（速度连续）；尾巴已死（|v0| 很小）时落到
+       TMAX，此时 u0≈0 → smoothstep 慢起慢落。 */
+  var FIN = null;              /* {t0, from, to, T(ms), u0, v0} —— 落位曲线状态 */
+  var lastFinV0 = 0;           /* 最近一次落位用的实测初速 px/s（调试口用） */
+  var FIN_TMAX_WHEEL = 320;    /* 停滚落位 最长 ms（旧弹簧 ω=18 意图 ~0.35s，实测收紧） */
+  var FIN_TMAX_DRAG = 260;     /* 拖拽松手 最长 ms（旧弹簧 ω=22 意图 ~0.25s，保持更干脆） */
+  var FIN_TMIN = 140;          /* 最短 ms（防"高速 + 只差几 px"变成撞墙式硬停） */
+  var FIN_VFLOOR = 250;        /* 初速很小时假定的速度 px/s —— 决定 u0，越小越"慢起" */
+  var FIN_U0MAX = 2.8;         /* u0 上限（<3 保单调、保无过冲，见上） */
   function tick(ts) {
     raf = null;
-    if (SPRING) {
-      var sp = SPRING;
-      if (!sp.t0) sp.t0 = ts;
-      var dt = (lastFrameT ? (ts - lastFrameT) : 16.6667) / 1000;   /* 秒，钳 ≤50ms */
-      if (dt > 0.05) dt = 0.05;
-      lastFrameT = ts;
-      var a = -sp.w * sp.w * (x - sp.target) - 2 * sp.w * sp.v;     /* 临界阻尼 ζ=1 */
-      sp.v += a * dt;
-      x += sp.v * dt;
-      render();
-      if ((Math.abs(x - sp.target) < 0.5 && Math.abs(sp.v) < 40) || ts - sp.t0 > 900) {
-        SPRING = null; lastFrameT = 0; x = xTarget = sp.target; render();
-      } else {
-        raf = requestAnimationFrame(tick);
+    if (FIN) {
+      var f = FIN;
+      /* 首帧回填一个帧长，避免"起手先空转一帧"（旧弹簧同款处理） */
+      if (!f.t0) f.t0 = ts - 16.6667;
+      var u = (ts - f.t0) / f.T;
+      if (u >= 1) {
+        FIN = null; lastFrameT = 0; x = xTarget = f.to; render(); return;
       }
+      var s = u, s2 = s * s, om = 1 - s;
+      var p = (3 * s2 - 2 * s2 * s) + f.u0 * s * om * om;   /* 三次 Hermite，见上 */
+      x = xTarget = f.from + (f.to - f.from) * p;
+      render();
+      raf = requestAnimationFrame(tick);
       return;
     }
     var k = xK;
@@ -410,16 +433,16 @@
      → k≈1 → 该滑的动画瞬移/跳帧。 */
   function stopTick() {
     if (raf) { cancelAnimationFrame(raf); raf = null; }
-    SPRING = null;   /* 第二百六十九批：拖动接管时清掉松手弹簧（若正在落位） */
+    FIN = null;      /* 第二百七十六批：拖动接管时清掉落位曲线（若正在落位） */
     lastFrameT = 0;
   }
 
   /* animateTo：设置目标并确保动画循环在跑；运行中再次调用只改目标（不打断）。
      k 缺省 0.6（吸附）；触控板连滚跟手传 0.9。
-     第二百六十九批：animateTo 取消进行中的松手弹簧（点击/键盘/滚轮/自动接管）。 */
+     第二百六十九批：animateTo 取消进行中的落位动画（点击/键盘/滚轮/自动接管）。 */
   function animateTo(target, k) {
     cancelCoast();
-    SPRING = null;
+    FIN = null;
     xK = (k === undefined) ? 0.6 : k;
     if (Math.abs(target - x) < 0.5) { x = xTarget = target; render(); return; }
     xTarget = target;
@@ -457,39 +480,42 @@
   }
   function snapFromDrag(vel) {
     /* 第二百五十五批：速度只决定目标档位，不注入位移（跟手、无滑过头回拉）。
-       第二百六十九批：落位从指数急吸 0.6 改临界阻尼弹簧 —— 继承释放速度平滑
-       减速，速度连续无断裂（releaseSpring）。
-       第二百七十五批：基准回到"离当前位置最近的一档"，且位移不再夹紧 ——
-       拖过半档 / 轻甩(≥0.6px/ms) 各进一档，拖 2.5 张就落 2~3 张。 */
+       第二百七十六批：落位从弹簧改三次 Hermite 曲线（见文件头 276 批）。
+       初速用**指针尾速 vel（px/ms → ×1000）**，不是 dragVel —— 实测：松手前
+       只要有 ≥1 帧，dragTick 就已追上指针并走"收敛退出"分支把 dragVel 清零
+       （第二百七十二批的刻意行为），于是"快甩松手"永远拿到 v0=0、落位从静止
+       起弹。而 vel 来自 velSamples 的**松手前 ≤40ms 指针采样**，自带"手指是否
+       已经停住"的判定：手指停住再松手 → vTail=0（且 dragVel 也已清零）→ vel=0
+       → u0≈0 慢起（272 批那条不变式保住）；移动中松手 → vel 就是手指速度
+       ≈ 卡片速度（跟手 1:1，稳态速度相同）→ 曲线从该速度单调减速。 */
     var st = step();
     var nearest = Math.round(x / st) * st;
     var dx = x - nearest, dir = 0;
     if (Math.abs(dx) >= st / 2) dir = dx > 0 ? 1 : -1;       /* 拖过半档 */
     else if (Math.abs(vel) >= 0.6) dir = vel > 0 ? 1 : -1;   /* 轻甩 */
-    releaseSpring(nearest + dir * st);
+    startFinish(nearest + dir * st, vel * 1000, FIN_TMAX_DRAG);
   }
-  /* releaseSpring：临界阻尼弹簧（ζ=1）落位到 target。v0 = 松手瞬间卡片实际速度
-     （dragTick 逐帧测的 px/s，dragVel）—— 甩动快 → 早期到、甩动慢 → 缓落，
-     全程单调无过冲；中途被下一次 pointerdown/键盘/滚轮/自动接管时，由
-     stopTick()/animateTo() 清除 SPRING 平滑切换（不打断原则同 260 批）。
-     第二百七十一批：抽通用 startSpring(target, v0, w) —— 拖拽松手传 dragVel/22，
-     停滚落位传 导轨实测速度/18（第二百七十四批起，见 wheelEnd）。 */
-  function startSpring(target, v0, w) {
-    SPRING = {
-      t0: 0,
-      target: target,
-      v: (isFinite(v0) && Math.abs(v0) < 6000) ? v0 : 0,
-      w: w
-    };
+  /* startFinish：落位到 target 的有限时长曲线（第二百七十六批取代 releaseSpring）。
+     v0 = 出发瞬间的速度（px/s，正负与 x 同向）：
+       - 背向速度丢掉（不清零会先反向减速再掉头，观感"顿"）
+       - |v0| 只用来定曲线形状与时长，不注入额外位移
+     不变式（由 T = clamp(3D/|v0|, TMIN, TMAX) 与 u0 ≤ 2.8 共同保证）：
+       **曲线初速 = u0·D/T ≤ |v0|** —— 任何情况下都不会"起手比来速还快"（不窜）。
+     曲线形状、单调性、无过冲证明见文件头 276 批。 */
+  function startFinish(target, v0, tmax) {
     if (raf) { cancelAnimationFrame(raf); raf = null; }   /* 换模式需重启循环 */
     lastFrameT = 0;
-    if (Math.abs(x - target) < 0.5 && Math.abs(SPRING.v) < 40) {
-      SPRING = null; x = xTarget = target; render(); return;
+    var D = target - x, ad = Math.abs(D);
+    if (ad < 0.5 && (!isFinite(v0) || Math.abs(v0) < 40)) {
+      FIN = null; x = xTarget = target; render(); return;
     }
-    xTarget = x;   /* 弹簧期间指数目标无意义 —— 同步到当前防兜底读到陈旧值 */
+    var vIn = (isFinite(v0) && v0 * D > 0) ? Math.min(Math.abs(v0), 4000) : 0;
+    var T = Math.round(Math.min(tmax, Math.max(FIN_TMIN, 3000 * ad / Math.max(vIn, FIN_VFLOOR))));
+    lastFinV0 = vIn;
+    FIN = { t0: 0, from: x, to: target, T: T, u0: Math.min(FIN_U0MAX, vIn * (T / 1000) / ad), v0: vIn };
+    xTarget = x;   /* 曲线期间指数目标无意义 —— 同步到当前防兜底读到陈旧值 */
     raf = requestAnimationFrame(tick);
   }
-  function releaseSpring(target) { startSpring(target, dragVel, SPRING_W); }
 
   /* 键盘 ←/→（轮播聚焦时）：第二百六十三批追加 —— 与点击/自动轮播同为
      "离散跳一档"，统一用舒缓系数 AUTO_K（0.15，≈0.45~0.5s 优雅滑行） */
@@ -615,7 +641,8 @@
       dragRaf = requestAnimationFrame(dragTick);
     } else {
       /* 第二百七十二批：循环收敛退出 = 卡已随手指停稳 —— 清零冻结速度。
-         旧逻辑 dragVel 冻结在末帧高速，用户停住后松手时 releaseSpring 会继承
+         旧逻辑 dragVel 冻结在末帧高速，用户停住后松手时落位动画（时为 releaseSpring，
+         第二百七十六批为 startFinish）会继承
          这份陈旧初速（"明明停住了松手还往前冲"的第二来源）。 */
       dragVel = 0;
     }
@@ -720,45 +747,42 @@
     });
   }
 
-  /* 滚轮 / 触控板滚动（第二百六十一批 2026-08-29 主人"一格一格咔哒 / 滑动经过
-     卡片没动画 / 触控板不丝滑"）：移除第二百五十七批的滚轮棘轮（累计跨过半档
-     跳一档的咔哒刻度感）——
-     - 连续跟手：目标 = 锚点 + 累计位移（不量化成档位），animateTo(…, W_K)
-       每帧逼近，与横向拖拽同款手感；滑动全程卡片持续倾斜/缩放，skew 动效
-       全程可见（此前棘轮期间 x 冻结在档位、跳档才动 = "经过卡片没动画"）。
-     - 停滚 120ms 无事件 → 临界阻尼弹簧 ω=18 平滑落位（第二百七十一批）。
-       第二百七十三批修正基准（不再"离当前位置最近"）；**第二百七十四批**再修：
-       基准是「最后一次挣得的槽」（w_rearm 处），而不是墙钟手势起点 ——
-       见文件头 274 批（273 的硬夹让连续滚动 92% 的帧导轨不动 = "不丝滑"）。
-     - 方向保持 d = -deltaX - deltaY（左滑/上滑→x 增大=上一个，右滑/下滑→x 减小
-       =下一个；第二百三十三批主人指定的传统滚动方向，不改）。
-     - e.stopPropagation()：轮播区滚轮不再冒泡到 script.js 的整页平滑滚动器 ——
-       此前光标停在轮播上时页面同时在滚，两套滚动叠加 = "和其他方向手感不一样"。 */
-
-  /* 滚轮 / 触控板滚动（第二百七十五批：夹紧撤掉，回到自由跟手）——
+  /* 滚轮 / 触控板滚动（第二百七十五批撤掉夹紧 → 第二百七十六批修落位曲线）——
      - 连续跟手：目标 = 手势起点 + 累计位移（不量化成档位、不夹紧），animateTo(…, W_K)
        每帧逼近，与横向拖拽同款手感；滑动全程卡片持续倾斜/缩放，skew 动效全程可见
        （此前棘轮期间 x 冻结在档位、跳档才动 = "经过卡片没动画"）。
-     - 停滚 120ms 无事件 → 临界阻尼弹簧 ω=18 落**离当前位置最近的一档**
-       （第二百七十一批的落位方式；第二百七十五批把基准改回"最近"，不再钉起点）。
+     - 停滚 120ms 无事件 → `startFinish(最近一档, 手势末段实速)` 有限时长曲线落位
+       （第二百七十六批；取代 ω=18 弹簧 —— 那条指数尾巴实测 133ms 爬行 = "卡顿"）。
+       曲线初速取**手势末段实速**（最近 ~140ms 事件位移／时间）：一梭子滚轮推完
+       带着速度走 → 曲线从该速度单调减速（不"咔"一下）；触控板惯性尾巴已经
+       自然衰减到停了 → 初速≈0 → smoothstep 慢起慢落（不会重启式窜一下）。
      - 方向保持 d = -deltaX - deltaY（左滑/上滑→x 增大=上一个，右滑/下滑→x 减小
        =下一个；第二百三十三批主人指定的传统滚动方向，不改）。
      - e.stopPropagation()：轮播区滚轮不再冒泡到 script.js 的整页平滑滚动器 ——
        此前光标停在轮播上时页面同时在滚，两套滚动叠加 = "和其他方向手感不一样"。 */
   var W_K = 0.92;           /* 跟手逼近系数（同拖拽手感，略紧于 0.9 减滞后） */
   var wheeling = false, wheelBase = 0, wheelAcc = 0, wheelIdleTimer = null;
+  var wHist = [];           /* 第二百七十六批：最近 ~140ms 的 {t, 累计位移} ——
+                               用来算"手势末段实速"，作落位曲线初速（见上） */
+  var W_IDLE = parseInt((location.search.match(/[?&]cwidle=(\d+)/) || [])[1], 10) || 120;
 
   function wheelEnd() {
     wheelIdleTimer = null;
     if (!wheeling) return;
     wheeling = false;
+    /* 第二百七十六批：先量手势末段实速，再清累计量 */
+    var vIn = 0;
+    if (wHist.length >= 2) {
+      var h0 = wHist[0], h1 = wHist[wHist.length - 1], dtH = (h1.t - h0.t) / 1000;
+      if (dtH > 0.02) vIn = (h1.a - h0.a) / dtH;
+    }
+    wHist.length = 0;
     wheelBase = 0; wheelAcc = 0;
-    /* 落位 = 离**当前位置**最近的一档（第二百七十五批回到这个基准；夹紧没了，
-       一次手势滑几张就落几张）。弹簧 ω=18 从 0 速度起弹 —— 不会突兀：停滚
-       判定本身要等 120ms 静默，导轨早已收敛停稳（v275-free.js G 实测）。 */
+    /* 落位 = 离**当前位置**最近的一档（第二百七十五批；夹紧没了，一次手势滑几张
+       就落几张）。第二百七十六批：曲线从 vIn 起、时长按 3D/vIn 定 —— 速度连续。 */
     var st = step();
     var nearest = Math.round(x / st) * st;
-    if (Math.abs(nearest - x) > 0.5) startSpring(nearest, 0, WHEEL_SNAP_W);
+    if (Math.abs(nearest - x) > 0.5) startFinish(nearest, vIn, FIN_TMAX_WHEEL);
     autoStart();
   }
   root.addEventListener('wheel', function (e) {
@@ -775,12 +799,16 @@
     var d = -e.deltaX - e.deltaY;
     if (e.deltaMode === 1) d *= 20;          /* line → px */
     else if (e.deltaMode === 2) d *= step(); /* page → px */
-    if (!wheeling) { wheeling = true; wheelBase = x; wheelAcc = 0; }
+    if (!wheeling) { wheeling = true; wheelBase = x; wheelAcc = 0; wHist.length = 0; }
     wheelAcc += d;
+    /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
+    var tNow = performance.now();
+    wHist.push({ t: tNow, a: wheelAcc });
+    while (wHist.length > 2 && tNow - wHist[0].t > 140) wHist.shift();
     /* 自由跟手：不量化档位、不夹紧 —— 累计位移到哪导轨就到哪（第二百七十五批） */
     animateTo(wheelBase + wheelAcc, W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
-    wheelIdleTimer = setTimeout(wheelEnd, 120);
+    wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
 
   /* 自动轮播（第二百一十九批 主人"卡片隔断时间自动滑动到下个卡片"；
@@ -836,9 +864,11 @@
   render();
   autoStart();
 
-  /* 验收钩子（第二百七十三批，第二百七十五批精简）：只有 ?cdebug=1 才挂 —— 读引擎状态（x / 落位目标 /
-     中心槽），不读 DOM transform（inline 写入时 getComputedStyle 恒返 none）。
-     __carAuto(false) 停掉自动轮播，套件测量时才不会 6s 一跳。 */
+  /* 验收钩子（第二百七十三批，第二百七十六批补曲线声明值）：只有 ?cdebug=1 才挂
+     —— 读引擎状态（x / 落位目标 / 中心槽），不读 DOM transform（inline 写入时
+     恒由引擎决定）。finT / finU0 = 落位曲线**声明的**时长与初速系数：断言要打在这
+     两个声明值上，别去打采样帧（采样帧受帧粒度影响，实现正确也会红 —— 见
+     skill image-gallery-swipe-engine 的 v11 教训）。 */
   if (CAR_DEBUG) {
     window.__car = function () {
       var st = step();
@@ -846,8 +876,12 @@
         x: x, xTarget: xTarget, step: st,
         slot: Math.round(-x / st),                 /* 中心槽位（无界整数，可跨 0 负向） */
         idx: wrapIdx(Math.round(-x / st)),
-        restSlot: SPRING ? Math.round(-SPRING.target / st) : null,
-        animating: !!(raf || dragRaf || SPRING),
+        restSlot: FIN ? Math.round(-FIN.to / st) : null,
+        finT: FIN ? FIN.T : null,                  /* 落位曲线声明时长 ms */
+        finU0: FIN ? FIN.u0 : null,                /* 落位曲线初速系数（0=静止起步） */
+        finV0: FIN ? FIN.v0 : lastFinV0,           /* 落位用的实测初速 px/s（调试） */
+        finOn: !!FIN,
+        animating: !!(raf || dragRaf || FIN),
         dragging: dragging, wheeling: wheeling
       };
     };
