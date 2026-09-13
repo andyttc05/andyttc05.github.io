@@ -364,7 +364,11 @@
 /* ---- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
    DOM：.dy-lb > .dy-lb-stage（唯一媒体子节点）+ 左右箭头 + 底部圆点
    v11.1 起外壳只剩「左右箭头 + 底部圆点」—— 左上时刻计数与右上关闭钮已按主人
-   要求移除（关闭 = 点空白 / ESC）。照片一律放进同一个 4:3 框（见下 .is-fit-frame）。
+   要求移除（关闭 = 点空白 / ESC）。
+   v11.2（2026-09-13，主人"原比例显示图片即可，同等比例的图片大小要一致，我要显示
+   完整图片内容"）：v11.1 的统一 4:3 框（cover 裁切）**撤销** —— 照片一律按原比例
+   完整显示；尺寸只给上界，所以【同一视口下，长宽比相同的照片渲染盒必然相同】
+   （见下 .dy-lb-stage > img 的注释）。
    2026-09-13：v10 的 Swiper freeMode 是「连续跟手」，同一时刻必然显示邻图；yibi 的
    切换是「单图容器 + 出-进两段淡滑」，两者结构上互斥。主人看过参考站后选了后者，
    于是 Swiper（连同捏合 / 双击缩放 / 放大后平移）整体移除。
@@ -375,7 +379,6 @@ body.dy-lb-open { overflow: hidden; }
   --lb-pad-top: 26px;     /* 顶部只留一点呼吸 ── 计数/关闭已移除 */
   --lb-pad-bottom: 58px;  /* 让开底部圆点 */
   --lb-pad-x: 78px;       /* 让开左右箭头 */
-  --lb-fw-ratio: 1.3333;  /* 统一画框的比例（宽/高）；窄屏改 1 → 见媒体查询 */
   position: fixed; inset: 0; z-index: 200;
   background: rgba(10,13,18,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -409,25 +412,22 @@ body.dy-lb-open { overflow: hidden; }
 }
 .dy-lb-stage > img { display: block; }
 
-/* v11.1（2026-09-13，主人"有些照片大小不一致，修复这个问题"）：统一画框。
-   等比显示时每张照片的尺寸都随原图长宽比变 —— 同一条动态实测
-   912×684（10 张 4:3）/ 513×684（1 张 3:4 竖图）/ 1040×480（1 张 2.17:1 全景），
-   面积差 1.78 倍：翻页时大小在跳。改为把每张都放进【同一个画框】：
-     框宽 = min(可用宽, 1040, 可用高 × --lb-fw-ratio)，框高 = 框宽 / ratio
-   ⇒ 同一视口下每张照片的渲染盒完全相同，溢出部分 object-fit: cover 裁掉。
-   框比例 --lb-fw-ratio 随视口：宽屏 4/3（= 本页单图格的既有比例，也是 4:3 相机的
-   常见比例 ⇒ 本站 12 张里 10 张【零裁切】）；窄屏 1/1（正方形在竖屏手机里最省地方，
-   也与多图格一致；若窄屏仍用 4:3，竖图会被裁成矮条、可用高度浪费一半）。
-   若主人更想保留完整图，`?lbfit=natural` 可切回等比完整（A/B 用）。
-   附带好处：img 有了确定尺寸，即使解码中也不会塌缩（v9.43 的坑再退一层）。 */
-.dy-lb.is-fit-frame .dy-lb-stage > img {
-  --lb-fw: min(calc(100vw - var(--lb-pad-x) * 2), 1040px,
-               calc((100vh - var(--lb-pad-top) - var(--lb-pad-bottom)) * var(--lb-fw-ratio)));
-  width: var(--lb-fw);
-  height: calc(var(--lb-fw) / var(--lb-fw-ratio));
-  max-width: none; max-height: none;
-  object-fit: cover;
-}
+/* 尺寸不变式（v11.2，2026-09-13 主人："原比例显示图片即可，同等比例的图片大小
+   要一致，我要显示完整图片内容"）—— 三条要求，只有一种写法能同时满足：
+     · 原比例 + 完整内容 ⇒ 盒子的长宽比必须等于原图长宽比，且不裁 → object-fit:
+       contain / cover 都不需要，因为【盒子就等于图】：width/height 保持 auto。
+     · 同等比例 ⇒ 同样大小 ⇒ 尺寸只能是"原图长宽比"的函数，不能掺进像素尺寸。
+       width:auto + height:auto + max-width/max-height 正好是这个函数：
+       长宽比 r 的图恒定渲染成 min 后能放进可用区的最大尺寸，与它自己的像素数无关。
+     ⚠️ 不要改成 `width: min(可用宽, 1040px); height: auto; max-height: …`
+        —— 有确定 width 时 max-height 只压高度、宽度不回缩，竖图会被拉扁（CSS2.1 §10.4
+        仅在宽度为 auto 时才按比例回算）。必须两边都 auto，让浏览器走 replaced
+        element 的等比约束路径。
+   v11.1 的「统一 4:3 框 + cover 裁切」已按主人要求撤销：等比完整与"每张一样大"
+   数学上不可能同时成立（同一条动态里 1500×1125 / 1125×1500 / 1500×692 三种比例，
+   塞进同一个框必然裁掉内容）。现在的规则是"同比例才同尺寸"。
+   实测（1280×800，可用区 1040×716）：10 张 4:3 → 全为 954×716；竖图 537×716；
+   全景 1040×480。 */
 
 /* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
 .dy-lb-emoji {
@@ -494,9 +494,9 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-dot.is-on { background: rgba(255,255,255,.88); }
 
 @media (max-width: 600px) {
-  /* 窄屏：画框改 1:1 —— 竖屏手机可用区是 286×780 这种极窄高比例，
-     4:3 会把竖图裁成矮条、白扔一半高度；正方形既保住尺寸又跟多图格同款。 */
-  .dy-lb { --lb-pad-top: 18px; --lb-pad-bottom: 46px; --lb-pad-x: 52px; --lb-fw-ratio: 1; }
+  /* 窄屏只收紧净空 —— 尺寸规则不变（v11.2 起不再有"窄屏换成正方形框"这回事，
+     照片永远按原比例完整显示，改变的是可用区大小，不是框的形状）。 */
+  .dy-lb { --lb-pad-top: 18px; --lb-pad-bottom: 46px; --lb-pad-x: 52px; }
   .dy-lb-btn { width: 38px; height: 38px; }
   .dy-lb-btn svg { width: 18px; height: 18px; }
   .dy-lb-prev { left: 10px; }
@@ -798,12 +798,17 @@ body.dy-lb-open { overflow: hidden; }
    v11.1（2026-09-13，主人"有些照片大小不一致，修复这个问题。移除预览左上角的文字
    和右上角的交叉"）：
    ① 尺寸统一 —— 等比显示时同一条动态实测 912×684 / 513×684 / 1040×480（面积差
-      1.78 倍），翻页大小在跳。改为每张照片都放进同一个 4:3 框（cover 裁溢出，
-      框宽 = min(可用宽, 1040, 可用高×4/3)）。4:3 = 本页单图格既有比例，12 张里
-      10 张零裁切。`?lbfit=natural` 可切回等比完整做 A/B。
+      1.78 倍），翻页大小在跳。当时改成每张照片都放进同一个 4:3 框（cover 裁溢出，
+      框宽 = min(可用宽, 1040, 可用高×4/3)），12 张里 10 张零裁切。
    ② 外壳只剩左右箭头 + 底部圆点 —— 左上「时刻 · k/N」与右上 ✕ 移除（DOM/CSS/JS
       一并清掉，含 lbLabel/counter 管道）。关闭 = 点空白 / ESC；顶部净空因此从 58
-      收到 26（照片可用高度变大）。 -->
+      收到 26（照片可用高度变大）。
+   v11.2（2026-09-13，主人"原比例显示图片即可，同等比例的图片大小要一致，我要显示
+   完整图片内容"）：v11.1 的 4:3 统一框**撤销**。理由：等比完整与"每张一样大"
+   数学上不可能同时成立，主人要的是前者 + "同比例同尺寸"。现在 width/height 全
+   auto、只给 max-width/max-height，尺寸因此是【原图长宽比】的函数而不掺像素尺寸
+   ⇒ 长宽比相同必然同尺寸，且永不裁切。`?lbfit=` 与 --lb-fw-ratio / .is-fit-frame
+   一并删除。 -->
   <script>
   (function () {
     'use strict';
@@ -1142,8 +1147,7 @@ body.dy-lb-open { overflow: hidden; }
          ② 剩余外壳（左右箭头 / 底部圆点）一律绝对定位，不能进 flex 流（会把图挤偏）。
          ③ 阅读框用 min(calc(100vw - pad*2), …) 算。不要给嵌套层写 max-height:100%
             —— 父层高度是 auto 时，百分比会被当成 none 丢掉。
-       参数覆盖：?lbspeed=1.3（两段时长倍率 0.4~3）、?lbdebug=1（暴露 window.__lb()）、
-                ?lbfit=natural（关掉统一 4:3 画框，回到等比完整显示）
+       参数覆盖：?lbspeed=1.3（两段时长倍率 0.4~3）、?lbdebug=1（暴露 window.__lb()）
        ====================================================================== */
     var lb = document.getElementById('dyLb');
     var lbStage = document.getElementById('dyLbStage');
@@ -1170,10 +1174,8 @@ body.dy-lb-open { overflow: hidden; }
       return (v >= 0.4 && v <= 3) ? v : 1;
     })();
     var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
-    /* 统一画框（v11.1）：默认 frame = 每张照片都放进同一个 4:3 框（cover 裁溢出），
-       尺寸不随原图长宽比变化；natural = 等比 + 完整显示（A/B 对比用）。 */
-    var LB_FIT = /[?&]lbfit=natural/.test(location.search) ? 'natural' : 'frame';
-    lb.classList.add('is-fit-' + LB_FIT);
+    /* v11.2：不再有"统一画框 / 等比"两种模式 —— 尺寸规则只有一条，写在 CSS 里
+       （.dy-lb-stage > img 的 max-width/max-height）。`?lbfit=` 已删除。 */
 
     function lbMs(base) { return Math.round(base / LB_SPEED); }
 
