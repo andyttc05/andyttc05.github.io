@@ -18,7 +18,7 @@
        opacity：|t|≤2 全不透明（±2 可见），[2,3] 线性 1→0（缓冲槽入环平滑）
        ease：临界阻尼弹簧 K=240/C=31（第二百一十批：太弹 → 弹簧物理 ζ≈1.0，
        单调无过冲、继承滑行速度、仿真 400~520ms 归位）
-   - 透视：.skewed-strip 上 perspective: 1400px。
+   - 透视：旧版 .skewed-strip 上的 perspective: 1400px（本设计已无 3D 透视）。
    - 交互（第二百批起无底部栏）：pointer 横向拖拽 / 键盘 ←→ / 滚轮纵向滚动。
        第二百零五批 吸附/回弹物理化（网上调研 Flickity / Swiper free-mode /
        GSAP inertia 的主流做法）：松手先按释放速度惯性滑行（指数摩擦 ~0.87/帧），
@@ -133,11 +133,28 @@
    真机探针实测同一个 1440px 触控板手势 = 5 张（正是 273 批要治的现象）。
    参数覆盖：?cdebug=1（暴露 window.__car() / window.__carAuto()）、
             ?cwidle=<ms>（改停滚判定窗口，默认 120ms —— 调小 = 落位更早接上）
+
+
+   第二百七十八批 2026-09-13（主人"要不不用现在这款卡片的设计了，换成这网页帆布展示
+      的设计"，参考站 = tblog.mmzhiku.xyz 首页的 home-blinds-scenes）：
+   skewed 那套卡片**整个换掉**，改成参考站的"立牌影像排"——吊线 + 竖排标签栏 +
+   明信片（胶带 / 序号贴纸 / 照片框 / 手绘涂鸦 / 逐字落下的说明 / 右下角歪斜的印章）。
+   实测依据：~/.workbuddy/scratch/tblog-canvas/tblog-scenes4.js（步距 762px、
+   当前张 scale 1/op 1，邻张 0.94/0.4→0，20 格进度尺，GSAP 逐件装配时间轴）。
+   **本批只动渲染层**：DOM 构建（buildScene）、逐帧曲线（render）、进度尺、入场装配。
+   输入层（1:1 跟手 / 停滚 120ms / 三次 Hermite 落位 / 点击安全闸 / 键盘 / 自动轮播）
+   一行没动 —— 那是 264~276 批四十几轮真机调试的产物，重写等于把坑再踩一遍。
+   撤掉的：rotateY 旋转曲线、±1/±2 的 0.85/0.70 透明分级、"±2 也要看清"的整套诉求
+   （那是 skewed 设计的要求，随设计一起作废）、smoothstep/easeOutQuad 两个缓动函数。
+   有意偏离参考站的三点写在 style.css 的 .pj-scenes 块顶部（横向推进改拖拽、配色走
+   站内 token、卡片尺寸按本站垂直预算）。
 */
 (function () {
-  var root = document.getElementById('skewedCarousel');
+  var root = document.getElementById('projectScenes');
   if (!root) return;
-  var strip = root.querySelector('.skewed-strip');
+  var stage = root.querySelector('.pj-stage');
+  var meter = root.querySelector('.pj-meter__blocks');   /* 进度尺（参考站 20 格 → 本站 n×4 格） */
+  var meterLit = -1;
 
   /* === 项目数据（第二百批：图片卡，bg 由 p.img 全图覆盖；no/title 覆盖在图上）
      2026-08-30 接入真实项目：前两张为真实 GitHub 仓库（link 可点跳转，desc 副标题），
@@ -150,16 +167,26 @@
     { no: '04', title: '正在建设中', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/cyrene.webp?v=1', wip: true }
   ];
 
-  /* 几何参数（读 CSS 变量，resize 重算；第二百批卡片加大：240 / gap 32，移动端 160 / 16） */
-  var W = 240, G = 32, ROT = 60, SC = 0.85;
+  /* 几何参数（第二百七十八批）：立牌影像排只跟 CSS 要**一个**数 —— 步距 --pj-step。
+     卡片宽高、吊线长度、标签栏宽度全在 CSS 里（只影响观感），JS 不重复算一遍：
+     skewed 时代 JS 还要读 rot/scale 才能复刻 CSS 的画法，现在缩放曲线写死在 render 里，
+     两边不会再各说各话。 */
+  var ST = 280;
   function measure() {
-    var cs = getComputedStyle(root);
-    W = parseFloat(cs.getPropertyValue('--sc-card-w')) || 240;
-    G = parseFloat(cs.getPropertyValue('--sc-gap')) || 32;
-    ROT = parseFloat(cs.getPropertyValue('--sc-rot')) || 60;
-    SC = parseFloat(cs.getPropertyValue('--sc-scale')) || 0.85;
+    var v = parseFloat(getComputedStyle(root).getPropertyValue('--pj-step'));
+    if (!isFinite(v) || v <= 0) {
+      /* 兜底：@property 没生效（老浏览器）时按真实盒子量 —— 卡宽 + 标签栏宽 + 2×间隙，
+         与 CSS 里 --pj-step 的定义同式，两边算出来必须是同一个数。 */
+      var sc = stage.querySelector('.pj-scene');
+      var rail = sc && sc.querySelector('.pj-scene__rail');
+      if (sc && rail) {
+        var gapPx = parseFloat(getComputedStyle(rail).right) || 20;
+        v = sc.offsetWidth + rail.offsetWidth + 2 * gapPx;
+      }
+    }
+    ST = (isFinite(v) && v > 0) ? v : 280;
   }
-  function step() { return W + G; }
+  function step() { return ST; }
 
   /* 第二百七十五批：夹紧（railClamp / slotAnchor / pageLanding）连同 ?cpages=0
      一并撤掉 —— 导轨现在自由跟手，一次手势能滑几张就几张（见文件头 275 批）。 */
@@ -168,12 +195,13 @@
   var n = PROJECTS.length;
   var slots = [];           /* 活动槽位 {j, el} */
   var pool = [];            /* 空闲元素池 */
-  var RENDER_RANGE = 3.5;   /* 单位：step —— 覆盖静止 ±2 + 过渡 ±2.5 + 边缘缓冲 */
+  var RENDER_RANGE = 2.4;   /* 单位：step —— 新曲线 1.75 档就淡到 0，±2.4 足够留边缘缓冲 */
   /* 点击命中阈值（修复"连点 +2 卡不连续"）：连点 +2 时第二次点击常落在动画中途，
      命中卡 u ∈ (2.05, 2.44]，原 2.05 阈值把它当边缘缓冲卡忽略 → 连点只走一格。
      +1 卡中途命中 u≈1.2-1.8 不受影响；几何上包含 +2 光标点的卡 u 最大 2.44，
      u=3 才透明度归零 —— 3.0 覆盖全部可见/半透明卡，且不误伤不可见卡。 */
-  var CLICK_MAX_U = 3.0;
+  var CLICK_MAX_U = 2.4;   /* 点得到的最大离中心步数：新设计里 >1.75 档已全透明，
+                              2.4 = 只在"看得见"的范围内允许点击命中（不可见卡不该可点） */
   /* 第二百七十批（主人"为什么现在+1/+2卡片不能点击"）：点击抖动容差 ——
      真实鼠标按下瞬间普遍带 8~30px 位移（按键压力/手抖），一旦超过 8px 拖拽接管
      阈值就被当成拖动；低速松开又按"未过半档"弹回原位 → 卡片纹丝不动，观感
@@ -214,25 +242,59 @@
     if (im.decode) im.decode().catch(function () {});
   });
 
+  /* 立牌 DOM（池化复用：出界回池、进界取用）。结构与参考站一致 ——
+     吊线 / 竖排标签栏（点·眉标·短线·竖排标题）在 .pj-scene__swing 里（随吊牌一起摆），
+     明信片（胶带·贴纸·照片框·说明带·印章）在 .pj-scene__card 里。 */
+  var SCENE_HTML =
+    '<div class="pj-scene__swing">' +
+      '<span class="pj-scene__string" aria-hidden="true"></span>' +
+      '<div class="pj-scene__rail" aria-hidden="true">' +
+        '<span class="pj-scene__rail-dot"></span>' +
+        '<span class="pj-scene__rail-eyebrow"></span>' +
+        '<span class="pj-scene__rail-line"></span>' +
+        '<span class="pj-scene__rail-title"></span>' +
+      '</div>' +
+      '<div class="pj-scene__card">' +
+        '<span class="pj-scene__tape" aria-hidden="true"></span>' +
+        '<span class="pj-scene__sticker" aria-hidden="true"></span>' +
+        '<div class="pj-scene__frame">' +
+          '<img class="pj-scene__image" alt="" decoding="async" draggable="false">' +
+        '</div>' +
+        '<div class="pj-scene__band">' +
+          '<svg class="pj-scene__doodles" viewBox="0 0 720 96" fill="none" preserveAspectRatio="none" aria-hidden="true">' +
+            '<path class="pj-scene__doodle-pencil" d="M46 70q13-10 26 0t26 0"/>' +
+            '<circle class="pj-scene__doodle-pencil" cx="196" cy="30" r="7"/>' +
+            '<path class="pj-scene__doodle-pencil" d="M556 74l24-5m10-4 16-3"/>' +
+            '<path class="pj-scene__doodle-accent" d="M660 22l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>' +
+          '</svg>' +
+          '<p class="pj-scene__caption"></p>' +
+        '</div>' +
+        '<span class="pj-scene__stamp">' +
+          '<span class="pj-scene__stamp-text"></span>' +
+          '<svg class="pj-scene__stamp-art" viewBox="0 0 104 10" fill="none" aria-hidden="true">' +
+            '<path class="pj-scene__stamp-flourish" pathLength="1" d="M2 7q22-6 44-1t56-3"/>' +
+          '</svg>' +
+        '</span>' +
+      '</div>' +
+    '</div>';
+
   /* 逐帧渲染：遍历当前可见槽位 [jmin, jmax]，出界回池、进界取用，
-     每槽按距中心连续距离写 transform/opacity/z-index */
+     每槽按距中心连续距离写 transform/opacity/z-index。
+     （第二百四十批撤掉的内容滞后动效留下的"清残留"循环随本次重写一并删除：
+       新结构里没有 media/inner 两层，池复用只需清 _zi/_active/_txt 三个缓存。） */
   function render() {
     var st = step();
-    /* 第二百四十批（主人"怎么还有回弹动画"）：移除内容滞后动效（Follow-through）——
-       之前卡片框到位后，图片/文字层还要相对框滞后"跟上"（±6px），动画收尾表现
-       为轻微回弹晃动，正是"回弹动画"观感的来源。现在整卡（框+内容）一体运动、
-       到位即停。顺带清除池复用元素上的旧行内 transform/will-change 残留。 */
-    for (var s2 = 0; s2 < slots.length; s2++) {
-      if (slots[s2].media.style.transform !== '') slots[s2].media.style.transform = '';
-      if (slots[s2].inner.style.transform !== '') slots[s2].inner.style.transform = '';
-      if (slots[s2].media.style.willChange !== '') slots[s2].media.style.willChange = '';
-      if (slots[s2].inner.style.willChange !== '') slots[s2].inner.style.willChange = '';
-    }
     var jmin = Math.ceil((-RENDER_RANGE * st - x) / st);
     var jmax = Math.floor((RENDER_RANGE * st - x) / st);
     for (var k = slots.length - 1; k >= 0; k--) {
       if (slots[k].j < jmin || slots[k].j > jmax) {
-        pool.push(slots[k].el);
+        /* 回池前把状态类摘干净：is-active 会带 z-index:2、is-enter 会带一整套装配动画 ——
+           元素在池里躺着时还留着这些，复用到新槽位就会"带着上一张的装扮出场"
+           （第二百七十八批实测：主角计数偶尔出现 2 个，就是池里那张没摘 is-active）。 */
+        var pel = slots[k].el;
+        pel.classList.remove('is-active', 'is-enter');
+        pel._active = false;
+        pool.push(pel);
         slots.splice(k, 1);
       }
     }
@@ -245,94 +307,87 @@
         var el = pool.pop();
         if (!el) {
           el = document.createElement('article');
-          el.className = 'skewed-card';
-          el.innerHTML =
-            '<div class="skewed-card-media">' +
-              '<img class="skewed-card-img" alt="" decoding="async" draggable="false">' +
-            '</div>' +
-            '<div class="skewed-card-inner">' +
-              '<span class="skewed-card-no"></span>' +
-              '<h3 class="skewed-card-title"></h3>' +
-              '<p class="skewed-card-desc"></p>' +
-            '</div>';
-          strip.appendChild(el);
+          el.className = 'pj-scene';
+          el.innerHTML = SCENE_HTML;
+          stage.appendChild(el);
         }
         var p = PROJECTS[wrapIdx(j)];
-        var img = el.querySelector('.skewed-card-img');
+        var img = el.querySelector('.pj-scene__image');
         if (img.getAttribute('src') !== p.img) {
           img.setAttribute('src', p.img);
           img.alt = p.title;
-          if (img.decode) img.decode().catch(function () {}); /* 换图提前解码防抖动 */
+          if (img.decode) img.decode().catch(function () {});   /* 换图提前解码防抖动 */
         }
-        el.querySelector('.skewed-card-no').textContent = p.no;
-        el.querySelector('.skewed-card-title').textContent = p.title;
-        /* 2026-08-30：真实仓库标题用等宽小字（is-repo），建设中卡隐藏副标题 */
-        el.querySelector('.skewed-card-title').classList.toggle('is-repo', !!p.link);
-        var dEl = el.querySelector('.skewed-card-desc');
-        dEl.textContent = p.desc || '';
-        dEl.style.display = p.desc ? '' : 'none';
+        /* 文字：眉标 = 类型、竖排标题 = 项目名、贴纸与印章 = 序号。
+           类型只从数据推（有链接 = REPO / 建设中 = DRAFT），不为好看编造分类；
+           参考站那个"日期"位换成 序号/总数 —— 项目数据里没有可靠日期，不编。 */
+        el.querySelector('.pj-scene__rail-eyebrow').textContent = p.link ? 'REPO' : 'DRAFT';
+        el.querySelector('.pj-scene__rail-title').textContent = p.title;
+        el.querySelector('.pj-scene__sticker').textContent = p.no;
+        el.querySelector('.pj-scene__stamp-text').textContent = p.no + ' / ' + (n < 10 ? '0' : '') + n;
+        /* 说明逐字拆 span：CSS 用 --i 做错峰落下（参考站同款逐字入场） */
+        var cap = el.querySelector('.pj-scene__caption');
+        var txt = p.desc || p.title;
+        if (cap._txt !== txt) {
+          cap._txt = txt;
+          cap.textContent = '';
+          for (var ci = 0; ci < txt.length; ci++) {
+            var ch = document.createElement('span');
+            ch.className = 'pj-scene__caption-char';
+            ch.style.setProperty('--i', ci);
+            ch.textContent = txt.charAt(ci);
+            cap.appendChild(ch);
+          }
+        }
         el.classList.toggle('has-link', !!p.link);
-        /* media = 图片包裹层：JS 内容滞后写在 media 上，CSS 悬浮缩放写在 img 上，
-           两者互不冲突（第二百二十六批） */
-        var media = el.querySelector('.skewed-card-media');
-        slot = { j: j, el: el, media: media, img: img, inner: el.querySelector('.skewed-card-inner') };
+        /* 第 2、4 张吊起来（参考站 5 张里 2 张 raised，同节奏）。
+           按**项目序号**定而不是槽位 j：回绕时不会翻面。 */
+        el.classList.toggle('pj-scene--raised', wrapIdx(j) % 2 === 1);
+        slot = { j: j, el: el, img: img };
         slots.push(slot);
       }
       var m = j * st + x;             /* 槽位屏幕位置（无回绕 —— 循环靠槽位进出） */
       var t = m / st;                 /* 距中心步数（小数，连续） */
       var u = Math.abs(t);
       /* 第二百一十三批（主人"点击背后左右的卡片移到该卡片"）：槽位 j 与可见度
-         u 记到元素上，供 strip 点击事件委托判断 —— 点击 ±1/±2 卡 → 该卡居中 */
+         u 记到元素上，供 stage 点击事件委托判断 —— 点击侧卡 → 该卡居中 */
       slot.el._slotJ = j;
       slot.el._slotU = u;
-      /* 第二百五十一批（主人"现在还有反弹"）：rotateY/scale 曲线从 easeOutQuad
-         改回 smoothstep —— easeOutQuad 在 u=0 处斜率最大（2），中心卡滑到正中
-         时旋转/缩放还在高速变化、瞬间静止 → 视觉顿挫 = "弹了一下"。
-         smoothstep 在 u=0 端斜率归零 → 到达中心平滑停住，无顿挫；u=1 端同样
-         归零（±1 卡静止时角度稳定）。位移（translateX）仍由 easeOutCubic 驱动，
-         落定干脆不受影响。 */
-      var g;
-      if (u <= 1) g = ROT * smoothstep(u);
-      else if (u <= 1.5) g = ROT * (1 - smoothstep((u - 1) / 0.5));
-      else if (u <= 2) g = -45 * smoothstep((u - 1.5) / 0.5);
-      else g = -45 + 10 * smoothstep(u - 2);
-      var rot = -Math.sign(t) * g;
-      /* 第二百四十七批（主人"参考美团 app 影院电影卡片设计"）：侧卡片加预览感
-         —— LinearSnapHelper 风格的"影院下一场预告"效果。±1 缩小更深（0.78）、
-         ±2 透明到 0.55 → 侧卡明显"在背后"预览，中心主卡始终 1.0/不透明。
-         视觉层级：中心主卡 > ±1 预告 > ±2 远景。
-         第二百六十二批（主人"要显示+1 +2 卡片"）：±2 档 opacity 0.55→0.70 ——
-         卡片加大后远景预览更清晰可见（配合 CSS blur 4→2.5px）。 */
-      var scBase, opBase;
-      var eQ = smoothstep;
-      if (u <= 1) { scBase = 1 - (1 - SC) * eQ(u); opBase = 1; }
-      else if (u <= 2) { scBase = SC * (1 - 0.22 * eQ(u - 1)); opBase = 1 - 0.30 * eQ(u - 1); }
-      else if (u <= 3) { scBase = SC * 0.78 * (1 - eQ(u - 2)); opBase = 0.70 * (1 - eQ(u - 2)); }
-      else { scBase = 0; opBase = 0; }
-      slot.el.style.transform =
-        'translateX(' + m + 'px) rotateY(' + rot + 'deg) scale(' + scBase.toFixed(3) + ')';
-      slot.el.style.opacity = opBase.toFixed(3);
-      /* 第二百二十五批：zIndex / is-active 只在变化时写 —— 回弹收尾大部分帧
-         这两者不变，跳过可减少主线程样式写入（低端机防卡顿） */
+      /* 第二百七十八批：曲线换成参考站立牌的**实测**值（tblog-scenes4.js 逐档采样）——
+           当前张 scale 1 / opacity 1，邻张 0.94 / 0.4 → 0
+           scale   = 1 − 0.06·min(1, u)         （过了 1 档恒 0.94）
+           opacity = clamp(1 − 0.57·u, 0, 1)    （≈1.75 档归零，比旧版 [2,3] 收得早）
+         即"一张主角 + 旁边那张正在淡出"。skewed 时代那套 rotateY/smoothstep 曲线与
+         ±1/±2 的 0.85/0.70 透明分级随设计一起撤掉 —— "±2 也要看清"不再是本页的诉求。 */
+      slot.el.style.transform = 'translateX(' + m + 'px) scale(' + (1 - 0.06 * Math.min(1, u)).toFixed(3) + ')';
+      slot.el.style.opacity = Math.max(0, 1 - 0.57 * u).toFixed(3);
       var zi = Math.max(0, 2 - Math.round(u));
       if (slot.el._zi !== zi) { slot.el._zi = zi; slot.el.style.zIndex = zi; }
       var active = u <= 0.5;
-      if (slot.el._active !== active) { slot.el._active = active; slot.el.classList.toggle('is-active', active); }
+      if (slot.el._active !== active) {
+        slot.el._active = active;
+        slot.el.classList.toggle('is-active', active);
+        /* 入场装配只在新成为主角时播一次。必须"先摘类 → 强制重排 → 再挂上"，
+           否则同一个元素的动画不会重播；邻居不动 —— 整排一起抖就是主人最烦的多余动作。 */
+        slot.el.classList.remove('is-enter');
+        if (active) { void slot.el.offsetWidth; slot.el.classList.add('is-enter'); }
+      }
+    }
+    /* 进度尺（参考站 5 张 20 格 = 每张 4 格，本站 n×4 = 16 格）：亮块按**连续**位置给，
+       拖动时平滑扫过而不是一档一跳。 */
+    if (meter && meter.children.length) {
+      var per = meter.children.length / n;
+      var fr = ((-x / st) % n + n) % n;
+      var lit = Math.min(meter.children.length, Math.max(1, Math.round((fr + 1) * per)));
+      if (lit !== meterLit) {
+        meterLit = lit;
+        for (var bi = 0; bi < meter.children.length; bi++) {
+          meter.children[bi].classList.toggle('is-lit', bi < lit);
+        }
+      }
     }
   }
 
-  /* smoothstep：0→1 缓动、端点斜率归零 —— 旋转/缩放曲线的连续插值（第二百零八批） */
-  function smoothstep(s) {
-    s = s < 0 ? 0 : (s > 1 ? 1 : s);
-    return s * s * (3 - 2 * s);
-  }
-  /* easeOutQuad：仅尾段斜率衰减（无首段 0 起始），曲线更线性、更跟手，
-     避免 smoothstep 在 u=0/1 双端归零导致的"启动慢 + 收尾慢"感。
-     第二百四十六批 主人"滑动时动画很生硬"：snap 化矫枉过正，回退到连续曲线 + easeOutQuad。 */
-  function easeOutQuad(s) {
-    s = s < 0 ? 0 : (s > 1 ? 1 : s);
-    return 1 - (1 - s) * (1 - s);
-  }
 
   /* 第二百五十一批（主人"取消卡片背景放大"）：hover 放大已彻底移除（CSS），
      is-moving 机制随之废弃删除 —— setMoving 不再需要。 */
@@ -530,12 +585,12 @@
   /* 拖拽（pointer events，横向跟手）：按下取消动画/滑行 → 直接改 x →
      松手按释放速度惯性滑行后吸附（第二百零五批，见 startCoast）。 */
   function setDraggingClass(on) {
-    /* 2026-08-30：is-dragging 同时打到 strip —— 拖住卡片外空白处（可拖动区域）
+    /* 2026-08-30：is-dragging 同时打到 stage —— 拖住卡片外空白处（可拖动区域）
        时也显示 grabbing，不只在卡片上拖动才变手型 */
-    strip.classList.toggle('is-dragging', on);
+    stage.classList.toggle('is-dragging', on);
     for (var i = 0; i < slots.length; i++) slots[i].el.classList.toggle('is-dragging', on);
   }
-  strip.addEventListener('pointerdown', function (e) {
+  stage.addEventListener('pointerdown', function (e) {
     /* 第二百六十六批：孤立点击判定 —— 先取本击距上次交互的间隔，再盖新戳 */
     tapInputGap = Date.now() - lastInputT;
     lastInputT = Date.now();
@@ -561,19 +616,19 @@
        两侧），按卡号会把左右两张 C 当成同一个，点左边 C 却去居中右边那张、
        带子往左跑（背离点击方向）。 */
     var tc = e.target;
-    while (tc && tc !== strip && !tc.classList.contains('skewed-card')) tc = tc.parentNode;
-    tapHit = !!(tc && tc !== strip && tc._slotJ !== undefined && tc._slotU <= CLICK_MAX_U);
+    while (tc && tc !== stage && !tc.classList.contains('pj-scene')) tc = tc.parentNode;
+    tapHit = !!(tc && tc !== stage && tc._slotJ !== undefined && tc._slotU <= CLICK_MAX_U);
     tapSlotJ = tapHit ? tc._slotJ : -1;
-    tapU = (tc && tc !== strip && tc._slotU !== undefined) ? tc._slotU : -1;
+    tapU = (tc && tc !== stage && tc._slotU !== undefined) ? tc._slotU : -1;
     velSamples = [];
     dragVel = 0; dragPrevX = NaN; dragPrevT = 0;   /* 第二百六十九批：重开速度采样 */
     dragging = true;
     dragEngaged = false;
     dragStartX = e.clientX;
     dragBaseX = x;
-    if (strip.setPointerCapture) strip.setPointerCapture(e.pointerId);
+    if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId);
   });
-  strip.addEventListener('pointermove', function (e) {
+  stage.addEventListener('pointermove', function (e) {
     if (!dragging) return;
     /* 第二百一十八批（主人"松开鼠标后移动，卡片还跟着滑"）：偶发 pointerup
        未送达（如在窗口外松开/系统手势抢占）会让 dragging 卡在 true，之后的
@@ -682,8 +737,8 @@
       var hasJ = tapHit;
       if (!hasJ) {
         var hit = document.elementFromPoint(e.clientX, e.clientY);
-        while (hit && hit !== strip && !hit.classList.contains('skewed-card')) hit = hit.parentNode;
-        if (hit && hit !== strip && hit._slotJ !== undefined && hit._slotU <= CLICK_MAX_U) {
+        while (hit && hit !== stage && !hit.classList.contains('pj-scene')) hit = hit.parentNode;
+        if (hit && hit !== stage && hit._slotJ !== undefined && hit._slotU <= CLICK_MAX_U) {
           j = hit._slotJ; hasJ = true;
         }
       }
@@ -721,9 +776,9 @@
     snapFromDrag(vel);
     autoStart();
   }
-  strip.addEventListener('pointerup', endDrag);
-  strip.addEventListener('pointercancel', endDrag);
-  /* 第二百一十八批兜底：strip 的 pointerup 偶发未送达（窗口外松开等）时，
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  /* 第二百一十八批兜底：stage 的 pointerup 偶发未送达（窗口外松开等）时，
      全局监听兜底结束拖拽 —— endDrag 幂等（dragging 已 false 则直接返回），
      重复触发安全。 */
   window.addEventListener('pointerup', endDrag);
@@ -859,6 +914,16 @@
     if (rTimer) return;
     rTimer = setTimeout(function () { rTimer = null; measure(); render(); }, 150);
   });
+
+  /* 进度尺格数 = 项目数 × 4（参考站 5 张 20 格）。在 JS 里生成 ——
+     增删项目不用同步改 HTML，格数永远跟着数据走。 */
+  if (meter) {
+    for (var mi = 0; mi < n * 4; mi++) {
+      var mb = document.createElement('span');
+      mb.className = 'pj-meter__block';
+      meter.appendChild(mb);
+    }
+  }
 
   measure();
   render();
