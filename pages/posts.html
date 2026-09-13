@@ -1210,6 +1210,24 @@ body.dy-lb-open { overflow: hidden; }
          继续走出-进淡滑（两套共用一个阶段机，见 lbPhase）。
          触控板那条路最难：惯性尾巴会连来几十个事件，所以手势一旦定向就 lock 死，
          后面的事件只刷新时间戳、一律丢弃（v10.2 / v273 都栽在这条上）。
+       v11.5（2026-09-14，主人"怎么还有滑动反弹动画，我不喜欢反弹动画"）：
+         **把两处"动一下再回来"都去掉** ——
+         ① 端到端不再有 0.28 阻尼橡皮筋（拖到头就是硬停，图完全不动），
+            邻图方向也不再给 36px 余量（超拖会让落位往回走，那也是一次可见回弹）；
+         ② 松手没过阈值不再是 130~280ms 滑回原位，而是**瞬间归位、无过渡**。
+         代价（已与主人确认）：短拖松手会看到一次 ≤110px 的小跳跃。
+       v11.6（2026-09-14，主人两条上报：「点击+3显示图片错误，显示的不是对应图片」
+       /「在首图和尾图继续滑动会进行循环滑动，首图滑向尾图，尾图滑向首图」）：
+         ① 「+N 更多」格不再 `idx += 1` —— 点哪一格就打开那一格里显示的那张（見 openLb）；
+         ② **边界只认索引**。原来是否还能翻页看的是手势开始时抓的快照
+            （dim.hasP/hasN，源自"槽位里有没有节点"），快照与索引不一致时
+            （拖动中换了图、触控板惯性尾巴跨了两次提交）就可能算出一个越界的 target：
+            舞台先滑到底、再落进一个空槽位，看上去正是"首图滑到了尾图"。
+            现在三层同收：lbSlideTo 按索引硬夹紧 ⇒ 越界一律一动不动；
+            lbDims 的 hasP/hasN 也改成按索引推；lbShow/lbMount 再夹一次索引（永不越界）。
+            另：端到端被挡下时清掉滚轮累计值（否则反方向要先把位移还完才动），
+            并在灯箱打开期间给 <html> 关掉 overscroll-behavior-x（横滑到底不该被
+            浏览器的"前进/后退"手势接走）。
 
        保留的三个坑位（跨版本反复踩到，别再丢）：
          ① 「换图片」必须用**已解码**的同一个 <img> 元素，而且在槽位间【移动】而不是
@@ -1276,8 +1294,10 @@ body.dy-lb-open { overflow: hidden; }
     var LB_SETTLE_SPAN = 150;
     var LB_SETTLE_EASE = 'cubic-bezier(.4,0,.2,1)';
     var LB_NEAR_FADE = 80;       /* 邻图随拖动渐显：拉过这个像素就完全显出来 */
-    var LB_EDGE_RUBBER = 0.28;   /* 端到端的橡皮筋比例 */
-    var LB_EDGE_SLACK = 36;
+    /* ⚠️ 这里原来有 LB_EDGE_RUBBER / LB_EDGE_SLACK（端到端 0.28 阻尼 + 36px 余量），
+       2026-09-14 按主人要求**删除**：「怎么还有滑动反弹动画，我不喜欢反弹动画」。
+       拖动现在是硬边界（见 lbDragClamp），松手没过阈值也是瞬间归位（见 lbDragEnd）。
+       别再把它当成"手感更好"加回来。 */
     var LB_WHEEL_GAP = 140;      /* 轮子手势的静默间隔（超过即算新手势） */
     var LB_WHEEL_MIN = 12;       /* 轮子手势的最小累计位移 */
     var LB_CLICK_MUTE = 260;     /* 拖完抑制 click 的窗口（否则指针落在图外会误关灯箱） */
@@ -1342,7 +1362,10 @@ body.dy-lb-open { overflow: hidden; }
     /* 换图（终态）：把 lbIndex 设到 i 并把槽位归位。本身不带任何动画，
        动画只由 lbGoTo 挂 —— 两件事分开，才不会互相盖掉。 */
     function lbShow(i) {
-      lbIndex = i;
+      /* v11.6：这里兜底夹紧索引。任何调用方算错也只会停在首张 / 末张，
+         不会取模绕回去，也不会把空槽位当当前张（后者=整块舞台空掉）。 */
+      var n = lbPhotos.length;
+      lbIndex = i < 0 ? 0 : (i > n - 1 ? n - 1 : i);
       lbFill();
     }
 
@@ -1365,9 +1388,14 @@ body.dy-lb-open { overflow: hidden; }
 
     /* 邻居的间距 = 半个当前 + 半个邻居 + 缝。**不能写固定步距** —— 同一条动态里
        1500×1125 / 1125×1500 / 1500×692 三种原比例，渲染宽度 955 / 537 / 1040 差近一倍，
-       固定步距会让两张照片在拖动中叠在一起。 */
+       固定步距会让两张照片在拖动中叠在一起。
+       ⚠️ v11.6：边界（hasP / hasN）改成按【索引】判，不再按"槽位里有没有节点"。
+       槽位内容只决定几何（宽度），索引才是"还有没有上一张 / 下一张"的唯一真相 ——
+       两者不一致时（例如手势快照 + 换图）按节点判会算出越界的目标。
+       宽度仍按真实盒子量，两条路都留着。 */
     function lbDims() {
-      var hasP = !!lbSlotPrev.firstChild, hasN = !!lbSlotNext.firstChild;
+      var n = lbPhotos.length;
+      var hasP = lbIndex > 0, hasN = lbIndex < n - 1;
       var wc = lbW(lbSlotCur.firstChild), wp = lbW(lbSlotPrev.firstChild), wn = lbW(lbSlotNext.firstChild);
       return {
         c: wc, wp: wp, wn: wn, hasP: hasP, hasN: hasN,
@@ -1507,12 +1535,20 @@ body.dy-lb-open { overflow: hidden; }
        与手势走了多远、甩得多快都无关 —— 距离与速度只决定【要不要走】，不决定【走几步】。
        fromV = 手势此刻的位移（拖动传当前值；触控板传 0，轮子没有跟手阶段）。 */
     function lbSlideTo(dir, dim, fromV) {
-      if (lbPhotos.length < 2) return;
-      if (dir > 0 && !dim.hasN) return;          /* 端到端不外绕 */
-      if (dir < 0 && !dim.hasP) return;
+      var n = lbPhotos.length;
+      if (n < 2) return;
       dir = dir > 0 ? 1 : -1;
+      /* v11.6：**先按索引硬夹紧**，再看手势快照。
+         目标越界（首图往前 / 尾图往后）一律【一动不动】，绝不取模、绝不外绕。
+         为什么不只信 dim.hasN/hasP：那是手势【开始时】抓的快照，只要它与当前索引
+         不一致（拖动中换了图 / 触控板尾巴跨了两次提交），就会算出一个越界的 target ——
+         舞台先滑到底、再落进一个空槽位，看起来就是"从首图滑到了尾图"。
+         索引是真相，快照只当二次确认。 */
+      var target = lbIndex + dir;
+      if (target < 0 || target > n - 1) return;
+      if (dir > 0 && !dim.hasN) return;
+      if (dir < 0 && !dim.hasP) return;
       var step = dir > 0 ? dim.n : dim.p;
-      var target = lbIndex + dir;                /* ← 恒定 ±1，这就是硬夹紧 */
       var ms = lbSettleMs(Math.abs(step - Math.abs(fromV)), step);
       var v = dir > 0 ? -step : step;
       /* 到位的那个槽位保持不透明，另外两个在滑出去的同时淡掉：静止态邻居一律透明，
@@ -1543,13 +1579,17 @@ body.dy-lb-open { overflow: hidden; }
       }, ms + 16);
     }
 
-    /* 端到端橡皮筋：没有邻居的方向只能拉到 0，再拉按比例减速 */
+    /* 拖动位移的硬边界：**没有橡皮筋**（主人「我不喜欢反弹动画」）。
+       两条边：① 没有邻居的方向拉到 0 就【完全不动】—— 不是"拉动一点再弹回去"；
+              ② 有邻居的方向封顶在一步的距离 —— 邻图走到正中就停，不会越过它再退回来
+                 （原来给了 36px 余量，超拖时落位要往回走一段，那也是一次可见的"回弹"）。
+       于是拖动的手感只有两种状态：跟手，或者不动。松手时要么提交，要么瞬间归位。 */
     function lbDragClamp(v) {
       var d = lbDragDim;
-      var lo = d.hasN ? -(d.n + LB_EDGE_SLACK) : 0;
-      var hi = d.hasP ? (d.p + LB_EDGE_SLACK) : 0;
-      if (v < lo) v = lo + (v - lo) * LB_EDGE_RUBBER;
-      if (v > hi) v = hi + (v - hi) * LB_EDGE_RUBBER;
+      var lo = d.hasN ? -d.n : 0;
+      var hi = d.hasP ? d.p : 0;
+      if (v < lo) v = lo;
+      if (v > hi) v = hi;
       return v;
     }
 
@@ -1599,28 +1639,21 @@ body.dy-lb-open { overflow: hidden; }
       var dir = 0;
       if (v <= -lbCommitDist(dim.n) || (vel < -LB_FLICK && v < -LB_FLICK_MIN)) dir = 1;
       else if (v >= lbCommitDist(dim.p) || (vel > LB_FLICK && v > LB_FLICK_MIN)) dir = -1;
-      if (dir > 0 && !dim.hasN) dir = 0;          /* 端到端不外绕 */
-      if (dir < 0 && !dim.hasP) dir = 0;
+      if (dir > 0 && lbIndex >= lbPhotos.length - 1) dir = 0;   /* 端到端不外绕（按【索引】判，
+                                                                   理由见 lbSlideTo：手势快照
+                                                                   可能已经过期） */
+      if (dir < 0 && lbIndex <= 0) dir = 0;
 
       if (dir) { lbSlideTo(dir, dim, v); return; }
 
-      /* 没过阈值 → 弹回原位 */
-      var ms = lbSettleMs(Math.abs(v), Math.max(dim.p, dim.n, 1));
-      lbFx(lbSlotPrev, ms, LB_SETTLE_EASE);
-      lbFx(lbSlotCur, ms, LB_SETTLE_EASE);
-      lbFx(lbSlotNext, ms, LB_SETTLE_EASE);
-      lbSlotCur.style.transform = 'translateX(0px)';
-      lbSlotPrev.style.transform = 'translateX(' + (-dim.p) + 'px)';
-      lbSlotNext.style.transform = 'translateX(' + (dim.n) + 'px)';
-      lbSlotCur.style.opacity = '1';
-      lbSlotPrev.style.opacity = '0';
-      lbSlotNext.style.opacity = '0';
-      lbPhase = 'settle';
+      /* 没过阈值 → **瞬间归位，没有过渡**（主人「我不喜欢反弹动画」）。
+         原来这里要走 130~280ms 的 ease-out 滑回去，那一小段"动一下再回来"就是他不喜欢的。
+         lbRest 内部先 lbFx0（transition:none）再写终值，所以这一步是同步落定的 ——
+         松手当帧就在原位，不存在任何回位动画。
+         代价（已与主人确认接受）：短拖松手会看到一次 ≤110px 的小跳跃。 */
+      lbRest();
+      lbPhase = 'idle';
       lbTo = lbIndex;
-      lbTimer = setTimeout(function () {
-        lbTimer = null;
-        lbRest(); lbPhase = 'idle';
-      }, ms + 16);
     }
     window.addEventListener('pointerup', lbDragEnd);
     window.addEventListener('pointercancel', lbDragEnd);
@@ -1642,12 +1675,16 @@ body.dy-lb-open { overflow: hidden; }
       if (fresh) { lbWheel.acc = 0; lbWheel.lock = false; }
       if (lbWheel.lock) return;                  /* 这条手势已经用掉一次了 */
       if (lbPhase !== 'idle') return;            /* 淡滑 / 落位进行中不接新输入 */
-      if (fresh) lbWheel.dim = lbDims();
+      /* v11.6：dim 为空也要补抓 —— 上一次手势若是在非 idle 中起手的，就会被上面
+         那条 return 挡掉、dim 一直是 null，下一条事件走到下面读 .hasN 直接抛错。 */
+      if (fresh || !lbWheel.dim) lbWheel.dim = lbDims();
       lbWheel.acc += dx;
       if (Math.abs(lbWheel.acc) < LB_WHEEL_MIN) return;
       var dir = lbWheel.acc > 0 ? 1 : -1;
-      if (dir > 0 && !lbWheel.dim.hasN) return;
-      if (dir < 0 && !lbWheel.dim.hasP) return;
+      /* 端到端被挡下时把累计值清掉：不清的话这笔账一直欠着，反方向要先把位移还完
+         才动（在首图 / 尾图上表现为"往另一边滑半天没反应"）。 */
+      if (dir > 0 && !lbWheel.dim.hasN) { lbWheel.acc = 0; return; }
+      if (dir < 0 && !lbWheel.dim.hasP) { lbWheel.acc = 0; return; }
       lbWheel.dir = dir;
       lbWheel.lock = true;                       /* ← 一条手势只走一张 */
       lbSlideTo(dir, lbWheel.dim, 0);
@@ -1661,6 +1698,7 @@ body.dy-lb-open { overflow: hidden; }
       }
       lbNode = null;
       lbPhotos = list;
+      idx = idx < 0 ? 0 : (idx > list.length - 1 ? list.length - 1 : idx);   /* v11.6 夹紧 */
       lbIndex = idx;
 
       lbDots.innerHTML = '';
@@ -1687,6 +1725,7 @@ body.dy-lb-open { overflow: hidden; }
             var m = /translateX\((-?[\d.]+)px\)/.exec(t);
             return m ? Math.round(parseFloat(m[1]) * 10) / 10 : 0;
           };
+          var dm = lbDims();
           return {
             open: lb.classList.contains('is-open'),
             idx: lbIndex, to: lbTo, n: lbPhotos.length, phase: lbPhase,
@@ -1699,6 +1738,8 @@ body.dy-lb-open { overflow: hidden; }
             }).length,
             off: [off(lbSlotPrev), off(lbSlotCur), off(lbSlotNext)],
             hasP: !!lbSlotPrev.firstChild, hasN: !!lbSlotNext.firstChild,
+            /* 一步的步距（邻居间距）。验收"超拖封顶在一步"用 */
+            stepP: Math.round(dm.p * 10) / 10, stepN: Math.round(dm.n * 10) / 10,
             loaded: lbNode ? (lbNode.tagName === 'IMG' ? (lbNode.naturalWidth > 0 ? 1 : 0) : 2) : -1,
             /* 渲染盒 + 原始像素（验收「照片同尺寸」用）。取元素自身尺寸而不是采样式
                的 getBoundingClientRect —— 后者会被过渡中的 translate 带偏。 */
@@ -1718,14 +1759,24 @@ body.dy-lb-open { overflow: hidden; }
       if (!list.length) return;
       var idx = parseInt(node.dataset.idx || '0', 10);
       if (isNaN(idx)) idx = 0;
-      /* 「+N 更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
-      if (node.classList.contains('is-more') && idx < list.length - 1) idx += 1;
+      /* v11.6（2026-09-14，主人「点击+3显示图片错误，显示的不是对应图片」）：
+         这里原来对「+N 更多」格做 `idx += 1`（跳到"第一张没在网格里露出的照片"，
+         照朋友圈习惯），于是格子里明明显示的是第 9 张（09-bookshelf-cat），点开却是
+         第 10 张（10-game-event）—— 看得见的那张跟点开的那张对不上。
+         规则改成一句话：**点哪一格就打开那一格【里显示的那张】**，
+         没露出来的往右滑即可看到（圆点数本来就是全部张数）。 */
+      if (idx < 0) idx = 0;
+      if (idx > list.length - 1) idx = list.length - 1;
       lbMount(list, idx);
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
       /* 锁背后页面的滚动：站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
          滚动，CSS overflow:hidden 拦不住它 —— 必须显式告诉它灯箱开着。 */
       document.body.classList.add('dy-lb-open');
+      /* v11.6：顺手关掉浏览器自己的"横滑前进 / 后退"手势（macOS 触控板、iOS 边缘侧滑）。
+         灯箱内部已经硬夹紧（首图 / 尾图一动不动），于是"横滑到底"唯一还可能被谁接走的，
+         就是浏览器的历史手势 —— 那会整页滑走，看起来也像灯箱出了怪事。 */
+      document.documentElement.style.overscrollBehaviorX = 'none';
       if (window.__wheelLock) window.__wheelLock(true);
     }
 
@@ -1734,6 +1785,7 @@ body.dy-lb-open { overflow: hidden; }
       lb.setAttribute('aria-hidden', 'true');
       lbSettle();
       document.body.classList.remove('dy-lb-open');
+      document.documentElement.style.overscrollBehaviorX = '';
       if (window.__wheelLock) window.__wheelLock(false);
     }
 
