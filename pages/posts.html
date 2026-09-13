@@ -476,22 +476,28 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-prev { left: 18px; }
 .dy-lb-next { right: 18px; }
 
-/* 圆点：只在同一条动态有多张图时出现；点哪张走哪张（动画方向按前后判） */
+/* 圆点：只在同一条动态有多张图时出现；点哪张走哪张（动画方向按前后判）。
+   当前张 = 长条（v11.3，照 yibi2333.fun/photowall）—— 参考站实测：
+   常态 8×8 圆点、当前张 24×8 胶囊（宽 = 3 倍高）、gap 8px、
+   transition all .3s cubic-bezier(.4,0,.2,1)、常态 rgba(255,255,255,.3) /
+   hover .5 / 当前 #fff。本站沿用 7px 基准（配自家的箭头/净空），当前张仍是 3 倍 = 21px。
+   ⚠️ 圆角写 999px（不写 50%）：50% 会把长条变成椭圆，胶囊必须靠半径夹取。 */
 .dy-lb-dots {
+  --lb-dot: 7px;          /* 常态圆点直径；当前张 = 3 倍宽 */
   position: absolute; bottom: 0; left: 0; right: 0; z-index: 4;
   display: flex; align-items: center; justify-content: center;
   flex-wrap: wrap; gap: 8px;
   padding: 14px 18px;
 }
 .dy-lb-dot {
-  width: 7px; height: 7px; padding: 0;
-  border-radius: 50%; border: 0;
-  background: rgba(255,255,255,.28);
+  width: var(--lb-dot); height: var(--lb-dot); padding: 0;
+  border-radius: 999px; border: 0;
+  background: rgba(255,255,255,.3);
   cursor: pointer;
-  transition: background .2s ease;
+  transition: width .3s cubic-bezier(.4,0,.2,1), background-color .3s cubic-bezier(.4,0,.2,1);
 }
 .dy-lb-dot:hover { background: rgba(255,255,255,.5); }
-.dy-lb-dot.is-on { background: rgba(255,255,255,.88); }
+.dy-lb-dot.is-on { width: calc(var(--lb-dot) * 3); background: rgba(255,255,255,.95); }
 
 @media (max-width: 600px) {
   /* 窄屏只收紧净空 —— 尺寸规则不变（v11.2 起不再有"窄屏换成正方形框"这回事，
@@ -808,7 +814,14 @@ body.dy-lb-open { overflow: hidden; }
    数学上不可能同时成立，主人要的是前者 + "同比例同尺寸"。现在 width/height 全
    auto、只给 max-width/max-height，尺寸因此是【原图长宽比】的函数而不掺像素尺寸
    ⇒ 长宽比相同必然同尺寸，且永不裁切。`?lbfit=` 与 --lb-fw-ratio / .is-fit-frame
-   一并删除。 -->
+   一并删除。
+   v11.3（2026-09-13，主人"位于当前图片时，预览图片底部的点点会变成长条状，我要这种
+   设计"→ 同一个参考站）：底部圆点改成【当前张拉长成胶囊】。参考站实测：常态 8×8、
+   当前张 24×8（宽 = 3 倍高）、gap 8px、transition all .3s cubic-bezier(.4,0,.2,1)、
+   常态 rgba(255,255,255,.3) → hover .5 → 当前 #fff。本站沿用 7px 基准 ⇒ 当前张 21px。
+   同时把外壳同步提前：原来是出相 150ms 走完（lbShow）才换高亮，现在 lbGoTo 一开段
+   就按【目标索引】切 —— 对齐参考站"点下即动"的手感（它点击后 ~20ms 起、300ms 走完）。
+   圆角必须写 999px 而非 50%，否则长条变椭圆。 -->
   <script>
   (function () {
     'use strict';
@@ -1215,12 +1228,21 @@ body.dy-lb-open { overflow: hidden; }
       el.style.transition = 'opacity ' + ms + 'ms ' + ease + ', transform ' + ms + 'ms ' + ease;
     }
 
-    function lbSyncChrome() {
-      var n = lbPhotos.length;
-      lbPrev.disabled = lbIndex <= 0;
-      lbNext.disabled = lbIndex >= n - 1;
+    /* 圆点高亮（当前张 = 长条）。抽出来是因为它有两个调用时机：
+       ① lbShow 落定后按 lbIndex 同步；② lbGoTo 一开段就按【目标】同步 —— 参考站
+       的圆点是点下即动（实测点击后 ~20ms 起、300ms 走完），而不是等出相 150ms。 */
+    function lbDotsMark(i) {
       var ds = lbDots.children, k;
-      for (k = 0; k < ds.length; k++) ds[k].classList.toggle('is-on', k === lbIndex);
+      for (k = 0; k < ds.length; k++) ds[k].classList.toggle('is-on', k === i);
+    }
+
+    /* at 缺省 = 当前索引；传目标索引 = 提前把外壳切到"将要去的那张" */
+    function lbSyncChrome(at) {
+      var n = lbPhotos.length;
+      var i = (at === undefined) ? lbIndex : at;
+      lbPrev.disabled = i <= 0;
+      lbNext.disabled = i >= n - 1;
+      lbDotsMark(i);
     }
 
     /* 换图（终态）：摘掉旧节点 → 挂上预热好的新节点 → 复位内联样式。
@@ -1264,6 +1286,7 @@ body.dy-lb-open { overflow: hidden; }
       lbWarmSrc(lbPhotos[target].src);        /* 进相前先解码到位 */
       lbTo = target;
       lbPhase = 'out';
+      lbSyncChrome(target);                   /* 外壳（长条圆点 / 箭头禁用）点下即动 */
 
       var out = dir > 0 ? -LB_SHIFT : LB_SHIFT;   /* 下一张：旧图向左出 */
       var cur = lbNode;
