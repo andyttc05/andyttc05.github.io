@@ -6,6 +6,29 @@
 <meta name="description" content="动态 — 时雨时猫的记录，雨落下的每一个瞬间" data-page-node-id="cYFWgVbsctEcAITv9fXYsk">
 <meta name="theme-color" content="#f8fafc" data-page-node-id="qbPp5toAwE72xHJMYlZMwU">
 <title>动态 — rain.meow</title>
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+     ② 会话标记 rm-visited：本次会话第二次起的导航给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
+<style>
+  html { background: #f8fafc; }
+  html.theme-dark { background: #0f172a; }
+</style>
+<script>
+  try {
+    if (sessionStorage.getItem('rm-visited') === '1') {
+      document.documentElement.classList.add('nav-instant');
+    } else if (!document.prerendering) {
+      sessionStorage.setItem('rm-visited', '1');
+    }
+  } catch (e) {}
+</script>
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
 <script>
   /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
   var saved = localStorage.getItem('rainmeow-theme');
@@ -37,8 +60,8 @@
 <link rel="stylesheet" href="../assets/css/fonts.css?v=1" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=3" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=308" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
+<link rel="stylesheet" href="../assets/css/style.css?v=309" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -339,7 +362,9 @@
 }
 
 /* ---- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
-   DOM：.dy-lb > .dy-lb-stage（唯一媒体子节点）+ 外壳（计数 / 关闭 / 箭头 / 圆点）
+   DOM：.dy-lb > .dy-lb-stage（唯一媒体子节点）+ 左右箭头 + 底部圆点
+   v11.1 起外壳只剩「左右箭头 + 底部圆点」—— 左上时刻计数与右上关闭钮已按主人
+   要求移除（关闭 = 点空白 / ESC）。照片一律放进同一个 4:3 框（见下 .is-fit-frame）。
    2026-09-13：v10 的 Swiper freeMode 是「连续跟手」，同一时刻必然显示邻图；yibi 的
    切换是「单图容器 + 出-进两段淡滑」，两者结构上互斥。主人看过参考站后选了后者，
    于是 Swiper（连同捏合 / 双击缩放 / 放大后平移）整体移除。
@@ -347,8 +372,10 @@
    反向 32px → 0；两段【顺序】执行，没有交叉淡化 —— 同一时刻舞台上只有一张图。 */
 body.dy-lb-open { overflow: hidden; }
 .dy-lb {
-  --lb-pad-y: 58px;   /* 让开顶部计数 / 关闭 与底部圆点 */
-  --lb-pad-x: 78px;   /* 让开左右箭头 */
+  --lb-pad-top: 26px;     /* 顶部只留一点呼吸 ── 计数/关闭已移除 */
+  --lb-pad-bottom: 58px;  /* 让开底部圆点 */
+  --lb-pad-x: 78px;       /* 让开左右箭头 */
+  --lb-fw-ratio: 1.3333;  /* 统一画框的比例（宽/高）；窄屏改 1 → 见媒体查询 */
   position: fixed; inset: 0; z-index: 200;
   background: rgba(10,13,18,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -372,7 +399,7 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-stage > img,
 .dy-lb-stage > .dy-lb-emoji {
   max-width: min(calc(100vw - var(--lb-pad-x) * 2), 1040px);
-  max-height: calc(100vh - var(--lb-pad-y) * 2);
+  max-height: calc(100vh - var(--lb-pad-top) - var(--lb-pad-bottom));
   width: auto; height: auto;
   object-fit: contain;
   user-select: none; -webkit-user-select: none;
@@ -381,6 +408,26 @@ body.dy-lb-open { overflow: hidden; }
   will-change: opacity, transform;
 }
 .dy-lb-stage > img { display: block; }
+
+/* v11.1（2026-09-13，主人"有些照片大小不一致，修复这个问题"）：统一画框。
+   等比显示时每张照片的尺寸都随原图长宽比变 —— 同一条动态实测
+   912×684（10 张 4:3）/ 513×684（1 张 3:4 竖图）/ 1040×480（1 张 2.17:1 全景），
+   面积差 1.78 倍：翻页时大小在跳。改为把每张都放进【同一个画框】：
+     框宽 = min(可用宽, 1040, 可用高 × --lb-fw-ratio)，框高 = 框宽 / ratio
+   ⇒ 同一视口下每张照片的渲染盒完全相同，溢出部分 object-fit: cover 裁掉。
+   框比例 --lb-fw-ratio 随视口：宽屏 4/3（= 本页单图格的既有比例，也是 4:3 相机的
+   常见比例 ⇒ 本站 12 张里 10 张【零裁切】）；窄屏 1/1（正方形在竖屏手机里最省地方，
+   也与多图格一致；若窄屏仍用 4:3，竖图会被裁成矮条、可用高度浪费一半）。
+   若主人更想保留完整图，`?lbfit=natural` 可切回等比完整（A/B 用）。
+   附带好处：img 有了确定尺寸，即使解码中也不会塌缩（v9.43 的坑再退一层）。 */
+.dy-lb.is-fit-frame .dy-lb-stage > img {
+  --lb-fw: min(calc(100vw - var(--lb-pad-x) * 2), 1040px,
+               calc((100vh - var(--lb-pad-top) - var(--lb-pad-bottom)) * var(--lb-fw-ratio)));
+  width: var(--lb-fw);
+  height: calc(var(--lb-fw) / var(--lb-fw-ratio));
+  max-width: none; max-height: none;
+  object-fit: cover;
+}
 
 /* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
 .dy-lb-emoji {
@@ -395,20 +442,7 @@ body.dy-lb-open { overflow: hidden; }
   box-shadow: 0 40px 90px rgba(0,0,0,.5);
 }
 
-/* 顶栏：计数（左） + 关闭（右）。整条不吃点击，只有按钮自己吃。 */
-.dy-lb-top {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  pointer-events: none;
-}
-.dy-lb-counter {
-  font: 12px/1 var(--font-mono); color: rgba(255,255,255,.82);
-  letter-spacing: .08em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+/* 圆钮：左右箭头共用（2026-09-13 移除关闭钮后，这是页内唯一的圆钮） */
 .dy-lb-btn {
   display: flex; align-items: center; justify-content: center;
   width: 42px; height: 42px; padding: 0;
@@ -460,7 +494,9 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-dot.is-on { background: rgba(255,255,255,.88); }
 
 @media (max-width: 600px) {
-  .dy-lb { --lb-pad-y: 52px; --lb-pad-x: 52px; }
+  /* 窄屏：画框改 1:1 —— 竖屏手机可用区是 286×780 这种极窄高比例，
+     4:3 会把竖图裁成矮条、白扔一半高度；正方形既保住尺寸又跟多图格同款。 */
+  .dy-lb { --lb-pad-top: 18px; --lb-pad-bottom: 46px; --lb-pad-x: 52px; --lb-fw-ratio: 1; }
   .dy-lb-btn { width: 38px; height: 38px; }
   .dy-lb-btn svg { width: 18px; height: 18px; }
   .dy-lb-prev { left: 10px; }
@@ -629,14 +665,8 @@ body.dy-lb-open { overflow: hidden; }
   </main>
 
   <!-- 灯箱 v11（单图容器 · yibi 切换动效；结构与行为说明见页内「灯箱 v11」注释块） -->
-  <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" data-page-node-id="rJNIVkRb7yC3EALjcHx30a">
+  <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" aria-label="图片预览" data-page-node-id="rJNIVkRb7yC3EALjcHx30a">
     <div class="dy-lb-stage" id="dyLbStage"></div>
-    <div class="dy-lb-top">
-      <div class="dy-lb-counter" id="dyLbCounter" aria-live="polite" data-page-node-id="vB1nX4yH6zL9aC2eF5gI8j"></div>
-      <button class="dy-lb-btn dy-lb-close" id="dyLbClose" type="button" aria-label="关闭" data-page-node-id="JcN5mS9wQ3vT7bY1dF4gH6k">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6l12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
-    </div>
     <button class="dy-lb-btn dy-lb-arrow dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张" data-page-node-id="LbP2kQ7vN9xY4cT6eR8gH0j">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -661,7 +691,7 @@ body.dy-lb-open { overflow: hidden; }
        window.RainNest/RainRibbons.setColor 联动 -->
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
-  <script src="../assets/js/loader.js?v=5" defer></script>
+  <script src="../assets/js/loader.js?v=6" defer></script>
   <script src="../assets/js/script.js?v=137" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
@@ -764,7 +794,16 @@ body.dy-lb-open { overflow: hidden; }
    yibi2333.fun/photowall）：v10 的 freeMode 是【连续跟手】，同一时刻必然显示邻图；
    而参考站的切换是【单图容器 + 出-进两段淡滑】—— 两者结构上互斥。主人选了后者
    （"完全照搬"），所以 Swiper 连同 assets/vendor/swiper/ 一起删除，灯箱回到自绘，
-   但这次只做一件事：一个容器、一张图、两段 CSS transition。见下面「灯箱 v11」。 -->
+   但这次只做一件事：一个容器、一张图、两段 CSS transition。见下面「灯箱 v11」。
+   v11.1（2026-09-13，主人"有些照片大小不一致，修复这个问题。移除预览左上角的文字
+   和右上角的交叉"）：
+   ① 尺寸统一 —— 等比显示时同一条动态实测 912×684 / 513×684 / 1040×480（面积差
+      1.78 倍），翻页大小在跳。改为每张照片都放进同一个 4:3 框（cover 裁溢出，
+      框宽 = min(可用宽, 1040, 可用高×4/3)）。4:3 = 本页单图格既有比例，12 张里
+      10 张零裁切。`?lbfit=natural` 可切回等比完整做 A/B。
+   ② 外壳只剩左右箭头 + 底部圆点 —— 左上「时刻 · k/N」与右上 ✕ 移除（DOM/CSS/JS
+      一并清掉，含 lbLabel/counter 管道）。关闭 = 点空白 / ESC；顶部净空因此从 58
+      收到 26（照片可用高度变大）。 -->
   <script>
   (function () {
     'use strict';
@@ -1100,22 +1139,20 @@ body.dy-lb-open { overflow: hidden; }
          ① 「换图片」必须用**已解码**的同一个 <img> 元素 —— 舞台是 flex shrink-wrap，
             子图没解码时尺寸 0，整盒塌缩（v9.43 的老问题）。做法：lbWarm 缓存
             new Image() 并 decode()，切换时把这个元素搬进舞台，而不是新建 img 再赋 src。
-         ② 计数 / 关闭 / 按钮 / 圆点一律绝对定位，不能进 flex 流（会把图挤偏）。
+         ② 剩余外壳（左右箭头 / 底部圆点）一律绝对定位，不能进 flex 流（会把图挤偏）。
          ③ 阅读框用 min(calc(100vw - pad*2), …) 算。不要给嵌套层写 max-height:100%
             —— 父层高度是 auto 时，百分比会被当成 none 丢掉。
-       参数覆盖：?lbspeed=1.3（两段时长倍率 0.4~3）、?lbdebug=1（暴露 window.__lb()）
+       参数覆盖：?lbspeed=1.3（两段时长倍率 0.4~3）、?lbdebug=1（暴露 window.__lb()）、
+                ?lbfit=natural（关掉统一 4:3 画框，回到等比完整显示）
        ====================================================================== */
     var lb = document.getElementById('dyLb');
     var lbStage = document.getElementById('dyLbStage');
-    var lbCounter = document.getElementById('dyLbCounter');
-    var lbClose = document.getElementById('dyLbClose');
     var lbPrev = document.getElementById('dyLbPrev');
     var lbNext = document.getElementById('dyLbNext');
     var lbDots = document.getElementById('dyLbDots');
 
     var lbPhotos = [];
     var lbIndex = 0;
-    var lbLabel = '';
     var lbNode = null;        /* 舞台上唯一那个节点：<img> 或 .dy-lb-emoji */
     var lbPhase = 'idle';     /* idle | out | in */
     var lbTo = 0;             /* 本段的目标索引 */
@@ -1133,6 +1170,10 @@ body.dy-lb-open { overflow: hidden; }
       return (v >= 0.4 && v <= 3) ? v : 1;
     })();
     var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
+    /* 统一画框（v11.1）：默认 frame = 每张照片都放进同一个 4:3 框（cover 裁溢出），
+       尺寸不随原图长宽比变化；natural = 等比 + 完整显示（A/B 对比用）。 */
+    var LB_FIT = /[?&]lbfit=natural/.test(location.search) ? 'natural' : 'frame';
+    lb.classList.add('is-fit-' + LB_FIT);
 
     function lbMs(base) { return Math.round(base / LB_SPEED); }
 
@@ -1174,7 +1215,6 @@ body.dy-lb-open { overflow: hidden; }
 
     function lbSyncChrome() {
       var n = lbPhotos.length;
-      lbCounter.textContent = (lbLabel ? lbLabel + ' · ' : '') + (lbIndex + 1) + '/' + n;
       lbPrev.disabled = lbIndex <= 0;
       lbNext.disabled = lbIndex >= n - 1;
       var ds = lbDots.children, k;
@@ -1258,12 +1298,11 @@ body.dy-lb-open { overflow: hidden; }
     }
 
     /* 载入一组照片并直接停在 idx 张 */
-    function lbMount(list, idx, label) {
+    function lbMount(list, idx) {
       lbSettle();
       if (lbNode && lbNode.parentNode) lbNode.parentNode.removeChild(lbNode);
       lbNode = null;
       lbPhotos = list;
-      lbLabel = label || '';
       lbIndex = idx;
 
       lbDots.innerHTML = '';
@@ -1290,7 +1329,13 @@ body.dy-lb-open { overflow: hidden; }
             idx: lbIndex, to: lbTo, n: lbPhotos.length, phase: lbPhase,
             nodes: lbStage.children.length,          /* 恒为 1 —— 单图容器的判据 */
             loaded: lbNode ? (lbNode.tagName === 'IMG' ? (lbNode.naturalWidth > 0 ? 1 : 0) : 2) : -1,
-            label: lbLabel,
+            /* 渲染盒 + 原始像素（验收「照片同尺寸」用）。取元素自身尺寸而不是采样式
+               的 getBoundingClientRect —— 后者会被过渡中的 translate 带偏。 */
+            box: lbNode ? [
+              Math.round(lbNode.getBoundingClientRect().width),
+              Math.round(lbNode.getBoundingClientRect().height),
+              lbNode.naturalWidth || 0, lbNode.naturalHeight || 0
+            ] : null,
           };
         };
       }
@@ -1304,8 +1349,7 @@ body.dy-lb-open { overflow: hidden; }
       if (isNaN(idx)) idx = 0;
       /* 「+N 更多」格：跳到首张未在网格中露出的照片（朋友圈习惯） */
       if (node.classList.contains('is-more') && idx < list.length - 1) idx += 1;
-      var t = item.querySelector('.dy-time');
-      lbMount(list, idx, (t && t.textContent) || '');
+      lbMount(list, idx);
       lb.classList.add('is-open');
       lb.setAttribute('aria-hidden', 'false');
       /* 锁背后页面的滚动：站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
@@ -1343,7 +1387,6 @@ body.dy-lb-open { overflow: hidden; }
 
     lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbGo(-1); });
     lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbGo(1); });
-    lbClose.addEventListener('click', function (e) { e.stopPropagation(); closeLb(); });
     /* 圆点：点哪张走哪张。跨多张只播一段（方向按前后判），不逐段走 —— 逐段要走 N×300ms */
     lbDots.addEventListener('click', function (e) {
       var d = e.target.closest ? e.target.closest('.dy-lb-dot') : null;
