@@ -3056,7 +3056,18 @@
        ② 配色走站内 token（--color-accent 蓝）：参考站的青绿 #00a29b 不引入。
           只有"纸"保留暖白/暖褐 —— 纸是**实物**（像照片），不随主题变。
        ③ 卡片尺寸按**本站**的垂直预算定（参考站是整屏 60vh，本页上方还有标题区），
-          照片高取 29vh，仍然把整页压在一屏内（第一百八十六批的约定）。 */
+          照片高取 31vh，仍然把整页压在一屏内（第一百八十六批的约定）。
+     第二百七十九批 2026-09-14（主人"移除项目卡片下面的进度条；卡片可以大一点点"）：
+       · 进度尺整段删除（HTML + CSS + JS 的 meter 分支一起清掉，别留孤儿选择器）。
+       · 删掉的那条尺原本占 22px + margin-top clamp(6px,1.2vh,14px) ≈ 36px —— 这笔空间
+         **还给照片**：27vh → 31vh，帽 280 → 320。量过（scratch/pj-scenes 的
+         pj-budget-ab.js：旧布局 = 旧照片公式 + 一条尺尺寸的占位，逐档对照底边余量）：
+           1728×1117 189→184 · 1512×982 98→93 · 1440×900 59→55 · 1366×768 0→0
+           1280×800 18→18 · 1280×720 33→34 · 1024×768 20→21
+         高视口上少的那 5px 是抬帽换来的（照片 280→320 吃 40px，尺只还 36px），余量本就
+         上百 px，无影响；矮视口反而更松。**1366×768 这一档余量本来就是 0**（改动前也是
+         0，不是本批引入的），改谁也翻不动它 —— 再要塞东西就得先砍上面的标题区。
+       · 照片宽 = 高 × 4/3，所以卡宽、卡高、步距（--pj-step）全跟着长，JS 一行不用改。 */
   /* 第二百七十八批：--pj-step 必须**注册**成 <length>，否则
      getComputedStyle 返回的是 `calc(calc(...))` 原文而不是 px 数（未注册的自定义属性
      只做 var() 替换、不求值）—— JS 的 parseFloat 会拿到 NaN，吸附就永远走兜底 280px。
@@ -3068,8 +3079,8 @@
     --pj-paper: #f9f3e4;
     --pj-ink: #4c4536;
     --pj-pencil: color-mix(in srgb, #4c4536 32%, transparent);
-    /* 尺寸 */
-    --pj-photo-h: clamp(146px, 27vh, 280px);
+    /* 尺寸（第二百七十九批：进度尺腾出的 32px 全给照片 —— 27vh → 31vh） */
+    --pj-photo-h: clamp(150px, 31vh, 320px);
     --pj-photo-w: calc(var(--pj-photo-h) * 4 / 3);
     --pj-pad: clamp(12px, 1.3vw, 20px);
     --pj-band: clamp(54px, 6.8vh, 78px);
@@ -3179,6 +3190,11 @@
     line-height: 1;
     max-height: 100%;
     overflow: hidden;
+    /* 第二百七十九批：竖排项目名比卡片还长时（"andyttc05.github.io" 19 字 ≥ 卡片高）
+       原来是从字形中间硬切一刀，看着像坏了。nowrap + ellipsis 让它在末尾收个省略号，
+       读起来是"名字太长"而不是"渲染出错"。完整名字在下方说明带里，信息不丢。 */
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   /* 明信片：纸 + 2px 墨线边 + 大而软的投影 */
@@ -3277,7 +3293,7 @@
     padding: 0 clamp(18px, 3vw, 42px);
     text-align: center;
     color: var(--pj-ink);
-    font-size: clamp(12px, 0.95vw, 14.5px);
+    font-size: clamp(12.5px, 1.05vw, 15.5px);
     font-weight: 600;
     letter-spacing: 0.1em;
     line-height: 1.7;
@@ -3316,44 +3332,8 @@
     stroke-dashoffset: 1;
   }
 
-  /* 底部进度尺：pill 外框 + 每张 4 格的亮块（参考站 5 张 20 格，本站 4 张 16 格） */
-  .pj-meter {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: clamp(180px, 22vw, 250px);
-    margin: clamp(6px, 1.2vh, 14px) auto 0;
-    color: var(--color-ink);
-  }
-  .pj-meter__cap {
-    flex: none;
-    width: 4px;
-    height: 10px;
-    border-radius: 0 3px 3px 0;
-    background: color-mix(in srgb, var(--color-ink) 60%, transparent);
-  }
-  .pj-meter__track {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
-    height: 22px;
-    box-sizing: border-box;
-    padding: 4px 6px;
-    border: 2px solid color-mix(in srgb, var(--color-ink) 60%, transparent);
-    border-radius: 999px;
-  }
-  .pj-meter__blocks { display: flex; gap: 3px; width: 100%; height: 100%; }
-  .pj-meter__block {
-    flex: 1 1 0;
-    min-width: 0;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--color-ink) 14%, transparent);
-    transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
-  }
-  .pj-meter__block.is-lit {
-    background: var(--color-accent);
-    box-shadow: 0 0 5px color-mix(in srgb, var(--color-accent) 40%, transparent);
-  }
+  /* 底部进度尺（pill 外框 + n×4 亮块）**第二百七十九批 2026-09-14 整段删除**：
+     主人"移除项目卡片下面的进度条"。位置信息由卡片右下角印章「02 / 04」承担。 */
 
   /* ── 入场逐件装配（第二百七十八批）─────────────────────────────
      参考站用 GSAP 时间轴逐件：标签栏圆点弹出 → 眉标落下 → 短竖线拉长 →
@@ -3424,10 +3404,15 @@
       padding-block: 0;
     }
   }
-  /* 手机：照片高按宽度而不是高度定（窄屏竖图才不会被压扁），标签栏收窄 */
+  /* 手机：照片高按宽度而不是高度定（窄屏竖图才不会被压扁），标签栏收窄。
+     第二百七十九批：照片高同样抬一档（30vw/150 → 31vw/158）—— 手机竖屏的纵向
+     空间本来就富余（bento 是 flex:1 撑满的），约束在下限：卡再宽，邻卡露出的
+     那一条就越窄（露出宽度 = 视口半宽 − 卡宽/2 − rail-w − 2×gap）。
+     390px 宽下留 158px 照片高 = 邻卡还有 ~30px 露头；320px 宽时本来就只有 0px，
+     不因此变差。 */
   @media (max-width: 768px) {
     .pj-scenes {
-      --pj-photo-h: clamp(150px, 30vw, 210px);
+      --pj-photo-h: clamp(158px, 31vw, 216px);
       --pj-pad: 12px;
       --pj-band: clamp(54px, 15vw, 70px);
       --pj-rail-w: 22px;
