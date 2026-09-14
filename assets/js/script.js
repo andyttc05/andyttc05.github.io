@@ -19,12 +19,15 @@
     (function () {
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (!fine) return;
-      /* 第一百七十一批（2026-09-07 主人"除了主页外，将其他页面的滑动做得和正常页面一样"）：
-         滚轮平滑只保留给主页（五幕雨 scrub 靠连续滚动驱动）。about/posts/projects
-         页 <html data-scroll="native"> → 引擎整体跳过，走浏览器原生滚动：滚轮逐格
-         跟手、触控板原生惯性，观感与普通网页一致。属性化开关：主页不写属性 → 平滑；
-         子页写 native → 直接 return（连 __wheelLock/__wheelPause 都不注册，
-         调用方均有 if 守卫，灯箱锁页退化为 CSS overflow:hidden，原生输入本就挡得住）。 */
+      /* 第一百七十一批（2026-09-07 主人"除了主页外，将其他页面的滑动做得和正常页面一样"）
+         曾把 about/posts/projects 的 <html> 写 data-scroll="native" 退回浏览器原生滚动。
+         ★ 第一百七十七批（2026-09-14 主人"所有页面都使用首页的滑动触感"）撤销该决定：
+         全站所有页面都不写该属性 → 与首页共用这一套滚轮平滑（TAU 曲线 + 双通道自适应），
+         站内滚动观感统一。`data-scroll="native"` 保留为逃生开关：某个页面确实需要
+         原生逐格滚动时写它即可（写了就整体 return，连 __wheelLock/__wheelPause 都不注册，
+         调用方均有 if 守卫，灯箱锁页退化为 CSS overflow:hidden，原生输入本就挡得住）。
+         ⚠️ 页内自带横向滚轮的区域（如项目页立牌影像排）必须自己 stopPropagation，
+         否则同一次滚轮会被两套滚动器各处理一遍。 */
       if (document.documentElement.getAttribute('data-scroll') === 'native') return;
       var target = null, raf = null;
       /* 第一百五十批（2026-08-23 主人"优化网页滑动手感"）：
