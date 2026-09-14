@@ -68,7 +68,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=313" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=314" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -187,15 +187,20 @@
 
     <!-- === 项目列表：立牌影像排（第二百七十八批 2026-09-13 主人"要不不用现在这款卡片的
          设计了，换成这网页帆布展示的设计"；参考 tblog.mmzhiku.xyz 首页的 home-blinds-scenes）===
-         每张立牌 = 吊线 + 竖排标签栏（点·眉标·短线·竖排项目名）+ 明信片（胶带 / 序号贴纸 /
+         每张立牌 = 吊绳 + 竖排标签栏（点·眉标·短线·竖排项目名）+ 明信片（胶带 / 序号贴纸 /
          照片框 / 手绘涂鸦 / 逐字落下的说明 / 右下角歪斜的印章）。
          交互：横向拖拽 / 滚轮 / 键盘 ←→ / 点侧卡居中、点当前卡开链接。
          数据与逻辑：../assets/js/projects-carousel.js（PROJECTS 数组）。
          第二百七十九批 2026-09-14：底部那条方块进度尺**整条撤掉**（主人"移除项目卡片下面的
-         进度条"）—— 位置信息由每张的印章「02 / 04」承担，不需要第二条指示器。 -->
+         进度条"）—— 位置信息由每张的印章「02 / 04」承担，不需要第二条指示器。
+         第二百八十批 2026-09-14：**一根横线吊住每一张**（主人"卡片上方加一条线吊住每一张
+         卡片"）—— 横线在 .pj-stage 里（静态、不随卡片横移），每张自己的吊绳 + 线环 +
+         卡片顶上的气眼由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。 -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
       <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
-        <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
+        <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ">
+          <span class="pj-stage__wire" aria-hidden="true" data-page-node-id="pjWire0001"></span>
+        </div>
       </div>
     </section>
   </main>
@@ -217,6 +222,6 @@
   <script src="../assets/js/loader.js?v=6" defer></script>
   <script src="../assets/js/script.js?v=138" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=95" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=96" defer></script>
 </body>
 </html>

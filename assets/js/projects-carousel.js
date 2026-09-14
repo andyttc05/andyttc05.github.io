@@ -251,12 +251,21 @@
     if (im.decode) im.decode().catch(function () {});
   });
 
-  /* 立牌 DOM（池化复用：出界回池、进界取用）。结构与参考站一致 ——
-     吊线 / 竖排标签栏（点·眉标·短线·竖排标题）在 .pj-scene__swing 里（随吊牌一起摆），
-     明信片（胶带·贴纸·照片框·说明带·印章）在 .pj-scene__card 里。 */
+  /* 立牌 DOM（池化复用：出界回池、进界取用）。三层，各管一件事：
+       .pj-scene         位移（+透明度）—— 每帧写 translateX
+       .pj-scene__swing  摆动（transform-origin = 吊点 = 绳顶）
+         .pj-scene__hang   吊绳 + 线环 + 气眼   ← **不缩放**（挂在线上的是实物）
+         .pj-scene__zoomer 缩放（origin 50% 0 = 吊点）→ 标签栏 + 明信片
+     第二百八十批：绳/环/眼每张都有（原来只有 raised 有那根 .pj-scene__string），
+     长度由 CSS 的 --pj-cord-h 按 raised 与否自己算 —— JS 不重复算一遍几何。 */
   var SCENE_HTML =
     '<div class="pj-scene__swing">' +
-      '<span class="pj-scene__string" aria-hidden="true"></span>' +
+      '<span class="pj-scene__hang" aria-hidden="true">' +
+        '<span class="pj-scene__cord"></span>' +
+        '<span class="pj-scene__ring"></span>' +
+        '<span class="pj-scene__eyelet"></span>' +
+      '</span>' +
+      '<div class="pj-scene__zoomer">' +
       '<div class="pj-scene__rail" aria-hidden="true">' +
         '<span class="pj-scene__rail-dot"></span>' +
         '<span class="pj-scene__rail-eyebrow"></span>' +
@@ -284,6 +293,7 @@
             '<path class="pj-scene__stamp-flourish" pathLength="1" d="M2 7q22-6 44-1t56-3"/>' +
           '</svg>' +
         '</span>' +
+      '</div>' +
       '</div>' +
     '</div>';
 
@@ -352,6 +362,8 @@
         /* 第 2、4 张吊起来（参考站 5 张里 2 张 raised，同节奏）。
            按**项目序号**定而不是槽位 j：回绕时不会翻面。 */
         el.classList.toggle('pj-scene--raised', wrapIdx(j) % 2 === 1);
+        /* 缩放层（每帧写 scale）。与 _zi/_active/_txt 一样跟着元素一起复用。 */
+        el._zoom = el.querySelector('.pj-scene__zoomer');
         slot = { j: j, el: el, img: img };
         slots.push(slot);
       }
@@ -367,8 +379,15 @@
            scale   = 1 − 0.06·min(1, u)         （过了 1 档恒 0.94）
            opacity = clamp(1 − 0.57·u, 0, 1)    （≈1.75 档归零，比旧版 [2,3] 收得早）
          即"一张主角 + 旁边那张正在淡出"。skewed 时代那套 rotateY/smoothstep 曲线与
-         ±1/±2 的 0.85/0.70 透明分级随设计一起撤掉 —— "±2 也要看清"不再是本页的诉求。 */
-      slot.el.style.transform = 'translateX(' + m + 'px) scale(' + (1 - 0.06 * Math.min(1, u)).toFixed(3) + ')';
+         ±1/±2 的 0.85/0.70 透明分级随设计一起撤掉 —— "±2 也要看清"不再是本页的诉求。
+         第二百八十批：**缩放从 .pj-scene 挪到内层 .pj-scene__zoomer**（位移还在 scene 上），
+         因为吊线是一根**静止的**横线：整张牌连吊环一起缩，邻居的环就会从线上脱开
+         （实测 1280：邻居环比线低 13.4px，一眼就是"没挂上去"）。挪到内层后
+         zoomer 的 transform-origin 取 50% 0 = 卡顶正中 = **吊点**，吊点是不动点 ⇒
+         吊环永远落在线上、绳长不变，邻居只是"从吊点往下小一圈"（物理上也更对：
+         挂在同一根线上的小牌，顶边当然还是齐着线）。曲线本身一个数没改。 */
+      slot.el.style.transform = 'translateX(' + m + 'px)';
+      slot.el._zoom.style.transform = 'scale(' + (1 - 0.06 * Math.min(1, u)).toFixed(3) + ')';
       slot.el.style.opacity = Math.max(0, 1 - 0.57 * u).toFixed(3);
       var zi = Math.max(0, 2 - Math.round(u));
       if (slot.el._zi !== zi) { slot.el._zi = zi; slot.el.style.zIndex = zi; }

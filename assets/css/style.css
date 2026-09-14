@@ -3067,7 +3067,24 @@
          高视口上少的那 5px 是抬帽换来的（照片 280→320 吃 40px，尺只还 36px），余量本就
          上百 px，无影响；矮视口反而更松。**1366×768 这一档余量本来就是 0**（改动前也是
          0，不是本批引入的），改谁也翻不动它 —— 再要塞东西就得先砍上面的标题区。
-       · 照片宽 = 高 × 4/3，所以卡宽、卡高、步距（--pj-step）全跟着长，JS 一行不用改。 */
+       · 照片宽 = 高 × 4/3，所以卡宽、卡高、步距（--pj-step）全跟着长，JS 一行不用改。
+     第二百八十批 2026-09-14（主人"卡片上方加一条线吊住每一张卡片；设计精美一点、风格要
+     一致、灵感上网搜"）：
+       · 参考语汇（搜来的四处，都取"实物怎么吊"这一层，不取配色）：
+         Framer「Hanging Cards」= 单根钢丝 + 每张一条吊绳 + 可换的别针；
+         Framer「Clothesline Gallery」= 一条略垂的线 + 每张一个夹子；
+         服装吊牌工艺（hang tag / swing tag）= 打孔 + 气眼 + 棉绳，孔心离纸边 6~9mm；
+         Codrops「Clothesline」= 一根线横向贯穿、东西挂在下面。
+       · 落到本站三点：① 一根横线贯穿全排（.pj-stage__wire，静态、两端 mask 淡出）；
+         ② 每张一条吊绳（上浅下深，靠卡片那头更深）；③ 绳过线处一枚中空线环、
+         绳过卡片处一个气眼（墨圈 + 露页面底色 + 内侧浅阴影）。全部走 --pj-ink 墨色系，
+         不引新色相 —— 与标签栏的 2px 墨线、5px 圆点同一套笔画。
+       · 几何复用：绳顶一律落在横线上（平卡的绳 = drop+rope-extra，吊卡 = 0.54·drop+rope-extra，
+         两者顶端同高），摆动轴心 = 绳顶 ⇒ `--pj-cord-h` 一个属性同时喂 transform-origin 与绳长。
+       · 胶带从顶部正中挪到右上角：正中让给吊绳 + 气眼（原先会糊住接缝），构图成
+         "左上贴纸 / 正中吊点 / 右上胶带"三点。
+       · 摆幅按绳长走（单摆 ω=√(g/L)）：平卡绳更长 ⇒ 1.8°/1.3s，吊卡仍 2.6°/1.1s，
+         每张挂上去都晃（原来只有 raised 晃，同一排两种物理说不通）。 */
   /* 第二百七十八批：--pj-step 必须**注册**成 <length>，否则
      getComputedStyle 返回的是 `calc(calc(...))` 原文而不是 px 数（未注册的自定义属性
      只做 var() 替换、不求值）—— JS 的 parseFloat 会拿到 NaN，吸附就永远走兜底 280px。
@@ -3089,6 +3106,10 @@
     --pj-card-w: calc(var(--pj-photo-w) + var(--pj-pad) * 2 + 4px);
     --pj-card-h: calc(var(--pj-photo-h) + var(--pj-pad) * 2 + var(--pj-band) + 4px);
     --pj-step: calc(var(--pj-card-w) + var(--pj-rail-w) + var(--pj-rail-gap) * 2);
+    /* 气眼：孔心距卡顶 / 外径。放在 .pj-scenes 上（和别的尺寸 token 一起），
+       手机档要能覆盖它 —— 写进 .pj-scene 就会反过来盖掉手机档的值。 */
+    --pj-hole-y: 7px;
+    --pj-hole-d: 8px;
     /* 吊线区高度：raised 立牌挂在上半段（0.46 × drop = 绳长）。取值的下限是"看得出高低
        错落"—— 太短就看不出吊着，太长则吃掉垂直预算（整页要压在一屏内）。 */
     --pj-drop: clamp(34px, 7.5vh, 92px);
@@ -3121,30 +3142,102 @@
     width: var(--pj-card-w);
     height: var(--pj-card-h);
     margin-left: calc(var(--pj-card-w) / -2);
+    /* 吊绳长 —— 从卡顶量到横线（也就是摆动轴心）。**平卡与吊卡只差这一条**：
+       平卡的绳 = 整个吊线区（drop）+ 越过段顶的那一截（rope-extra），
+       吊卡的绳 = 它抬起来省下的那部分（drop×0.54）+ 同一截。
+       两者顶端因此**都落在同一根横线上**，全排共用一根线。 */
+    --pj-cord-h: calc(var(--pj-drop) + var(--pj-rope-extra));
     will-change: transform, opacity;
     cursor: pointer;
   }
   .pj-scene.is-active { z-index: 2; }
   /* 奇数张（第 2、4 张）吊起来 —— 参考站 5 张里 2 张 raised，
      本站 4 张里也放 2 张，节奏才是"一高一低" */
-  .pj-scene--raised { top: calc(var(--pj-drop) * 0.54); }
+  .pj-scene--raised {
+    top: calc(var(--pj-drop) * 0.54);
+    --pj-cord-h: calc(var(--pj-drop) * 0.54 + var(--pj-rope-extra));
+  }
   .pj-scene__swing {
     position: absolute;
     inset: 0;
-    transform-origin: 50% calc(-1 * (var(--pj-drop) * 0.54 + var(--pj-rope-extra)));
+    /* 轴心 = 绳顶 = 横线。与绳长**共用同一个自定义属性**，改一处两处都对
+       （第二百八十批：原来这里写死了一份 0.54×drop + rope-extra，只有吊卡用得上） */
+    transform-origin: 50% calc(-1 * var(--pj-cord-h));
   }
-  /* 吊线：从立牌顶再往上垂到段顶（只有 raised 有） */
-  .pj-scene__string {
+  /* 缩放层（第二百八十批新建）：scale 从 .pj-scene 挪到这里，origin 取**卡顶正中**
+     = 吊绳落点。吊点是缩放的不动点 ⇒ 邻居缩小的时候吊环还咬在横线上、绳长也不变
+     （放在 .pj-scene 上时是按盒心缩的，邻居的环整条掉到线下 13.4px，1280 实测）。
+     吊绳/线环/气眼留在这一层**外面** —— 它们是挂在线上、穿过纸孔的实物，
+     该跟线一样不随卡片缩。scale 的数值曲线一字未动（还是 1 − 0.06·min(1,u)）。 */
+  .pj-scene__zoomer {
     position: absolute;
-    top: calc(-1 * (var(--pj-drop) * 0.54 + var(--pj-rope-extra)));
-    left: 50%;
-    display: none;
-    width: 2px;
-    height: calc(var(--pj-drop) * 0.54 + var(--pj-rope-extra));
-    margin-left: -1px;
-    background: color-mix(in srgb, var(--pj-ink) 42%, transparent);
+    inset: 0;
+    transform-origin: 50% 0;
   }
-  .pj-scene--raised .pj-scene__string { display: block; }
+  /* 吊线：一根横线贯穿全排（静态、在 .pj-stage 里，不随卡片横移）。
+     两端用 mask 淡出 —— 不然它就是一条"分割线"，会被读成版块边界而不是一根线。
+     粗细/深浅量过一轮：1px + 24% 墨在浅底上等于看不见（出图才发现），
+     现在是 1px + 36% 墨 + 底下一道 2px 软影（线是**离开纸面**的实物，落一道影子才立得住）。 */
+  .pj-stage__wire {
+    position: absolute;
+    top: calc(-1 * var(--pj-rope-extra));
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: color-mix(in srgb, var(--pj-ink) 38%, transparent);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--pj-ink) 22%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    pointer-events: none;
+  }
+  /* 吊绳 + 线环 + 气眼（每张一套，装在 swing 里跟着摆）。
+     z-index 3 = 压在自己的明信片上（线环要压住横线、气眼要压住纸边和绳尾），
+     pointer-events:none —— 它整片盖在卡片上半部，能点就让卡片点不动了。 */
+  .pj-scene__hang {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .pj-scene__cord {
+    position: absolute;
+    top: calc(-1 * var(--pj-cord-h));
+    left: 50%;
+    width: 2px;
+    /* 往下多伸一个孔心：最后 4.5px 会被气眼内孔盖住 ⇒ 看上去绳**钻进孔里** */
+    height: calc(var(--pj-cord-h) + var(--pj-hole-y));
+    margin-left: -1px;
+    /* 上浅下深：靠卡片那头被重量拉紧、也离纸更近 */
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--pj-ink) 32%, transparent),
+      color-mix(in srgb, var(--pj-ink) 56%, transparent));
+  }
+  /* 线环：横线从环里穿过去（环内中空，所以横线还是看得见） */
+  .pj-scene__ring {
+    position: absolute;
+    top: calc(-1 * var(--pj-cord-h));
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    box-sizing: border-box;
+    border: 1.5px solid color-mix(in srgb, var(--pj-ink) 46%, transparent);
+    border-radius: 50%;
+  }
+  /* 气眼：打孔的墨圈 + 露底色（孔是通的，所以填的是**页面底色**而不是纸色） */
+  .pj-scene__eyelet {
+    position: absolute;
+    top: var(--pj-hole-y);
+    left: 50%;
+    width: var(--pj-hole-d);
+    height: var(--pj-hole-d);
+    margin: calc(var(--pj-hole-d) / -2) 0 0 calc(var(--pj-hole-d) / -2);
+    box-sizing: border-box;
+    border: 1.6px solid color-mix(in srgb, var(--pj-ink) 52%, transparent);
+    border-radius: 50%;
+    background: var(--color-paper);
+    box-shadow: inset 0 1px 1.5px color-mix(in srgb, var(--pj-ink) 26%, transparent);
+  }
 
   /* 竖排标签栏：贴在卡片左侧（参考站 right: calc(100% + gap)） */
   .pj-scene__rail {
@@ -3209,15 +3302,18 @@
     background: var(--pj-paper);
     box-shadow: 0 18px 38px color-mix(in srgb, var(--color-shadow) 100%, transparent);
   }
-  /* 顶部胶带：45° 双色斜纹（站内 accent 的两个明度，不引参考站的青绿） */
+  /* 顶部胶带：45° 双色斜纹（站内 accent 的两个明度，不引参考站的青绿）。
+     第二百八十批：从**顶部正中挪到右上角** —— 正中现在是吊绳 + 气眼的位置（绳从那儿
+     进孔），胶带压在上面会把接缝糊掉。挪到右上之后构图也正好：左上有序号贴纸、
+     正中是吊点、右上是胶带，三点平衡；胶带反着歪（+2.5° 对贴纸的 -8°），不对称但不打架。 */
   .pj-scene__tape {
     position: absolute;
     top: -12px;
-    left: 50%;
+    right: -13px;
     z-index: 2;
     width: clamp(58px, 4.8vw, 78px);
     height: clamp(20px, 1.9vw, 26px);
-    transform: translateX(-50%) rotate(-1.5deg);
+    transform: rotate(2.5deg);
     background: repeating-linear-gradient(-45deg,
       color-mix(in srgb, var(--color-accent) 32%, var(--pj-paper)) 0 6px,
       color-mix(in srgb, var(--color-accent) 13%, var(--pj-paper)) 6px 12px);
@@ -3368,6 +3464,20 @@
     76%  { transform: rotate(-0.25deg); }
     100% { transform: rotate(0deg); }
   }
+  /* 第二百八十批：每张都吊在线上 ⇒ **每张挂上去都该晃**（原来只有 raised 会晃，
+     同一排里两种物理说不通）。幅度与周期按绳长定 —— 单摆 ω=√(g/L)：
+     平卡的绳更长（≈1.5×）⇒ 同样的初始推力下角振幅更小、周期更长。
+     绳长比 (drop+E)/(0.54·drop+E) ≈ 1.45 ⇒ 幅度 2.6°→1.8°、周期 1.1s→1.3s（√1.45≈1.2）。 */
+  .pj-scene:not(.pj-scene--raised).is-enter .pj-scene__swing {
+    animation: pj-swing-soft 1.3s cubic-bezier(0.33, 0, 0.2, 1) both;
+  }
+  @keyframes pj-swing-soft {
+    0%   { transform: rotate(1.8deg); }
+    26%  { transform: rotate(-1.04deg); }
+    52%  { transform: rotate(0.48deg); }
+    76%  { transform: rotate(-0.17deg); }
+    100% { transform: rotate(0deg); }
+  }
 
   /* === 项目页 · 一屏内完整显示（第一百八十六批 2026-08-25 主人"项目页面电脑应一页显示全部"）===
      标题区复用 about-hero，轮播区垂直空间压缩，让 1280×800 桌面视口整页无滚动。 */
@@ -3419,6 +3529,9 @@
       --pj-rail-gap: 12px;
       --pj-drop: clamp(28px, 7vw, 48px);
       --pj-rope-extra: 12px;
+      /* 气眼跟着窄屏缩一档：卡内边距只有 12px，孔再大就压到照片上 */
+      --pj-hole-y: 6px;
+      --pj-hole-d: 7px;
     }
     .pj-scene__rail-title { font-size: 13px; letter-spacing: 0.14em; }
     .pj-scene__rail-eyebrow { font-size: 9px; letter-spacing: 0.2em; }
@@ -3435,6 +3548,7 @@
     .pj-scene.is-enter .pj-scene__sticker,
     .pj-scene.is-enter .pj-scene__caption-char,
     .pj-scene.is-enter .pj-scene__stamp-flourish,
-    .pj-scene--raised.is-enter .pj-scene__swing { animation: none; }
+    .pj-scene--raised.is-enter .pj-scene__swing,
+    .pj-scene:not(.pj-scene--raised).is-enter .pj-scene__swing { animation: none; }
     .pj-scene__stamp-flourish { stroke-dashoffset: 0; }
   }
