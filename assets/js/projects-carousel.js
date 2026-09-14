@@ -141,20 +141,29 @@
    明信片（胶带 / 序号贴纸 / 照片框 / 手绘涂鸦 / 逐字落下的说明 / 右下角歪斜的印章）。
    实测依据：~/.workbuddy/scratch/tblog-canvas/tblog-scenes4.js（步距 762px、
    当前张 scale 1/op 1，邻张 0.94/0.4→0，20 格进度尺，GSAP 逐件装配时间轴）。
-   **本批只动渲染层**：DOM 构建（buildScene）、逐帧曲线（render）、进度尺、入场装配。
+   **本批只动渲染层**：DOM 构建（buildScene）、逐帧曲线（render）、进度尺（279 批撤掉）、
+   入场装配。
    输入层（1:1 跟手 / 停滚 120ms / 三次 Hermite 落位 / 点击安全闸 / 键盘 / 自动轮播）
    一行没动 —— 那是 264~276 批四十几轮真机调试的产物，重写等于把坑再踩一遍。
    撤掉的：rotateY 旋转曲线、±1/±2 的 0.85/0.70 透明分级、"±2 也要看清"的整套诉求
    （那是 skewed 设计的要求，随设计一起作废）、smoothstep/easeOutQuad 两个缓动函数。
    有意偏离参考站的三点写在 style.css 的 .pj-scenes 块顶部（横向推进改拖拽、配色走
    站内 token、卡片尺寸按本站垂直预算）。
+
+
+   第二百七十九批 2026-09-14（主人"移除项目卡片下面的进度条；优化一下卡片大小和排版，
+      卡片可以大一点点"）：
+   进度尺**整条撤掉**（参考站底部那条 20 格亮块）—— HTML 的 .pj-meter、CSS 的
+   .pj-meter* 规则、本文件的 meter/meterLit 变量与逐帧亮块循环一起清掉，不留孤儿。
+   位置信息由每张卡右下角的印章「02 / 04」承担，不需要第二条指示器。
+   尺寸调整全在 style.css（照片高 27vh → 31vh，帽 280 → 320 —— 正好吃掉撤掉那条尺
+   腾出来的 ~32px）：--pj-step 是从卡片宽算出来的，所以卡变大 = 步距自动变大，
+   **引擎这一层只删代码、不改逻辑**。
 */
 (function () {
   var root = document.getElementById('projectScenes');
   if (!root) return;
   var stage = root.querySelector('.pj-stage');
-  var meter = root.querySelector('.pj-meter__blocks');   /* 进度尺（参考站 20 格 → 本站 n×4 格） */
-  var meterLit = -1;
 
   /* === 项目数据（第二百批：图片卡，bg 由 p.img 全图覆盖；no/title 覆盖在图上）
      2026-08-30 接入真实项目：前两张为真实 GitHub 仓库（link 可点跳转，desc 副标题），
@@ -371,19 +380,6 @@
            否则同一个元素的动画不会重播；邻居不动 —— 整排一起抖就是主人最烦的多余动作。 */
         slot.el.classList.remove('is-enter');
         if (active) { void slot.el.offsetWidth; slot.el.classList.add('is-enter'); }
-      }
-    }
-    /* 进度尺（参考站 5 张 20 格 = 每张 4 格，本站 n×4 = 16 格）：亮块按**连续**位置给，
-       拖动时平滑扫过而不是一档一跳。 */
-    if (meter && meter.children.length) {
-      var per = meter.children.length / n;
-      var fr = ((-x / st) % n + n) % n;
-      var lit = Math.min(meter.children.length, Math.max(1, Math.round((fr + 1) * per)));
-      if (lit !== meterLit) {
-        meterLit = lit;
-        for (var bi = 0; bi < meter.children.length; bi++) {
-          meter.children[bi].classList.toggle('is-lit', bi < lit);
-        }
       }
     }
   }
@@ -914,16 +910,6 @@
     if (rTimer) return;
     rTimer = setTimeout(function () { rTimer = null; measure(); render(); }, 150);
   });
-
-  /* 进度尺格数 = 项目数 × 4（参考站 5 张 20 格）。在 JS 里生成 ——
-     增删项目不用同步改 HTML，格数永远跟着数据走。 */
-  if (meter) {
-    for (var mi = 0; mi < n * 4; mi++) {
-      var mb = document.createElement('span');
-      mb.className = 'pj-meter__block';
-      meter.appendChild(mb);
-    }
-  }
 
   measure();
   render();
