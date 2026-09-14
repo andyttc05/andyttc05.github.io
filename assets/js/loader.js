@@ -3,8 +3,9 @@
    决策模型 —— 基于【时间 / 场景 / 用户感知】，而非"资源全到位才放行"：
 
    [时间]
-   - 加载页的**可见性由 loader.js 控制**（loader.css 里默认 opacity:0，第一帧才放出来）：
-     秒开/站内导航能在它被画出来之前直接摘掉，不会出现"画一帧再硬移除"的闪（2026-09-15 修）；
+   - 加载页的**可见性由 loader.js 控制**（loader.css 里默认 opacity:0）：
+     它**只在页面确实慢了之后才被放出来**（REVEAL_AFTER_MS = 150ms），
+     快网冷加载实测 0 帧出现；慢网才会露脸（2026-09-15 修）；
    - 就绪耗时（performance.now 实测）：就绪 < 350ms 且加载页还没被放出来 → 连淡出都省、直接移除；
      放出来过的一律走淡出（硬移除会闪掉一帧满屏浅色，详见 release()）；
    - 最短展示：首访 900ms / 回访 450ms —— 用户感知上"加载页存在过"才自然；
@@ -54,6 +55,7 @@
   try { sessionStorage.setItem('rm-loader-seen', '1'); } catch (e) {}
 
   /* --- 决策参数 --- */
+  var REVEAL_AFTER_MS = 150;         /* 到点还没就绪才把加载页放出来；先就绪 → 用户从头没见过它 */
   var SKIP_FAST_MS = 350;            /* 就绪耗时低于此 + 加载页还没放出来 → 秒开，直接移除不淡出 */
   var MIN_SHOW_MS = seen ? 450 : 900; /* 最短展示：回访 450 / 首访 900（品牌落地） */
   var MAX_WAIT_MS = slowNet ? 12000 : 6000; /* 兜底上限：快网 6s / 慢网 12s */
@@ -64,21 +66,25 @@
      2026-09-15 主人"刷新页面时会闪"。原来加载页一进 DOM 就可见，于是两条快路径
      （秒开 < 350ms / 站内导航 nav-instant）只能靠"画出来之后再摘掉"，摘的那一下就是
      一帧满屏浅色闪掉；线上实测每页都中招（画过 1 帧：65~109ms 显示 → 同一毫秒消失）。
-     现在它默认不可见，由本文件在第一帧放出来：
-       · 快路径先到 → 直接移除，用户从没见过它（不是"画了再藏"）；
-       · 正常路径 → 第一帧放出来，之后按最短展示/就绪时间淡出。
-     顺带把闸门失效也兜住了：就算 loader.css 被缓存成没有 nav-instant 那条规则的旧版，
-     站内导航页也永远走不到这行，加载页照样画不出来。 */
+     现在它默认不可见，由本文件在**确实慢了**的时候才放出来（REVEAL_AFTER_MS）：
+       · 150ms 内就绪 → 加载全程它一次都没画过（不是"画了再藏"）—— 快网下这是常态；
+       · 到点还没就绪 → 放出来，之后按最短展示/就绪时间淡出。
+     ⚠️ 2026-09-15 第一版只把"硬移除"改成"画过就淡出"，实测冷加载照样占 122~251ms 满屏
+        （而内容是 30ms 就绪的）—— 因为原来第一帧就无条件放出来，而 load 永远晚于第一帧，
+        "秒开直接移除"那条路根本走不到。**决定用户看不看得见的是放出来的时机，不是摘掉的方式。**
+     闸门失效也兜住了：就算 loader.css 被缓存成没有 nav-instant 那条规则的旧版，
+     这条"延迟到 REVEAL_AFTER_MS"的判定仍会让快网下的加载页画不出来。 */
   var shown = false;
-  requestAnimationFrame(function () {
+  var revealTimer = setTimeout(function () {
     if (done) return;
     shown = true;
     loader.classList.add('is-shown');
-  });
+  }, REVEAL_AFTER_MS);
 
   function release(skipFade) {
     if (done) return;
     done = true;
+    clearTimeout(revealTimer); /* 还没放出来就绪了 → 定时器必须撤掉，否则它到点会把它放出来 */
     html.classList.remove('page-loading');
     html.classList.add('page-ready');
     try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
