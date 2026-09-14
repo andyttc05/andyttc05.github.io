@@ -375,8 +375,11 @@
    2026-09-13：v10 的 Swiper freeMode 是「连续跟手」，同一时刻必然显示邻图；yibi 的
    切换是「单图容器 + 出-进两段淡滑」，两者结构上互斥。主人看过参考站后选了后者，
    于是 Swiper（连同捏合 / 双击缩放 / 放大后平移）整体移除。
-   参考站实测（真机 + 逐帧采样）：出 150ms ease-in、位移 ∓32px；进 150ms ease-out、
-   反向 32px → 0；两段【顺序】执行，没有交叉淡化 —— 同一时刻舞台上只有一张图。 */
+   参考站实测（真机 + 逐帧采样 + getAnimations()，2026-09-13 / 09-15）：
+   出 150ms cubic-bezier(.4,0,1,1)、位移 ∓32px、opacity 1→0；进 150ms cubic-bezier(0,0,.2,1)、
+   反向 32px → 0、opacity 0→1；两段之间约 40~50ms 空档，【顺序】执行没有交叉淡化 ——
+   同一时刻舞台上只有一张图。v12（2026-09-15）主人指定换回这一套并加了拖动轻微跟手
+   （位移 = 手指位移 × 0.29，封顶 32px；邻图不参与）。 */
 body.dy-lb-open { overflow: hidden; }
 .dy-lb {
   --lb-pad-top: 26px;     /* 顶部只留一点呼吸 ── 计数/关闭已移除 */
@@ -398,9 +401,10 @@ body.dy-lb-open { overflow: hidden; }
    也不要靠给子节点写 92vw：窄屏会压到两侧箭头上。
    v11.4（2026-09-13，主人"增加滑动图片的功能，一次滑动只能滑动一张图片"）：
    舞台里改成三个【角色槽位】prev / cur / next，各自绝对定位铺满、媒体在槽位里居中。
-   手势期间整条一起平移（一条胶片），静止时两个邻居槽位 opacity:0 —— 所以
-   「舞台上只有一张图」这个 v11 不变式在静止态依然成立，只有手指真的在拉的时候
-   才看得见邻图。 */
+   ⚠️ v12（2026-09-15）之后：手势期间**只有当前槽位动**（位移 = 手指位移 × 0.29、
+   封顶 32px），两个邻居槽位全程压在 opacity:0。所以「舞台上任何时刻只有一张图」
+   从 v11 的"静止态不变式"升级成了硬不变式 —— 邻图槽位留着只为量步距和 debug，
+   别再把它们拉进画面（参考站的 mode="out-in" 结构上就不允许两张图同时在场）。 */
 .dy-lb-stage {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -848,8 +852,8 @@ body.dy-lb-open { overflow: hidden; }
    设计"→ 同一个参考站）：底部圆点改成【当前张拉长成胶囊】。参考站实测：常态 8×8、
    当前张 24×8（宽 = 3 倍高）、gap 8px、transition all .3s cubic-bezier(.4,0,.2,1)、
    常态 rgba(255,255,255,.3) → hover .5 → 当前 #fff。本站沿用 7px 基准 ⇒ 当前张 21px。
-   同时把外壳同步提前：原来是出相 150ms 走完（lbShow）才换高亮，现在一开段（v11.7 起
-   是 lbSlideTo）就按【目标索引】切 —— 对齐参考站"点下即动"的手感（它点击后 ~20ms 起、
+   同时把外壳同步提前：原来是出相 150ms 走完（lbShow）才换高亮，现在一开段
+   （lbSwitchTo）就按【目标索引】切 —— 对齐参考站"点下即动"的手感（它点击后 ~20ms 起、
    300ms 走完）。
    圆角必须写 999px 而非 50%，否则长条变椭圆。 -->
 
@@ -1187,9 +1191,11 @@ body.dy-lb-open { overflow: hidden; }
 
     /* ======================================================================
        ---------- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
-       ⚠️ 下面这套 32px 出-进淡滑已经在 v11.7 **废止**（见本段末尾），保留记录是因为
-          它解释了槽位结构与"静止时只有一张图"从哪来。当前只跑轨道滑动一套。
-       参考站实测（逐帧采样，2026-09-13）：
+       ⚠️ 下面这套 32px 出-进淡滑的**来龙去脉**（v11 照搬 → v11.7 下线 → v12 又启用）：
+          v11 起就是它；v11.7（09-14）主人嫌"拖动与点击两套动画不一致"，统一成了
+          "整条胶片平移一步"；v12（09-15）主人指着参考站说"滑动切换图片的那个动画
+          参考这个网页" ⇒ 又换回这一套（加了拖动轻微跟手）。**当前线上跑的就是它。**
+       参考站实测（逐帧采样 + getAnimations()，2026-09-13 / 09-15 两次）：
          出：opacity 1→0，translateX 0 → ∓32px，150ms，ease-in  cubic-bezier(.4,0,1,1)
          进：opacity 0→1，translateX ±32px → 0，150ms，ease-out cubic-bezier(0,0,.2,1)
        两段【顺序】执行（Vue <Transition mode="out-in">）：同一时刻舞台上只有一张图。
@@ -1281,6 +1287,25 @@ body.dy-lb-open { overflow: hidden; }
            末张现在也是"从左边滑一步进来"，与拖动同一个观感。
          ⚠️ 教训：环形里**任何**"数值相邻"的判断都是错的 —— 判相邻、判方向、判边界
            一律走 lbWrapIdx。
+       v12（2026-09-15，主人「图片滑动的动画参考这个网页（yibi2333.fun/photowall），
+       你只用优化我网页的滑动时切换图片的那个动画」）：
+         · **切换动画换回参考站那套 32px 出-进淡滑**（v11.7 的轨道滑动下线）。先做了
+           三版并排 demo（现状 / 参考站+轻微跟手 / 参考站+不跟手）让主人挑，选的是
+           **参考站 + 轻微跟手**：
+             拖动 → 画面位移 = 手指位移 × damp(0.29)，封顶 32px（邻图全程不参与，
+                    所以"舞台上任何时刻只有一张图"这条不变式反而更硬了）；
+             松手过线 / 点箭头 / ←→ / 圆点 / 触控板 → 出 150ms ease-in（→ ∓32px + 淡到 0）
+                    → 空档 40ms → 进 150ms ease-out（±32px / 透明 → 0 / 实心）。
+         · 好处是**环形彻底免费**：所有通路的落位都只有"32px 两段"，谁也不用算步距、
+           不用判相邻、不用摆槽位 ⇒ v11.6/v11.8/v11.9 那一串绕回边界的病根（判数值相邻、
+           空槽位、半格偏移）在结构上消失了。
+         · 代价（已知并接受）：拖动时不再看见邻图跟进来（参考站本来就没有拖动）。
+         · 提交阈值仍沿用原来的像素判据（见 lbCommitDist），只是**判据读的是原始手指
+           位移**，不是画面位移 —— 画面被封顶在 32px，拿它当判据的话永远过不了线。
+         · 实测口径：`v11check.js` 第 5/12/13/15/16 组已按新契约重写。
+         ⚠️ 上面 v11.4~v11.9 的历史注释里出现的 `lbSlideTo` 就是现在的 `lbSwitchTo`
+            （v12 改名 —— 它不再"滑一整步"，叫 slide 会误导下一个读代码的人）。
+       ⚠️ v11.7 那条"只剩一套切换动画（轨道滑动）"已被 v12 取代 —— 见上。
 
        保留的三个坑位（跨版本反复踩到，别再丢）：
          ① 「换图片」必须用**已解码**的同一个 <img> 元素，而且在槽位间【移动】而不是
@@ -1306,14 +1331,19 @@ body.dy-lb-open { overflow: hidden; }
     var lbPhotos = [];
     var lbIndex = 0;
     var lbNode = null;        /* 当前张的节点：<img> 或 .dy-lb-emoji */
-    var lbPhase = 'idle';     /* idle | settle（v11.7 起没有 out / in 两段了） */
+    var lbPhase = 'idle';     /* idle | out | in（v12 起两段式回来了，见 lbSwitchTo） */
     var lbTo = 0;             /* 本段的目标索引 */
     var lbTimer = null;
+    /* v12：段号。每开一段 / 每次落定都 +1；出→进之间的那两个 rAF 回调靠它判断
+       "我还属于当前这一段吗"。少了它，落定后紧接着开的下一段会被上一段的回调盖掉
+       （症状：拖一下再点箭头，新一段刚起步就被写回 0 / 实心）。 */
+    var lbSeq = 0;
     var lbWarm = {};          /* src -> 已 decode 的 HTMLImageElement（复用，不重建） */
 
-    /* ⚠️ v11.7 删除了 LB_OUT_MS / LB_IN_MS / LB_SHIFT / LB_OUT_EASE / LB_IN_EASE
-       （参考站那套 32px 出-进淡滑）。点击与滑动现在共用下面的落位参数，
-       别再为了"点击轻一点"把它们加回来 —— 那正是主人上报的不一致。 */
+    /* ⚠️ v11.7 曾把上面那套（LB_OUT_MS / LB_IN_MS / LB_OUT_EASE / LB_IN_EASE）删掉，
+       理由是"点击与滑动要一致"。v12（09-15）主人指定换回参考站那套之后它们又回来了 ——
+       而且这次是**唯一**一套：拖动 / 触控板 / 箭头 / ←→ / 圆点全走 lbSwitchTo，
+       所以"两套不一致"这个病在结构上不可能再出现。 */
     var LB_SPEED = (function () {
       var m = /[?&]lbspeed=([0-9.]+)/.exec(location.search);
       var v = m ? parseFloat(m[1]) : 1;
@@ -1332,7 +1362,7 @@ body.dy-lb-open { overflow: hidden; }
            —— 非 freeMode 下滑动只走一张（v10 恰恰开的是 freeMode，所以会连翻）。
          · ItemSlide       `oneItem: true`；Simple Swipe Card `swipe_behavior: single`
            （"Each swipe moves exactly one card"）。
-       本站没有引库，但把同一条规则落在 lbSlideTo 里（target = lbIndex ± 1，恒定）。
+       本站没有引库，但把同一条规则落在 lbSwitchTo 里（target = lbIndex ± 1，恒定）。
        触控板那条路径还要额外对抗惯性尾巴（v10.2 / v273 都栽在这），见下面的 wheel。 */
     var LB_GAP = 26;             /* 胶片里两张照片之间的缝（px） */
     var LB_DRAG_MIN = 8;         /* 超过这个位移才判定轴向：区分"点一下"与"拖" */
@@ -1341,22 +1371,30 @@ body.dy-lb-open { overflow: hidden; }
     var LB_COMMIT_MIN = 46;
     var LB_FLICK = 0.45;         /* px/ms：轻甩也能翻 */
     var LB_FLICK_MIN = 12;       /* 但要真的动过，否则是抖动 */
-    var LB_SETTLE_MIN = 130;     /* 落位时长随剩余距离在 130~280ms 之间 */
-    var LB_SETTLE_SPAN = 150;
-    /* v11.7：位移曲线换成"起手快、尾巴长"的那条（iOS 相册 / Embla 的落位手感）。
-       原来的 cubic-bezier(.4,0,.2,1) 是 Material 标准曲线，起手几乎不动、收尾也慢，
-       松手后会有半拍的"空转"。结尾 y 恒 ≤ 1，所以依然**没有过冲 / 没有反弹**。 */
-    var LB_SETTLE_EASE = 'cubic-bezier(.32,.72,0,1)';
-    /* opacity 三个角色：到位的那张快点实心；滑出的那张最后一段才收；
-       另一侧立刻归零。三条共用同一条 ease（与位移解耦，见 lbSlideTo）。 */
-    var LB_NEAR_IN_MS = 120;     /* 邻图从透明到实心的时长（比位移短 —— 别半透明地滑进来） */
-    var LB_LEAVE_TAIL = 0.3;     /* 滑出去的那张：最后 30% 的位移时间里收干净 opacity */
-    var LB_FADE_IN_EASE = 'cubic-bezier(0,0,.2,1)';     /* ease-out */
-    var LB_FADE_OUT_EASE = 'cubic-bezier(.4,0,1,1)';    /* ease-in */
-    var LB_NEAR_FADE = 80;       /* 邻图随拖动渐显：拉过这个像素就完全显出来 */
-    /* ⚠️ 这里原来有 LB_EDGE_RUBBER / LB_EDGE_SLACK（端到端 0.28 阻尼 + 36px 余量），
-       2026-09-14 按主人要求**删除**：「怎么还有滑动反弹动画，我不喜欢反弹动画」。
-       拖动现在是硬边界（见 lbDragClamp），松手没过阈值也是瞬间归位（见 lbDragEnd）。
+    /* ---- 切换动画（v12，2026-09-15 主人选定参考站那套）----
+       「图片滑动的动画参考这个网页（yibi2333.fun/photowall），你只用优化我网页的滑动时
+         切换图片的那个动画」⇒ 三选一 demo 里挑了 **B：参考站 + 拖动轻微跟手**。
+       结构：舞台任何时刻只有一张图（邻图全程不参与），一步 =
+         出 150ms ease-in（位移到 ∓32px + 淡到 0）→ 空档 ~40ms → 进 150ms ease-out
+         （从 ±32px / 透明处回到 0 / 实心）。两段顺序执行，不重叠。
+       ⚠️ 这推翻了 v11.7 的决定（当时统一到"整条胶片平移一步"）—— 两次都是主人的选择，
+          别再拿 v11.7 的注释去"修回"轨道滑动；要改先问。 */
+    var LB_NUDGE = 32;           /* 出/进相位移（参考站实测值，逐帧核过） */
+    var LB_OUT_MS = 150;         /* 出相时长 */
+    var LB_IN_MS = 150;          /* 进相时长 */
+    var LB_SWAP_GAP = 40;        /* 出完到进之间的空档（参考站 Vue mode="out-in" 实测 ~50ms） */
+    var LB_OUT_EASE = 'cubic-bezier(.4,0,1,1)';    /* = ease-in（与参考站一致） */
+    var LB_IN_EASE = 'cubic-bezier(0,0,.2,1)';     /* = ease-out（与参考站一致） */
+    /* 跟手：画面位移 = 手指位移 × damp，封顶 32px（= 出相终点，所以松手再接出相是连续的）。
+       damp 取 32/110 ⇒ 手指正好拉到提交线时，画面恰好吃满 32px。 */
+    var LB_DRAG_CAP = LB_NUDGE;
+    var LB_DRAG_DAMP = LB_NUDGE / LB_COMMIT_MAX;
+    /* ⚠️ 这里原来有 LB_NEAR_FADE（邻图随拖动渐显的像素阈值），v12 删除 ——
+       跟手封顶只有 32px，邻图从第一帧起就是透明的，没有"渐显"这回事了。
+       再往上还有 LB_EDGE_RUBBER / LB_EDGE_SLACK（端到端 0.28 阻尼 + 36px 余量）：
+       2026-09-14 按主人要求**删除**（「怎么还有滑动反弹动画，我不喜欢反弹动画」）。
+       拖动现在是硬封顶（见 lbDragVis），松手没过阈值也是瞬间归位（见 lbDragEnd）。
+       v12 的 32px 跟手封顶不是"回弹"：到顶就不动，松手也不会往回弹。
        别再把它当成"手感更好"加回来。 */
     var LB_WHEEL_GAP = 140;      /* 轮子手势的静默间隔（超过即算新手势） */
     var LB_WHEEL_MIN = 12;       /* 轮子手势的最小累计位移 */
@@ -1412,7 +1450,7 @@ body.dy-lb-open { overflow: hidden; }
     function lbFx0(el) { el.style.transition = 'none'; }
 
     /* 圆点高亮（当前张 = 长条）。抽出来是因为它有两个调用时机：
-       ① lbFill 落定后按 lbIndex 同步；② lbSlideTo 一开段就按【目标】同步 ——
+       ① lbFill 落定后按 lbIndex 同步；② lbSwitchTo 一开段就按【目标】同步 ——
        参考站的圆点是点下即动（实测点击后 ~20ms 起、300ms 走完），而不是等一相播完。 */
     function lbDotsMark(i) {
       var ds = lbDots.children, k;
@@ -1440,7 +1478,7 @@ body.dy-lb-open { overflow: hidden; }
     }
 
     /* 换图（终态）：把 lbIndex 设到 i 并把槽位归位。本身不带任何动画，
-       动画只由 lbSlideTo 挂 —— 两件事分开，才不会互相盖掉。 */
+       动画只由 lbSwitchTo 挂 —— 两件事分开，才不会互相盖掉。 */
     function lbShow(i) {
       /* v11.6 这里兜底**夹紧**（越界一动不动），v11.8 起改成**折回另一端**。
          任何调用方算错也只会落到一张真实存在的照片上，不会把空槽位当当前张
@@ -1488,10 +1526,14 @@ body.dy-lb-open { overflow: hidden; }
       };
     }
 
-    /* 静止态：邻居各归各位【但透明】—— 所以静止时看到的仍然只有一张图（v11 不变式）。
-       ⚠️ 当前张的 opacity 也必须显式写回 1：lbSlideTo 会把"滑出去的那个槽位"淡到 0，
-       而提交之后新图恰好落进同一个槽位元素（节点是移动的，槽位不变）—— 少了这一行，
-       每次滑动提交完舞台就是全黑的。 */
+    /* 静止态：当前张归位到 0 / 实心，邻居各归各位【但透明】—— 所以静止时看到的
+       仍然只有一张图（v11 不变式，v12 之后连拖动中也不露邻图）。
+       ⚠️ 当前张的 opacity 必须显式写回 1：lbSwitchTo 的出相把**当前槽位**淡到 0，
+       而换图之后新图恰好落进同一个槽位元素（节点是移动的，槽位不变）—— 少了这一行，
+       每次切换完舞台就是全黑的。
+       ⚠️ 邻居的 translate 值（±d.p / ±d.n）v12 之后纯属"摆着"，视觉上永远看不见；
+       留着是因为 lbDims 要靠槽里的节点量宽度（提交阈值按步距算），以及 ?lbdebug 的
+       off 数组仍然读它。别以为它们还有动画含义。 */
     function lbRest() {
       var d = lbDims(), k;
       for (k = 0; k < 3; k++) lbFx0(lbSlots[k]);
@@ -1503,17 +1545,24 @@ body.dy-lb-open { overflow: hidden; }
       lbSlotNext.style.opacity = '0';
     }
 
-    /* 整条胶片平移 v 像素。邻居随拖动渐显：不拉就看不见，拉过 LB_NEAR_FADE 全显。
-       ⚠️ v11.7：**只给"正在被拉进画面"的那个邻居渐显**（v>0 拉的是上一张、
-       v<0 拉的是下一张），另一侧恒 0。原来两侧同时按 |v| 亮起来，而另一侧其实在
-       往屏外走，于是屏边会多出一条跟画面脱节的残影。 */
-    function lbShift(v, d) {
-      var o = Math.min(Math.abs(v) / LB_NEAR_FADE, 1);
+    /* 拖动跟手（v12）：**只动当前张**。
+       参考站的舞台上任何时刻只有一张图（mode="out-in"），所以跟手也不露邻图 ——
+       邻图槽位全程压在 opacity:0（它们还在，只是不参与，理由见 lbDims 的注释）。
+       位移由 lbDragVis 算好（阻尼 + 封顶 32px）再传进来。 */
+    function lbShift(v) {
       lbSlotCur.style.transform = 'translateX(' + v + 'px)';
-      lbSlotPrev.style.transform = 'translateX(' + (v - d.p) + 'px)';
-      lbSlotNext.style.transform = 'translateX(' + (v + d.n) + 'px)';
-      lbSlotPrev.style.opacity = String((d.hasP && v > 0) ? o : 0);
-      lbSlotNext.style.opacity = String((d.hasN && v < 0) ? o : 0);
+      lbSlotPrev.style.opacity = '0';
+      lbSlotNext.style.opacity = '0';
+    }
+
+    /* 跟手位移：手指位移 → 画面位移。damp 之后**硬封顶**在 32px。
+       ⚠️ 封顶值刻意等于出相终点（LB_NUDGE）—— 于是"拖到顶再松手"与"出相"是同一点，
+       中间不会有一跳。别把这里改成整步步距：v12 之后一步的位移就是 32px。 */
+    function lbDragVis(dx) {
+      var v = dx * LB_DRAG_DAMP;
+      if (v > LB_DRAG_CAP) v = LB_DRAG_CAP;
+      if (v < -LB_DRAG_CAP) v = -LB_DRAG_CAP;
+      return v;
     }
 
     /* 按 lbIndex 把三个槽位摆好（终态，无动画） */
@@ -1543,14 +1592,15 @@ body.dy-lb-open { overflow: hidden; }
 
     /* 把当前这一段立刻推到终点（连点箭头 / 方向键连发时用）。
        不排队、不吞输入：先落定，再从落定后的索引起新的一段。
-       ⚠️ 落位（settle）阶段 lbIndex 还没更新（要等定时器），必须先把 lbTo 收下，
-       否则"推到终点"会把画面弹回旧索引。 */
+       ⚠️ v12：lbIndex 在**出相结束、换图那一刻**就已改成目标，所以落定分两种情况，
+       但都由 lbRest() 自然得到、不需要特判：
+         · out 相中途落定 → lbIndex 还是旧值 ⇒ 等于"取消这次切换"，画面回原图；
+         · in  相中途落定 → lbIndex 已是新值 ⇒ 等于"直接到位"，画面停在新图。
+       ⚠️ lbSeq 必须在这里 +1：出→进之间挂着两个 rAF 回调，落定后它们若还活着，
+          会把紧接着开的新一段盖掉（新一段刚起步就被写回 0 / 实心）。 */
     function lbSettle() {
       if (lbTimer) { clearTimeout(lbTimer); lbTimer = null; }
-      if (lbPhase === 'settle') lbIndex = lbTo;
-      /* v11.7：原来这里还把 lbNode（图片元素本身）的 transition / opacity / transform
-         复位 —— 那是 32px 淡滑时代动的是节点。现在动的一律是**槽位**，节点不再被写，
-         这几行是死代码，删掉（lbRest 会把三个槽位同步摆回静止态）。 */
+      lbSeq++;
       lbPhase = 'idle';
       lbTo = lbIndex;
       lbDrag = null; lbDragDim = null;
@@ -1559,168 +1609,138 @@ body.dy-lb-open { overflow: hidden; }
       lbRest();
     }
 
-    /* ================= 唯一的切换动画：整条胶片平移一步（v11.7）=================
-       箭头 / ←→ / 圆点 / 拖动松手 / 触控板，全部落到 lbSlideTo 一处 —— 主人 2026-09-14
-       上报「拖动滑动动画和点击滑动的动画不一致」，选定的统一方向就是这一套。
-       原来点击走的是参考站的 32px 出-进淡滑（lbGoTo），已删除；别再加回来。
+    /* ================= 唯一的切换动画：32px 出-进淡滑（v12）=================
+       箭头 / ←→ / 圆点 / 拖动松手 / 触控板，全部落到 lbSwitchTo 一处。
+       v11.7 曾把这里统一成"整条胶片平移一步"，v12（09-15）主人指定换回参考站那套 ——
+       注意两次都是**同一个诉求**（全站只能有一套切换动画），只是选中的那一套不同。
        --------------------------------------------------------------------------- */
 
     /* 跳到第 target 张（点击圆点用；箭头走 lbGo(dir)）。
-       · 相邻一张：直接滑，
-       · 跨多张：先把目标摆进**屏外那个邻居槽**再滑一步 —— 静止时邻居 opacity:0 且
-         在画面外，换内容看不见，所以"跳 5 张"和"翻 1 张"是同一段动画。
-       ⚠️ 摆进去之后必须重新量尺寸（换的那张可能宽高比完全不同，步距是按宽度算的），
-          并且要等它 decode 完 —— 未解码的 <img> 宽度是 0，步距会算成半个当前图，
-          滑完再被 lbFill 摆正，看起来就是"落位时弹一下"。 */
-    function lbGoSlide(target) {
+       v12 之后这条通路比 v11.9 **简单得多**：一步的动画与"翻一张"完全同形（都只是
+       32px 两段），所以不再需要"先把目标摆进屏外邻居槽再滑一步"那一套 ——
+       目标只在出相结束、换图那一刻才被搬进当前槽位（lbSwitchTo 内部做）。
+       ⚠️ 唯一要守的是**解码**：换图时节点宽度为 0 会让舞台塌一帧（v9.43 的老坑），
+       所以先把目标 decode 好再开动画 —— 近邻由 lbWarmNear 预热，远的靠这里现等。
+       ⚠️ **方向**（v12 第一次写就错了，探针抓到）：
+         · 走"上一张 / 下一张"意图的通路（箭头 / ←→ 键）必须把意图**传进来**，
+           不能按 target 与 lbIndex 的数值大小反推 —— 环形下首图的上一张是末张，
+           数值差是负的，反推出来的方向正好相反（首图按上一张变成"往左出、从右进"，
+           与"末张该从左边进来"相反，正是主人 v11.9 上报过的那件事）。
+         · 点圆点才算数值方向：圆点在底栏从左到右排，点右边的圆点就该"往右走"。
+       教训与 v11.9 同一条：**环形里任何"数值"判断都要让位给环形判断**。 */
+    function lbGoSlide(target, forceDir) {
       var n = lbPhotos.length;
       if (n < 2 || !lbNode) return;
       if (lbPhase !== 'idle') lbSettle();
       target = lbWrapIdx(target);              /* v11.8 环形：越界即折回另一端 */
       if (target === lbIndex) return;
-      var dir = target > lbIndex ? 1 : -1;
-
-      lbWarmSrc(lbPhotos[target].src);          /* 先去解码 */
-      /* ⚠️ 相邻必须按【环形】判，不能按数值差（v11.9，2026-09-15）。
-         首图的上一张是末张 —— 数值差 n−1，按数值判会掉进下面"跨多张跳转"的分支：
-         方向按 `target > lbIndex` 取反（首图点「上一张」反而让胶片往左走），目标被
-         挪进**反侧**槽位，真正朝中心来的那个槽位是【空的】——
-         观感 = 当前张往反方向滑走、下一张"啪"地冒出来，没有任何照片滑进来。
-         主人上报：「第 1 张往左滑动，第 12 张应该从左边滑进来，这和第 2 张往第 1 张
-         图片的滑动一样」= 绕回来的那一步必须与相邻那一步【同形】。
-         拖动 / 触控板本来就把 dir 交给手势（直接进 lbSlideTo），所以只有点击类通路
-         （←→ 键、左右箭头、圆点）有这个病 —— 三条都走这里。 */
       var nxt = lbWrapIdx(lbIndex + 1), prv = lbWrapIdx(lbIndex - 1);
-      if (target === nxt || target === prv) {    /* 环形邻居：槽里本来就是它 */
-        lbSlideTo(target === nxt ? 1 : -1, lbDims(), 0);
-        return;
-      }
-
-      var slot = dir > 0 ? lbSlotNext : lbSlotPrev;
-      lbSlotPut(slot, lbPhotos[target]);
-      var go = function () {
-        /* 另一侧的邻居也重摆一次：跨多张之后它与新当前张已经不相邻了，
-           放在那儿会让下一步滑动把不相邻的图当邻居滑进来。 */
-        if (dir > 0) lbSlotPut(lbSlotPrev, lbPhotos[lbWrapIdx(lbIndex - 1)]);
-        else lbSlotPut(lbSlotNext, lbPhotos[lbWrapIdx(lbIndex + 1)]);
-        lbRest();                               /* 用新尺寸把三个槽位摆好（邻居透明，看不见） */
-        /* ⚠️ target 必须显式传进去：lbSlideTo 默认落点是 lbIndex ± 1，
-           不传的话"滑进来的是第 6 张、落定却变成第 2 张"（第一次写就踩了）。 */
-        lbSlideTo(dir, lbDims(), 0, target);
-      };
-      var el = slot.firstChild;
-      if (el && el.tagName === 'IMG' && !el.getBoundingClientRect().width && el.decode) {
-        el.decode().then(go).catch(go);          /* 没解码：等它，别用 0 宽去算步距 */
-      } else go();
+      var dir = forceDir ? forceDir
+        : (target === nxt ? 1 : (target === prv ? -1 : (target > lbIndex ? 1 : -1)));
+      var ph = lbPhotos[target];
+      lbWarmSrc(ph.src);
+      var go = function () { lbSwitchTo(dir, target); };
+      var im = lbWarm[ph.src];
+      if (im && !im.naturalWidth && im.decode) im.decode().then(go).catch(go);
+      else go();
     }
 
     /* 键盘 ←→ / 左右箭头：目标恒为 ±1，越界由 lbWrapIdx 折回另一端（v11.8 环形）。
-       ⚠️ 必须先 lbSettle 再算目标索引：lbIndex 是**落位之后**才更新的，上一段还在飞的时候
-       直接读 lbIndex 会读到旧值 ⇒ 连点两下只走一张（验收 8.4 抓到的）。 */
+       ⚠️ 必须先把**方向意图**显式传下去（forceDir）：环形下"上一张"的落点在数值上
+       可能大于当前索引（首图的上一张 = 末张），让 lbGoSlide 按数值反推方向会反。
+       ⚠️ 必须先 lbSettle 再算目标索引：lbIndex 是**换图那一刻**才更新的，上一段还在飞
+       的时候直接读 lbIndex 会读到旧值 ⇒ 连点两下只走一张（验收 8.4 抓到的）。 */
     function lbGo(dir) {
       if (lbPhotos.length < 2) return;
       if (lbPhase !== 'idle') lbSettle();
-      lbGoSlide(lbIndex + (dir > 0 ? 1 : -1));
+      var d = dir > 0 ? 1 : -1;
+      lbGoSlide(lbIndex + d, d);
     }
 
-    /* ================= 轨道滑动（v11.4 起，v11.7 起是唯一一套）=================
-       同一个"一次一张"规则：目标在手势【开始】时就锁成 ±1，松手只决定方向、
-       不决定距离（Embla skipSnaps:false / Swiper 非 freeMode / ItemSlide oneItem
-       都是这一句）。v11.7 之前这里只服务拖动与触控板，点击另走 32px 出-进淡滑；
-       现在点击也走这里 —— 两套合一套，lbGoSlide / lbGo 都落进 lbSlideTo。
+    /* ================= 拖动 / 触控板：与点击共用同一条动画（v12）=================
+       "一次滑动一张"仍然成立，而且现在更彻底：目标在手势【开始】时就锁成 ±1，
+       松手只决定方向、不决定距离（Embla skipSnaps:false / Swiper 非 freeMode /
+       ItemSlide oneItem 都是这一句）。v12 起点击与滑动**共用 lbSwitchTo**，
+       所以"两套动画不一致"这件事在结构上不可能再发生。
        ==================================================================== */
 
-    var lbDrag = null;        /* 拖动中的手势：{id,x0,y0,axis,v,moved,hist} */
+    var lbDrag = null;        /* 拖动中的手势：{id,x0,y0,axis,v,raw,moved,hist}
+                                 v = 画面位移（阻尼+封顶），raw = 原始手指位移（判提交） */
     var lbDragDim = null;     /* 手势开始时的胶片几何；中途不重量，免得步距抖动 */
     var lbClickMute = 0;      /* 拖完到这个时刻之前忽略 click（否则指针落在图外会误关） */
     var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null };
 
-    function lbSettleMs(remain, ref) {
-      var r = ref > 0 ? Math.max(0, Math.min(1, remain / ref)) : 0;
-      return Math.round(LB_SETTLE_MIN + r * LB_SETTLE_SPAN);   /* 剩余越短落得越快 */
-    }
     function lbCommitDist(step) {
       if (!step) return LB_COMMIT_MAX;
       return Math.max(LB_COMMIT_MIN, Math.min(step * LB_COMMIT_FRAC, LB_COMMIT_MAX));
     }
 
-    /* 走完剩下的路并提交到目标索引。
-       ⚠️ 这里是「一次滑动只能滑一张」的**唯一**实现点：默认 target = lbIndex ± 1，
-       与手势走了多远、甩得多快都无关 —— 距离与速度只决定【要不要走】，不决定【走几步】。
-       唯一例外是**离散跳转**（点圆点跨多张）：lbGoSlide 先把目标摆进屏外邻居槽，
-       再把 target 显式传进来 —— 走的还是一步（一步的位移量），只是落点是那一张。
-       fromV = 手势此刻的位移（拖动传当前值；触控板 / 点击传 0，没有跟手阶段）。 */
-    function lbSlideTo(dir, dim, fromV, targetIdx) {
+    /* ============ 唯一的切换动画（v12）：32px 出-进两段淡滑 ============
+       参考站实测（2026-09-15，逐帧 + getAnimations() 双口径核对）：
+         出：transform → translateX(∓32px)，opacity 1 → 0，150ms，cubic-bezier(.4,0,1,1)
+         进：从 translateX(±32px) / opacity 0 → 0 / 1，150ms，cubic-bezier(0,0,.2,1)
+       两段**顺序**执行（Vue <Transition mode="out-in">），不重叠 ⇒ 舞台上任何时刻只有一张图。
+       方向按导航方向镜像：下一张 = 旧图往左出、新图从右边进；上一张 = 反过来。
+       ⚠️ 换图发生在 out 相结束的那一帧（lbFill 把目标节点搬进当前槽位）——
+          lbIndex 也在那一刻改，所以"落定"与"到位"的语义自动对齐（见 lbSettle）。
+       ⚠️ "一次滑动只能滑一张"的唯一实现点仍然在这里：默认 target = lbIndex ± 1，
+          与手势走了多远、甩得多快都无关 —— 距离与速度只决定【要不要走】。
+          唯一例外是点圆点跨多张（lbGoSlide 显式传 target）：走的还是**同一段动画**，
+          只是落点不是邻居。 */
+    function lbSwitchTo(dir, targetIdx) {
       var n = lbPhotos.length;
-      if (n < 2) return;
+      if (n < 2 || !lbNode) return;
       dir = dir > 0 ? 1 : -1;
-      /* v11.6 这里做的是「按索引硬夹紧」（越界一动不动）。
-         v11.8（2026-09-14 主人：「首图继续往前滑可以继续滑动，从尾部开始滑动」）
-         改成**环形**：越界不 return，而是折回另一端 ——
-           首图往前 = 末张从左边滑进来；末张往后 = 首张从右边滑进来。
-         关键不变的是**只认索引、不认手势快照**：快照（dim.hasP/hasN）与索引不一致时
-         （拖动中换了图 / 触控板惯性尾巴跨了两次提交），最多让落点差一张，
-         绝不会把一段滑动送进空槽位（那才是 v9.11~v9.26 真正的病）。 */
       var target = (targetIdx === undefined || targetIdx === null) ? lbIndex + dir : targetIdx;
-      target = lbWrapIdx(target);
-      var step = dir > 0 ? dim.n : dim.p;
-      var ms = lbSettleMs(Math.abs(step - Math.abs(fromV)), step);
-      var v = dir > 0 ? -step : step;
-      /* 三个槽位在这段里扮演三个角色；三个都要写 —— 位移走同一条曲线（整条胶片一起走，
-         这是"轨道"的全部含义），opacity 各走各的（v11.7 解耦）：
-           ① arrive  到位的那张：LB_NEAR_IN_MS 内就实心。静止时它是透明的，
-                      必须有这一段过渡，否则会在屏边"啪"地冒出一条边；
-                      但也不能跟位移一样长 —— 那会变成半透明的照片滑进来。
-           ② leaveA  滑出去的那张（现在的当前张）：**全程实心**，只在最后 LB_LEAVE_TAIL
-                      段收干净，收到 0 的时刻正好是这段结束（lbRest 紧接着瞬间归 0，
-                      两边对上、不会多闪一下）。早收会有个很怪的效果：照片还占着屏内
-                      一大块就先淡掉了（窄图 537 宽 / 宽图 1040 宽混排时特别明显）。
-           ③ leaveB  另一侧的邻居：本来就该是透明的，立刻归 0（拖动可能把它拉起来过）。 */
-      var arrive = dir > 0 ? lbSlotNext : lbSlotPrev;
-      /* ⚠️ leaveA = **恒为当前槽位**：两个方向里"滑出去的那张"都是当前张（它朝反方向走一步）。
-         这里原来写的是 `dir > 0 ? lbSlotCur : lbSlotNext`、leaveB 写 `dir > 0 ? lbSlotPrev : lbSlotCur`
-         —— 那是 v11.4 的旧代码：当时两个 leave 角色的 opacity 计划**完全一样**（都归 0），
-         所以标错也看不出来。v11.7 把两者拆成"延迟收 / 立刻收"之后，上一张时当前张会被
-         立刻抹掉（而不是滑出去），屏上"啪"地一闪。4.5 就是为这条加的。 */
-      var leaveA = lbSlotCur;                             /* 滑出去的那张：延迟收干净 */
-      var leaveB = dir > 0 ? lbSlotPrev : lbSlotNext;      /* 另一侧邻居：立刻归 0 */
-      var tail = Math.round(ms * LB_LEAVE_TAIL);     /* 收 opacity 的时长（结尾那一段） */
-      var tailDelay = ms - tail;                     /* 前 70% 保持实心 */
+      target = lbWrapIdx(target);              /* v11.8 环形：越界即折回另一端 */
+      if (target === lbIndex) return;
 
-      lbFx(arrive, ms, LB_SETTLE_EASE, LB_NEAR_IN_MS, LB_FADE_IN_EASE, 0);
-      lbFx(leaveA, ms, LB_SETTLE_EASE, tail, LB_FADE_OUT_EASE, tailDelay);
-      lbFx(leaveB, ms, LB_SETTLE_EASE, 0, 'linear', 0);
-      lbSlotCur.style.transform = 'translateX(' + v + 'px)';
-      lbSlotPrev.style.transform = 'translateX(' + (v - dim.p) + 'px)';
-      lbSlotNext.style.transform = 'translateX(' + (v + dim.n) + 'px)';
-      arrive.style.opacity = '1';
-      leaveA.style.opacity = '0';
-      leaveB.style.opacity = '0';
+      var outMs = lbMs(LB_OUT_MS), inMs = lbMs(LB_IN_MS), gapMs = lbMs(LB_SWAP_GAP);
+      var outX = -LB_NUDGE * dir;              /* 出相终点（下一张 → -32，上一张 → +32） */
+      var inX = LB_NUDGE * dir;                /* 进相起点：从出相的反侧来 */
+      var seq = ++lbSeq;
+
+      lbFx(lbSlotCur, outMs, LB_OUT_EASE, outMs, LB_OUT_EASE, 0);
+      lbSlotCur.style.transform = 'translateX(' + outX + 'px)';
+      lbSlotCur.style.opacity = '0';
 
       lbTo = target;
-      lbPhase = 'settle';
-      lbSyncChrome(target);                      /* 圆点 / 箭头点下即动（v11.3 的行为） */
+      lbPhase = 'out';
+      lbSyncChrome(target);                    /* 圆点 / 箭头点下即动（v11.3 的行为） */
       lbTimer = setTimeout(function () {
+        if (seq !== lbSeq) return;             /* 已被落定或新一段顶掉 */
         lbTimer = null;
-        lbIndex = target;                        /* 到位之后才改索引 */
-        lbFill();                                /* 节点在槽位间【移动】，像素不变 → 无跳变 */
-        lbPhase = 'idle';
-      }, ms + 16);
+        /* —— 换图：目标节点搬进当前槽位（搬的是已解码的同一个 <img>，像素不变），
+              然后从反侧 32px / 透明处开始"进" —— */
+        lbIndex = target;
+        lbFill();                              /* 重摆三槽（含环形邻居）+ 归位（无过渡） */
+        lbFx0(lbSlotCur);
+        lbSlotCur.style.transform = 'translateX(' + inX + 'px)';
+        lbSlotCur.style.opacity = '0';
+        /* ⚠️ 必须等两帧再挂过渡：同一帧里"写 transition + 写终值"会被合并成
+           "没有过渡"（浏览器只在样式重算后才发现 transition 变了）——
+           症状是新图直接出现、没有进相。 */
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            if (seq !== lbSeq) return;
+            lbFx(lbSlotCur, inMs, LB_IN_EASE, inMs, LB_IN_EASE, 0);
+            lbSlotCur.style.transform = 'translateX(0px)';
+            lbSlotCur.style.opacity = '1';
+            lbPhase = 'in';
+            lbTimer = setTimeout(function () {
+              if (seq !== lbSeq) return;
+              lbTimer = null;
+              lbPhase = 'idle';
+              lbRest();                        /* 收尾归位（无过渡，值本来就一样） */
+            }, inMs + 16);
+          });
+        });
+      }, outMs + gapMs);
     }
 
-    /* 拖动位移的硬边界：**没有橡皮筋**（主人「我不喜欢反弹动画」）。
-       两条边：① 没有邻居的方向拉到 0 就【完全不动】—— 不是"拉动一点再弹回去"；
-              ② 有邻居的方向封顶在一步的距离 —— 邻图走到正中就停，不会越过它再退回来
-                 （原来给了 36px 余量，超拖时落位要往回走一段，那也是一次可见的"回弹"）。
-       于是拖动的手感只有两种状态：跟手，或者不动。松手时要么提交，要么瞬间归位。 */
-    function lbDragClamp(v) {
-      var d = lbDragDim;
-      var lo = d.hasN ? -d.n : 0;
-      var hi = d.hasP ? d.p : 0;
-      if (v < lo) v = lo;
-      if (v > hi) v = hi;
-      return v;
-    }
+    /* 拖动位移的封顶见上面的 lbDragVis —— **没有橡皮筋**（主人「我不喜欢反弹动画」）：
+       到顶就不动，松手也不会往回弹。于是拖动的手感只有两种状态：跟手，或者不动；
+       松手时要么提交，要么瞬间归位。 */
 
     lbStage.addEventListener('pointerdown', function (e) {
       if (!lb.classList.contains('is-open')) return;
@@ -1729,7 +1749,7 @@ body.dy-lb-open { overflow: hidden; }
       if (lbPhase !== 'idle') lbSettle();          /* 上一步还在走 → 先落定，不吞输入 */
       lbDrag = {
         id: e.pointerId, x0: e.clientX, y0: e.clientY,
-        axis: 0, v: 0, moved: false,
+        axis: 0, v: 0, raw: 0, moved: false,
         hist: [{ x: e.clientX, t: performance.now() }]
       };
       lbDragDim = lbDims();
@@ -1746,12 +1766,17 @@ body.dy-lb-open { overflow: hidden; }
         lbFx0(lbSlotPrev); lbFx0(lbSlotCur); lbFx0(lbSlotNext);  /* 跟手：必须无过渡 */
       }
       if (e.cancelable) e.preventDefault();
-      lbDrag.v = lbDragClamp(dx);
+      /* ⚠️ v12：raw 与 v 必须分开。raw = 真实手指位移（**提交判据**用），
+         v = 画面位移（阻尼后封顶在 32px，**只用来摆画面**）。
+         合成一个数的后果实测踩过：画面被封顶在 32px，拿它去比 110px 的提交线，
+         永远过不了 ⇒ 拖到底也翻不了页。 */
+      lbDrag.raw = dx;
+      lbDrag.v = lbDragVis(dx);
       lbDrag.moved = true;
       var now = performance.now();
       lbDrag.hist.push({ x: e.clientX, t: now });
       while (lbDrag.hist.length > 2 && now - lbDrag.hist[0].t > 90) lbDrag.hist.shift();
-      lbShift(lbDrag.v, lbDragDim);
+      lbShift(lbDrag.v);
     }, { passive: false });
 
     function lbDragEnd(e) {
@@ -1762,7 +1787,7 @@ body.dy-lb-open { overflow: hidden; }
       lb.classList.remove('is-dragging');
       lbClickMute = performance.now() + LB_CLICK_MUTE;
 
-      var v = g.v;
+      var v = g.raw;                              /* ← 判据用原始手指位移，不是画面位移 */
       var a = g.hist[0], b = g.hist[g.hist.length - 1];
       var vel = (b.x - a.x) / Math.max(1, b.t - a.t);    /* px/ms，右正左负 */
       var dir = 0;
@@ -1771,13 +1796,13 @@ body.dy-lb-open { overflow: hidden; }
       /* v11.6 在这里把两端的 dir 清零（"不外绕"）；v11.8 环形取消 ——
          首图继续往左拖、末图继续往右拖都照常提交，落点由 lbWrapIdx 折到另一端。 */
 
-      if (dir) { lbSlideTo(dir, dim, v); return; }
+      if (dir) { lbSwitchTo(dir); return; }
 
       /* 没过阈值 → **瞬间归位，没有过渡**（主人「我不喜欢反弹动画」）。
          原来这里要走 130~280ms 的 ease-out 滑回去，那一小段"动一下再回来"就是他不喜欢的。
          lbRest 内部先 lbFx0（transition:none）再写终值，所以这一步是同步落定的 ——
          松手当帧就在原位，不存在任何回位动画。
-         代价（已与主人确认接受）：短拖松手会看到一次 ≤110px 的小跳跃。 */
+         v12 之后跳跃幅度最多 32px（跟手封顶值），比 v11 的 ≤110px 小得多。 */
       lbRest();
       lbPhase = 'idle';
       lbTo = lbIndex;
@@ -1785,10 +1810,10 @@ body.dy-lb-open { overflow: hidden; }
     window.addEventListener('pointerup', lbDragEnd);
     window.addEventListener('pointercancel', lbDragEnd);
 
-    /* 触控板双指横扫：deltaX 驱动同一条轨道。
+    /* 触控板双指横扫：deltaX 驱动同一条动画。
        "一次滑动一张"在这条路径上最难 —— macOS 松手后的惯性尾巴会连来几十个事件
        （v10.2 / v273 都栽在这）。做法：静默 LB_WHEEL_GAP 之后算新手势；累计位移一过线
-       就【锁死】整条手势（lock），把决定交给 lbSlideTo，此后所有惯性事件只刷新时间戳、
+       就【锁死】整条手势（lock），把决定交给 lbSwitchTo，此后所有惯性事件只刷新时间戳、
        一律丢弃。于是无论甩得多猛、尾巴多长，都只可能走一张。 */
     window.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open')) return;
@@ -1814,7 +1839,7 @@ body.dy-lb-open { overflow: hidden; }
       if (!lbWheel.dim.hasN && !lbWheel.dim.hasP) { lbWheel.acc = 0; return; }
       lbWheel.dir = dir;
       lbWheel.lock = true;                       /* ← 一条手势只走一张 */
-      lbSlideTo(dir, lbWheel.dim, 0);
+      lbSwitchTo(dir);
     }, { passive: false });
 
     /* 载入一组照片并直接停在 idx 张 */
@@ -1852,20 +1877,49 @@ body.dy-lb-open { overflow: hidden; }
             var m = /translateX\((-?[\d.]+)px\)/.exec(t);
             return m ? Math.round(parseFloat(m[1]) * 10) / 10 : 0;
           };
+          /* 引擎此刻真正渲染出来的 translateX（矩阵里的 tx）—— 与内联目标值是两件事 */
+          var cTx = function (el) {
+            var m = /matrix\(([^)]+)\)/.exec(getComputedStyle(el).transform);
+            return m ? Math.round(parseFloat(m[1].split(',')[4]) * 10) / 10 : 0;
+          };
           var dm = lbDims();
           return {
             open: lb.classList.contains('is-open'),
             idx: lbIndex, to: lbTo, n: lbPhotos.length, phase: lbPhase,
             /* 槽位里一共有几个媒体节点（静止 1~3 个：当前 + 存在的邻居） */
             nodes: lbSlots[0].children.length + lbSlots[1].children.length + lbSlots[2].children.length,
-            /* 真正【看得见】的槽位数 —— 静止态恒为 1（v11「舞台上只有一张图」的判据，
-               拖动中才会 >1）。用计算样式读，避免内联字符串的假阴性。 */
+            /* 真正【看得见】的槽位数。不变式有两半，别写成一句话：
+                 · **永远 ≤ 1**（v11「舞台上只有一张图」的硬不变式；v12 起连拖动中
+                   也不露邻图，两个邻居槽全程压在 opacity:0）
+                 · 静止态 = 1
+               ⚠️ 出相结束到进相开始之间那一两帧**会短暂为 0** —— 参考站的
+               mode="out-in" 本来就是"先淡干净、再淡进来"，台上那一下是空的。
+               把它当 bug 去"补一张图"会破坏 out-in 的观感（主人选的就是这一版）。 */
             shown: lbSlots.filter(function (s) {
               return parseFloat(getComputedStyle(s).opacity) > 0.02;
             }).length,
             off: [off(lbSlotPrev), off(lbSlotCur), off(lbSlotNext)],
+            /* v12：动画的**声明值**（验收直接读这里，别去采样猜曲线/时长） */
+            motion: {
+              nudge: LB_NUDGE,
+              outMs: lbMs(LB_OUT_MS), inMs: lbMs(LB_IN_MS), gapMs: lbMs(LB_SWAP_GAP),
+              outEase: LB_OUT_EASE, inEase: LB_IN_EASE,
+              cap: LB_DRAG_CAP, damp: LB_DRAG_DAMP
+            },
+            /* 当前槽位的实况。⚠️ 两组字段是**两件事**，验收时别混：
+                 · tx / op / tr = 内联的【目标值】与 transition 声明（"我要求的是什么"）
+                 · cx / cop     = getComputedStyle 读到的【引擎正在渲染的值】（"现在画到哪"）
+               只读内联值会得出"出相一动就是 -32、进相同样一帧到位"的假结论（踩过）。 */
+            cur: {
+              tx: off(lbSlotCur),
+              op: lbSlotCur.style.opacity === '' ? 1 : parseFloat(lbSlotCur.style.opacity),
+              tr: lbSlotCur.style.transition || '',
+              cx: cTx(lbSlotCur),
+              cop: Math.round(parseFloat(getComputedStyle(lbSlotCur).opacity) * 1000) / 1000
+            },
             hasP: !!lbSlotPrev.firstChild, hasN: !!lbSlotNext.firstChild,
-            /* 一步的步距（邻居间距）。验收"超拖封顶在一步"用 */
+            /* 一步的步距（邻居间距）。v12 之后**只剩提交阈值**在用（lbCommitDist），
+               动画本身与它无关 —— 一步的位移恒为 32px。 */
             stepP: Math.round(dm.p * 10) / 10, stepN: Math.round(dm.n * 10) / 10,
             loaded: lbNode ? (lbNode.tagName === 'IMG' ? (lbNode.naturalWidth > 0 ? 1 : 0) : 2) : -1,
             /* 渲染盒 + 原始像素（验收「照片同尺寸」用）。取元素自身尺寸而不是采样式
@@ -1978,8 +2032,14 @@ body.dy-lb-open { overflow: hidden; }
     function start(posts) {
       render(posts);
       setupCollapse();
-      initEntrance();
       updateSpy();
+      /* 条目渐入等 page-ready：站内导航时 loader.js 会把 .page-ready 推迟到
+         「新页快照拍完之后」（见 loader.js 的 navGate），这样
+         ① 拍摄时条目处于终态（snapshot 完整、不白闪），
+         ② 幕布撤掉时它们才带着 stagger 渐入 —— 与首页 hero 的入场同一时刻起跑。
+         首访时 page-ready 早就绪，等价于「立刻 initEntrance」，行为不变。 */
+      if (document.documentElement.classList.contains('page-ready')) initEntrance();
+      else document.addEventListener('pageReady', initEntrance, { once: true });
     }
     function bootFail(err) {
       console.error('[posts] 加载失败：', err,
