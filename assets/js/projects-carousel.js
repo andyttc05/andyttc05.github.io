@@ -41,9 +41,11 @@
    数据：PROJECTS 数组（4 张图片卡，图在 assets/images/projects/；n<5 时一屏
    自动重复，n≥5 时一屏全唯一）。
    第二百六十三批 2026-09-05（主人"自动轮动卡片动画太快"）：
-   - 舒缓展示系数 AUTO_K=0.15（≈0.45~0.5s 优雅减速滑到中心，倾斜/缩放动效
+   - 舒缓展示系数 0.15（≈0.45~0.5s 优雅减速滑到中心，倾斜/缩放动效
      全程可见）：自动轮播切换、点击侧卡居中、键盘 ←→ 统一使用
      （同批追加 主人"点击页面的动画和自动轮播一样"）
+     —— 该常量第二百六十三批叫 AUTO_K，第二百八十一批更名 STEP_K（自动轮播
+        已整块移除，见文件头 281 批）
    - 拖拽松手吸附/停滚吸附保留 0.6（直接操作要干脆）；拖拽跟手 0.9 不变
    - 帧率无关化：逐帧逼近系数 k 按距上帧时间折算回 60Hz 基准 —— 此前在
      120Hz 屏上动画实际快一倍（这也是"太快"观感的一大来源）。
@@ -159,6 +161,19 @@
    尺寸调整全在 style.css（照片高 27vh → 31vh，帽 280 → 320 —— 正好吃掉撤掉那条尺
    腾出来的 ~32px）：--pj-step 是从卡片宽算出来的，所以卡变大 = 步距自动变大，
    **引擎这一层只删代码、不改逻辑**。
+
+
+   第二百八十一批 2026-09-14（主人"移除项目页里卡片自动滑动的功能"）：
+   自动轮播**整块撤掉**（第二百一十九批引入，最大寿命 6 秒/次）——
+   AUTO_MS / autoTimer / autoStart / autoStop / autoStep 五个符号连同步调用点
+   （keydown / pointerdown / wheel / wheelEnd / endDrag / 初始化 / visibilitychange）
+   一起清掉，不留孤儿。现在卡片**只在主人操作时动**：拖拽 / 滚轮 / 键盘 ←→ / 点侧卡。
+   - 唯一**故意留下**的是 `window.__carAuto`（?cdebug=1 下的空壳）：验收套件
+     pj-check / pj-parts / pj-rhythm / pj-wire-probe 在采样前都调它冻结轮播，
+     删掉会让它们从"冻结后取证"变成"对着正在走的动画取证"（假红）。空壳 = 无害。
+   - AUTO_K 更名 STEP_K（同批）：它从来只服务"离散跳一档"（点击侧卡居中 + 键盘
+     ←→），移除自动轮播后叫 AUTO 会把人骗去别处找轮播代码。数值 0.15 未变。
+   - 拖拽松手 / 停滚落位的三次 Hermite 曲线、1:1 跟手、点击安全闸一行未动。
 */
 (function () {
   var root = document.getElementById('projectScenes');
@@ -217,6 +232,12 @@
      "点不动"。按下未拖远（≤CLICK_SLOP）且松手速度低（<0.5px/ms）= 抖动点击，
      一律居中按下时的卡；真拖（>24px）或高速轻甩（≥0.5px/ms）不受影响。 */
   var CLICK_SLOP = 24;
+  /* "离散跳一档"的舒缓展示系数（第二百六十三批，原变量名 AUTO_K —— 第二百八十一批
+     更名：自动轮播已移除，它从来只服务**主人触发**的跳档操作）。0.15 @60Hz ≈
+     0.45~0.5s 优雅减速，卡片倾斜/缩放动效全程可见。适用范围：点击侧卡居中 +
+     键盘 ←→；拖拽松手 / 停滚落位另走三次 Hermite 曲线（第二百六十九/七十一批：
+     0.25s / 0.35s 平滑落位），不读本系数。 */
+  var STEP_K = 0.15;
   var x = 0, xTarget = 0;   /* 轨道连续偏移（px），无界单增 */
   var raf = null;
   var tapSlotJ = -1;   /* 第二百三十二批：pointerdown 时命中的槽位（点击的具体副本） */
@@ -587,13 +608,13 @@
     raf = requestAnimationFrame(tick);
   }
 
-  /* 键盘 ←/→（轮播聚焦时）：第二百六十三批追加 —— 与点击/自动轮播同为
-     "离散跳一档"，统一用舒缓系数 AUTO_K（0.15，≈0.45~0.5s 优雅滑行） */
+  /* 键盘 ←/→（轮播聚焦时）：与点击侧卡同为"离散跳一档"，统一用舒缓系数
+     STEP_K（0.15，≈0.45~0.5s 优雅滑行） */
   root.tabIndex = 0;
   root.addEventListener('keydown', function (e) {
     if (dragging) resetDrag();   /* 第二百六十四批：拖拽态失联时键盘先接管 */
-    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(AUTO_K); autoStop(); autoStart(); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); next(AUTO_K); autoStop(); autoStart(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(STEP_K); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); next(STEP_K); }
     lastInputT = Date.now();   /* 第二百六十六批 */
   });
 
@@ -623,7 +644,6 @@
     cancelCoast();
     if (wheelIdleTimer) { clearTimeout(wheelIdleTimer); wheelIdleTimer = null; }
     wheeling = false;
-    autoStop();
     /* 第二百二十九批：记录"按下时"命中的槽位（连点/卡片移动中点击，松手时卡片可能
        已移走、elementFromPoint 会命中错误目标）—— 点击意图以按下瞬间为准。
        第二百三十二批（主人"点左边不如右边丝滑 / +2 卡动画方向不对"）：必须按
@@ -781,15 +801,13 @@
           window.open(pj.link, '_blank', 'noopener');
         } else {
           /* 第二百六十三批追加（主人"点击页面的动画和自动轮播一样"）：
-             点击侧卡居中改用 AUTO_K —— 与自动轮播同款 ~0.5s 优雅滑行 */
-          animateTo(-j * stT, AUTO_K);
+             点击侧卡居中改用 STEP_K —— 与键盘跳档同款 ~0.5s 优雅滑行 */
+          animateTo(-j * stT, STEP_K);
         }
-        autoStart();
       }
       return;
     }
     snapFromDrag(vel);
-    autoStart();
   }
   stage.addEventListener('pointerup', endDrag);
   stage.addEventListener('pointercancel', endDrag);
@@ -853,7 +871,6 @@
     var st = step();
     var nearest = Math.round(x / st) * st;
     if (Math.abs(nearest - x) > 0.5) startFinish(nearest, vIn, FIN_TMAX_WHEEL);
-    autoStart();
   }
   root.addEventListener('wheel', function (e) {
     e.preventDefault();
@@ -861,7 +878,6 @@
     /* 第二百六十四批：拖拽态失联（dragging 卡 true）时滚轮不再被丢弃 ——
        强制复位后接管；这正是此前"连续滑动突然卡住"的主因 */
     resetDrag();
-    autoStop();
     lastInputT = Date.now();   /* 第二百六十六批：滚轮后紧跟的点击也计入交互簇 */
     /* 第二百七十一批：deltaMode 归一化 —— Safari 物理滚轮常报 line 模式
        （deltaY≈1-3 行），原样累加几乎不动；page 模式 ×step。触控板恒为
@@ -881,38 +897,17 @@
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
 
-  /* 自动轮播（第二百一十九批 主人"卡片隔断时间自动滑动到下个卡片"；
-     第二百二十批 主人"自动向右滑动 / 悬停不用取消"）：
-     默认 4000ms 自动进下一卡（右侧卡成为主卡，数组正向）；悬停不再暂停
-     （移除 autoHover），仅拖拽/滚轮/键盘时暂停，交互结束后重新计时；
-     页面隐藏时暂停。 */
-  var AUTO_MS = 6000;   /* 第二百二十一批 主人"自动滑动改为6秒"（原 4000ms） */
-  /* 第二百六十三批（主人"自动轮动卡片动画太快"）：舒缓展示系数 ——
-     0.15 @60Hz ≈ 0.45~0.5s 优雅减速，倾斜/缩放动效全程清晰可见。
-     适用范围（第二百六十三批追加，主人"点击动画也和自动轮播一样"）：
-     自动轮播切换 / 点击侧卡居中 / 键盘 ←→ 均属"离散跳一档"，统一用本系数；
-     拖拽松手 / 停滚落位另走临界阻尼弹簧（第二百六十九/七十一批：0.25s /
-     0.35s 平滑落位）；本系数只服务"离散跳一档"的展示类操作。 */
-  var AUTO_K = 0.15;
-  var autoTimer = null;
-  function autoStart() {
-    if (dragging || wheeling) return;
-    if (autoTimer) clearTimeout(autoTimer);
-    autoTimer = setTimeout(autoStep, AUTO_MS);
-  }
-  function autoStop() {
-    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-  }
-  function autoStep() {
-    autoTimer = null;
-    next(AUTO_K);
-    autoStart();
-  }
+  /* 第二百八十一批 2026-09-14：自动轮播已移除（原第二百一十九 / 二百二十 /
+     二百二十一 / 二百六十三批 —— 每 6 秒自动进下一张，悬停不暂停，交互后重新计时）。
+     撤掉的是 AUTO_MS、autoTimer、autoStart/autoStop/autoStep 这五个符号与它们
+     散布在 keydown / pointerdown / wheel / wheelEnd / endDrag / 初始化 /
+     visibilitychange 的七个调用点。**卡片从此只在主人操作时移动**：
+     拖拽 · 滚轮/触控板 · 键盘 ←→ · 点侧卡居中。
+     唯一保留的痕迹是下面的 window.__carAuto 空壳（见验收钩子）。 */
   if (document.addEventListener) {
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) { autoStop(); resetDrag(); }
+      if (document.hidden) { resetDrag(); }
       else {
-        autoStart();
         /* 第二百六十五批兜底：tab 隐藏时 rAF 被浏览器挂起，恢复可见若发现
            动画停在半程且 rAF 链已断 → 重新续跑（正常情况浏览器会自动恢复，
            此分支只在边界情形兜底） */
@@ -932,7 +927,6 @@
 
   measure();
   render();
-  autoStart();
 
   /* 验收钩子（第二百七十三批，第二百七十六批补曲线声明值）：只有 ?cdebug=1 才挂
      —— 读引擎状态（x / 落位目标 / 中心槽），不读 DOM transform（inline 写入时
@@ -955,6 +949,11 @@
         dragging: dragging, wheeling: wheeling
       };
     };
-    window.__carAuto = function (on) { if (on === false) autoStop(); else autoStart(); };
+    /* 第二百八十一批：自动轮播移除后保留的**空壳**，只为验收套件不红 ——
+       pj-check / pj-parts / pj-rhythm / pj-wire-probe 采样前都调
+       __carAuto(false) 冻结轮播（还有 dbg390.js 不带守卫直接调）。
+       删掉它，这些套件会从"冻结后取证"变成"对着正在走的动画取证"（假红）。
+       现在卡片本来就不自己动，传任何值都是空操作。 */
+    window.__carAuto = function () {};
   }
 })();
