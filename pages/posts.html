@@ -1361,6 +1361,38 @@ body.dy-lb-open { overflow: hidden; }
            改成读一次 `offsetWidth` 强制重算，空档回到 ~40ms，且**与帧率无关**。
            ⚠️ 这个改动必须靠套件里"进相挂的是 150ms ease-out / 进相单调回 0 / 起点在屏外那侧"
              三条守住 —— 一旦过渡没挂上，新图会直接出现、没有进相（老注释记的正是这个坑）。
+       v12.3（2026-09-16 00:21，主人「现在滑动怎么不能连续滑动了」）
+         ——**v12.2 那条"只认停顿"的边界是错的**：惯性尾巴本身就把"停顿"永远占着，
+         尾巴没走完再滑一下会被整条吞掉 ⇒ 不能连续滑。这次不再凭想象写判据，改成
+         **移植 wheel-gestures 的惯性探测**（MIT © xiel），并拿它仓库里**真机录制的**
+         12 段 macOS 触控板 / 妙控板事件流当验收数据（`scratch/lb-v12/tp-fixtures/`）：
+         · 判据①`isMomentum` 看的是**加速比**（每 2 条事件合成一个速度取样点，最近 5 个
+           取样点的逐轴速度比都落在 [0.6,0.96]）—— 尾巴是"每拍稳定掉一点"，手的变速
+           做不到连续 5 拍稳定。实测：真实慢拖 194 条、画方块 207 条，**一次都没误判**。
+         · 判据②"平滑衰减之后的一次突降"（连续 4 拍平滑衰减，然后单拍掉到一半以下）=
+           手指落下、系统停掉惯性时报的那一下（真实录制里是 `11 → 2`）。
+         · 判据③库自带的 cancel（`|Δ| > 上一拍 ×2` 且已在惯性里）= 手指**砸**下来。
+         · **惯性期间的事件一条都不算**（不再只靠 lock 挡），所以尾巴再长也不会多走一张。
+         · 覆盖：只用语料库自己的边界，把第二笔接到尾巴各处只认得出 1/21 个位置；
+           加上②是 21/21。连甩 1/2/3/4/5/6 下 → 1/2/3/4/5/6 张。
+         · ⚠️ 同时把 `LB_WHEEL_MIN` 12 → 24：真实录制里"手搁在触控板上"的 1px 漂移
+           10 拍就能凑到 12，于是**搁手 + 随后一甩 = 2 张**（`swipe-right-fast` 就是这么
+           翻两张的）。24 之后 11 段真实"一次接触"全部恰好 1 张。
+         · ⚠️ 别再用"幅度抬头"当判据（v12.1 栽过，v12.3 又拿真实数据验了一遍：
+           任何"抬头型"规则都会在真实连续拖上误报）。关键在于**掉得比别人突然**，
+           不是掉得深。
+         · ⚠️ 顺带修掉套件里一个**已经过时的合成模型**：⑪.a 原来写的是"尾巴平滑衰减到
+           -0.8 再抬头 + 静默 120ms"来模拟连发 —— 那个形状在真机里不存在（尾巴在手指
+           搭上那一刻是**被截断**的：实录 `11 → 2`，中间只隔 39ms），所以它测的其实是
+           一个假动作集。改成照抄实录的三段（衰减 7 拍 → 静默 39ms → 报信 `-2` + 重新
+           发力），连发 1..6 就稳定是 1..6 了。**合成模型也要有物理依据**。
+         · ⚠️ 还揪出一处**页面与离线复现不一致**：复现里写的是"惯性里的事件丢位移、
+           但仍然看解锁口"（`if (st.momentum && !extra) continue`），页面第一版却写成
+           无条件 `if (st.momentum) return`。拿 66 个样本数过（`tp-invariant.js`）：
+           **61 次解锁里有 38 次发生在 momentum 已为真那一拍**（cliff 与 momentum
+           可以同时为真；start/cancel 不会，因为 cancel 自己先 end()）⇒ 那条无条件
+           return 会吃掉 38 次重滑。两行顺序已按复现对齐。**"套件全绿"只有在页面与
+           复现逐字一致时才证明得了这份实现。**
        ⚠️ v11.7 那条"只剩一套切换动画（轨道滑动）"已被 v12 取代 —— 见上。
 
        保留的三个坑位（跨版本反复踩到，别再丢）：
@@ -1452,31 +1484,65 @@ body.dy-lb-open { overflow: hidden; }
        拖动现在是硬封顶（见 lbDragVis），松手没过阈值也是瞬间归位（见 lbDragEnd）。
        v12 的 32px 跟手封顶不是"回弹"：到顶就不动，松手也不会往回弹。
        别再把它当成"手感更好"加回来。 */
-    var LB_WHEEL_MIN = 12;       /* 轮子手势的最小累计位移 */
-    /* ---- 轮子手势的边界 = **事件流里真正的停顿**（v12.2）----
-       v12.1 用"幅度抬头"判断"手指又发力了"（peak / inTail / push 三件套）。它错了，
-       而且错在最普通的情况下 —— 主人 09-15 22:31 报的正是这条：
-       **「手指不离开触控板、慢慢拖，也会翻两张」**。
-       为什么必然错：**人的手速在一次接触里本来就有起伏**（加速 → 减速 → 再加速），
-       幅度于是先掉到峰值一半以下、再抬头 ⇒ 被当成"新手势" ⇒ 同一次拖动翻两张。
-       复现（`scratch/lb-v12/probe-onestroke.js`：一段连续接触、全程无空档）——
-         v12（没有这套判据）= **1 张** · v12.1（有）= **2 张**。
-       幅度这条路整体走不通：尾巴会抖、手会变速，幅度分不开这两种东西。
+    var LB_WHEEL_MIN = 24;       /* 轮子手势的最小累计位移。
+       ⚠️ v12.3 从 12 抬到 24：真实录制（`tp-fixtures/swipe-right-fast.json`）里，
+       "手搁在触控板上"会产生 ~1px/拍 的漂移，10 拍就凑到 12 ⇒ 搁手 + 随后真甩一下
+       = 翻两张。24 之后 11 段真实"一次接触"全部恰好 1 张，真甩（累计 700~3000）
+       一点都不受影响。 */
+    /* ---- 触控板手势边界：惯性尾巴探测（v12.3）----------------------------
+       移植 wheel-gestures（MIT © xiel，https://github.com/xiel/wheel-gestures）。
+       选它的理由：它是唯一拿**真机录制的** macOS 触控板 / 妙控板事件流做回归的实现，
+       那 12 段录制现在就是本项目的验收数据（`scratch/lb-v12/tp-fixtures/`）。
 
-       可靠的只有**停顿**。物理上，任何"新的手指动作"都要求手指先停住或离开触控板，
-       事件流里必然出现一次真正的空档；而**连续接触期间不会有空档**（OS 一直发，
-       约 17ms 一拍），**惯性尾巴也不会有空档**。于是：
-         · 连续拖动        → 无空档 → 一直锁着 → 只走一张 ✓（主人要的就是这个）
-         · 一次快甩 + 尾巴 → 无空档 → 一直锁着 → 只走一张 ✓
-         · 抬手再滑第二下  → 有空档 → 解锁   → 走第二张 ✓
-       这正是 `fresh`：静默超过 LB_WHEEL_GAP 才算新手势。它现在是**唯一**的解锁口。
-       ⚠️ 别再往这条路径上加"幅度判据" —— v12.1 加过一次，就是上面那个 bug。
-          "一个手势不许走两张"只能靠**结构性**判据（有没有空档）保住；
-          靠"幅度够不够大"永远保不住，因为手自己就会变速。
-       LB_WHEEL_GAP = 70ms 的取法：**高于**事件本身的心跳（正常 ~17ms，机器有负载会拉长），
-       又**低于**人抬手再放回去的时间（约 100~300ms）。140ms 会偶尔吞掉很快就来的第二下；
-       70ms 两边都留了余量，而且不再需要任何幅度阈值。 */
-    var LB_WHEEL_GAP = 70;
+       三段历史（别再把走过的错路走一遍）：
+         v12.2 只认"静默 > 70ms" ⇒ 惯性尾巴每 ~17ms 来一条、能连着来 1 秒多，
+                              "静默"永远凑不满 ⇒ 尾巴没走完再滑会被整条吞掉
+                              （主人 09-16 报的「滑动不能连续」就是这个）。
+         v12.1 用"幅度抬头" ⇒ 手在一次接触里本来就会变速（加速→减速→再加速），
+                              幅度自己就会掉一半再抬头 ⇒ 同一次拖动翻两张。
+         教训：**"同一个动作到底走了几步"只能靠事件流的形状判**（加速比 / 突降 / 停顿），
+               靠"幅度够不够大"永远判不出来。
+
+       ① 惯性判据（库原值，一行没改）：每 2 条事件合成一个速度取样点，看最近 5 个
+          取样点的逐轴速度比是否都落在 [0.6, 0.96] —— 尾巴是"每拍稳定掉一点"，
+          手的变速做不到连续 5 拍都稳定在那个带里。
+          ⚠️ 惯性期的事件【一条都不算】（不累加 acc），所以尾巴再长也只走一张。
+       ② 突降判据（我们加的，有数据）：尾巴是**平滑**衰减（逐拍比值 0.88~0.93），
+          做不出"突然单拍掉一半"。真实录制里手指落下那一下就是 `11 → 2`（比值 0.18）。
+          所以：连续 4 拍平滑衰减之后出现一次 ≤0.5 的突降 ⇒ 手指落下了 ⇒ 解锁。
+          为什么必须有它：只靠库自己的 cancel，把第二笔接到尾巴各处只认得出 1/21 个
+          位置；加上这条是 21/21。而它在 11 段真实"一次接触"上一场都没误报。
+       ③ 库的 cancel（`|Δ| > 上一拍 ×2` 且已在惯性里）：手指**砸**下来时走这条。
+       三者合起来：连续拖 = 1 张（真实慢拖 194 条、画方块 207 条全程不误判）；
+                  连甩 1/2/3/4/5/6 下 = 1/2/3/4/5/6 张。
+       ⚠️ 千万别退回"抬头型"判据 —— v12.1 和 v12.3 两次都拿真实数据验过它会误报。
+       ⚠️ 只有**横向事件**喂给探测器（竖滚不接管）：竖向也喂的话，竖滚的惯性会让
+          随后那次横滑被当成尾巴丢掉。
+       -------------------------------------------------------------------- */
+    var LB_TP_MERGE = 2;         /* 每 2 条事件合成一个速度取样点（库原值） */
+    var LB_TP_ANALYZE = 5;       /* 看最近 5 个取样点（库原值） */
+    var LB_TP_ACC_MIN = 0.6;     /* 速度比落在这个带里 = 像惯性（库原值） */
+    var LB_TP_ACC_MAX = 0.96;
+    var LB_TP_SMOOTH = 4;        /* 连续 4 拍平滑衰减 = 已经在尾巴里 */
+    var LB_TP_CLIFF = 0.5;       /* 其中单拍掉到一半以下 = 手指落下那一下 */
+    var LB_TP_CANCEL_JUMP = 2;   /* 库的 cancel：|Δ| > 上一拍 ×2（且已在惯性里） */
+    var LB_TP_CANCEL_MIN = 2;
+    /* 手势结束的静默门槛。库在惯性期只给 ~24ms（它只想尽快报 end），太短：尾巴中途卡
+       一下就会被当成"手指离开了"，剩下那些 1px 的事件会被算成新手势、再翻一张。
+       真实数据（12 段录制的**手势内**最大事件间隔，排除掉已知的两次抬手）：
+         32 33 33 34 34 34 34 39 64 —— 最大 64ms（`square-move-trackpad`，系统合并了事件）
+       这一档只影响**没有物理报信的重滑**（慢拖抬手、再慢拖）能容忍多长的停顿，以及
+       **尾巴中途卡顿**能容忍多久，两边的实测边界（`scratch/lb-v12/tp-sweep.js`）：
+         floor=200 → 卡顿 ≤100ms 安全；慢拖·停 ≥200ms 认得出
+         floor=300 → 卡顿 ≤200ms 安全；慢拖·停 ≥300ms 认得出  ← 选它
+         floor=400 → 卡顿 ≤300ms 安全；慢拖·停 只有 ≥500ms 才认得出（300ms 的会吞）
+       300 是两侧的膝盖：64ms 的 4.7× 余量，且不与"慢拖·停 300ms"打架。
+       ⚠️ 有物理报信的重滑（真机双甩：静默 39ms + 幅度 `11→2` 那一下）**与这个值无关**，
+          200/300/400/800 都认得出（`tp-a.js` 实测）。所以抬高它不会让"连滑"变吞。
+       ⚠️ 残余风险：尾巴中途卡顿 **>300ms**（主线程被卡住，罕见）时，尾巴残段会被算成
+          一次新手势、多翻一张。这是静默类判据的硬边界，消除不了；要消除只能靠
+          物理报信，而报信在卡顿里正好也丢了。 */
+    var LB_TP_END_FLOOR = 300;
     var LB_CLICK_MUTE = 260;     /* 拖完抑制 click 的窗口（否则指针落在图外会误关灯箱） */
 
     function lbMs(base) { return Math.round(base / LB_SPEED); }
@@ -1687,6 +1753,7 @@ body.dy-lb-open { overflow: hidden; }
       lbTo = lbIndex;
       lbDrag = null; lbDragDim = null;
       lbWheel.acc = 0; lbWheel.dir = 0; lbWheel.lock = false;
+      if (lbTp) lbTp.reset();   /* 手势边界也一起清：落定之后下一条事件算"新手势" */
       lb.classList.remove('is-dragging');
       lbRest();
     }
@@ -1750,7 +1817,10 @@ body.dy-lb-open { overflow: hidden; }
                                  v = 画面位移（阻尼+封顶），raw = 原始手指位移（判提交） */
     var lbDragDim = null;     /* 手势开始时的胶片几何；中途不重量，免得步距抖动 */
     var lbClickMute = 0;      /* 拖完到这个时刻之前忽略 click（否则指针落在图外会误关） */
-    var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null };
+    var lbWheel = { acc: 0, dir: 0, lock: false, dim: null };
+    /* ⚠️ v12.3 删掉了 lbWheel.last（"上一条事件的时间戳"）—— v12.2 拿它算"静默 > 70ms"，
+       而那个判据是错的（见 LB_WHEEL_MIN 上面那段）。现在时间账由 lbTp 里的
+       "手势结束门槛"负责，它按事件间隔自适应。 */
 
     function lbCommitDist(step) {
       if (!step) return LB_COMMIT_MAX;
@@ -1913,33 +1983,146 @@ body.dy-lb-open { overflow: hidden; }
     window.addEventListener('pointerup', lbDragEnd);
     window.addEventListener('pointercancel', lbDragEnd);
 
+    /* ===== 触控板手势边界探测器（v12.3）=====
+       惯性判据移植自 wheel-gestures（MIT © xiel）—— 常量一个字没改；另外两条
+       （突降 / 静默门槛）是我们加的，理由与实测见 LB_WHEEL_MIN 上面那段长注释。
+       feed(dx, dy, t) 返回 { start, momentum, cancel, cliff }：
+         · momentum = 现在在**惯性尾巴**里（手指已离开）⇒ 调用方一条都不许算
+         · start    = 这条事件开启了新手势（上一手势已结束，或就没有过）
+         · cancel   = 手指**砸**下来（库判据：已在惯性里，且 |Δ| > 上一拍 ×2）
+         · cliff    = 手指**轻轻**落下（平滑衰减 4 拍后突然单拍掉一半以下）
+       最后两个都是"新的一次手指动作开始了"的证据 ⇒ 解掉"一次手势一张"的锁。 */
+    function lbTpNew() {
+      var started = false, momentum = false, lastAbs = 0, willEndMs = LB_TP_END_FLOOR;
+      var toMerge = [], points = [], vel = [0, 0], accs = [], startPub = false, negZero = false;
+      var timer = null, ratioRun = 0;
+      var res = { start: false, momentum: false, cancel: false, cliff: false };
+
+      function reset() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        started = false; momentum = false; lastAbs = 0; willEndMs = LB_TP_END_FLOOR;
+        toMerge = []; points = []; vel = [0, 0]; accs = []; startPub = false; negZero = false;
+        ratioRun = 0;
+      }
+      function start() { reset(); started = true; }
+      function end() { started = false; momentum = false; }
+      function arm() { if (timer) clearTimeout(timer); timer = setTimeout(end, willEndMs); }
+      function rateInRange(f) { return f === 0 ? true : (f >= LB_TP_ACC_MIN && f <= LB_TP_ACC_MAX); }
+      /* 库原逻辑：最近 5 个取样点的逐轴速度比都要落带（0 轴算通过） */
+      function detect() {
+        if (accs.length < LB_TP_ANALYZE) return;
+        if (negZero) {   /* Windows + Blink 的"手指离开"专用事件（macOS 上不会出现） */
+          negZero = false;
+          if (Math.abs(vel[0]) >= 0.2 || Math.abs(vel[1]) >= 0.2) momentum = true;
+        }
+        var recent = accs.slice(-LB_TP_ANALYZE), ok = true, i, k;
+        for (i = 0; i < recent.length && ok; i++) {
+          for (k = 0; k < recent[i].length; k++) if (!rateInRange(recent[i][k])) { ok = false; break; }
+        }
+        if (ok) momentum = true;
+        accs = recent;
+      }
+      function setWillEnd(dt) {
+        var nt = Math.ceil(dt / 10) * 10 * 1.2;
+        if (!momentum) nt = Math.max(100, nt * 2);      /* 库原式 */
+        willEndMs = Math.min(1000, Math.round(Math.max(nt, LB_TP_END_FLOOR)));
+      }
+      /* 每 LB_TP_MERGE 条事件合成一个速度取样点，用相邻两点算逐轴加速比 */
+      function merge() {
+        if (toMerge.length === LB_TP_MERGE) {
+          var d = [0, 0], t = 0, j;
+          for (j = 0; j < toMerge.length; j++) { d[0] += toMerge[j][0]; d[1] += toMerge[j][1]; t += toMerge[j][2]; }
+          t /= LB_TP_MERGE;
+          var prevPoint = points[0];
+          points[0] = [d, t];
+          if (prevPoint) {
+            var dt = t - prevPoint[1];
+            if (dt > 0) {
+              var v = [d[0] / dt, d[1] / dt];
+              accs.push([v[0] / (vel[0] || 1), v[1] / (vel[1] || 1)]);
+              vel = v;
+              setWillEnd(dt);
+            }
+          }
+          toMerge = [];
+          if (!momentum) detect();
+        } else if (!startPub && toMerge.length) {
+          /* 手势的第一条：还没有速度，先拿它当起点（库的 updateStartVelocity） */
+          var l = toMerge[toMerge.length - 1];
+          vel = [l[0] / willEndMs, l[1] / willEndMs];
+        }
+      }
+      return {
+        reset: reset,
+        feed: function (dx, dy, t) {
+          var dmax = Math.max(Math.abs(dx), Math.abs(dy));
+          res.start = false; res.cancel = false; res.cliff = false;
+          if (!started) { start(); res.start = true; }
+          else if (momentum && dmax > Math.max(LB_TP_CANCEL_MIN, lastAbs * LB_TP_CANCEL_JUMP)) {
+            end(); res.cancel = true; start(); res.start = true;
+          }
+          if (dmax === 0 && typeof Object.is === 'function' && Object.is(dx, -0)) {
+            negZero = true;                      /* 零位移事件不许影响速度（库原样） */
+            res.momentum = momentum;
+            return res;
+          }
+          /* ② 突降：连续平滑衰减之后，单拍掉到一半以下 ⇒ 手指落下（macOS 停惯性的报信） */
+          if (lastAbs > 0) {
+            var r = dmax / lastAbs;
+            if (r <= LB_TP_CLIFF && ratioRun >= LB_TP_SMOOTH) { ratioRun = 0; res.cliff = true; }
+            else if (r >= 0.7 && r <= 1.0) ratioRun++;
+            else ratioRun = 0;
+          }
+          lastAbs = dmax;
+          toMerge.push([dx, dy, t]);
+          merge();
+          res.momentum = momentum;
+          startPub = true;
+          arm();
+          return res;
+        }
+      };
+    }
+    var lbTp = lbTpNew();
+
     /* 触控板双指横扫：deltaX 驱动同一条动画。
-       "一次滑动一张"在这条路径上最难 —— macOS 松手后的惯性尾巴会连来几十个事件
-       （v10.2 / v273 都栽在这）。做法：静默 LB_WHEEL_GAP 之后算新手势；累计位移一过线
-       就【锁死】整条手势（lock），把决定交给 lbSwitchTo，此后所有惯性事件只刷新时间戳、
-       一律丢弃。于是无论甩得多猛、尾巴多长，都只可能走一张。 */
+       "一次滑动一张"在这条路径上最难 —— macOS 松手后的惯性尾巴会连来几十条事件
+       （v10.2 / v273 都栽在这）。做法分两层：
+         · **台阶一**：惯性期的事件一条都不算（不累加 acc），所以不管甩得多猛、
+           尾巴多长，都不可能多走一张。这一层是硬的。
+         · **台阶二**：`lock` 保证"一次手指动作只走一张"；解锁口只有 lbTp 报的三个
+           "新的手指动作开始了"（start / cancel / cliff）。
+       ⚠️ v12.2 在这里放过一条 `fresh`（静默 > 70ms）当唯一解锁口 —— 那是错的，
+          尾巴会把静默永远占着 ⇒ 不能连续滑。别再退回去。
+       ⚠️⚠️ **两行的顺序是硬的，别"顺手精简"成 `if (st.momentum) return;`**：
+          `start` / `cancel` 不可能与 momentum 同时为真（cancel 自己先 end()），
+          但 **`cliff` 可以** —— 离线复现拿 66 个样本（12 段真机录制 + 连甩 + 拼接口）
+          数过：**61 次解锁里有 38 次发生在 momentum 已确认为真那一拍**
+          （`tp-invariant.js`）。写成无条件 `if (st.momentum) return;` 会把那 38 次
+          全吃掉 ⇒ 又是"滑了它不动"。所以必须带 `&& !unlocked`。
+          这条也正是离线复现里的写法（`if (st.momentum && !extra) continue;`）；
+          页面与复现**必须逐字一致**，否则"套件全绿"证明的不是这份实现。 */
     window.addEventListener('wheel', function (e) {
       if (!lb.classList.contains('is-open')) return;
       var dx = e.deltaX;
-      if (!dx || Math.abs(e.deltaY) > Math.abs(dx)) return;   /* 竖滚不接管 */
+      if (!dx || Math.abs(e.deltaY) > Math.abs(dx)) return;   /* 竖滚不接管（也不喂探测器）*/
       e.preventDefault();
-      var now = performance.now();
-      var fresh = (now - lbWheel.last) > LB_WHEEL_GAP;   /* ← 唯一的解锁口：真正的停顿 */
-      lbWheel.last = now;                        /* ⚠️ 每一条都刷新（含惯性尾巴）——
-                                                    尾巴也是"手指还在动"，不该被当新手势；
-                                                    这样尾巴期间没有空档 ⇒ 一直锁着 ⇒ 只走一张 */
-      if (fresh) { lbWheel.acc = 0; lbWheel.lock = false; }
-      if (lbWheel.lock) return;                  /* 这条手势已经用掉一次了。
-                                                    没有停顿就绝不放行 —— v12.2 起这里
-                                                    不再看任何幅度（v12.1 那套会翻两张，见常量处注释）*/
+      var now = (typeof e.timeStamp === 'number' && e.timeStamp > 0) ? e.timeStamp : performance.now();
+      var st = lbTp.feed(dx, e.deltaY, now);
+      var unlocked = st.start || st.cancel || st.cliff;
+      if (st.momentum && !unlocked) { lbWheel.acc = 0; return; }   /* 惯性尾巴：一条都不算 */
+      if (unlocked) {
+        lbWheel.acc = 0; lbWheel.lock = false;
+        /* v11.6 起 dim 每条【新手势】都重抓：步距按真实渲染宽度算，换过图就变了。 */
+        lbWheel.dim = lbDims();
+      }
+      if (!lbWheel.dim) lbWheel.dim = lbDims();   /* 兜底：灯箱刚开、还没量过几何 */
+      if (lbWheel.lock) return;                  /* 这次手指动作已经走掉一张了 */
       /* 🔴 v12.1：这里原来有一条 `if (lbPhase !== 'idle') return;` —— 淡滑中来的
          【新手势】会被整条丢掉（它的头几个事件进不来、acc 一直是 0，只剩尾巴在凑数），
          实测连发 6 条只走 5 张，而且还出现过 ~1.8s 的死区（"我滑了它不动"）。
          lbSwitchTo 本身可被打断：新一段从【当前渲染位置】接着走，CSS 过渡自动连续，
          所以不再需要这道闸。"一条手势一张"仍由上面的 lock 保证。 */
-      /* v11.6 起 dim 每条【新手势】都重抓：步距按真实渲染宽度算，换过图就变了。
-         `!lbWheel.dim` 那半仍然留着 —— 灯箱刚开、还没量过几何时兜一下。 */
-      if (fresh || !lbWheel.dim) lbWheel.dim = lbDims();
       lbWheel.acc += dx;
       if (Math.abs(lbWheel.acc) < LB_WHEEL_MIN) return;
       var dir = lbWheel.acc > 0 ? 1 : -1;
@@ -1948,7 +2131,7 @@ body.dy-lb-open { overflow: hidden; }
          否则欠着的位移会让反方向"滑半天没反应"。 */
       if (!lbWheel.dim.hasN && !lbWheel.dim.hasP) { lbWheel.acc = 0; return; }
       lbWheel.dir = dir;
-      lbWheel.lock = true;                       /* ← 一条手势只走一张 */
+      lbWheel.lock = true;                       /* ← 一次手指动作只走一张 */
       lbSwitchTo(dir);
     }, { passive: false });
 
