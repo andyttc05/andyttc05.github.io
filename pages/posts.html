@@ -1319,6 +1319,23 @@ body.dy-lb-open { overflow: hidden; }
          · 实测口径：`v11check.js` 第 5/12/13/15/16 组已按新契约重写。
          ⚠️ 上面 v11.4~v11.9 的历史注释里出现的 `lbSlideTo` 就是现在的 `lbSwitchTo`
             （v12 改名 —— 它不再"滑一整步"，叫 slide 会误导下一个读代码的人）。
+       v12.1（2026-09-15 21:31，主人「连续滑动图片不是很流畅」）——**连发输入不吞不弹**：
+         · 病根两条，都是"连发"才暴露的：
+             ① `lbSettle()` 只在进相成立 —— 出相里落定 = 把已提交的那一步**取消**掉
+                （那时 lbIndex 还没改）⇒ 画面往回弹。实测：连续拖动 5 次只走掉 **1 张**，
+                而且屏幕上能看到 -32px 弹回 0 的那一下。
+             ② 触控板那条有 `if (lbPhase !== 'idle') return;` —— 淡滑中来的**新手势**
+                被整条丢掉（它的头几个事件进不来，acc 恒为 0，只剩尾巴凑数）。实测：
+                连发 6 条只走 5 张，还出现过 ~1.8s 的死区（"我滑了它不动"）。
+         · 修法是**一处根因**：lbIndex 在**开段那一刻**就提交（不再等换图那一帧）。
+           于是"落定"在任何相位都落在这一段的终点上，永远不会往回弹；内容仍然只在
+           出相结束的空档里换（lbFill）⇒ 观感还是"先淡干净、再淡进来"，契约没动。
+         · 触控板去掉相位闸：lbSwitchTo 本来就可被打断（新一段从**当前渲染位置**接着走，
+           CSS 过渡自动连续），"一条手势一张"依旧由 lock 保证。
+         · 拖动：`pointerdown` 不再落定（原来"点一下"就会把动画砍掉，包括点到图外想关灯箱），
+           改到**轴向判明、真开始横拖**时才落定。
+         · ⚠️ 教训：**"落定到终点"必须真的是终点**。旧注释写着"推到终点"，代码在出相里
+           干的是"取消"——注释与实现不一致比没注释更坏。
        ⚠️ v11.7 那条"只剩一套切换动画（轨道滑动）"已被 v12 取代 —— 见上。
 
        保留的三个坑位（跨版本反复踩到，别再丢）：
@@ -1412,6 +1429,36 @@ body.dy-lb-open { overflow: hidden; }
        别再把它当成"手感更好"加回来。 */
     var LB_WHEEL_GAP = 140;      /* 轮子手势的静默间隔（超过即算新手势） */
     var LB_WHEEL_MIN = 12;       /* 轮子手势的最小累计位移 */
+    /* ---- 触控板"手指重新发力"判据（v12.1）----
+       为什么需要（这是"连续滑动不流畅"在 Mac 上的另一半）：
+       macOS 松手后惯性尾巴会**连续**来几百 ms，而"新手势"判据是"静默 > LB_WHEEL_GAP"——
+       尾巴每来一条都刷新 last ⇒ 静默永远凑不满 ⇒ 用户在尾巴里再滑一下，
+       会被算进【同一条】手势里、被 lock 吞掉（"我滑了它不动"）。
+       尾巴与手指段唯一可靠的物理差别是：**尾巴单调衰减，永远不会重新抬头**。
+       所以判据只写这一条性质，别的（绝对幅度、衰减速率、事件间隔）都不写 ——
+       那些换一台机器、换一次系统版本就不成立：
+         · peak  = 本手势见过的最大 |deltaX|
+         · half  = 幅度已经掉到峰值一半以下（"尾巴弱下去了"，单调衰减必然经过这里）
+         · 再发力 = half && |deltaX| ≥ PUSH && |deltaX| > 上一条 × JUMP
+       危险方向只有一个：把尾巴误判成再发力 ⇒ 一条滑动翻两张（v10.2 / v273 栽过）。
+       单调递减的序列永远满足不了 `> 上一条 × 1.5`，所以这条危险方向在**结构上**就堵死了 ——
+       与尾巴衰减多快、事件多密都无关。验收里有"单条手势 + 长尾巴只能走一张"的反例。
+       ⚠️ 代价（明确接受）：尾巴还很强的时候（约前一半）重新滑，仍会被吞 —— 那时上一段
+          动画本来也没走完。这三个数只能在**真机触控板**上复核：合成流过不了的不一定真机
+          过不了，反过来也一样。改之前先读这段。
+       判据分三步（**先看位置、再武装、最后发力**）。每一步都是被一个假阳性逼出来的，
+       少一步就会错：
+         · inTail = |deltaX| 掉到本手势峰值的一半以下 —— 只有"在尾巴里"才承认后面的抬头。
+            少了它，手指段自己的加速会被当成"新手势"（实测：一次快速甩动连开两张）。
+         · push   = 在尾巴里出现过一次"比上一条大 ≥ JUMP 倍"的抬头。
+            少了它，光看绝对幅度会把尾巴的余波当成新手势（实测：一条手势走 5 张）。
+         · 再发力 = push && |deltaX| ≥ PUSH。少了它，弱尾巴从 1px 抬到 2px 也算一次。
+         · 命中之后 **peak 重新起算**（新的一次从这一刻开始量）—— 不重算的话，
+            同一个手指段继续往上加速会把 push 又武装起来，一次甩动连开第三张（实测踩过）。
+       ⚠️ 手指段自己的加速**不会**误触发：那时幅度还在涨，inTail 不成立（peak 跟着涨）。 */
+    var LB_WHEEL_PUSH = 6;       /* 再发力的最小 |deltaX|（再小就当噪声 / 尾巴余波） */
+    var LB_WHEEL_HALF = 0.5;     /* 幅度掉到峰值这个比例以下 = 进了尾巴 */
+    var LB_WHEEL_JUMP = 1.25;    /* 比上一条抬头这么多 = 手指又推了一下 */
     var LB_CLICK_MUTE = 260;     /* 拖完抑制 click 的窗口（否则指针落在图外会误关灯箱） */
 
     function lbMs(base) { return Math.round(base / LB_SPEED); }
@@ -1606,19 +1653,23 @@ body.dy-lb-open { overflow: hidden; }
 
     /* 把当前这一段立刻推到终点（连点箭头 / 方向键连发时用）。
        不排队、不吞输入：先落定，再从落定后的索引起新的一段。
-       ⚠️ v12：lbIndex 在**出相结束、换图那一刻**就已改成目标，所以落定分两种情况，
-       但都由 lbRest() 自然得到、不需要特判：
-         · out 相中途落定 → lbIndex 还是旧值 ⇒ 等于"取消这次切换"，画面回原图；
-         · in  相中途落定 → lbIndex 已是新值 ⇒ 等于"直接到位"，画面停在新图。
+       🔴 v12.1（09-15 21:31 主人「连续滑动图片不是很流畅」）：**"推到终点"必须真的是终点**。
+       v12 只在进相成立 —— 出相中途落定会把那次切换【取消】掉（那时 lbIndex 还没改），
+       画面往回弹。实测的后果：连续拖动 5 次只走掉 1 张，屏幕上还能看到 -32px 弹回 0 的那一下。
+       现在 lbIndex 在【开段那一刻】就提交（见 lbSwitchTo），所以两种相位都落在新图上：
+         · 出相中途落定 → 内容还没换（lbFill 本来在空档里才跑）⇒ 这里补一次 lbFill()
+         · 进相中途落定 → 内容已经换了 ⇒ lbRest() 就够
        ⚠️ lbSeq 必须在这里 +1：出→进之间挂着两个 rAF 回调，落定后它们若还活着，
           会把紧接着开的新一段盖掉（新一段刚起步就被写回 0 / 实心）。 */
     function lbSettle() {
       if (lbTimer) { clearTimeout(lbTimer); lbTimer = null; }
       lbSeq++;
+      if (lbPhase === 'out') lbFill();   /* 补上没做完的换图：落定 = 那一步照走，不回退 */
       lbPhase = 'idle';
       lbTo = lbIndex;
       lbDrag = null; lbDragDim = null;
       lbWheel.acc = 0; lbWheel.dir = 0; lbWheel.lock = false;
+      lbWheel.prev = 0; lbWheel.peak = 0; lbWheel.inTail = 0; lbWheel.push = 0;
       lb.classList.remove('is-dragging');
       lbRest();
     }
@@ -1682,7 +1733,8 @@ body.dy-lb-open { overflow: hidden; }
                                  v = 画面位移（阻尼+封顶），raw = 原始手指位移（判提交） */
     var lbDragDim = null;     /* 手势开始时的胶片几何；中途不重量，免得步距抖动 */
     var lbClickMute = 0;      /* 拖完到这个时刻之前忽略 click（否则指针落在图外会误关） */
-    var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null };
+    var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null,
+                    prev: 0, peak: 0, inTail: 0, push: 0 };  /* 后四个 = "再发力"判据（v12.1） */
 
     function lbCommitDist(step) {
       if (!step) return LB_COMMIT_MAX;
@@ -1713,20 +1765,26 @@ body.dy-lb-open { overflow: hidden; }
       var outX = -LB_NUDGE * dir;              /* 出相终点（下一张 → -32，上一张 → +32） */
       var inX = LB_NUDGE * dir;                /* 进相起点：从出相的反侧来 */
       var seq = ++lbSeq;
+      /* 🔴 v12.1：lbIndex 在【开段这一刻】就提交，不再等"换图"那一帧 —— 这是"不吞输入"的
+         前提：任何相位被打断或落定，落点都是**这一段的终点**，永远不会往回弹（见 lbSettle）。
+         内容仍然只在出相结束、空档里才换（lbFill），所以观感还是"先淡干净、再淡进来"。
+         ⚠️ 代价：出相那 190ms 里，"索引"比"槽位里摆着的图"早一步 —— 槽位只在 lbFill
+            那一刻才真的换。所以出相里量出来的步距（lbDims）可能还是上一张的，
+            只影响提交阈值的估算，不影响"一步 = 32px"这条契约。 */
+      lbIndex = target;
+      lbTo = target;
 
       lbFx(lbSlotCur, outMs, LB_OUT_EASE, outMs, LB_OUT_EASE, 0);
       lbSlotCur.style.transform = 'translateX(' + outX + 'px)';
       lbSlotCur.style.opacity = '0';
 
-      lbTo = target;
       lbPhase = 'out';
       lbSyncChrome(target);                    /* 圆点 / 箭头点下即动（v11.3 的行为） */
       lbTimer = setTimeout(function () {
         if (seq !== lbSeq) return;             /* 已被落定或新一段顶掉 */
         lbTimer = null;
         /* —— 换图：目标节点搬进当前槽位（搬的是已解码的同一个 <img>，像素不变），
-              然后从反侧 32px / 透明处开始"进" —— */
-        lbIndex = target;
+              然后从反侧 32px / 透明处开始"进" ——（索引早在开段时就提交了，这里只换内容） */
         lbFill();                              /* 重摆三槽（含环形邻居）+ 归位（无过渡） */
         lbFx0(lbSlotCur);
         lbSlotCur.style.transform = 'translateX(' + inX + 'px)';
@@ -1760,7 +1818,9 @@ body.dy-lb-open { overflow: hidden; }
       if (!lb.classList.contains('is-open')) return;
       if (e.button) return;                       /* 只认主键 / 触摸 / 笔 */
       if (lbPhotos.length < 2) return;
-      if (lbPhase !== 'idle') lbSettle();          /* 上一步还在走 → 先落定，不吞输入 */
+      /* 🔴 v12.1：这里**不再** lbSettle()。原来一按下就把正在跑的淡滑落定，
+         于是任何一次"点一下"（包括点到图外想关灯箱）都会把动画砍掉。
+         改成等轴向判明、真的开始横向拖了再落定（见 pointermove）。 */
       lbDrag = {
         id: e.pointerId, x0: e.clientX, y0: e.clientY,
         axis: 0, v: 0, raw: 0, moved: false,
@@ -1776,6 +1836,16 @@ body.dy-lb-open { overflow: hidden; }
         if (Math.abs(dx) < LB_DRAG_MIN && Math.abs(dy) < LB_DRAG_MIN) return;
         lbDrag.axis = Math.abs(dx) > Math.abs(dy) ? 1 : 2;
         if (lbDrag.axis === 2) { lbDrag = null; return; }   /* 竖滑不接管 */
+        /* 真开始横向拖了 —— 这时才把在跑的那一段推到终点（v12.1 起落定只会【向前】，
+           不会把已经提交的那一步取消掉）。落定后重新量几何：刚换过图，步距可能变了。
+           ⚠️ lbSettle() 会把 lbDrag 清掉（它假设"落定 = 这次手势作废"），但这里
+              这一次手势正是【我们自己】—— 清完必须放回去，否则下面第一行就抛空指针。 */
+        if (lbPhase !== 'idle') {
+          var keepDrag = lbDrag;
+          lbSettle();
+          lbDrag = keepDrag;
+          lbDragDim = lbDims();
+        }
         lb.classList.add('is-dragging');
         lbFx0(lbSlotPrev); lbFx0(lbSlotCur); lbFx0(lbSlotNext);  /* 跟手：必须无过渡 */
       }
@@ -1835,14 +1905,37 @@ body.dy-lb-open { overflow: hidden; }
       if (!dx || Math.abs(e.deltaY) > Math.abs(dx)) return;   /* 竖滚不接管 */
       e.preventDefault();
       var now = performance.now();
+      var adx = Math.abs(dx);
       var fresh = (now - lbWheel.last) > LB_WHEEL_GAP;
+      /* "手指重新发力"三步判据（详见 LB_WHEEL_HALF 上面那段）——
+         ⚠️ 必须在更新 peak / prev 之前算，顺序反了就永远比不过自己。 */
+      if (adx > lbWheel.peak) lbWheel.peak = adx;
+      lbWheel.inTail = adx < lbWheel.peak * LB_WHEEL_HALF ? 1 : 0;      /* ① 在尾巴里吗 */
+      if (lbWheel.inTail && adx > lbWheel.prev * LB_WHEEL_JUMP) lbWheel.push = 1;  /* ② 抬头 */
+      var relift = lbWheel.push && adx >= LB_WHEEL_PUSH;                /* ③ 推到有意义的幅度 */
+      lbWheel.prev = adx;
       lbWheel.last = now;                        /* ⚠️ 每一条都刷新（含惯性尾巴）——
                                                     不刷的话尾巴会被当成新手势，再翻一张 */
-      if (fresh) { lbWheel.acc = 0; lbWheel.lock = false; }
-      if (lbWheel.lock) return;                  /* 这条手势已经用掉一次了 */
-      if (lbPhase !== 'idle') return;            /* 淡滑 / 落位进行中不接新输入 */
-      /* v11.6：dim 为空也要补抓 —— 上一次手势若是在非 idle 中起手的，就会被上面
-         那条 return 挡掉、dim 一直是 null，下一条事件走到下面读 .hasN 直接抛错。 */
+      if (fresh) {
+        lbWheel.acc = 0; lbWheel.lock = false;
+        lbWheel.peak = adx; lbWheel.push = 0; lbWheel.inTail = 0;
+      }
+      if (lbWheel.lock) {
+        /* 已经用掉一次了。惯性尾巴单调衰减 ⇒ 永远满足不了 relift ⇒ 不会偷偷多走一张；
+           手指重新发力（进了尾巴之后又抬头）⇒ 算成新的一次，解锁。
+           ⚠️ 命中时 peak 必须重新起算：不重算的话，同一个手指段继续加速会把 push
+              又武装起来 —— 一次甩动连开第三张（实测踩过）。 */
+        if (!relift) return;
+        lbWheel.acc = 0; lbWheel.lock = false;
+        lbWheel.peak = adx; lbWheel.push = 0; lbWheel.inTail = 0;
+      }
+      /* 🔴 v12.1：这里原来有一条 `if (lbPhase !== 'idle') return;` —— 淡滑中来的
+         【新手势】会被整条丢掉（它的头几个事件进不来、acc 一直是 0，只剩尾巴在凑数），
+         实测连发 6 条只走 5 张，而且还出现过 ~1.8s 的死区（"我滑了它不动"）。
+         lbSwitchTo 本身可被打断：新一段从【当前渲染位置】接着走，CSS 过渡自动连续，
+         所以不再需要这道闸。"一条手势一张"仍由上面的 lock 保证。 */
+      /* v11.6 起 dim 每条【新手势】都重抓：步距按真实渲染宽度算，换过图就变了。
+         `!lbWheel.dim` 那半仍然留着 —— 灯箱刚开、还没量过几何时兜一下。 */
       if (fresh || !lbWheel.dim) lbWheel.dim = lbDims();
       lbWheel.acc += dx;
       if (Math.abs(lbWheel.acc) < LB_WHEEL_MIN) return;
