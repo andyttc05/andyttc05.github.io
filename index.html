@@ -10,6 +10,43 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" data-page-node-id="Wu7IVQ75T7fcE7GsNXmnmi">
 <meta name="apple-mobile-web-app-title" content="rain.meow" data-page-node-id="zQyXc0QyBLW6Sd5suhib1Y">
 <title>rain.meow</title>
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
+<style>
+  html { background: #f8fafc; }
+  html.theme-dark { background: #0f172a; }
+</style>
+<script>
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
+</script>
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
 <script>
   /* 首屏防闪烁（2026-08-19 第三批：现代浏览器专属）
      直接用 localStorage + matchMedia,无 typeof/try-catch 兜底
@@ -51,8 +88,8 @@
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg" data-page-node-id="k9MCJQfZqOv4G4CNI4cAgK">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="assets/css/loader.css?v=3" data-page-node-id="e27DsJyyEIMwfAPlv5xHl1">
-<link rel="stylesheet" href="assets/css/style.css?v=291" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
+<link rel="stylesheet" href="assets/css/loader.css?v=4" data-page-node-id="e27DsJyyEIMwfAPlv5xHl1">
+<link rel="stylesheet" href="assets/css/style.css?v=317" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
 
 </head>
 <body data-page-node-id="gjOkzZwhhcAGo2quk6epB4">
@@ -355,7 +392,7 @@
   m && (m.textContent = label);
 </script>
 
-<script src="assets/js/loader.js?v=5" defer></script>
+<script src="assets/js/loader.js?v=7" defer></script>
 <script src="assets/js/script.js?v=138" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->

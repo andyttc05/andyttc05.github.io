@@ -11,7 +11,8 @@
 <title>动态 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
-     ② 会话标记 rm-visited：本次会话第二次起的导航给 <html> 加 .nav-instant，
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
         加载页只留给会话的第一次进入做品牌落地；
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
@@ -21,13 +22,26 @@
   html.theme-dark { background: #0f172a; }
 </style>
 <script>
-  try {
-    if (sessionStorage.getItem('rm-visited') === '1') {
-      document.documentElement.classList.add('nav-instant');
-    } else if (!document.prerendering) {
-      sessionStorage.setItem('rm-visited', '1');
-    }
-  } catch (e) {}
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
 </script>
 <script type="speculationrules">
 {"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
@@ -64,7 +78,7 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=309" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=317" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -730,7 +744,7 @@ body.dy-lb-open { overflow: hidden; }
        window.RainNest/RainRibbons.setColor 联动 -->
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
-  <script src="../assets/js/loader.js?v=6" defer></script>
+  <script src="../assets/js/loader.js?v=7" defer></script>
   <script src="../assets/js/script.js?v=138" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场

@@ -30,7 +30,7 @@
   transition: opacity 0.45s ease, visibility 0.45s ease;
 }
 /* 加载页默认**不可见**，由 loader.js 决定要不要放它出来（2026-09-15）——
-   判据是"到 REVEAL_AFTER_MS 还没就绪"，不是"第一帧无脑放"：
+   判据是"到 REVEAL_AFTER_MS（150ms）还没就绪"，不是"第一帧无脑放"：
    快网冷加载实测 0 帧出现（内容 30ms 就好了），慢网（2Mbps 限速）才露脸 ~1.1s。
    为什么：原来它一进 DOM 就可见，于是"秒开（就绪 < 350ms）"与"站内导航"两条快路径
    只能"先画出来、再硬移除"—— 移除的那一帧就是满屏浅色闪掉（线上每页都实测到：
@@ -47,6 +47,11 @@
 /* 加载期间锁滚动：页面内容被加载页盖住，滚动条/手势滚动留在背后无意义，
    避免用户"滚了但页面没动"的错位感；就绪后移除（loader.js） */
 html.page-loading { overflow: hidden; }
+
+/* 站内导航不播加载页（2026-09-13）。<head> 内联脚本按会话标记 rm-visited 给 <html> 加
+   .nav-instant —— 本文件是阻塞渲染的，所以 .nav-instant 与这条规则同时生效，
+   加载页连第一帧都画不出来（不是"画了再赶紧淡出"）。 */
+html.nav-instant #pageLoader { display: none; }
 
 /* three-body loader（taozhiyy 同款，三体轨道动画）
    结构：外层容器整体匀速旋转（orbit），三个 .page-loader-dot 各占 30% 宽、
