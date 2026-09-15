@@ -79,6 +79,15 @@
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
 <link rel="stylesheet" href="../assets/css/style.css?v=318" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<!-- 内容数据：必须是**阻塞式** <script src>，不要改回 JS 动态插（v11，2026-09-13）；
+     而且要放在 **<head>** 里（2026-09-15 修）——
+     跨文档 View Transition 的新页快照在 pagereveal 抓（实测 ≈ 文档创建后 40~90ms），
+     而数据脚本挂在正文第 875 行时，解析器**正好停在它那一次网络往返上**：
+     线上实测快照只有页头，reveal 高度 462 / 落定 1536（30%），内容流随后"啪"地冒出来。
+     移到 head ⇒ 预加载扫描器让它与 CSS 并行取回，解析器不再停在半空页面上等。
+     同 150ms 延迟实测：462/1536（0 条）→ **1536/1536（1 条）**，3/3。
+     数据 ~2KB，值得。 -->
+<script src="../assets/data/posts.js?v=4"></script>
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -871,12 +880,8 @@ body.dy-lb-open { overflow: hidden; }
    300ms 走完）。
    圆角必须写 999px 而非 50%，否则长条变椭圆。 -->
 
-  <!-- 内容数据：必须是**阻塞式** <script src>，不要改回 JS 动态插（v11，2026-09-13）。
-       跨文档 View Transition 的新页快照在 pagereveal 时抓取（实测≈文档创建后 40ms），
-       动态加载的数据常常赶不上 → 快照是「只有页头、没有内容流」的半空页面，
-       切页那一下看起来就是白闪。阻塞加载让数据在解析期就位，内容流随首帧一起画。
-       数据 ~2KB，值得。 -->
-  <script src="../assets/data/posts.js?v=4"></script>
+  <!-- 内容数据已上移到 <head>（2026-09-15）：挂在这行会让解析器停在"只有页头"的
+       半个页面上等一次网络往返，跨文档过渡抓到的快照就是半空的（详见 head 里的注释）。 -->
 
   <script>
   (function () {
