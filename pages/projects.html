@@ -82,7 +82,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=319" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=320" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -211,8 +211,11 @@
          卡片"）—— 横线在 .pj-stage 里（静态、不随卡片横移），每张自己的吊绳 + 线环 +
          卡片顶上的气眼由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。
          第二百八十二批 2026-09-15：**横线整根撤掉**（主人"2 线整根撤掉"）—— .pj-stage 里
-         不再有任何元素，页面上不再有横向笔画；每张卡改挂在自己的一枚钉头（.pj-scene__pin）上，
-         绳圈套在钉上。钉头 / 绳圈 / 吊绳 / 气眼全部由 projects-carousel.js 生成。 -->
+         不再有任何元素，页面上不再有横向笔画；每张卡改挂在自己的一枚钉头（.pj-scene__pin）上。
+         第二百八十三批 2026-09-15：**钉头以外的三件也撤了**（主人"每张卡挂一条线+一枚钉头的
+         设计不是很好看。优化一下设计"）—— 吊绳、绳圈、气眼全删，整排的吊具只剩一枚图钉，
+         钉心落在卡自己的顶边上（= 摆动支点 = 缩放不动点）。零布局改动。
+         这一枚 .pj-scene__pin 由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。 -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
       <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
         <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
@@ -237,6 +240,6 @@
   <script src="../assets/js/loader.js?v=7" defer></script>
   <script src="../assets/js/script.js?v=138" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=99" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=100" defer></script>
 </body>
 </html>
