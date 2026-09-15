@@ -1341,6 +1341,26 @@ body.dy-lb-open { overflow: hidden; }
            改到**轴向判明、真开始横拖**时才落定。
          · ⚠️ 教训：**"落定到终点"必须真的是终点**。旧注释写着"推到终点"，代码在出相里
            干的是"取消"——注释与实现不一致比没注释更坏。
+       v12.2（2026-09-15 22:31，主人「有时一个手势可以滑动两张图」+「手指不离开、慢慢拖」）
+         ——**把 v12.1 的幅度判据整个删掉**，边界只认"事件流里真正的停顿"：
+         · v12.1 为了不让"尾巴里再滑一下"被吞，加了 peak / inTail / push 三件套
+           （幅度掉到峰值一半以下 + 抬头 ≥1.25 倍 + ≥6px）。它把**手自己在一次接触里的
+           变速**（加速→减速→再加速）当成了"新手势"⇒ 同一次拖动翻两张。
+         · 复现（`scratch/lb-v12/probe-onestroke.js`，一段连续接触、全程无空档）：
+           v12 = **1 张**、v12.1 = **2 张** ⇒ 这个 bug 是 v12.1 引入的，不是老毛病。
+         · 现在**唯一**的解锁口是 `fresh`（静默 > LB_WHEEL_GAP，140ms → 70ms）。
+           理由：新的手指动作必然要求手指先停/离开 ⇒ 事件流里必然有空档；
+           而**连续接触期间没有空档**（~17ms 一拍）、**惯性尾巴也没有空档**。
+           于是连续拖动和快甩都只走一张，抬手再滑才走第二张 —— 结构上保住了，
+           不依赖任何幅度阈值。70ms 取在"心跳 ~17ms"与"人手抬手再放回 ~100~300ms"之间。
+         · ⚠️ 教训：**"一个手势一张"只能靠结构性判据保住**。凡是靠"幅度够不够大"的写法，
+           都会被"手自己会变速"和"尾巴会抖"打穿 —— v12.1 已经用一次线上 bug 证明过。
+         · 动画本身也改了一处（主人同一条消息里的「优化一下动画」）：换图之后挂进相过渡
+           原来要**等两个 rAF**，那是与帧率绑死的 —— 本机常态 27fps 时两个 rAF ≈54ms，
+           叠在 gapMs 40ms 上，out-in 空档实测从设计值 40ms 涨到 **135ms**（每切一张都白等）。
+           改成读一次 `offsetWidth` 强制重算，空档回到 ~40ms，且**与帧率无关**。
+           ⚠️ 这个改动必须靠套件里"进相挂的是 150ms ease-out / 进相单调回 0 / 起点在屏外那侧"
+             三条守住 —— 一旦过渡没挂上，新图会直接出现、没有进相（老注释记的正是这个坑）。
        ⚠️ v11.7 那条"只剩一套切换动画（轨道滑动）"已被 v12 取代 —— 见上。
 
        保留的三个坑位（跨版本反复踩到，别再丢）：
@@ -1432,38 +1452,31 @@ body.dy-lb-open { overflow: hidden; }
        拖动现在是硬封顶（见 lbDragVis），松手没过阈值也是瞬间归位（见 lbDragEnd）。
        v12 的 32px 跟手封顶不是"回弹"：到顶就不动，松手也不会往回弹。
        别再把它当成"手感更好"加回来。 */
-    var LB_WHEEL_GAP = 140;      /* 轮子手势的静默间隔（超过即算新手势） */
     var LB_WHEEL_MIN = 12;       /* 轮子手势的最小累计位移 */
-    /* ---- 触控板"手指重新发力"判据（v12.1）----
-       为什么需要（这是"连续滑动不流畅"在 Mac 上的另一半）：
-       macOS 松手后惯性尾巴会**连续**来几百 ms，而"新手势"判据是"静默 > LB_WHEEL_GAP"——
-       尾巴每来一条都刷新 last ⇒ 静默永远凑不满 ⇒ 用户在尾巴里再滑一下，
-       会被算进【同一条】手势里、被 lock 吞掉（"我滑了它不动"）。
-       尾巴与手指段唯一可靠的物理差别是：**尾巴单调衰减，永远不会重新抬头**。
-       所以判据只写这一条性质，别的（绝对幅度、衰减速率、事件间隔）都不写 ——
-       那些换一台机器、换一次系统版本就不成立：
-         · peak  = 本手势见过的最大 |deltaX|
-         · half  = 幅度已经掉到峰值一半以下（"尾巴弱下去了"，单调衰减必然经过这里）
-         · 再发力 = half && |deltaX| ≥ PUSH && |deltaX| > 上一条 × JUMP
-       危险方向只有一个：把尾巴误判成再发力 ⇒ 一条滑动翻两张（v10.2 / v273 栽过）。
-       单调递减的序列永远满足不了 `> 上一条 × 1.5`，所以这条危险方向在**结构上**就堵死了 ——
-       与尾巴衰减多快、事件多密都无关。验收里有"单条手势 + 长尾巴只能走一张"的反例。
-       ⚠️ 代价（明确接受）：尾巴还很强的时候（约前一半）重新滑，仍会被吞 —— 那时上一段
-          动画本来也没走完。这三个数只能在**真机触控板**上复核：合成流过不了的不一定真机
-          过不了，反过来也一样。改之前先读这段。
-       判据分三步（**先看位置、再武装、最后发力**）。每一步都是被一个假阳性逼出来的，
-       少一步就会错：
-         · inTail = |deltaX| 掉到本手势峰值的一半以下 —— 只有"在尾巴里"才承认后面的抬头。
-            少了它，手指段自己的加速会被当成"新手势"（实测：一次快速甩动连开两张）。
-         · push   = 在尾巴里出现过一次"比上一条大 ≥ JUMP 倍"的抬头。
-            少了它，光看绝对幅度会把尾巴的余波当成新手势（实测：一条手势走 5 张）。
-         · 再发力 = push && |deltaX| ≥ PUSH。少了它，弱尾巴从 1px 抬到 2px 也算一次。
-         · 命中之后 **peak 重新起算**（新的一次从这一刻开始量）—— 不重算的话，
-            同一个手指段继续往上加速会把 push 又武装起来，一次甩动连开第三张（实测踩过）。
-       ⚠️ 手指段自己的加速**不会**误触发：那时幅度还在涨，inTail 不成立（peak 跟着涨）。 */
-    var LB_WHEEL_PUSH = 6;       /* 再发力的最小 |deltaX|（再小就当噪声 / 尾巴余波） */
-    var LB_WHEEL_HALF = 0.5;     /* 幅度掉到峰值这个比例以下 = 进了尾巴 */
-    var LB_WHEEL_JUMP = 1.25;    /* 比上一条抬头这么多 = 手指又推了一下 */
+    /* ---- 轮子手势的边界 = **事件流里真正的停顿**（v12.2）----
+       v12.1 用"幅度抬头"判断"手指又发力了"（peak / inTail / push 三件套）。它错了，
+       而且错在最普通的情况下 —— 主人 09-15 22:31 报的正是这条：
+       **「手指不离开触控板、慢慢拖，也会翻两张」**。
+       为什么必然错：**人的手速在一次接触里本来就有起伏**（加速 → 减速 → 再加速），
+       幅度于是先掉到峰值一半以下、再抬头 ⇒ 被当成"新手势" ⇒ 同一次拖动翻两张。
+       复现（`scratch/lb-v12/probe-onestroke.js`：一段连续接触、全程无空档）——
+         v12（没有这套判据）= **1 张** · v12.1（有）= **2 张**。
+       幅度这条路整体走不通：尾巴会抖、手会变速，幅度分不开这两种东西。
+
+       可靠的只有**停顿**。物理上，任何"新的手指动作"都要求手指先停住或离开触控板，
+       事件流里必然出现一次真正的空档；而**连续接触期间不会有空档**（OS 一直发，
+       约 17ms 一拍），**惯性尾巴也不会有空档**。于是：
+         · 连续拖动        → 无空档 → 一直锁着 → 只走一张 ✓（主人要的就是这个）
+         · 一次快甩 + 尾巴 → 无空档 → 一直锁着 → 只走一张 ✓
+         · 抬手再滑第二下  → 有空档 → 解锁   → 走第二张 ✓
+       这正是 `fresh`：静默超过 LB_WHEEL_GAP 才算新手势。它现在是**唯一**的解锁口。
+       ⚠️ 别再往这条路径上加"幅度判据" —— v12.1 加过一次，就是上面那个 bug。
+          "一个手势不许走两张"只能靠**结构性**判据（有没有空档）保住；
+          靠"幅度够不够大"永远保不住，因为手自己就会变速。
+       LB_WHEEL_GAP = 70ms 的取法：**高于**事件本身的心跳（正常 ~17ms，机器有负载会拉长），
+       又**低于**人抬手再放回去的时间（约 100~300ms）。140ms 会偶尔吞掉很快就来的第二下；
+       70ms 两边都留了余量，而且不再需要任何幅度阈值。 */
+    var LB_WHEEL_GAP = 70;
     var LB_CLICK_MUTE = 260;     /* 拖完抑制 click 的窗口（否则指针落在图外会误关灯箱） */
 
     function lbMs(base) { return Math.round(base / LB_SPEED); }
@@ -1674,7 +1687,6 @@ body.dy-lb-open { overflow: hidden; }
       lbTo = lbIndex;
       lbDrag = null; lbDragDim = null;
       lbWheel.acc = 0; lbWheel.dir = 0; lbWheel.lock = false;
-      lbWheel.prev = 0; lbWheel.peak = 0; lbWheel.inTail = 0; lbWheel.push = 0;
       lb.classList.remove('is-dragging');
       lbRest();
     }
@@ -1738,8 +1750,7 @@ body.dy-lb-open { overflow: hidden; }
                                  v = 画面位移（阻尼+封顶），raw = 原始手指位移（判提交） */
     var lbDragDim = null;     /* 手势开始时的胶片几何；中途不重量，免得步距抖动 */
     var lbClickMute = 0;      /* 拖完到这个时刻之前忽略 click（否则指针落在图外会误关） */
-    var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null,
-                    prev: 0, peak: 0, inTail: 0, push: 0 };  /* 后四个 = "再发力"判据（v12.1） */
+    var lbWheel = { last: 0, acc: 0, dir: 0, lock: false, dim: null };
 
     function lbCommitDist(step) {
       if (!step) return LB_COMMIT_MAX;
@@ -1794,24 +1805,27 @@ body.dy-lb-open { overflow: hidden; }
         lbFx0(lbSlotCur);
         lbSlotCur.style.transform = 'translateX(' + inX + 'px)';
         lbSlotCur.style.opacity = '0';
-        /* ⚠️ 必须等两帧再挂过渡：同一帧里"写 transition + 写终值"会被合并成
-           "没有过渡"（浏览器只在样式重算后才发现 transition 变了）——
-           症状是新图直接出现、没有进相。 */
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            if (seq !== lbSeq) return;
-            lbFx(lbSlotCur, inMs, LB_IN_EASE, inMs, LB_IN_EASE, 0);
-            lbSlotCur.style.transform = 'translateX(0px)';
-            lbSlotCur.style.opacity = '1';
-            lbPhase = 'in';
-            lbTimer = setTimeout(function () {
-              if (seq !== lbSeq) return;
-              lbTimer = null;
-              lbPhase = 'idle';
-              lbRest();                        /* 收尾归位（无过渡，值本来就一样） */
-            }, inMs + 16);
-          });
-        });
+        /* 🔴 v12.2：同一帧里"写 transition + 写终值"会被合并成"没有过渡"
+           （浏览器只在样式重算后才发现 transition 变了）—— 症状是新图直接出现、没有进相。
+           老写法是**等两个 rAF** 把起点刷进去。那是**和帧率绑死**的：60fps 下两个 rAF ≈33ms
+           还能忍，本机常态 27fps 时两个 rAF 就是 ~54ms，叠在 gapMs 40ms 上，
+           out-in 的空档实测从设计值 40ms 涨到 **135ms** —— 每切一张都白等这么久，
+           这就是"不流畅"里能量出来的那一块。
+           ✅ 改成**读一次 offsetWidth** 强制重算样式：同一个任务里就能挂过渡，
+              空档回到 ~40ms，而且**与帧率无关**。这是标准做法，但必须验证：
+              套件里"进相挂的是 150ms ease-out / 进相单调回 0 / 起点真的在屏外那侧"
+              三条会立刻抓住"过渡没挂上"这种退化。 */
+        void lbSlotCur.offsetWidth;
+        lbFx(lbSlotCur, inMs, LB_IN_EASE, inMs, LB_IN_EASE, 0);
+        lbSlotCur.style.transform = 'translateX(0px)';
+        lbSlotCur.style.opacity = '1';
+        lbPhase = 'in';
+        lbTimer = setTimeout(function () {
+          if (seq !== lbSeq) return;
+          lbTimer = null;
+          lbPhase = 'idle';
+          lbRest();                        /* 收尾归位（无过渡，值本来就一样） */
+        }, inMs + 16);
       }, outMs + gapMs);
     }
 
@@ -1910,30 +1924,14 @@ body.dy-lb-open { overflow: hidden; }
       if (!dx || Math.abs(e.deltaY) > Math.abs(dx)) return;   /* 竖滚不接管 */
       e.preventDefault();
       var now = performance.now();
-      var adx = Math.abs(dx);
-      var fresh = (now - lbWheel.last) > LB_WHEEL_GAP;
-      /* "手指重新发力"三步判据（详见 LB_WHEEL_HALF 上面那段）——
-         ⚠️ 必须在更新 peak / prev 之前算，顺序反了就永远比不过自己。 */
-      if (adx > lbWheel.peak) lbWheel.peak = adx;
-      lbWheel.inTail = adx < lbWheel.peak * LB_WHEEL_HALF ? 1 : 0;      /* ① 在尾巴里吗 */
-      if (lbWheel.inTail && adx > lbWheel.prev * LB_WHEEL_JUMP) lbWheel.push = 1;  /* ② 抬头 */
-      var relift = lbWheel.push && adx >= LB_WHEEL_PUSH;                /* ③ 推到有意义的幅度 */
-      lbWheel.prev = adx;
+      var fresh = (now - lbWheel.last) > LB_WHEEL_GAP;   /* ← 唯一的解锁口：真正的停顿 */
       lbWheel.last = now;                        /* ⚠️ 每一条都刷新（含惯性尾巴）——
-                                                    不刷的话尾巴会被当成新手势，再翻一张 */
-      if (fresh) {
-        lbWheel.acc = 0; lbWheel.lock = false;
-        lbWheel.peak = adx; lbWheel.push = 0; lbWheel.inTail = 0;
-      }
-      if (lbWheel.lock) {
-        /* 已经用掉一次了。惯性尾巴单调衰减 ⇒ 永远满足不了 relift ⇒ 不会偷偷多走一张；
-           手指重新发力（进了尾巴之后又抬头）⇒ 算成新的一次，解锁。
-           ⚠️ 命中时 peak 必须重新起算：不重算的话，同一个手指段继续加速会把 push
-              又武装起来 —— 一次甩动连开第三张（实测踩过）。 */
-        if (!relift) return;
-        lbWheel.acc = 0; lbWheel.lock = false;
-        lbWheel.peak = adx; lbWheel.push = 0; lbWheel.inTail = 0;
-      }
+                                                    尾巴也是"手指还在动"，不该被当新手势；
+                                                    这样尾巴期间没有空档 ⇒ 一直锁着 ⇒ 只走一张 */
+      if (fresh) { lbWheel.acc = 0; lbWheel.lock = false; }
+      if (lbWheel.lock) return;                  /* 这条手势已经用掉一次了。
+                                                    没有停顿就绝不放行 —— v12.2 起这里
+                                                    不再看任何幅度（v12.1 那套会翻两张，见常量处注释）*/
       /* 🔴 v12.1：这里原来有一条 `if (lbPhase !== 'idle') return;` —— 淡滑中来的
          【新手势】会被整条丢掉（它的头几个事件进不来、acc 一直是 0，只剩尾巴在凑数），
          实测连发 6 条只走 5 张，而且还出现过 ~1.8s 的死区（"我滑了它不动"）。
