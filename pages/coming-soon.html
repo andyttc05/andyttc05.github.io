@@ -18,7 +18,39 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（本页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=3">
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     （本页无深色主题，① 的防白闪底色只写 light 一条，见 <title> 之后那段。三者都是渐进增强。） -->
+<script>
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
+</script>
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
+<link rel="stylesheet" href="../assets/css/loader.css?v=4">
 <style>
   :root {
     --color-ink: #0f172a;
@@ -198,7 +230,7 @@
 <!-- 全屏加载页控制器（第一百五十五批 2026-08-23）：渐进式加载 —— 不再等图片，
      就绪信号 = window load + 字体就绪；本页无大图，秒开；基于时间/场景/用户感知的决策系统，
      就绪后派发 pageReady -->
-<script src="../assets/js/loader.js?v=5" defer></script>
+<script src="../assets/js/loader.js?v=7" defer></script>
 <!-- 全屏背景动效（与主页同款）：几何粒子网络 + 动态几何飘带，单色 accent 版 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
 <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>

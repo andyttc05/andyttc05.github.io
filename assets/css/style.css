@@ -3627,3 +3627,104 @@
     .pj-scene:not(.pj-scene--raised).is-enter .pj-scene__swing { animation: none; }
     .pj-scene__stamp-flourish { stroke-dashoffset: 0; }
   }
+
+/* ============================================================================
+   站内导航过渡（2026-09-13，v2「幕布式」）
+   主人："这个网页点击目录栏加载很流畅 https://tblog.mmzhiku.xyz/，参考一下这网页的加载
+   设计，优化一下自己网站的加载体验和闪烁问题。"
+   上一版把入场编排整个关掉了，主人："这样的话登场动画怎么就没了，修复一下" → 本版。
+
+   === 三条实测硬事实（改这段之前必须先接受）===
+   ① 跨文档 VT 的**新页快照是 pagereveal 那一刻拍的**（实测 ≈ 文档创建后 40ms）。
+      那一刻没进 DOM、或被入场编排压在 opacity:0 的元素，快照里**根本不存在**。
+   ② 过渡期间**新文档的 DOM 完全不参与合成**。实测探针：ready 之后把 <nav> 涂成纯红，
+      过渡全程截图里红色占比 0.00%，过渡一结束立刻 94.31%；把 old 快照淡到 0 时
+      露出来的也不是 DOM，而是新文档的 html 底色（亮度 247 = paper）。
+      ⇒「让 old 淡出、新页的实时动画从底下浮现」这条路**走不通**，别再试。
+   ③ 反过来，过渡期间 DOM 的变化用户**看不见**（同 ②）—— 这是本版的地基：
+      可以放心把 DOM 倒回入场初始态、甚至强制 reflow。
+
+   === 于是「不白闪」和「有登场动画」怎么同时成立 ===
+   旧页与新页**互补交叉淡入淡出**：old 从 1 淡到 0、new 从 0 淡到 1，同 450ms 同 `ease`。
+   两端同曲线 ⇒ 默认的 `plus-lighter`（相加）在全程恒等于 1，中途不会泛白。
+   过渡期间新文档的 DOM 不参与合成（事实 ②），所以看的是新页**快照**；
+   450ms 后真实 DOM 接手，入场编排已经在底下跑了 450ms，露出来就是"正在登场"的画面。
+
+   ⚠️ 2026-09-15 主人报「切换页面时页面会缩放」「视觉显示割裂」—— 病根就在下面这几行：
+   上一版给 old 加了 `transform: scale(1 → 0.96)`（当时想给一个"旧页面退场"的信号），
+   **并且**把 new 恒设为 `opacity: 0`。于是实测是「整屏缩 4% 停 450ms → 硬切到新页」，
+   缩放与割裂两句都对上了（逐帧采样 old 的 computed transform：1 → 0.96 共 450ms）。
+   ⇒ 别再给 old/new 加任何 transform，也别再让 new 不参与。
+   450ms 这个数不动 —— 它是按"幕布撤掉时入场编排跑到哪"标定的（上一段）。
+
+   注：按站内约定不写 prefers-reduced-motion 降级（写了动画会被静默关掉）。
+   ============================================================================ */
+@view-transition { navigation: auto; }
+
+::view-transition-group(root) { background: var(--color-paper); }
+
+/* ⚠️ 两段必须**同 duration、同 timing-function**。默认 `plus-lighter` 是相加：
+   曲线不互补时中途 opacity(old)+opacity(new) > 1 → 整屏泛白。 */
+::view-transition-old(root) { animation: nav-vt-out 450ms ease both; }
+::view-transition-new(root) { animation: nav-vt-in  450ms ease both; }
+@keyframes nav-vt-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes nav-vt-in  { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------------------------------------------------------------------
+   快照态：站内导航、且 .page-ready 还没加 —— 也就是「快照已拍／幕布还盖着」这段窗口
+
+   这段时间把入场编排载体全压到终态，pagereveal 拍到的快照就是完整页面。
+   等 loader.js 在 vt.ready（拍摄之后）加上 .page-ready，这些覆盖**同时失效**，
+   入场编排即"首次启动"—— CSS animation 首次匹配就从头播、transition 从初始态起步，
+   而 script.js 的 .entered / 打字机、posts 的条目渐入本来就等 pageReady 事件。
+   所以全套动画自然地在幕布底下开跑，不需要任何"重播/重置"技巧。
+
+   ⚠️ 与上一版的关键差别：上一版选择器是 `html.nav-instant`（永久生效）→ 站内导航的
+   登场动画被彻底关掉。现在窗口收窄成 `:not(.page-ready)`，只在拍摄窗口里生效。
+
+   ⚠️ 三条优先级约定，改动前先读：
+   1) 标题那两条必须留在**文件末尾** —— 与 `html.page-ready .hero-title-char` 同特指度
+      (0,2,1)，靠源码顺序压过它（它写在第 886 / 2097 行）。上面那些
+      `:nth-child(n)` 只改 animation-delay，animation-name 已是 none，不影响。
+   2) `.dy-item` / `.dy-day` 的 opacity:0 写在 **posts.html 的内联 <style>** 里
+      （特指度 (0,1,0)），这里靠 (0,2,1) 压过，不依赖加载顺序。
+   3) hero 那几条是**照抄 .entered 的终态值**：`.hero-scroll` 要保留 translateX(-50%)
+      居中、`.hero-art-base` 要保留 rotate + --base-y 外露量 —— 改终态时一起改。
+   --------------------------------------------------------------------------- */
+html.nav-instant:not(.page-ready) .hero-title-char,
+html.nav-instant:not(.page-ready) .about-title-char { animation: none; }
+html.nav-instant:not(.page-ready) .dy-item,
+html.nav-instant:not(.page-ready) .dy-day { opacity: 1; transform: none; transition: none; }
+html.nav-instant:not(.page-ready) .hero .hero-text > *:not(.hero-cta),
+html.nav-instant:not(.page-ready) .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
+html.nav-instant:not(.page-ready) .hero .hero-art-base {
+  opacity: 1;
+  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
+  transition: none;
+}
+html.nav-instant:not(.page-ready) .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+html.nav-instant:not(.page-ready) .hero .hero-scroll {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition: none;
+}
+
+/* ---------------------------------------------------------------------------
+   开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
+
+   为什么需要：上面那批覆盖一失效，`.hero-text > *` 会从覆盖给的 opacity:1
+   **平滑过渡**回基础规则的 opacity:0（0.7s）；而 script.js 的 `.entered` 要等下一帧
+   rAF 才加 —— 等它加回来时元素已经从 1 淡到 0.98 了，整套"上浮 + 渐入"只剩几个
+   百分点（动画被自己吃掉）。所以先冻结过渡、强制 reflow 把初始态钉住，再解冻。
+
+   通配符 + !important 看着粗暴，但三条保证它安全：
+     · 只在同一个任务里加→删，不存在用户交互窗口；
+     · 该任务期间 DOM 在幕布底下（事实 ③），即使渲染了也看不见；
+     · canvas 背景由 JS rAF 绘制，不受 CSS 影响。
+   --------------------------------------------------------------------------- */
+html.nav-anim-reset *,
+html.nav-anim-reset *::before,
+html.nav-anim-reset *::after {
+  transition: none !important;
+  animation: none !important;
+}

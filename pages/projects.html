@@ -12,7 +12,8 @@
 <title>项目 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
-     ② 会话标记 rm-visited：本次会话第二次起的导航给 <html> 加 .nav-instant，
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
         加载页只留给会话的第一次进入做品牌落地；
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
@@ -22,13 +23,26 @@
   html.theme-dark { background: #0f172a; }
 </style>
 <script>
-  try {
-    if (sessionStorage.getItem('rm-visited') === '1') {
-      document.documentElement.classList.add('nav-instant');
-    } else if (!document.prerendering) {
-      sessionStorage.setItem('rm-visited', '1');
-    }
-  } catch (e) {}
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
 </script>
 <script type="speculationrules">
 {"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
@@ -68,7 +82,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=316" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=318" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -195,12 +209,13 @@
          进度条"）—— 位置信息由每张的印章「02 / 04」承担，不需要第二条指示器。
          第二百八十批 2026-09-14：**一根横线吊住每一张**（主人"卡片上方加一条线吊住每一张
          卡片"）—— 横线在 .pj-stage 里（静态、不随卡片横移），每张自己的吊绳 + 线环 +
-         卡片顶上的气眼由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。 -->
+         卡片顶上的气眼由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。
+         第二百八十二批 2026-09-15：**横线整根撤掉**（主人"2 线整根撤掉"）—— .pj-stage 里
+         不再有任何元素，页面上不再有横向笔画；每张卡改挂在自己的一枚钉头（.pj-scene__pin）上，
+         绳圈套在钉上。钉头 / 绳圈 / 吊绳 / 气眼全部由 projects-carousel.js 生成。 -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
       <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
-        <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ">
-          <span class="pj-stage__wire" aria-hidden="true" data-page-node-id="pjWire0001"></span>
-        </div>
+        <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
       </div>
     </section>
   </main>
@@ -219,9 +234,9 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
 
-  <script src="../assets/js/loader.js?v=6" defer></script>
+  <script src="../assets/js/loader.js?v=7" defer></script>
   <script src="../assets/js/script.js?v=138" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=97" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=98" defer></script>
 </body>
 </html>

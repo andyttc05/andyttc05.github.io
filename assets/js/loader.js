@@ -4,11 +4,14 @@
 
    [时间]
    - 加载页的**可见性由 loader.js 控制**（loader.css 里默认 opacity:0）：
-     它**只在页面确实慢了之后才被放出来**（REVEAL_AFTER_MS = 150ms），
-     快网冷加载实测 0 帧出现；慢网才会露脸（2026-09-15 修）；
-   - 就绪耗时（performance.now 实测）：就绪 < 350ms 且加载页还没被放出来 → 连淡出都省、直接移除；
+     它**只在页面确实慢了之后才被放出来**（REVEAL_AFTER_MS = 150ms）。
+     本地冷加载实测 0 帧出现（内容 30~70ms 就好了）；线上首访（`load` 462~911ms）照常露脸做品牌落地。
+     站内点击与刷新走的是另一条路：<head> 给 <html> 加了 .nav-instant，本文件提前 return，
+     加载页连第一帧都不画（2026-09-15）；
+   - 就绪时若它**还没被放出来** → 直接移除、立刻 page-ready（用户不需要它，也就无所谓等待）；
      放出来过的一律走淡出（硬移除会闪掉一帧满屏浅色，详见 release()）；
-   - 最短展示：首访 900ms / 回访 450ms —— 用户感知上"加载页存在过"才自然；
+   - 放出来之后：停留 ≥ MIN_VISIBLE_MS（400ms，**从放出来那刻起算**）与品牌落地停留
+     （首访 900ms / 回访 450ms）中的**较大者** —— 防"放了 20ms 就消失"的一闪；
    - 兜底上限：快网 6s / 慢网 12s —— 资源卡死也绝不锁页面（HTML 内联脚本还有 load+2s 兜底）。
 
    [场景]
@@ -55,10 +58,50 @@
   try { sessionStorage.setItem('rm-loader-seen', '1'); } catch (e) {}
 
   /* --- 决策参数 --- */
-  var REVEAL_AFTER_MS = 150;         /* 到点还没就绪才把加载页放出来；先就绪 → 用户从头没见过它 */
-  var SKIP_FAST_MS = 350;            /* 就绪耗时低于此 + 加载页还没放出来 → 秒开，直接移除不淡出 */
-  var MIN_SHOW_MS = seen ? 450 : 900; /* 最短展示：回访 450 / 首访 900（品牌落地） */
+  var REVEAL_AFTER_MS = 150;         /* 到点还没就绪才把加载页放出来；本地 30~70ms 就绪 ⇒ 0 帧。
+                                        ⚠️ 别为了"更无感"把它抬到 1000 —— 线上首访 load = 462~911ms，
+                                        那等于把主人的品牌加载页整页删掉（试过，已回退）。 */
+  var MIN_VISIBLE_MS = 400;          /* 放出来之后至少要停留这么久（**从放出来那刻起算**，防一闪） */
+  var MIN_SHOW_MS = seen ? 450 : 900; /* 品牌落地停留：首访 900 / 回访 450（仅在已经放出来时生效） */
   var MAX_WAIT_MS = slowNet ? 12000 : 6000; /* 兜底上限：快网 6s / 慢网 12s */
+
+  /* 站内导航：加载页不播（loader.css 的 `html.nav-instant #pageLoader{display:none}`，
+     连第一帧都画不出），但 **.page-ready 不能立刻加**。
+     它是整套入场编排的开关（CSS 的标题弹出、script.js 的 .entered / 打字机、
+     posts 的条目渐入都等它）。加太早就等于在 pagereveal 拍新页快照之前把动画开跑，
+     快照抓到的就是"内容还没出现"的半空页 → 淡进来还是白闪（上一版就是这么来的，
+     代价是只好把入场编排整个关掉，主人："登场动画怎么就没了"）。
+
+     正确时机：**新页快照拍完之后**。跨文档 VT 的 viewTransition.ready 正好是这个点
+     （实测它只比 pagereveal 晚 2ms —— 事件处理器在拍摄前跑、ready 在拍摄后 resolve）。
+     而且过渡期间新文档的 DOM 不参与合成（实测：把 nav 涂红，过渡全程红色占比 0.00%），
+     所以在这里把 DOM 倒回入场初始态，用户完全看不见。
+     时序与首访对齐：加载页淡出 450ms = 幕布 450ms，两种进入方式观感一致（见 style.css）。 */
+  if (html.classList.contains('nav-instant')) { navGate(); return; }
+
+  function navGate() {
+    var opened = false;
+    function open() {
+      if (opened) return;
+      opened = true;
+      /* 冻结窗：上面那批「快照态」覆盖一失效，元素会从终态**平滑过渡**回入场初始态
+         （0.7s）—— 那会把真正的入场动画吃掉大半。先冻结过渡、强制 reflow 把初始态
+         钉死，再解冻，动画才能从真正的初始态起步。这一步在幕布底下，看不见。 */
+      html.classList.add('nav-anim-reset');
+      release(true);              /* 加 .page-ready + 派发 pageReady（release 已提升） */
+      void html.offsetHeight;     /* 强制 reflow：确认入场初始态已应用 */
+      html.classList.remove('nav-anim-reset');
+    }
+    window.addEventListener('pagereveal', function (e) {
+      var vt = e && e.viewTransition;
+      if (!vt || !vt.ready) { open(); return; }   /* 本次没起过渡（被跳过等）→ 直接开 */
+      vt.ready.then(open).catch(open);
+    });
+    /* 兜底：不支持跨文档 VT 的浏览器不派发 pagereveal。绝不能一直不开闸 ——
+       那页面会永远停在「快照态」（内容可见但没有入场动画）。 */
+    if (typeof document.startViewTransition !== 'function') { open(); return; }
+    setTimeout(open, 350);
+  }
 
   html.classList.add('page-loading'); /* 锁滚动（style.css: html.page-loading overflow hidden） */
 
@@ -67,13 +110,13 @@
      （秒开 < 350ms / 站内导航 nav-instant）只能靠"画出来之后再摘掉"，摘的那一下就是
      一帧满屏浅色闪掉；线上实测每页都中招（画过 1 帧：65~109ms 显示 → 同一毫秒消失）。
      现在它默认不可见，由本文件在**确实慢了**的时候才放出来（REVEAL_AFTER_MS）：
-       · 150ms 内就绪 → 加载全程它一次都没画过（不是"画了再藏"）—— 快网下这是常态；
+       · 到点之前就绪 → 加载全程它一次都没画过（不是"画了再藏"）—— 快网下这是常态；
        · 到点还没就绪 → 放出来，之后按最短展示/就绪时间淡出。
-     ⚠️ 2026-09-15 第一版只把"硬移除"改成"画过就淡出"，实测冷加载照样占 122~251ms 满屏
-        （而内容是 30ms 就绪的）—— 因为原来第一帧就无条件放出来，而 load 永远晚于第一帧，
-        "秒开直接移除"那条路根本走不到。**决定用户看不看得见的是放出来的时机，不是摘掉的方式。**
-     闸门失效也兜住了：就算 loader.css 被缓存成没有 nav-instant 那条规则的旧版，
-     这条"延迟到 REVEAL_AFTER_MS"的判定仍会让快网下的加载页画不出来。 */
+     ⚠️ 2026-09-15 第一版只把"硬移除"改成"画过就淡出"、揭示时机仍写死在第一帧上，
+        实测冷加载照样占 122~251ms 满屏（而内容是 30ms 就绪的）—— 因为 `load` 永远晚于
+        第一帧，"就绪快就直接摘掉"那条路根本走不到。**决定用户看不看得见的是放出来的时机。**
+     顺带把闸门失效也兜住了：就算 loader.css 被缓存成没有 `html.nav-instant` 那条规则的旧版，
+     站内导航页也永远走不到这行（上面的 navGate 提前 return），加载页照样画不出来。 */
   var shown = false;
   var revealTimer = setTimeout(function () {
     if (done) return;
@@ -122,12 +165,19 @@
 
   Promise.all([loaded, fontsReady]).then(function () {
     var elapsed = performance.now() - startT;
-    if (elapsed < SKIP_FAST_MS) { release(true); return; }
-    /* 已就绪但还没到最短展示：等剩余时间再淡出（感知上"加载页存在过"） */
-    var rest = Math.max(0, MIN_SHOW_MS - elapsed);
+    /* 还没放出来过 ⇒ 用户根本不需要加载页：直接摘掉、立刻 page-ready。
+       这条**取代了**原来的 `elapsed < SKIP_FAST_MS`（那个常数已删）：它的本意是
+       「就绪很快就别让用户看见」，但它写在一个永远不成立的条件下 —— 揭示挂在定时器上，
+       `load` 又永远晚于第一帧，所以那条快路径在实践中从没走到过（详见下面那段注释）。 */
+    if (!shown) { release(true); return; }
+    /* 已经放出来了：既要够"品牌落地"的停留，也至少要 MIN_VISIBLE_MS
+       —— 后者从**放出来那刻**起算，否则「到点刚放出来、下一步就绪」会得到一闪即走。 */
+    var floor = Math.max(MIN_SHOW_MS, REVEAL_AFTER_MS + MIN_VISIBLE_MS);
+    var rest = Math.max(0, floor - elapsed);
     setTimeout(function () { release(false); }, rest);
   }).catch(function () {
-    /* fonts.ready reject 等异常：不锁页面，按最短展示兜底 */
+    /* fonts.ready reject 等异常：不锁页面 */
+    if (!shown) { release(true); return; }
     setTimeout(function () { release(false); }, Math.min(MIN_SHOW_MS, 600));
   });
 
