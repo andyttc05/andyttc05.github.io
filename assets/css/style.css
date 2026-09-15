@@ -3079,6 +3079,8 @@
          ② 每张一条吊绳（上浅下深，靠卡片那头更深）；③ 绳过线处一枚中空线环、
          绳过卡片处一个气眼（墨圈 + 露页面底色 + 内侧浅阴影）。全部走 --pj-ink 墨色系，
          不引新色相 —— 与标签栏的 2px 墨线、5px 圆点同一套笔画。
+         ⚠️ **这三点到第二百八十二/八十三批全拆了**（横线 → 钉头 → 只剩一枚图钉）。
+         下面那条几何复用记的是当时的做法，--pj-cord-h 已经不存在，别照着找。
        · 几何复用：绳顶一律落在横线上（平卡的绳 = drop+rope-extra，吊卡 = 0.54·drop+rope-extra，
          两者顶端同高），摆动轴心 = 绳顶 ⇒ `--pj-cord-h` 一个属性同时喂 transform-origin 与绳长。
        · 胶带从顶部正中挪到右上角：正中让给吊绳 + 气眼（原先会糊住接缝），构图成
@@ -3101,14 +3103,17 @@
          改法 = 父级不挂 mask、波浪走 ::before 的背景图、淡出走 ::before 自己的 mask。
          详见 .pj-stage__wire 那一节；改画法后必须跑 wire-zoom.js 出图。
      第二百八十二批 2026-09-15（主人"2 线整根撤掉"—— 在 scratch/pj-scenes/wire-concepts-*.png
-     的四个候选里选了 "pin" 那版）：
+     的四个候选里选了 "pin" 那版）。⚠️ **下面这一版只活了几小时，已被第二百八十三批取代** ——
+     横线确实该撤（这一条的结论还有效），但"一枚 3.2px 钉头 + 一根 2px 绳 + 一个 8px 绳圈 +
+     一个气眼"这套**四件套本身**错了：三个小圆挤在一条 122px 的轴上，观感是噪点，
+     而且它是整页唯一的 CAD 级精确 + 渐变 + 假高光元素。留档只为记住"横线为什么必须走"：
        · **横线整根删掉**：HTML 的 .pj-stage__wire + CSS 的规则与 ::before、以及两个只为它存在的
          自定义属性（--pj-wire-wave / --pj-wire-fade）一起清掉，不留孤儿选择器。
          两轮调参（1.7px/44% 波浪 → ±1.35 → ±1.75 → 随机化波长）都没解决，说明问题不在
          "线画得好不好看"，而在**横线这个存在本身**：横跨整页、两端无锚点、又比站内任何一条
          hairline 都重（PIL 实测竖着占 4px、最暗 153 < --color-rule #cbd5e1）
          ⇒ 只能被读成版块分割线。
-       · 改成**每张卡一枚自己的钉头**（.pj-scene__pin，3.2px，钉在页面底色上，绳圈套在钉上）。
+       · 改成每张卡一枚自己的钉头（.pj-scene__pin，3.2px，钉在页面底色上，绳圈套在钉上）。
          页面上不再有任何横向元素，只剩「钉 → 圈 → 绳 → 卡」四种实物，全在同一条竖轴上。
        · **零布局改动**：钉头就在原来横线的高度（--pj-drop / --pj-rope-extra / 绳长公式一字未改）
          ⇒ "一排挂在同一高度"这件事还在，只是从"一根线下"变成"同一个高度"。
@@ -3117,6 +3122,38 @@
          🔴 单有几何断言**证明不了"线没了"** —— 那是画上去的像素。18.6'' 是真的去截那一条带、
          逐行数墨列（见 pj-check.js 里的 PNG 解码器）：有横线时某一行会覆盖 90%+ 的宽度，
          没有时最多百分之几（三枚 3.2px 钉）。夹具 = 把老横线注回来，这条必须变红。 */
+     第二百八十三批 2026-09-15（主人："每张卡挂一条线+一枚钉头的设计不是很好看。优化一下设计"）：
+       先按主人的话去查了当下的趋势（他说"你可以网上搜搜灵感"）。十几篇 2026 的设计评论
+       指向同一件事 —— **naive design / intentional imperfection**：wobbly lines、off-grid、
+       "bold, flat colour palettes with **no gradients or shadow logic**"、以及那句被反复引用的
+       "imperfection 现在是**作者身份**的证明"。反过来说明了我这一步错在哪：**形状不是病根**。
+       病根是**它和整页不是一套语言** —— 这一页从头到脚是手绘的（说明带的铅笔涂鸦、斜切的
+       胶带、−8° 的圆贴纸），只有旧吊具是 CAD 级精确：一条直线、linear-gradient 渐变、
+       inset 假高光 + 外投影。四件套里三件是 3.2~8px 的小圆，挤在一条 122px 的轴上，
+       正常观看距离下就是**噪点**而不是"吊具"。
+       · 出了四格草图（手绘绳 / 木夹子 / **一枚图钉** / 两根胶带）让主人挑 ⇒ 他选了**图钉**。
+       · **绳、绳圈、气眼三件全删**，只剩 .pj-scene__pin 一枚：钉心 = 卡顶 + --pj-pin-y，
+         头 11px（clamp 9~11），平涂 --color-accent + 一枚平涂浅色假光（::after）+
+         钉帽下一截钉身（::before，z-index:-1 退到钉帽底下）。**零渐变、零外投影。**
+       · **支点搬家**：吊点从"绳落在卡顶那一点"变成"钉心"。--pj-pin-y 现在一个值喂三处 ——
+         钉自己的 top、.pj-scene__swing 的 transform-origin、.pj-scene__zoomer 的
+         transform-origin。三处同值才满足"钉心既不动、又是摆动支点"。
+         （zoomer 的 origin 从 50% 0 挪到 50% var(--pj-pin-y)：邻居缩放时钉头不再飘 0.42px。）
+       · **布局零改动**（逐项对过线上 282：stage 1408×458.3 / bento 474.5 / pageH 900 /
+         卡 399×370.8 / 平卡顶 +67.5 / 吊卡顶 +36.4 全部一字不差）。
+         **唯一一处 0.4px**：邻居缩小是按缩放原点缩的，原点从 50% 0 挪到 50% 7px ⇒
+         邻居内部元素下移 7×(1−0.94)=0.42px（实测 1440 照片顶 +55.9→+56.3）。
+         看不出来，但它是真的，所以写在这儿。删掉的只有 --pj-cord-h / --pj-rope-extra /
+         --pj-ring-d / --pj-hole-* 这些**只服务于绳与气眼**的 token。
+       · 🔴 **反过来说：两排钉头从此不共线了**（等于 281 那版"全排同高"这条性质退休）。
+         看上去是"两块板上钉了两排照片"—— 错落本身对了，因为已经没有那条线可以共。
+         18.2 断言相应重写成"钉心相对卡顶的偏移一致 + 两种高度确实错开"。
+       · 🔴 **18.6 换成"吊挂区真空了"**：从 stage 顶到最高那张卡的顶边，量①横带最厚一行墨列、
+         ②每张卡中线那条 9px 竖条里的墨点数。旧版要判的是"钉与绳之外没有横向笔画"，
+         新版该判的是**上面什么都没了**。两条反证夹具：注回老横线（横带须爆）、
+         注回老吊绳（竖条须出墨）—— 只留横带那条的话，"绳又回来了"这种回归会全绿溜过去。
+       · 验收 pj-check.js 第十八组整组重写；`--pj-cord-h` 那条 18.8 布局夹具换成了
+         `--pj-pin-y` 拉到 300px（钉挂在纸外，卡片一步不许动）。 */
   /* 第二百七十八批：--pj-step 必须**注册**成 <length>，否则
      getComputedStyle 返回的是 `calc(calc(...))` 原文而不是 px 数（未注册的自定义属性
      只做 var() 替换、不求值）—— JS 的 parseFloat 会拿到 NaN，吸附就永远走兜底 280px。
@@ -3141,19 +3178,22 @@
     --pj-card-w: calc(var(--pj-photo-w) + var(--pj-pad) * 2 + 4px);
     --pj-card-h: calc(var(--pj-photo-h) + var(--pj-pad) * 2 + var(--pj-band) + 4px);
     --pj-step: calc(var(--pj-card-w) + var(--pj-rail-w) + var(--pj-rail-gap) * 2);
-    /* 气眼：孔心距卡顶 / 外径。放在 .pj-scenes 上（和别的尺寸 token 一起），
-       手机档要能覆盖它 —— 写进 .pj-scene 就会反过来盖掉手机档的值。 */
-    --pj-hole-y: 7px;
-    --pj-hole-d: 8px;
-    /* 绳圈外径（第二百八十一批定的 8px，第二百八十二批沿用）。**刻意不跟气眼一起在手机档缩**：
-       净孔 = 外径 − 2×1.5px 边 = 5px，要装的是 3.2px 的钉头（.pj-scene__pin）⇒ 单边余量 0.9px。
-       手机档把气眼缩到 7px 时如果环跟着缩，净孔只剩 4px，钉头就快顶到圈壁了。
-       8px 也在 18.4 断言的 6~8px 区间内，不用改断言。 */
-    --pj-ring-d: 8px;
-    /* 吊线区高度：raised 立牌挂在上半段（0.46 × drop = 绳长）。取值的下限是"看得出高低
-       错落"—— 太短就看不出吊着，太长则吃掉垂直预算（整页要压在一屏内）。 */
+    /* 图钉（第二百八十三批：**整排唯一的吊具**）—— 钉心距卡顶 / 钉头直径。
+       放在 .pj-scenes 上（和别的尺寸 token 一起），手机档要能覆盖它 ——
+       写进 .pj-scene 就会反过来盖掉手机档的值。
+       ⚠️ --pj-pin-y 一个值同时喂**三处**：钉自己的 top、.pj-scene__swing 的 transform-origin、
+       .pj-scene__zoomer 的 transform-origin。钉心就是摆动支点、也是缩放的不动点 ——
+       偏心等于让卡绕空气摆（18.4 量的就是这三个点是否重合）。
+       ⚠️ 钉心要落在卡**顶边那条 2px 墨线附近**：钉径 11px ⇒ 钉心 7px 时钉顶在卡顶下方
+       1.5px 处，正好咬住墨线的下沿，读起来才是"钉穿了纸"而不是"纸上贴了个圆"。
+       --pj-pin-d 是个 clamp：窄屏 9px、桌面 11px，手机档不用再覆盖。 */
+    --pj-pin-y: 7px;
+    --pj-pin-d: clamp(9px, 0.85vw, 11px);
+    /* 吊线区高度：raised 立牌挂在上半段（0.54 × drop）。**绳没了之后这个值只干一件事**——
+       决定"卡顶距 stage 顶留多少空"。上一版它还得兼着绳长公式的一半（--pj-rope-extra），
+       现在那条公式连同 --pj-cord-h 一起删了。取值的下限是"看得出高低错落"：
+       太短就看不出吊着，太长则吃掉垂直预算（整页要压在一屏内）。 */
     --pj-drop: clamp(34px, 7.5vh, 92px);
-    --pj-rope-extra: clamp(14px, 2.6vh, 30px);   /* 绳子往 stage 上方留白里多伸一截 */
     position: relative;
     width: calc(100% + 32px);
     max-width: 1472px;
@@ -3182,111 +3222,92 @@
     width: var(--pj-card-w);
     height: var(--pj-card-h);
     margin-left: calc(var(--pj-card-w) / -2);
-    /* 吊绳长 —— 从卡顶量到**钉头**（也就是摆动轴心）。**平卡与吊卡只差这一条**：
-       平卡的绳 = 整个吊具区（drop）+ 越过段顶的那一截（rope-extra），
-       吊卡的绳 = 它抬起来省下的那部分（drop×0.54）+ 同一截。
-       两者的钉头因此**都落在同一个高度上**（stage 顶上方 rope-extra 处）—— 全排同高。 */
-    --pj-cord-h: calc(var(--pj-drop) + var(--pj-rope-extra));
     will-change: transform, opacity;
     cursor: pointer;
   }
   .pj-scene.is-active { z-index: 2; }
   /* 奇数张（第 2、4 张）吊起来 —— 参考站 5 张里 2 张 raised，
-     本站 4 张里也放 2 张，节奏才是"一高一低" */
+     本站 4 张里也放 2 张，节奏才是"一高一低"。
+     第二百八十三批：这里原来还跟着改一条 --pj-cord-h（吊卡的绳短一截、好让两排钉头
+     落在同一高度上）。绳删掉之后**两排钉头就是不共线的了** —— 也没有那条线可共了：
+     现在是"两块板上钉了两排照片"，错落本身就是对的。 */
   .pj-scene--raised {
     top: calc(var(--pj-drop) * 0.54);
-    --pj-cord-h: calc(var(--pj-drop) * 0.54 + var(--pj-rope-extra));
   }
   .pj-scene__swing {
     position: absolute;
     inset: 0;
-    /* 轴心 = 绳顶 = 横线。与绳长**共用同一个自定义属性**，改一处两处都对
-       （第二百八十批：原来这里写死了一份 0.54×drop + rope-extra，只有吊卡用得上） */
-    transform-origin: 50% calc(-1 * var(--pj-cord-h));
+    /* 轴心 = 钉心。与 .pj-scene__pin 的 top、.pj-scene__zoomer 的 transform-origin
+       共用同一个 --pj-pin-y —— 三处同值，钉心才既不动、又是摆动支点。 */
+    transform-origin: 50% var(--pj-pin-y);
   }
-  /* 缩放层（第二百八十批新建）：scale 从 .pj-scene 挪到这里，origin 取**卡顶正中**
-     = 吊绳落点。吊点是缩放的不动点 ⇒ 邻居缩小的时候吊环还咬在横线上、绳长也不变
-     （放在 .pj-scene 上时是按盒心缩的，邻居的环整条掉到线下 13.4px，1280 实测）。
-     吊绳/线环/气眼留在这一层**外面** —— 它们是挂在线上、穿过纸孔的实物，
-     该跟线一样不随卡片缩。scale 的数值曲线一字未动（还是 1 − 0.06·min(1,u)）。 */
+  /* 缩放层（第二百八十批新建）：scale 从 .pj-scene 挪到这里。
+     第二百八十三批：origin 从 `50% 0`（卡顶正中）挪到 `50% var(--pj-pin-y)`（钉心）——
+     吊点从"绳落在卡顶那一点"变成了"钉心"，缩放的不动点就该跟着走，
+     否则邻居缩小的时候钉头会飘 0.42px（0.06 × 7px），而钉头是现在唯一看得见的零件。
+     图钉留在这一层**外面** —— 它是钉在卡上的实物，不该跟着卡片缩。
+     scale 的数值曲线一字未动（还是 1 − 0.06·min(1,u)）。 */
   .pj-scene__zoomer {
     position: absolute;
     inset: 0;
-    transform-origin: 50% 0;
+    transform-origin: 50% var(--pj-pin-y);
   }
-  /* 钉头（第二百八十二批，**取代原来的横线**）：绳圈里那枚钉。
-     主人"2 线整根撤掉"（看过 scratch/pj-scenes/wire-concepts-*.png 的四个候选后选的 pin 那版）
-     ⇒ stage 里不再有任何横向元素，四个实物「钉 → 圈 → 绳 → 卡」全落在同一条竖轴上。
-
-     ⚠️ 它**就是摆动的支点**：.pj-scene__swing 的 transform-origin 与它的圆心都用 --pj-cord-h
-     定位，所以它必须与绳圈**同心** —— 偏心等于把支点挪出圆心，摆起来像绕空气转。
-     18.4 断言量的就是这两个圆心之差（≤0.5px）。
-
-     尺寸：3.2px vs 绳圈净孔 5px（--pj-ring-d 8 − 2×1.5 边）⇒ 单边余量 0.9px。
-     这是"绳圈套在钉上"，不是"环把钉包住"：钉再大就顶到圈的内壁，再小（<2.5px）退化成一颗墨点。
-     钉头的**鼓**靠两笔假光 —— 顶上一道 .5px 高光、底下一道软影：3px 的圆没有这两笔
-     就只是"一个点"而不是"一枚钉"。影子落在**页面底色**上（钉钉在页面上，不是钉在卡片上）。 */
-  .pj-scene__pin {
-    position: absolute;
-    top: calc(-1 * var(--pj-cord-h));
-    left: 50%;
-    width: 3.2px;
-    height: 3.2px;
-    margin: -1.6px 0 0 -1.6px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--pj-ink) 82%, transparent);
-    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .5),
-                0 .5px 1px color-mix(in srgb, var(--pj-ink) 34%, transparent);
-  }
-  /* 吊绳 + 线环 + 气眼（每张一套，装在 swing 里跟着摆）。
-     z-index 3 = 压在自己的明信片上（绳圈要压住钉头、气眼要压住纸边和绳尾），
-     pointer-events:none —— 它整片盖在卡片上半部，能点就让卡片点不动了。 */
+  /* 吊具层（第二百八十三批：里面只剩一枚图钉）。
+     z-index 3 = 压在自己的明信片上（钉帽要盖住卡顶那条墨边）；
+     pointer-events:none —— 它盖在卡片上半部，能点就让卡片点不动了。 */
   .pj-scene__hang {
     position: absolute;
     inset: 0;
     z-index: 3;
     pointer-events: none;
   }
-  .pj-scene__cord {
+  /* 图钉（第二百八十三批，**整排唯一的吊具**）：绳 + 绳圈 + 气眼三件全删，只剩这一枚。
+     主人："每张卡挂一条线+一枚钉头的设计不是很好看" ⇒ 看过四格草图（手绘绳 / 木夹子 /
+     一枚图钉 / 两根胶带）后选了这一版。
+
+     改它的理由**不是"形状不好看"，是它和整页不是一套语言**：这一页从头到脚是手绘的
+     （说明带的铅笔涂鸦、斜切的胶带、−8° 的圆贴纸），只有旧吊具是 CAD 级精确 ——
+     一条直线、linear-gradient 渐变、inset 假高光 + 外投影。2026 的 naive design 一路
+     在说同一件事：wobble、flat、不要 gradient / shadow logic。所以这一版是
+     **一个物件、平涂、零渐变、零外投影**；假光只留一枚平涂的浅色小圆（::after），不虚化。
+
+     ⚠️ 钉心**同时**是摆动支点与缩放的不动点 —— 三处共用 --pj-pin-y（钉自己 / swing / zoomer）。
+     ⚠️ 钉心落在卡顶那条 2px 墨线附近（11px 的头、心在 7px ⇒ 头有 1.5px 咬住墨线下沿），
+     看起来才是"钉穿了纸"。钉再小（<9px）退化成一颗点；再大（>13px）就压到照片上。
+     ⚠️ ::before 是钉帽下面那截钉身，z-index:-1 让钉帽盖住它 —— .pj-scene__hang 自己就是
+     stacking context（z-index:3），所以这个 -1 只退到钉帽底下，不会漏到卡片后面去。
+     18.4 量的就是"钉心 = 支点 = 缩放不动点"三个点重不重合。 */
+  .pj-scene__pin {
     position: absolute;
-    top: calc(-1 * var(--pj-cord-h));
+    top: var(--pj-pin-y);
     left: 50%;
-    width: 2px;
-    /* 往下多伸一个孔心：最后 4.5px 会被气眼内孔盖住 ⇒ 看上去绳**钻进孔里** */
-    height: calc(var(--pj-cord-h) + var(--pj-hole-y));
-    margin-left: -1px;
-    /* 上浅下深：靠卡片那头被重量拉紧、也离纸更近 */
-    background: linear-gradient(180deg,
-      color-mix(in srgb, var(--pj-ink) 32%, transparent),
-      color-mix(in srgb, var(--pj-ink) 56%, transparent));
-  }
-  /* 绳圈：绳子的顶环套在钉头上（圈内中空，所以钉头还是看得见）。
-     第二百八十二批：它从"线环（横线从环里穿过去）"变成"绳圈（套在钉上）"——
-     环径一字未改，变的是它套的东西。同心关系由 18.4 断言守着。 */
-  .pj-scene__ring {
-    position: absolute;
-    top: calc(-1 * var(--pj-cord-h));
-    left: 50%;
-    width: var(--pj-ring-d);
-    height: var(--pj-ring-d);
-    margin: calc(var(--pj-ring-d) / -2) 0 0 calc(var(--pj-ring-d) / -2);
-    box-sizing: border-box;
-    border: 1.5px solid color-mix(in srgb, var(--pj-ink) 46%, transparent);
+    width: var(--pj-pin-d);
+    height: var(--pj-pin-d);
+    margin: calc(var(--pj-pin-d) / -2) 0 0 calc(var(--pj-pin-d) / -2);
     border-radius: 50%;
+    background: var(--color-accent);
   }
-  /* 气眼：打孔的墨圈 + 露底色（孔是通的，所以填的是**页面底色**而不是纸色） */
-  .pj-scene__eyelet {
+  .pj-scene__pin::before {
+    content: '';
     position: absolute;
-    top: var(--pj-hole-y);
+    z-index: -1;
+    top: calc(var(--pj-pin-d) * 0.66);
     left: 50%;
-    width: var(--pj-hole-d);
-    height: var(--pj-hole-d);
-    margin: calc(var(--pj-hole-d) / -2) 0 0 calc(var(--pj-hole-d) / -2);
-    box-sizing: border-box;
-    border: 1.6px solid color-mix(in srgb, var(--pj-ink) 52%, transparent);
+    width: calc(var(--pj-pin-d) * 0.34);
+    height: calc(var(--pj-pin-d) * 0.46);
+    margin-left: calc(var(--pj-pin-d) * -0.17);
+    border-radius: 0 0 45% 45%;
+    background: color-mix(in srgb, var(--color-accent) 72%, var(--pj-ink));
+  }
+  .pj-scene__pin::after {
+    content: '';
+    position: absolute;
+    top: 19%;
+    left: 19%;
+    width: 31%;
+    height: 31%;
     border-radius: 50%;
-    background: var(--color-paper);
-    box-shadow: inset 0 1px 1.5px color-mix(in srgb, var(--pj-ink) 26%, transparent);
+    background: color-mix(in srgb, #fff 58%, var(--color-accent));
   }
 
   /* 竖排标签栏：贴在卡片左侧（参考站 right: calc(100% + gap)） */
@@ -3579,10 +3600,8 @@
       --pj-rail-w: 22px;
       --pj-rail-gap: 12px;
       --pj-drop: clamp(28px, 7vw, 48px);
-      --pj-rope-extra: 12px;
-      /* 气眼跟着窄屏缩一档：卡内边距只有 12px，孔再大就压到照片上 */
-      --pj-hole-y: 6px;
-      --pj-hole-d: 7px;
+      /* 钉心跟着窄屏缩一档：卡内边距只有 12px，钉心再往下就顶到照片了 */
+      --pj-pin-y: 6px;
     }
     .pj-scene__rail-title { font-size: 13px; letter-spacing: 0.14em; }
     .pj-scene__rail-eyebrow { font-size: 9px; letter-spacing: 0.2em; }
