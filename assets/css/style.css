@@ -3099,7 +3099,24 @@
          "子级 mask 上色 + 父级 mask 淡出"，线上**线被压成一条断续点划线**（PIL 量有墨列
          61%、峰谷 1px），而 104 条断言一条没红（它们量元素 rect，画上去的像素不在里面）。
          改法 = 父级不挂 mask、波浪走 ::before 的背景图、淡出走 ::before 自己的 mask。
-         详见 .pj-stage__wire 那一节；改画法后必须跑 wire-zoom.js 出图。 */
+         详见 .pj-stage__wire 那一节；改画法后必须跑 wire-zoom.js 出图。
+     第二百八十二批 2026-09-15（主人"2 线整根撤掉"—— 在 scratch/pj-scenes/wire-concepts-*.png
+     的四个候选里选了 "pin" 那版）：
+       · **横线整根删掉**：HTML 的 .pj-stage__wire + CSS 的规则与 ::before、以及两个只为它存在的
+         自定义属性（--pj-wire-wave / --pj-wire-fade）一起清掉，不留孤儿选择器。
+         两轮调参（1.7px/44% 波浪 → ±1.35 → ±1.75 → 随机化波长）都没解决，说明问题不在
+         "线画得好不好看"，而在**横线这个存在本身**：横跨整页、两端无锚点、又比站内任何一条
+         hairline 都重（PIL 实测竖着占 4px、最暗 153 < --color-rule #cbd5e1）
+         ⇒ 只能被读成版块分割线。
+       · 改成**每张卡一枚自己的钉头**（.pj-scene__pin，3.2px，钉在页面底色上，绳圈套在钉上）。
+         页面上不再有任何横向元素，只剩「钉 → 圈 → 绳 → 卡」四种实物，全在同一条竖轴上。
+       · **零布局改动**：钉头就在原来横线的高度（--pj-drop / --pj-rope-extra / 绳长公式一字未改）
+         ⇒ "一排挂在同一高度"这件事还在，只是从"一根线下"变成"同一个高度"。
+         18.2 断言相应地从"绳顶落在线上"改成"绳顶全排同高"（判同一件事）。
+         新增 18.4'：钉头圆心 = 绳圈圆心且装得进净孔；18.6'：stage 里不存在 .pj-stage__wire。
+         🔴 单有几何断言**证明不了"线没了"** —— 那是画上去的像素。18.6'' 是真的去截那一条带、
+         逐行数墨列（见 pj-check.js 里的 PNG 解码器）：有横线时某一行会覆盖 90%+ 的宽度，
+         没有时最多百分之几（三枚 3.2px 钉）。夹具 = 把老横线注回来，这条必须变红。 */
   /* 第二百七十八批：--pj-step 必须**注册**成 <length>，否则
      getComputedStyle 返回的是 `calc(calc(...))` 原文而不是 px 数（未注册的自定义属性
      只做 var() 替换、不求值）—— JS 的 parseFloat 会拿到 NaN，吸附就永远走兜底 280px。
@@ -3128,10 +3145,10 @@
        手机档要能覆盖它 —— 写进 .pj-scene 就会反过来盖掉手机档的值。 */
     --pj-hole-y: 7px;
     --pj-hole-d: 8px;
-    /* 线环外径（第二百八十一批）。**刻意不跟气眼一起在手机档缩**：环内净径 = 外径 − 2×1.5px，
-       而净径就是吊线波幅的预算（见 .pj-stage__wire 那一节）。手机档把气眼缩到 7px 时
-       如果环跟着缩，净径只剩 4px < 3.5px 的波带，线会从环里"逃出去" —— 换成 8px 就还有 0.75px
-       余量。8px 也在 18.4 断言的 6~8px 区间内，不用改断言。 */
+    /* 绳圈外径（第二百八十一批定的 8px，第二百八十二批沿用）。**刻意不跟气眼一起在手机档缩**：
+       净孔 = 外径 − 2×1.5px 边 = 5px，要装的是 3.2px 的钉头（.pj-scene__pin）⇒ 单边余量 0.9px。
+       手机档把气眼缩到 7px 时如果环跟着缩，净孔只剩 4px，钉头就快顶到圈壁了。
+       8px 也在 18.4 断言的 6~8px 区间内，不用改断言。 */
     --pj-ring-d: 8px;
     /* 吊线区高度：raised 立牌挂在上半段（0.46 × drop = 绳长）。取值的下限是"看得出高低
        错落"—— 太短就看不出吊着，太长则吃掉垂直预算（整页要压在一屏内）。 */
@@ -3165,10 +3182,10 @@
     width: var(--pj-card-w);
     height: var(--pj-card-h);
     margin-left: calc(var(--pj-card-w) / -2);
-    /* 吊绳长 —— 从卡顶量到横线（也就是摆动轴心）。**平卡与吊卡只差这一条**：
-       平卡的绳 = 整个吊线区（drop）+ 越过段顶的那一截（rope-extra），
+    /* 吊绳长 —— 从卡顶量到**钉头**（也就是摆动轴心）。**平卡与吊卡只差这一条**：
+       平卡的绳 = 整个吊具区（drop）+ 越过段顶的那一截（rope-extra），
        吊卡的绳 = 它抬起来省下的那部分（drop×0.54）+ 同一截。
-       两者顶端因此**都落在同一根横线上**，全排共用一根线。 */
+       两者的钉头因此**都落在同一个高度上**（stage 顶上方 rope-extra 处）—— 全排同高。 */
     --pj-cord-h: calc(var(--pj-drop) + var(--pj-rope-extra));
     will-change: transform, opacity;
     cursor: pointer;
@@ -3197,71 +3214,32 @@
     inset: 0;
     transform-origin: 50% 0;
   }
-  /* 吊线：一根横线贯穿全排（静态、在 .pj-stage 里，不随卡片横移）。
-     两端用 mask 淡出 —— 不然它就是一条"分割线"，会被读成版块边界而不是一根线。
+  /* 钉头（第二百八十二批，**取代原来的横线**）：绳圈里那枚钉。
+     主人"2 线整根撤掉"（看过 scratch/pj-scenes/wire-concepts-*.png 的四个候选后选的 pin 那版）
+     ⇒ stage 里不再有任何横向元素，四个实物「钉 → 圈 → 绳 → 卡」全落在同一条竖轴上。
 
-     🔴 第二百八十一批（主人"这根横线的设计不是很好看，线太直了，可以可爱一点"）：
-     线改成**手绘的**，不是一条 ruler 直线；本体粗细 1px → 1.7px、颜色 38% → 44% 墨。
-     画法：`.pj-stage__wire` 自己仍然是 **1px 高的几何基准**（所有套件/探针量的就是它的
-     rect，所以这个 box 必须还等于"标称线位"），可见的波浪画在 `::before` 里（7px 高、
-     以基准为中心、repeat-x 铺满）。
+     ⚠️ 它**就是摆动的支点**：.pj-scene__swing 的 transform-origin 与它的圆心都用 --pj-cord-h
+     定位，所以它必须与绳圈**同心** —— 偏心等于把支点挪出圆心，摆起来像绕空气转。
+     18.4 断言量的就是这两个圆心之差（≤0.5px）。
 
-     🔴🔴 这里有一条**只有出图才能发现的**坑，第一版就栽了：波浪原本用"子级 `::before`
-     挂 mask 上色 + 父级挂 mask 做两端淡出"的写法 —— **线被压扁成一条断续的点划线**
-     （PIL 量：有墨列只占 61%，y 峰谷 1.0px 而不是 3.5px）。根因不是 mask 本身，而是
-     **父级那个 1px 高的盒子上挂了 mask**：父级 mask 会让整棵子树先按父级的尺寸栅格化，
-     7px 的波浪被压进 1px 再放回来 ⇒ 细笔画碎成一截一截。逐例拆开量过
-     （scratch/pj-scenes/wire-nest-lab.js，判据 = 有墨列覆盖率）：
-        父 mask + 子 mask         61~63%  ← 线上那版
-        父 mask + 子背景图        54~60%
-        子背景图 + 子自己的 mask   **97%**  ✅（缺的 3% 就是两端淡出）
-        只有子背景图、不挂 mask    100%
-     所以现在：**波浪走 `::before` 的 `background-image`，淡出走 `::before` 自己的 mask，
-     父级一行 mask 都不挂。** 代价是颜色得**烘进 SVG**（data URI 读不到 `var()`）——
-     改 `--pj-ink` 时记得同步这里的 `%234c4536`。
-     ⚠️ 全部 18.x 几何断言在这版和坏掉那版上**同样全绿**：它们量的是元素 rect，画上去的
-     像素不在里面。凡改这行画法，必须跑 wire-zoom.js 出图 / 用覆盖率量一次。
-
-     🔴 波幅**有硬上限**，不是审美问题：线要从线环的**孔**里穿过去，孔的净径 = 环外径
-     （--pj-ring-d 8px）− 2×1.5px 边 = 5px ⇒ 波幅必须 < ±2.5px，取 ±1.75px（带子 3.5px）。
-     环会随卡片横移，局部波形因此一直在变，但 3.5px 宽的带子永远待在孔里（余量 0.75px），
-     看上去始终"穿在环上"。**别再往上加**：波幅一旦超过孔，环在任何位置都像脱线，而这
-     **测不出来**，只能靠出图发现。 */
-  .pj-stage__wire {
+     尺寸：3.2px vs 绳圈净孔 5px（--pj-ring-d 8 − 2×1.5 边）⇒ 单边余量 0.9px。
+     这是"绳圈套在钉上"，不是"环把钉包住"：钉再大就顶到圈的内壁，再小（<2.5px）退化成一颗墨点。
+     钉头的**鼓**靠两笔假光 —— 顶上一道 .5px 高光、底下一道软影：3px 的圆没有这两笔
+     就只是"一个点"而不是"一枚钉"。影子落在**页面底色**上（钉钉在页面上，不是钉在卡片上）。 */
+  .pj-scene__pin {
     position: absolute;
-    top: calc(-1 * var(--pj-rope-extra));
-    left: 0;
-    right: 0;
-    height: 1px;                        /* 几何基准，别动；也**别在这上面挂 mask**（见上） */
-    /* 手绘波浪：一个 150px 的循环（约 75px 一个波峰，落到 1400px 的线上是 9 个起伏），
-       波峰波谷高低/间距都不同（等间隔的正弦一眼假），每个极值点切线都水平 ⇒ 段内光滑、
-       首尾（都在波峰、切线水平）相接处也无折角。
-       路径 y 的基准是 3.5（= 7px 高 tile 的中线 = 1px 基准盒的中线），摆动 ±1.75px。
-       颜色烘在 stroke 上：`%234c4536` = --pj-ink，0.44 透明度。
-       ⚠️ 调波幅之前先回读上面那条"孔的净径"约束。 */
-    --pj-wire-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='7' viewBox='0 0 150 7'%3E%3Cpath d='M0 5.2C11 5.2 23 1.7 34 1.7C48 1.7 64 5 78 5C91 5 103 1.9 116 1.9C127 1.9 139 5.2 150 5.2' fill='none' stroke='%234c4536' stroke-opacity='0.44' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E");
-    /* 两端淡出：不淡的话它就是一条"分割线"，会被读成版块边界而不是一根线 */
-    --pj-wire-fade: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
-    pointer-events: none;
-  }
-  .pj-stage__wire::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -3px;                          /* 7px 的 tile 以基准线为中心铺开 */
-    height: 7px;
-    background-image: var(--pj-wire-wave);
-    background-repeat: repeat-x;
-    background-size: 150px 7px;
-    -webkit-mask-image: var(--pj-wire-fade);
-    mask-image: var(--pj-wire-fade);
-    /* 线是**离开纸面**的实物：沿波形落一道软影（filter 在 mask 之后生效 ⇒ 影子跟着波走，
-       不是一条直线影子）。上一版 1px/24% 墨在浅底上等于看不见，这版靠 1.7px/44% + 这道影立住。 */
-    filter: drop-shadow(0 1px 1.2px color-mix(in srgb, var(--pj-ink) 26%, transparent));
+    top: calc(-1 * var(--pj-cord-h));
+    left: 50%;
+    width: 3.2px;
+    height: 3.2px;
+    margin: -1.6px 0 0 -1.6px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pj-ink) 82%, transparent);
+    box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .5),
+                0 .5px 1px color-mix(in srgb, var(--pj-ink) 34%, transparent);
   }
   /* 吊绳 + 线环 + 气眼（每张一套，装在 swing 里跟着摆）。
-     z-index 3 = 压在自己的明信片上（线环要压住横线、气眼要压住纸边和绳尾），
+     z-index 3 = 压在自己的明信片上（绳圈要压住钉头、气眼要压住纸边和绳尾），
      pointer-events:none —— 它整片盖在卡片上半部，能点就让卡片点不动了。 */
   .pj-scene__hang {
     position: absolute;
@@ -3282,11 +3260,9 @@
       color-mix(in srgb, var(--pj-ink) 32%, transparent),
       color-mix(in srgb, var(--pj-ink) 56%, transparent));
   }
-  /* 线环：横线从环里穿过去（环内中空，所以横线还是看得见）。
-     第二百八十一批：环径 7px → var(--pj-ring-d)（8px，**两档一样**）。
-     这不是凑巧好看 —— 吊线改成 ±1.75px 的手绘波浪后，**孔的净径就是波幅的预算**
-     （8 − 2×1.5 = 5px > 3.5px 波带，余量 0.75px）。改环径或改波幅前，
-     先回读 .pj-stage__wire 上面那段注释。 */
+  /* 绳圈：绳子的顶环套在钉头上（圈内中空，所以钉头还是看得见）。
+     第二百八十二批：它从"线环（横线从环里穿过去）"变成"绳圈（套在钉上）"——
+     环径一字未改，变的是它套的东西。同心关系由 18.4 断言守着。 */
   .pj-scene__ring {
     position: absolute;
     top: calc(-1 * var(--pj-cord-h));

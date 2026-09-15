@@ -274,15 +274,21 @@
 
   /* 立牌 DOM（池化复用：出界回池、进界取用）。三层，各管一件事：
        .pj-scene         位移（+透明度）—— 每帧写 translateX
-       .pj-scene__swing  摆动（transform-origin = 吊点 = 绳顶）
-         .pj-scene__hang   吊绳 + 线环 + 气眼   ← **不缩放**（挂在线上的是实物）
+       .pj-scene__swing  摆动（transform-origin = 吊点 = 钉头圆心）
+         .pj-scene__hang   钉头 + 绳圈 + 吊绳 + 气眼   ← **不缩放**（钉在页面上的是实物）
          .pj-scene__zoomer 缩放（origin 50% 0 = 吊点）→ 标签栏 + 明信片
      第二百八十批：绳/环/眼每张都有（原来只有 raised 有那根 .pj-scene__string），
-     长度由 CSS 的 --pj-cord-h 按 raised 与否自己算 —— JS 不重复算一遍几何。 */
+     长度由 CSS 的 --pj-cord-h 按 raised 与否自己算 —— JS 不重复算一遍几何。
+     第二百八十二批：横线撤掉，每张自己一枚钉头（.pj-scene__pin）。
+     钉头写成**真元素**而不是伪元素：它是摆动的支点、也是"同心"这条不变式要被量到的东西，
+     伪元素拿不到 rect（这是上一批"几何全绿但线是坏的"留下的教训）。 */
   var SCENE_HTML =
     '<div class="pj-scene__swing">' +
       '<span class="pj-scene__hang" aria-hidden="true">' +
+        /* 顺序 = 覆盖顺序：绳在最后面（顶上那 1.6px 藏进钉头里，看起来是"系在钉上"），
+           钉头压住绳，绳圈再压在钉头前面（圈的净孔比钉大 ⇒ 同心但不相碰）。 */
         '<span class="pj-scene__cord"></span>' +
+        '<span class="pj-scene__pin"></span>' +
         '<span class="pj-scene__ring"></span>' +
         '<span class="pj-scene__eyelet"></span>' +
       '</span>' +
