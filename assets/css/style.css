@@ -3122,7 +3122,15 @@
          🔴 单有几何断言**证明不了"线没了"** —— 那是画上去的像素。18.6'' 是真的去截那一条带、
          逐行数墨列（见 pj-check.js 里的 PNG 解码器）：有横线时某一行会覆盖 90%+ 的宽度，
          没有时最多百分之几（三枚 3.2px 钉）。夹具 = 把老横线注回来，这条必须变红。 */
-     第二百八十三批 2026-09-15（主人："每张卡挂一条线+一枚钉头的设计不是很好看。优化一下设计"）：
+     /* 第二百八十三批 2026-09-15（主人："每张卡挂一条线+一枚钉头的设计不是很好看。优化一下设计"）：
+     🔴🔴 2026-09-16 补记（这条开注释符原本**不存在**，是事后补上的）：上面那段注释在 3124 行就
+     闭合了，而这一段说明文字紧跟在它后面、**没有自己的开注释符** ⇒ 这三十几行说明是**活的 CSS**：
+     解析器把整段中文读成一条巨型选择器，再把下面 @property 的声明块当成它的 `{}` ⇒
+     **@property --pj-step 整条被丢掉、从未注册** ⇒ getComputedStyle 读到未求值原文 →
+     parseFloat = NaN → measure() 兜底的 280px 又跑在 render() 之前（槽位还不存在）→
+     ST 恒为 280，而卡片实际宽 399 ⇒ **桌面端相邻卡片重叠 119px**。
+     这就是主人说"卡片之间距离太近"的真正根因 —— 不是间距参数调小了，是卡片一直在互相压。
+     教训：往注释块**末尾追加**说明时，先确认自己在注释里（数一遍开/闭注释符）。
        先按主人的话去查了当下的趋势（他说"你可以网上搜搜灵感"）。十几篇 2026 的设计评论
        指向同一件事 —— **naive design / intentional imperfection**：wobbly lines、off-grid、
        "bold, flat colour palettes with **no gradients or shadow logic**"、以及那句被反复引用的
@@ -3168,27 +3176,36 @@
     /* 尺寸（第二百七十九批：进度尺腾出的 32px 全给照片 —— 27vh → 31vh）
        第二百八十一批：主人"卡片可以适当小一点，一点点就好" ⇒ 31vh/320 → 29.8vh/308，
        下限 150 → 146（矮视口靠的就是下限）。只动**高**：照片宽 = 高 × 4/3，卡宽、卡高、
-       --pj-step、吊线区高度全跟着走，JS / HTML 一行都不用改。 */
-    --pj-photo-h: clamp(146px, 29.8vh, 308px);
+       --pj-step、吊线区高度全跟着走，JS / HTML 一行都不用改。
+       第二百八十四批 2026-09-16：主人"页面的 max-width 为导航栏的 max-width。优化一下内容大小
+       和排版"。容器从 1440 收到 1200（= .nav-inner）之后，29.8vh 那张卡相对容器就偏大了 ——
+       卡宽 399 / 舞台 1168 只剩 2.44 张可见。收到 **27vh**（下限 146→140、上限 308→276）：
+       1440×900 下卡宽 399 → **365.4**，可见张数 2.44 → **2.59**。
+       挑 27vh 而不是更狠：视觉评论界把 300–380px 叫"标准卡"，365 落在带内偏高的一端，
+       截图内容还读得清；再小下去项目截图就没意义了。 */
+    --pj-photo-h: clamp(140px, 27vh, 276px);
     --pj-photo-w: calc(var(--pj-photo-h) * 4 / 3);
     --pj-pad: clamp(12px, 1.3vw, 20px);
     --pj-band: clamp(54px, 6.8vh, 78px);
-    --pj-rail-gap: clamp(14px, 1.6vw, 24px);
+    /* 卡间隙（第二百八十四批）：1.6vw/24 → 1.8vw/28。
+       卡与卡的净空 = --pj-rail-w + 2×间隙 = 34 + 2×25.92 = 85.8px（1440 下），
+       其中 34px 是竖排标签栏本身，两侧各 25.9px 是真空白。
+       参考值：桌面端卡片 gutter 常规区间 16–32px，低于 12px 两卡会"糊在一起"；
+       这一页是横向轨道（邻卡要露头），取区间上沿再往上放一点是对的。
+       手机档另有覆盖（12px），不受这里影响。 */
+    --pj-rail-gap: clamp(16px, 1.8vw, 28px);
     --pj-rail-w: 34px;                     /* 竖排标签栏实际占宽 */
     --pj-card-w: calc(var(--pj-photo-w) + var(--pj-pad) * 2 + 4px);
     --pj-card-h: calc(var(--pj-photo-h) + var(--pj-pad) * 2 + var(--pj-band) + 4px);
     --pj-step: calc(var(--pj-card-w) + var(--pj-rail-w) + var(--pj-rail-gap) * 2);
-    /* 图钉（第二百八十三批：**整排唯一的吊具**）—— 钉心距卡顶 / 钉头直径。
-       放在 .pj-scenes 上（和别的尺寸 token 一起），手机档要能覆盖它 ——
-       写进 .pj-scene 就会反过来盖掉手机档的值。
-       ⚠️ --pj-pin-y 一个值同时喂**三处**：钉自己的 top、.pj-scene__swing 的 transform-origin、
-       .pj-scene__zoomer 的 transform-origin。钉心就是摆动支点、也是缩放的不动点 ——
-       偏心等于让卡绕空气摆（18.4 量的就是这三个点是否重合）。
-       ⚠️ 钉心要落在卡**顶边那条 2px 墨线附近**：钉径 11px ⇒ 钉心 7px 时钉顶在卡顶下方
-       1.5px 处，正好咬住墨线的下沿，读起来才是"钉穿了纸"而不是"纸上贴了个圆"。
-       --pj-pin-d 是个 clamp：窄屏 9px、桌面 11px，手机档不用再覆盖。 */
-    --pj-pin-y: 7px;
-    --pj-pin-d: clamp(9px, 0.85vw, 11px);
+    /* 吊具（第二百八十四批）：**图钉整颗删掉，改由序号贴纸承担"把卡钉住"的视觉**。
+       贴纸从左上角挪到**卡顶正中**，圆心正好落在卡顶那条 2px 墨边上（上半在纸外、
+       下半在纸上）—— 物理上讲得通：贴纸一半粘在卡上、一半粘在它背后的板子上。
+       ⚠️ 于是**支点也跟着搬回卡顶正中**：swing 与 zoomer 的 transform-origin 都写回
+       `50% 0`（= 贴纸圆心 = 卡顶正中）。--pj-pin-y / --pj-pin-d 两个 token 随之删除 ——
+       它们的唯一用途就是让"钉心"这个点喂三处，钉没有了，这个点就是卡顶正中，不需要 token。
+       ⚠️ 别再引入"圆心参数"：贴纸的落点现在是 JS 按**逐项目偏移表**写进来的（见
+       projects-carousel.js 的 WOBBLE），CSS 只给一个"没 JS 时也对"的默认值。 */
     /* 吊线区高度：raised 立牌挂在上半段（0.54 × drop）。**绳没了之后这个值只干一件事**——
        决定"卡顶距 stage 顶留多少空"。上一版它还得兼着绳长公式的一半（--pj-rope-extra），
        现在那条公式连同 --pj-cord-h 一起删了。取值的下限是"看得出高低错落"：
@@ -3237,78 +3254,30 @@
   .pj-scene__swing {
     position: absolute;
     inset: 0;
-    /* 轴心 = 钉心。与 .pj-scene__pin 的 top、.pj-scene__zoomer 的 transform-origin
-       共用同一个 --pj-pin-y —— 三处同值，钉心才既不动、又是摆动支点。 */
-    transform-origin: 50% var(--pj-pin-y);
+    /* 轴心 = 贴纸圆心 = 卡顶正中（第二百八十四批）。图钉删掉之后 --pj-pin-y 一起删了 ——
+       那个点原本只为了让"钉心"既不动又是支点，现在它就是卡顶正中，不需要参数。 */
+    transform-origin: 50% 0;
   }
   /* 缩放层（第二百八十批新建）：scale 从 .pj-scene 挪到这里。
-     第二百八十三批：origin 从 `50% 0`（卡顶正中）挪到 `50% var(--pj-pin-y)`（钉心）——
-     吊点从"绳落在卡顶那一点"变成了"钉心"，缩放的不动点就该跟着走，
-     否则邻居缩小的时候钉头会飘 0.42px（0.06 × 7px），而钉头是现在唯一看得见的零件。
-     图钉留在这一层**外面** —— 它是钉在卡上的实物，不该跟着卡片缩。
+     第二百八十三批：origin 一度挪到 `50% var(--pj-pin-y)`（钉心）。
+     第二百八十四批：**回到 `50% 0`（卡顶正中 = 贴纸圆心）**。图钉删了，没有"钉在板上的
+     实物"要留在这一层外面 —— 贴纸是**卡片表面上的东西**，该留在 zoomer 里面跟着卡一起缩；
+     而它的圆心正好就是缩放不动点，所以邻居缩小时贴纸一动不动。
      scale 的数值曲线一字未动（还是 1 − 0.06·min(1,u)）。 */
   .pj-scene__zoomer {
     position: absolute;
     inset: 0;
-    transform-origin: 50% var(--pj-pin-y);
+    transform-origin: 50% 0;
   }
-  /* 吊具层（第二百八十三批：里面只剩一枚图钉）。
-     z-index 3 = 压在自己的明信片上（钉帽要盖住卡顶那条墨边）；
-     pointer-events:none —— 它盖在卡片上半部，能点就让卡片点不动了。 */
-  .pj-scene__hang {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    pointer-events: none;
-  }
-  /* 图钉（第二百八十三批，**整排唯一的吊具**）：绳 + 绳圈 + 气眼三件全删，只剩这一枚。
-     主人："每张卡挂一条线+一枚钉头的设计不是很好看" ⇒ 看过四格草图（手绘绳 / 木夹子 /
-     一枚图钉 / 两根胶带）后选了这一版。
+  /* 吊具层与图钉：**整段删除**（第二百八十四批 2026-09-16）。
+     主人："移除钉头，只用贴纸是不是比较好？贴纸位置改为卡片的顶部中间部分，贴纸贴的随意一点，
+     有一种凌乱而规则的美。"
+     ⇒ .pj-scene__hang 与 .pj-scene__pin（含 ::before / ::after）全部撤掉，SCENE_HTML 里也
+     不再有这两个元素。整张卡现在由**一枚贴纸**"粘"在板上，不再有任何"挂具"。
+     ⚠️ 三层结构因此少一层：swing（摆）→ zoomer（缩）→ 卡；挂具层原来夹在 swing 与 zoomer
+     之间、且**在 zoomer 外面**（图钉是实物不该跟着缩）。贴纸不是实物，它直接画在卡上、
+     在 zoomer 里面跟着缩 —— 所以这一层没有存在理由，删掉不留空壳。 */
 
-     改它的理由**不是"形状不好看"，是它和整页不是一套语言**：这一页从头到脚是手绘的
-     （说明带的铅笔涂鸦、斜切的胶带、−8° 的圆贴纸），只有旧吊具是 CAD 级精确 ——
-     一条直线、linear-gradient 渐变、inset 假高光 + 外投影。2026 的 naive design 一路
-     在说同一件事：wobble、flat、不要 gradient / shadow logic。所以这一版是
-     **一个物件、平涂、零渐变、零外投影**；假光只留一枚平涂的浅色小圆（::after），不虚化。
-
-     ⚠️ 钉心**同时**是摆动支点与缩放的不动点 —— 三处共用 --pj-pin-y（钉自己 / swing / zoomer）。
-     ⚠️ 钉心落在卡顶那条 2px 墨线附近（11px 的头、心在 7px ⇒ 头有 1.5px 咬住墨线下沿），
-     看起来才是"钉穿了纸"。钉再小（<9px）退化成一颗点；再大（>13px）就压到照片上。
-     ⚠️ ::before 是钉帽下面那截钉身，z-index:-1 让钉帽盖住它 —— .pj-scene__hang 自己就是
-     stacking context（z-index:3），所以这个 -1 只退到钉帽底下，不会漏到卡片后面去。
-     18.4 量的就是"钉心 = 支点 = 缩放不动点"三个点重不重合。 */
-  .pj-scene__pin {
-    position: absolute;
-    top: var(--pj-pin-y);
-    left: 50%;
-    width: var(--pj-pin-d);
-    height: var(--pj-pin-d);
-    margin: calc(var(--pj-pin-d) / -2) 0 0 calc(var(--pj-pin-d) / -2);
-    border-radius: 50%;
-    background: var(--color-accent);
-  }
-  .pj-scene__pin::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    top: calc(var(--pj-pin-d) * 0.66);
-    left: 50%;
-    width: calc(var(--pj-pin-d) * 0.34);
-    height: calc(var(--pj-pin-d) * 0.46);
-    margin-left: calc(var(--pj-pin-d) * -0.17);
-    border-radius: 0 0 45% 45%;
-    background: color-mix(in srgb, var(--color-accent) 72%, var(--pj-ink));
-  }
-  .pj-scene__pin::after {
-    content: '';
-    position: absolute;
-    top: 19%;
-    left: 19%;
-    width: 31%;
-    height: 31%;
-    border-radius: 50%;
-    background: color-mix(in srgb, #fff 58%, var(--color-accent));
-  }
 
   /* 竖排标签栏：贴在卡片左侧（参考站 right: calc(100% + gap)） */
   .pj-scene__rail {
@@ -3391,16 +3360,37 @@
     opacity: 0.92;
     box-shadow: 0 1px 2px color-mix(in srgb, var(--pj-ink) 18%, transparent);
   }
-  /* 序号贴纸：左上角圆贴，歪着贴 */
+  /* 序号贴纸（第二百八十四批：从左上角挪到**卡顶正中**，并接过"把卡钉住"的角色）。
+     主人："移除钉头，只用贴纸是不是比较好？贴纸位置改为卡片的顶部中间部分，贴纸贴的随意一点，
+     有一种凌乱而规则的美。"
+     · 圆心落在卡顶那条 2px 墨线上：`top: 0` + `translate: -50% -50%`（百分比相对自身盒子，
+       所以任何尺寸下都自动居中）⇒ 上半在纸外、下半在纸上 —— 物理上就是"一半粘卡、一半粘板"。
+       ⚠️ 绝对定位的包含块是 .pj-scene__card 的**内边距盒**，所以 `top: 0` 指的是那条 2px 墨线的
+       **内沿**（= 卡外沿下方 2px）。实测：贴纸圆心 = 卡顶 + 2.00px + 表里的偏移。圆心就落在这条
+       墨带里 —— 不用去凑 `-1px` 那种魔法数，改卡框宽度时这条性质也不会坏。
+     · 直径 36–48px（桌面 3vw；手机档另有 32px 覆盖）。卡内边距桌面只有 18.7px、手机 12px，
+       贴纸**装不进**那条留白 ⇒ 它必然压住卡顶边线。这不是妥协，压住边线才像"贴上去"。
+     · **凌乱而规则**：圆心偏移与角度由 JS 按一张**逐项目偏移表**写进 `translate` / `rotate`
+       （见 projects-carousel.js 的 WOBBLE）。CSS 这里只给"没有 JS 时也对"的默认值。
+       ⚠️ 偏移走 translate/rotate **独立属性**而不是 transform：装配动画 pj-stick 还要用 `scale`，
+       两者互不覆盖；若用 transform，动画的 `both` 填充会**永久**压掉 inline 写进来的偏移。
+     · **平涂**：单一 accent 实色 + 纸色数字，无渐变、无外投影（与 283 批给图钉定的平涂约束同源）。
+       贴纸是印在纸上的东西，真实贴纸几乎不投影 —— 连 box-shadow 也去掉；卡片自己那层大软投影
+       已经足够把纸从底色上"抬"起来。
+     · z-index 3：压在卡顶墨边之上。它住在 .pj-scene__card 里（= zoomer 内），
+       邻居缩小时跟着缩、圆心不动（不动点就是它自己的圆心）。 */
   .pj-scene__sticker {
     position: absolute;
-    top: calc(-0.7 * var(--pj-pad));
-    left: calc(-0.7 * var(--pj-pad));
+    top: 0;
+    left: 50%;
     z-index: 3;
     display: grid;
     place-items: center;
     width: clamp(36px, 3vw, 48px);
     height: clamp(36px, 3vw, 48px);
+    /* 圆心 = 卡顶正中（默认值；JS 会按偏移表重写 translate） */
+    translate: -50% -50%;
+    rotate: -4deg;
     border-radius: 50%;
     background: var(--color-accent);
     color: var(--pj-paper);
@@ -3408,8 +3398,6 @@
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.04em;
-    transform: rotate(-8deg);
-    box-shadow: 0 2px 6px color-mix(in srgb, var(--pj-ink) 26%, transparent);
   }
   .pj-scene__frame {
     position: relative;
@@ -3525,7 +3513,15 @@
   @keyframes pj-fall   { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes pj-grow   { from { transform: scaleY(0); } to { transform: scaleY(1); } }
   @keyframes pj-unveil { from { clip-path: inset(0 0 100%); transform: translateY(-18px); } to { clip-path: inset(0 0 0%); transform: translateY(0); } }
-  @keyframes pj-stick  { from { transform: rotate(-26deg) scale(0); } to { transform: rotate(-8deg) scale(1); } }
+  /* 第二百八十四批：贴纸的装配动画只动 **scale / opacity**，绝不动 transform ——
+     贴纸的落点（translate + rotate）是 JS 按项目逐张写进 inline 的，动画若写 transform，
+     `both` 的填充会永久盖掉它（这就是"每个贴纸都长在同一个位置"那类假绿的来源）。
+     from 0.35 配 overshoot 曲线读起来像"啪一下贴上去"。 */
+  @keyframes pj-stick  {
+    0%   { scale: 0.35; opacity: 0; }
+    60%  { scale: 1.08; opacity: 1; }
+    100% { scale: 1;    opacity: 1; }
+  }
   @keyframes pj-char   { from { opacity: 0; transform: translateY(-10px) rotate(5deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
   @keyframes pj-draw   { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @keyframes pj-swing {
@@ -3551,9 +3547,15 @@
   }
 
   /* === 项目页 · 一屏内完整显示（第一百八十六批 2026-08-25 主人"项目页面电脑应一页显示全部"）===
-     标题区复用 about-hero，轮播区垂直空间压缩，让 1280×800 桌面视口整页无滚动。 */
+     标题区复用 about-hero，轮播区垂直空间压缩，让 1280×800 桌面视口整页无滚动。
+     第二百八十四批 2026-09-16：主人"页面的 max-width 为导航栏的 max-width"。
+     1440 → **1200**（= .nav-inner 的 max-width，也 = .about-main）。原来这一页内容左边界在
+     x=16、立牌排还额外全出血到 1440 宽，跟导航（内容左边届 x=136）明显错开；
+     改回 1200 之后内容自然落在 136，与导航严丝合缝，立牌排的裁切边也从"视口边"变成"容器边"。
+     注：max-width 走 .about-main 的 1200 也够，但这里显式写一遍 —— 覆盖值贴在旁边，
+     下次改的人不用去翻 .about-main 的注释。 */
   .projects-main {
-    max-width: 1440px;
+    max-width: 1200px;
   }
   .projects-bento {
     padding-block: clamp(10px, 1.4vh, 20px) clamp(18px, 2.6vh, 30px);
@@ -3600,8 +3602,6 @@
       --pj-rail-w: 22px;
       --pj-rail-gap: 12px;
       --pj-drop: clamp(28px, 7vw, 48px);
-      /* 钉心跟着窄屏缩一档：卡内边距只有 12px，钉心再往下就顶到照片了 */
-      --pj-pin-y: 6px;
     }
     .pj-scene__rail-title { font-size: 13px; letter-spacing: 0.14em; }
     .pj-scene__rail-eyebrow { font-size: 9px; letter-spacing: 0.2em; }

@@ -196,21 +196,78 @@
      skewed 时代 JS 还要读 rot/scale 才能复刻 CSS 的画法，现在缩放曲线写死在 render 里，
      两边不会再各说各话。 */
   var ST = 280;
+  /* ── 步距怎么量（第二百八十四批重写）────────────────────────────────────
+     **用探针元素量，不读 --pj-step 的字符串。**
+     读自定义属性只有两条路：未注册时 getPropertyValue 回的是**未求值原文**
+     （`calc(calc(calc(clamp(...))))`，parseFloat = NaN）；注册了才回 px 数。
+     2026-09-16 实测过一次代价：style.css 里 @property 上方那段说明文字**漏了开注释符**，
+     解析器把整段中文读成一条选择器、再把 @property 的 `{}` 吃成它的声明块 ⇒
+     整条 @property 被丢掉 ⇒ 读回原文 → NaN → 兜底又跑在 render() 之前（那一刻 stage 里
+     没有任何 .pj-scene，查询返回 null）⇒ ST 恒为 280px，而卡片实际宽 399px
+     ⇒ **桌面端相邻卡片重叠 119px**，而且只有 resize 才重测，桌面端一直重叠没人发现。
+     探针让引擎自己求值：`width: var(--pj-step)` 读 computed width。它不依赖注册、
+     不依赖槽位是否建好、任何时刻都成立 —— 顺带把"测在建模之前"这个雷一起拆了。
+     探针 5 个属性全写死（绝对定位到屏幕外、高 0、不可见、不吃事件），不留影响布局的可能。 */
+  var probeEl = null;
+  function stepProbe() {
+    if (!probeEl) {
+      probeEl = document.createElement('div');
+      probeEl.setAttribute('aria-hidden', 'true');
+      probeEl.style.cssText = 'position:absolute;left:-9999px;top:0;height:0;width:var(--pj-step)' +
+        ';visibility:hidden;pointer-events:none';
+      root.appendChild(probeEl);
+    }
+    return probeEl.getBoundingClientRect().width;
+  }
   function measure() {
-    var v = parseFloat(getComputedStyle(root).getPropertyValue('--pj-step'));
+    var v = stepProbe();
     if (!isFinite(v) || v <= 0) {
-      /* 兜底：@property 没生效（老浏览器）时按真实盒子量 —— 卡宽 + 标签栏宽 + 2×间隙，
-         与 CSS 里 --pj-step 的定义同式，两边算出来必须是同一个数。 */
+      /* 二级兜底：连探针都拿不到（--pj-step 的表达式本身坏了）时按真实盒子量 ——
+         卡宽 + 标签栏宽 + 2×间隙，与 CSS 里 --pj-step 的定义同式。
+         ⚠️ 间隙必须**减掉卡宽**：rail 的 right 是 `calc(100% + gap)`，computed
+         拿到的是"卡宽 + 间隙"的整体（实测 422px），直接当间隙用会算出天文数字。
+         （这正是老代码那条兜底为何一次都没救回来 —— 它拿到 422 也是错的。） */
       var sc = stage.querySelector('.pj-scene');
       var rail = sc && sc.querySelector('.pj-scene__rail');
       if (sc && rail) {
-        var gapPx = parseFloat(getComputedStyle(rail).right) || 20;
-        v = sc.offsetWidth + rail.offsetWidth + 2 * gapPx;
+        var railGap = 20;
+        var rightPx = parseFloat(getComputedStyle(rail).right);
+        if (isFinite(rightPx) && rightPx > sc.offsetWidth) railGap = rightPx - sc.offsetWidth;
+        v = sc.offsetWidth + rail.offsetWidth + 2 * railGap;
       }
     }
     ST = (isFinite(v) && v > 0) ? v : 280;
   }
   function step() { return ST; }
+
+  /* ── 贴纸落点表（第二百八十四批）────────────────────────────────────────
+     主人要"贴的随意一点，有一种凌乱而规则的美"。**规则**由 CSS 管（每张贴纸都落在卡顶正中
+     那一个区间里、尺寸一样、平涂一样）；**凌乱**就是这张表：四个项目四组具体落点。
+     单位是**自身直径的百分比**（translate 的百分比按元素自身盒子算）——
+     于是手机档贴纸缩到 32px 时，偏移自动跟着等比缩小，不用写第二张表。
+
+     ⚠️ 为什么用显式表而不是序号哈希：上一版试过 FNV 哈希，连续序号算出来的低位字节彼此
+     相关，偏移变成 −0.8 / +0.6 / +2.5 / +4.0 这种"顺序漂移"，看着像**贴歪了**而不是随手贴。
+     "规则的凌乱"要的是四张都不一样的**具体**落点，那就把落点写出来。
+     ⚠️ 三列都不许单调：x 正负交替、r 正负交替，这样"随手"才看得见。
+     ⚠️ x 的幅度上限由**右上角那卷胶带**定：贴纸右缘不能压到它。
+        实测桌面卡宽 365、贴纸 43px ⇒ 圆心可动范围远大于 ±23%，这一列是保守取。 */
+  var WOBBLE = [
+    { x: -21, y: -7, r: -5.5 },
+    { x:   9, y:  5, r:  3.0 },
+    { x:  23, y: -2, r:  6.5 },
+    { x:  -7, y:  7, r: -2.5 }
+  ];
+  /* 把落点写进贴纸。translate 的 -50% -50% 是"圆心落在 left:50% / top:0"，
+     再叠加表里的偏移；rotate 单独一个属性，与装配动画用的 scale 互不覆盖。 */
+  function setStickerWobble(el, idx) {
+    if (!el) return;
+    var w = WOBBLE[((idx % WOBBLE.length) + WOBBLE.length) % WOBBLE.length];
+    if (el._wob === w) return;                     /* 同元素复用时不重复写 inline */
+    el._wob = w;
+    el.style.translate = 'calc(-50% + ' + w.x + '%) calc(-50% + ' + w.y + '%)';
+    el.style.rotate = w.r + 'deg';
+  }
 
   /* 第二百七十五批：夹紧（railClamp / slotAnchor / pageLanding）连同 ?cpages=0
      一并撤掉 —— 导轨现在自由跟手，一次手势能滑几张就几张（见文件头 275 批）。 */
@@ -272,28 +329,20 @@
     if (im.decode) im.decode().catch(function () {});
   });
 
-  /* 立牌 DOM（池化复用：出界回池、进界取用）。三层，各管一件事：
+  /* 立牌 DOM（池化复用：出界回池、进界取用）。**两层**，各管一件事：
        .pj-scene         位移（+透明度）—— 每帧写 translateX
-       .pj-scene__swing  摆动（transform-origin = 吊点 = 钉头圆心 = 卡顶 + --pj-pin-y）
-         .pj-scene__hang   一枚图钉                        ← **不缩放**（钉在卡上的是实物）
-         .pj-scene__zoomer 缩放（origin 50% var(--pj-pin-y) = 同一个吊点）→ 标签栏 + 明信片
-     第二百八十批：绳/环/眼每张都有（原来只有 raised 有那根 .pj-scene__string），
-     长度由 CSS 的 --pj-cord-h 按 raised 与否自己算 —— JS 不重复算一遍几何。
-     第二百八十二批：横线撤掉，每张自己一枚钉头（.pj-scene__pin）。
-     第二百八十三批：**钉头以外的三件（吊绳 / 绳圈 / 气眼）也撤了** —— 主人"每张卡挂一条线
-     +一枚钉头的设计不是很好看"，看过四格草图后选了"一枚图钉"那版。现在整排的吊具
-     就是这一颗 span。几何全交给 CSS：钉心 = --pj-pin-y，一个值同时定 swing 与 zoomer 的
-     transform-origin，JS 一行几何都不算（跟第二百八十批同一个理由）。
-     钉头写成**真元素**而不是伪元素：它是摆动的支点、也是"钉心 = 支点 = 缩放不动点"这条
-     不变式要被量到的东西，伪元素拿不到 rect（这是"几何全绿但线是坏的"那次留下的教训）。
-     钉帽下面那截钉身和一粒假光走 ::before / ::after —— 它们不参与任何断言，用伪元素就够。 */
+       .pj-scene__swing  摆动（transform-origin = 卡顶正中 = 贴纸圆心）
+         .pj-scene__zoomer 缩放（origin 50% 0，同一个点）→ 标签栏 + 明信片
+     第二百八十四批：**挂具层（.pj-scene__hang + .pj-scene__pin）整段撤掉** —— 主人"移除钉头，
+     只用贴纸是不是比较好"。原来叠四件（绳 + 绳圈 + 气眼 + 钉头）→ 只留一枚钉 → 现在连钉也没有，
+     改成**序号贴纸直接"粘"在卡顶正中**（贴纸是 .pj-scene__card 的子元素，见 SCENE_HTML 下方）。
+     所以 swing 下面直接就是 zoomer，少一层；也不再需要"有个实物不该跟着卡片缩"这个理由 ——
+     贴纸是卡片表面上的东西，本来就该跟着缩。
+     几何仍然全交给 CSS：摆动轴心 = 缩放不动点 = 卡顶正中（`50% 0`），JS 一行几何都不算
+     （与第二百八十批同一个理由）。贴纸自己的落点偏移是唯一由 JS 写的东西，走独立属性
+     translate / rotate（不是 transform），免得和装配动画争 —— 见 setStickerWobble。 */
   var SCENE_HTML =
     '<div class="pj-scene__swing">' +
-      '<span class="pj-scene__hang" aria-hidden="true">' +
-        /* 只剩钉头一件，覆盖顺序无从谈起了；留这个包装层是因为它管着
-           z-index:3（压住卡顶墨边）与 pointer-events:none（整层不吃点击）。 */
-        '<span class="pj-scene__pin"></span>' +
-      '</span>' +
       '<div class="pj-scene__zoomer">' +
       '<div class="pj-scene__rail" aria-hidden="true">' +
         '<span class="pj-scene__rail-dot"></span>' +
@@ -372,6 +421,9 @@
         el.querySelector('.pj-scene__rail-eyebrow').textContent = p.link ? 'REPO' : 'DRAFT';
         el.querySelector('.pj-scene__rail-title').textContent = p.title;
         el.querySelector('.pj-scene__sticker').textContent = p.no;
+        /* 贴纸落点：按**项目序号**取偏移（不是槽位 j）—— 回绕时同一项目永远是同一个落点，
+           否则卡片绕一圈回来贴纸会换位置（"贴着玩"变成"在飘"）。 */
+        setStickerWobble(el.querySelector('.pj-scene__sticker'), wrapIdx(j));
         el.querySelector('.pj-scene__stamp-text').textContent = p.no + ' / ' + (n < 10 ? '0' : '') + n;
         /* 说明逐字拆 span：CSS 用 --i 做错峰落下（参考站同款逐字入场） */
         var cap = el.querySelector('.pj-scene__caption');

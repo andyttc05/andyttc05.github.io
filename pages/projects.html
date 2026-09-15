@@ -82,7 +82,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=320" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=321" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -215,7 +215,13 @@
          第二百八十三批 2026-09-15：**钉头以外的三件也撤了**（主人"每张卡挂一条线+一枚钉头的
          设计不是很好看。优化一下设计"）—— 吊绳、绳圈、气眼全删，整排的吊具只剩一枚图钉，
          钉心落在卡自己的顶边上（= 摆动支点 = 缩放不动点）。零布局改动。
-         这一枚 .pj-scene__pin 由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。 -->
+         这一枚 .pj-scene__pin 由 projects-carousel.js 生成（在 .pj-scene__swing 里，跟着摆）。
+         第二百八十四批 2026-09-16：**图钉也撤了，改用序号贴纸**（主人"移除钉头，只用贴纸是不是
+         比较好？贴纸位置改为卡片的顶部中间部分，贴纸贴的随意一点，有一种凌乱而规则的美"）。
+         ⇒ .pj-scene__hang 整层删除；贴纸从左上角挪到**卡顶正中**，圆心压在卡顶那条 2px 墨线上，
+         逐项目落点写在 projects-carousel.js 的 WOBBLE 表里（凌乱 = 四组具体落点，
+         规则 = 都在同一个区间、同一尺寸、同一平涂）。摆动轴心与缩放不动点随之回到 `50% 0`。
+         同批：页面 max-width 1440 → 1200（= 导航栏），卡片 29.8vh → 27vh，卡间隙 1.6vw → 1.8vw。 -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
       <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
         <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
@@ -240,6 +246,6 @@
   <script src="../assets/js/loader.js?v=7" defer></script>
   <script src="../assets/js/script.js?v=138" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=100" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=101" defer></script>
 </body>
 </html>
