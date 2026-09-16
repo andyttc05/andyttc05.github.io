@@ -850,14 +850,20 @@
        869 → 1140（挤出首屏）；公式自己产出的最大值（1440×2000 上 321）还没到触发阈值，
        但这根引线没有存在的理由。删掉后 hero 高度与这个变量彻底无关。 */
   }
-  /* 第一层→第二层：小间距（紧凑，视觉上"标题+副题"成一组） */
-  .hero-layer-2 { margin-top: clamp(32px, 5vw, 56px); }
+  /* 第一层→第二层：标题→副标是这一屏**最大的一跳**，间距必须给足。
+     2026-09-17：32/5vw/56 → 40/4.6vw/76 —— 原来这一跳肉眼只有 98px，
+     其中 67px 是标题行盒（1.7 × 96px = 163px，而墨迹只有 90px）空转出来的，
+     CSS 真正写的间距只有 56px。切断行高之后必须把这一跳补回来。 */
+  .hero-layer-2 { margin-top: clamp(40px, 4.6vw, 76px); }
   /* hero-layer 三层：每层是一个独立视觉单元，内部紧密、层间宽松。
      gap: 14 是层内推荐值——比原分散 20-36 更紧凑，让"层"成为更强单元 */
   .hero-layer { display: flex; flex-direction: column; gap: 14px; }
   .hero-welcome {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 15px; letter-spacing: 2.5px; text-transform: uppercase;
+    /* 2026-09-17：原来继承 body 的 1.7 —— 15px 的眉标配 1.7 太散，
+       跟标题的行盒空转叠在一起，"眉标 → 标题"肉眼量出 61px，比最次要的一对还大 */
+    line-height: 1.35;
     color: var(--color-muted);
     /* 左起 accent 短横线点睛：与英文间留 10px，竖排对齐 */
     display: flex; align-items: center; gap: 10px;
@@ -880,6 +886,14 @@
   .hero-title-text {
     display: inline-flex;
     font-size: clamp(44px, 7vw, 96px);
+    /* === 根因就在这里（2026-09-17）===
+       body 给全站 line-height:1.7，hero 里每一层都原样继承 —— 包括这个 96px 的标题：
+       行盒 163px，而字真正占的墨迹只有 90px，上下各 ~35px 全是空气。
+       于是 hero 里每一处间距都被行盒放大 2~4 倍：CSS 写 gap 14 的"眉标+标题"肉眼是 61px，
+       CSS 写 56 的"标题→副标"肉眼是 98px，层级被读反（最该紧的一对反而最散）。
+       对照：站里其他大字都写死了行高（.vslide-glyph 0.92、.story-intro-glyphs 1.1）——
+       hero 标题是全站唯一一个拿 1.7 当行高的大字。 */
+    line-height: 1.0;
     font-weight: 800;
     font-family: var(--font-head); /* 第六十三批：hero-title-text 手写体 */
   }
@@ -923,10 +937,11 @@
   .hero-type {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     /* 2026-09-17：17 → 18（主人「这些字有点小」）。
-       min-height 跟着行的实际高度走，打字期间行盒不跳 */
+       min-height 跟着行的实际高度走（18px × 1.6 = 28.8 ≈ 29），打字期间行盒不跳 */
     font-size: 18px;
+    line-height: 1.6;
     color: var(--color-ink);
-    min-height: 31px;
+    min-height: 29px;
   }
   .hero-type-caret {
     display: inline-block;
@@ -948,13 +963,19 @@
     /* 辅助信息：仍小于副标题/打字机，但不再小到要凑近看
        —— 2026-09-17 主人「这些字有点小」：14 → 16 */
     font-size: 16px; letter-spacing: 0.3px;
+    /* 2026-09-17：原来继承 1.7，16px 的 mono 一行行盒 27px（墨迹 16px） */
+    line-height: 1.6;
     color: var(--color-muted);
     /* 第一百二十批：移除 margin-top: auto —— CTA 移到 layer-2 后，meta 不再是 hero-text
        最后一个元素。auto 会把 meta 推到 hero-text 底部、把 CTA 挤上去，
        现在让 meta 跟 CTA 正常层叠（margin-top 走正常阶梯值）。
-       margin-bottom 仍保留 — 让 meta 跟 hero-text 底部留呼吸，不贴图底 */
-    margin-top: clamp(20px, 3vw, 32px);
-    margin-bottom: clamp(8px, 1vw, 14px);
+       （原注释说"margin-bottom 仍保留 — 让 meta 跟图底留呼吸"：2026-09-17 起
+       margin-bottom 归 0，那段呼吸改由 hero 自身的剩余高度承担 —— 底下的空气只会更多。） */
+    /* 2026-09-17：20/3vw/32 → 36/4.4vw/64。CTA 与 meta 是两段不同的东西
+       （叙事引导 vs 状态信息），给足分隔；margin-bottom 归 0 ——
+       它底下本来就没有元素，那段"呼吸"由 hero 自己的剩余高度兜着。 */
+    margin-top: clamp(36px, 4.4vw, 64px);
+    margin-bottom: 0;
   }
   .hero-meta-line {
     display: flex; align-items: center; gap: 12px;
@@ -983,6 +1004,8 @@
     font-weight: 500;
     /* 2026-09-17：22 → 26（主人「这些字有点小」） */
     font-size: 26px;
+    /* 26px 配 1.7 的行盒是 44px —— 全站最高的一行盒，也是"时钟行→日期行"被撑到 31px 的原因 */
+    line-height: 1.25;
     letter-spacing: 1.5px;
     font-variant-numeric: tabular-nums;
     /* === 修「秒针一变，后面那句问候语就跟着左右挪」（2026-09-17）===
@@ -1018,10 +1041,12 @@
     gap: 8px;
     align-self: flex-start;
     position: relative; /* 第一百五十一批：静态命中区 ::before 锚点 */
-    /* 第一百二十批：CTA 上移到 layer-2 后，margin-top 从 22px → 28px，
-       加大与上方叙事内容的间距，让"读完内容 → 看按钮"的视觉过渡更舒适；
-       layer-3 在 CTA 下方另起一段，间距由 layer-3 自己的 margin-top 接管（20-32px） */
-    margin-top: clamp(20px, 3vw, 28px);
+    /* 第一百二十批：CTA 上移到 layer-2 后加大与上方叙事内容的间距；
+       layer-3 在 CTA 下方另起一段，间距由 layer-3 自己的 margin-top 接管（现为 36-64px） */
+    /* 2026-09-17：20/3vw/28 → 28/3.4vw/48。CTA 上方的打字机是"同一段叙事"，
+       下方是另一段（状态层）—— 这里给的是"读完内容 → 看按钮"的那一步 */
+    margin-top: clamp(28px, 3.4vw, 48px);
+    line-height: 1.4;
     padding: 0 28px 0 28px;
     height: 44px;
     border: none;
@@ -1029,7 +1054,8 @@
     background: var(--color-accent);
     color: #ffffff;
     font-family: var(--font-body);
-    font-size: 14px;
+    /* 2026-09-17：14 → 15（meta 已抬到 16，主按钮不该比状态文字还小） */
+    font-size: 15px;
     font-weight: 500;
     letter-spacing: 0.5px;
     text-decoration: none;
@@ -1147,7 +1173,7 @@
     .hero.entered .hero-text > .hero-cta:hover { transform: none; }
   }
   @media (max-width: 768px) {
-    .hero-cta { height: 40px; padding: 0 24px; font-size: 13px; gap: 6px; }
+    .hero-cta { height: 40px; padding: 0 24px; font-size: 14px; gap: 6px; }  /* 2026-09-17：13 → 14（与 meta 15 保持同样的 -1 关系） */
     .hero-cta-arrow svg { width: 12px; height: 12px; }
   }
 
@@ -1286,6 +1312,7 @@
     display: flex; align-items: center; gap: 10px;
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+    line-height: 1.4;
     color: var(--color-muted);
     z-index: 1;
     cursor: default;
