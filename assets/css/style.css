@@ -134,6 +134,19 @@
   button, a, [role="button"], input, select, textarea, label, summary {
     touch-action: manipulation;
   }
+  /* 2026-09-17 修复：<button> 默认**不吃**文档的字体族。
+     UA 样式表给表单控件的是 `font: 400 13.3333px Arial`（各浏览器略有差异），
+     而 font-family 不是继承属性 —— 只有显式写 `inherit` 才会跟着父级走。
+     症状（实测确认）：桌面导航里 `#themeToggleDesktop` 是 <button>，
+     标签「Dark」计算后落到 Arial 16px；紧挨着的 `#langToggleDesktop` 是 <a>，
+     标签「EN」是 IBM Plex Sans 16px —— **同一根导航条上两个并排按钮，两种字体**。
+     移动端菜单那处之所以没事，是因为 `.nav-menu-action-hit > span` 显式写了字体族，
+     反证作者本意就是全站 IBM Plex Sans，桌面这处属漏网。
+     修法：只让控件继承字体族（不动 font-size / weight —— 各组件已显式声明，
+     且 `font: inherit` 简写会连带重置字号，风险更大）。有意另设的规则仍可覆盖。 */
+  button, input, select, textarea {
+    font-family: inherit;
+  }
   /* === Skip link (a11y 2026-08-20): 键盘 / 屏读用户跳过 nav 直接到内容。
      平时 sr-only 隐藏 (绝对定位 + 顶部 -100px, 视觉不见但屏读可达),
      :focus-visible 时跳到屏幕左上让用户看到并激活跳转。

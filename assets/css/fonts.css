@@ -38,10 +38,23 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* 2026-09-17 修复：这两个 woff2 是**可变字体**（fvar 轴 wght 100-700），
+   同一份字节同时充当 400 与 500 两个文件（sha256 逐字节相同，不是巧合）。
+   原先拆成 `font-weight: 400` 与 `font-weight: 500` 两条声明 —— 那等于把这份可变字体
+   钉死成两个**静态面**，浏览器根本不去动 wght 轴。后果（chromium 逐像素实测）：
+     ① 请求 600 或 700 时无面可用，浏览器退到 500 面再做**合成加粗**（机械加宽笔画）
+        => 600 与 700 的 advanceWidth 与墨迹像素**完全相同**，CSS 写得出两个层级、
+        渲染出来只有一个；合成笔画也糊而不匀，不是 Plex 设计的 SemiBold / Bold。
+     ② 全站 Sans 只用到 400/500/600/700 四档（`font-weight: 800` 那两处是 Serif，
+        不受影响），600/700 全部落在这条 fake 路径上。
+   改成范围声明 `font-weight: 100 700` => 浏览器按 wght 轴取**真实实例**：
+     400 / 500 与改动前度量零差异（实测 advanceWidth 差 0.00px、墨迹像素差 0），
+     600 -> 真 SemiBold，700 -> 真 Bold，两者不再相同。
+   `*-500-*` 两份文件与 `*-400-*` 字节相同，已随之删除。 */
 @font-face {
   font-family: 'IBM Plex Sans';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 100 700;
   font-display: swap;
   src: url('../fonts/ibm-plex-sans-400-normal.latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
@@ -50,27 +63,9 @@
 @font-face {
   font-family: 'IBM Plex Sans';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 100 700;
   font-display: swap;
   src: url('../fonts/ibm-plex-sans-400-normal.latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('../fonts/ibm-plex-sans-500-normal.latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('../fonts/ibm-plex-sans-500-normal.latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
