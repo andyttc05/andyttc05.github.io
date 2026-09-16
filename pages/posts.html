@@ -87,7 +87,7 @@
      移到 head ⇒ 预加载扫描器让它与 CSS 并行取回，解析器不再停在半空页面上等。
      同 150ms 延迟实测：462/1536（0 条）→ **1536/1536（1 条）**，3/3。
      数据 ~2KB，值得。 -->
-<script src="../assets/data/posts.js?v=20c7b106fb"></script>
+<script src="../assets/data/posts.js?v=40389aab1b"></script>
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -986,7 +986,7 @@ body.dy-lb-open { overflow: hidden; }
     /* 兜底：全局没有数据时才动态加载（以后换成 fetch 版后端 / 数据标签被删掉的情况） */
     function loadPosts() {
       return new Promise(function (resolve, reject) {
-        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=20c7b106fb');
+        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=40389aab1b');
         var s = document.createElement('script');
         s.src = url;
         s.onload = function () {
