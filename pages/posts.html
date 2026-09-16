@@ -405,9 +405,30 @@
    （位移 = 手指位移 × 0.29，封顶 32px；邻图不参与）。 */
 body.dy-lb-open { overflow: hidden; }
 .dy-lb {
+  /* v12.4（2026-09-16，主人「预览图片是不是太大了，稍微小一点就好」+
+     「调整整体图片大小后，优化一下预览底部栏的位置」）——两件事一起改，因为它们是同一个病：
+
+       · **画面大小只剩一个旋钮 `--lb-fit`**（乘在可用区上），不再靠来回改两个 pad 值试。
+         改之前 1440×900 下 4:3 渲染 1040×780、竖图 612×816（占视口高 90.7%）。
+       · **底部圆点条拿到了自己的那条带 `--lb-band`**：舞台底边直接停在带顶，于是
+         "图下缘 ↔ 圆点"的净空不再被居中折半。改之前圆点中心离视口下沿只有 **17.5px**、
+         竖图底下只剩 **21px** 净空 —— 因为 pad-top/pad-bottom 是**相加**后对半分的，
+         那个"让开圆点的 58px"其实从没真的落在圆点上面过。
+       ⚠️ 舞台是居中的 ⇒ 上/下留白永远是"合计的一半"。别再靠单改 `--lb-pad-bottom`
+          去推净空，那只会同时把图压小、且只拿到一半效果。要动净空就动 `--lb-gap`。 */
   --lb-pad-top: 26px;     /* 顶部只留一点呼吸 ── 计数/关闭已移除 */
-  --lb-pad-bottom: 58px;  /* 让开底部圆点 */
   --lb-pad-x: 78px;       /* 让开左右箭头 */
+  --lb-fit: .9;           /* 画面占可用区的比例 —— 整体大小只调这一个数 */
+  --lb-max-w: 1040px;     /* 大屏时的横向绝对上界 */
+  --lb-bar-b: 20px;       /* 圆点条离视口下沿的距离 */
+  --lb-bar-pad: 14px;     /* 圆点条自身内边距 */
+  --lb-dot: 7px;          /* 常态圆点直径（当前张 = 3 倍宽）。定义在这里，见 --lb-band */
+  --lb-gap: 32px;         /* 图下缘与圆点条之间**保证**的净空 */
+  /* 底部那条带 = 下沿 + 内边距 + 圆点 + 净空。只在这里算一次：
+     舞台的 bottom 与画面的 max-height 都用它，免得两处各写一遍、以后对不上。 */
+  --lb-band: calc(var(--lb-bar-b) + var(--lb-bar-pad) * 2 + var(--lb-dot) + var(--lb-gap));
+  --lb-w: calc(min(100vw - var(--lb-pad-x) * 2, var(--lb-max-w)) * var(--lb-fit));
+  --lb-h: calc((100vh - var(--lb-pad-top) - var(--lb-band)) * var(--lb-fit));
   position: fixed; inset: 0; z-index: 200;
   background: rgba(10,13,18,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -429,7 +450,11 @@ body.dy-lb-open { overflow: hidden; }
    从 v11 的"静止态不变式"升级成了硬不变式 —— 邻图槽位留着只为量步距和 debug，
    别再把它们拉进画面（参考站的 mode="out-in" 结构上就不允许两张图同时在场）。 */
 .dy-lb-stage {
-  position: absolute; inset: 0;
+  /* v12.4：不再铺满视口 —— 底边停在圆点带顶上，图在**剩下的那块**里居中。
+     这样"圆点带"是真正让出来的（`--lb-band`），不是靠在 max-height 里减两个 pad
+     再去指望居中别把它吃掉一半。 */
+  position: absolute;
+  left: 0; right: 0; top: var(--lb-pad-top); bottom: var(--lb-band);
   display: flex; align-items: center; justify-content: center;
   cursor: grab;
 }
@@ -452,8 +477,8 @@ body.dy-lb-open { overflow: hidden; }
    ⇒ 两条一起收：`.dy-lb.is-open` 限定 + 只认当前槽位。 */
 .dy-lb-stage img,
 .dy-lb-stage .dy-lb-emoji {
-  max-width: min(calc(100vw - var(--lb-pad-x) * 2), 1040px);
-  max-height: calc(100vh - var(--lb-pad-top) - var(--lb-pad-bottom));
+  max-width: var(--lb-w);
+  max-height: var(--lb-h);
   width: auto; height: auto;
   object-fit: contain;
   user-select: none; -webkit-user-select: none;
@@ -478,8 +503,18 @@ body.dy-lb-open { overflow: hidden; }
    v11.1 的「统一 4:3 框 + cover 裁切」已按主人要求撤销：等比完整与"每张一样大"
    数学上不可能同时成立（同一条动态里 1500×1125 / 1125×1500 / 1500×692 三种比例，
    塞进同一个框必然裁掉内容）。现在的规则是"同比例才同尺寸"。
-   实测（1280×800，可用区 1040×716）：10 张 4:3 → 全为 954×716；竖图 537×716；
-   全景 1040×480。 */
+   v12.4（2026-09-16 主人"预览图片是不是太大了，稍微小一点就好"）：上界改成
+   `--lb-w` / `--lb-h` 两个变量（都乘 `--lb-fit`），尺寸规则本身一个字没动 ——
+   fit 只改**可用区**的大小，所以"同比例 ⇒ 同尺寸"照旧成立。
+   DOM 探针实测（`scratch/lb-v12/lb-geom.js`，chromium）：
+
+     视口      可用区(--lb-w × --lb-h)   4:3 1500×1125     竖图 1125×1500
+     1440×900        936 × 708            936×702           531×708
+     1280×800        936 × 618            824×618           464×618
+     1920×1080       936 × 870            936×702           653×870
+     390×844         286 × 751            286×215           286×381   （窄屏 --lb-fit:1）
+
+   对照 v12.3 旧值（1440×900）：4:3 1040×780、竖图 612×816 ⇒ 现在都是 **86~90%**。 */
 
 /* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
 .dy-lb-emoji {
@@ -512,9 +547,14 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-btn:active { transform: scale(.94); }
 .dy-lb-btn svg { width: 20px; height: 20px; display: block; }
 
-/* 左右箭头：钉在视口两侧中线；端到端 disabled 淡化（不隐藏） */
+/* 左右箭头：钉在【画面可用区】的中线；端到端 disabled 淡化（不隐藏）。
+   ⚠️ v12.4 起不能再写 `top: 50%` —— 那是**视口**中线。舞台改成从上留白到圆点带之后，
+      画面中心比视口中心高了半个带，箭头再用 50% 就会明显低于图（视觉上不跟图走）。
+      这里算的就是舞台的中线，与 `.dy-lb-stage` 的 top/bottom 用的是同两个变量。 */
 .dy-lb-arrow {
-  position: absolute; top: 50%; transform: translateY(-50%);
+  position: absolute;
+  top: calc(var(--lb-pad-top) + (100vh - var(--lb-pad-top) - var(--lb-band)) / 2);
+  transform: translateY(-50%);
   z-index: 5;
   opacity: 0;
   transition: background .18s ease, opacity .22s ease, transform .18s ease;
@@ -535,11 +575,13 @@ body.dy-lb-open { overflow: hidden; }
    hover .5 / 当前 #fff。本站沿用 7px 基准（配自家的箭头/净空），当前张仍是 3 倍 = 21px。
    ⚠️ 圆角写 999px（不写 50%）：50% 会把长条变成椭圆，胶囊必须靠半径夹取。 */
 .dy-lb-dots {
-  --lb-dot: 7px;          /* 常态圆点直径；当前张 = 3 倍宽 */
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 4;
+  /* v12.4：从"贴着视口下沿"抬起来（`--lb-bar-b`）。原来 bottom:0 + padding:14px
+     让圆点中心离下沿只有 17.5px，在 900 高的视口里像是被切掉了半截。
+     ⚠️ `--lb-dot` 定义在 `.dy-lb` 上（`--lb-band` 要用它），这里不要再写一份。 */
+  position: absolute; bottom: var(--lb-bar-b); left: 0; right: 0; z-index: 4;
   display: flex; align-items: center; justify-content: center;
   flex-wrap: wrap; gap: 8px;
-  padding: 14px 18px;
+  padding: var(--lb-bar-pad) 18px;
 }
 .dy-lb-dot {
   width: var(--lb-dot); height: var(--lb-dot); padding: 0;
@@ -553,8 +595,10 @@ body.dy-lb-open { overflow: hidden; }
 
 @media (max-width: 600px) {
   /* 窄屏只收紧净空 —— 尺寸规则不变（v11.2 起不再有"窄屏换成正方形框"这回事，
-     照片永远按原比例完整显示，改变的是可用区大小，不是框的形状）。 */
-  .dy-lb { --lb-pad-top: 18px; --lb-pad-bottom: 46px; --lb-pad-x: 52px; }
+     照片永远按原比例完整显示，改变的是可用区大小，不是框的形状）。
+     ⚠️ 窄屏把 `--lb-fit` 放回 1：这里横向可用宽本来就只有 100vw − 104（390 的屏 ≈ 286px），
+        再乘 0.9 等于在手机上白亏 10% —— 那个比例是给桌面大留白准备的，不是给手机的。 */
+  .dy-lb { --lb-pad-top: 18px; --lb-pad-x: 52px; --lb-fit: 1; --lb-bar-b: 14px; --lb-gap: 26px; }
   .dy-lb-btn { width: 38px; height: 38px; }
   .dy-lb-btn svg { width: 18px; height: 18px; }
   .dy-lb-prev { left: 10px; }
