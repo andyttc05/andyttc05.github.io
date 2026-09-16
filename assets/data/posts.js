@@ -45,7 +45,7 @@ window.__DY_POSTS = {
     {
       "id": "20260816-suzhou",
       "date": "2026-08-16T23:16",
-      "text": "今天从无锡出发去苏州玩了w\n逛了留园，人真多，不过穿古装的也特别多，到处都是拍写真的，特别热闹。山塘街人也少不了多少，那边景点和居民区混在一起，走两步就是小桥流水，感觉挺自在。后来实在走不动了，躲到万象城去了，吹着空调逛小店，确实比在外面晒着舒服。\n晚上回来腿都酸了，不过跑了这么多地方，还是挺好玩的～o(≧v≦)o",
+      "text": "今天从无锡出发去苏州玩了w\n逛了留园，人真多，穿古装的也多，到处都是拍写真的，很热闹。山塘街人也一样多，那边景点和居民区混在一起，走两步就是小桥流水，还挺自在。后来实在走不动了，躲到万象城吹空调逛小店，比在外面晒着舒服。\n晚上回来腿都酸了，不过跑了这么多地方，还是挺好玩的～o(≧v≦)o",
       "photos": [
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-08-16-01-cat-in-garden.webp?v=1",    "alt": "院子里的猫与绿植" },
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-08-16-02-street-and-dog.webp?v=1",   "alt": "街角的小狗与横幅" },
@@ -118,7 +118,7 @@ window.__DY_POSTS = {
     {
       "id": "20260522-shenzhen",
       "date": "2026-05-22T22:29",
-      "text": "Pretty obsessed with the lifestyle and cuisine in Shenzhen. I’ve been enjoying life these past few days~\n(≧∇≦)",
+      "text": "Pretty obsessed with the food and the pace of life in Shenzhen. These past few days have been good~\n(≧∇≦)",
       "photos": [
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-05-22-01-universiade-station.webp?v=1",   "alt": "地铁线路图上的大运 Universiade 站" },
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-05-22-02-room-and-screen.webp?v=1",       "alt": "房间里的电脑与屏幕" },
@@ -131,7 +131,7 @@ window.__DY_POSTS = {
     {
       "id": "20260223-gold-medal",
       "date": "2026-02-23T11:21",
-      "text": "拿下铠的的金标，我的第二个万战英雄\no(≧v≦)o",
+      "text": "拿下铠的金标，我的第二个万战英雄\no(≧v≦)o",
       "photos": [
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-02-23-01-hero-title-screen.webp?v=1", "alt": "「恭喜您获得本周荣耀称号」的结算页" },
         { "src": "https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/posts/2026-02-23-02-gold-medal-rank.webp?v=1",   "alt": "金标结算：星级 +2、距离市榜前 100" }

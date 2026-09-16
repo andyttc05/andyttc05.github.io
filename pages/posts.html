@@ -6,7 +6,7 @@
 <head data-page-node-id="p4DWBPmlzUfJjEJHTSniKR">
 <meta charset="UTF-8" data-page-node-id="IFkSz2HYbvBTd68x7B3rH9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="E05y3sH8pVzxQukNpVwOfD">
-<meta name="description" content="动态 — 时雨时猫的记录，雨落下的每一个瞬间" data-page-node-id="cYFWgVbsctEcAITv9fXYsk">
+<meta name="description" content="时雨时猫的动态，随手记下的日常和照片" data-page-node-id="cYFWgVbsctEcAITv9fXYsk">
 <meta name="theme-color" content="#f8fafc" data-page-node-id="qbPp5toAwE72xHJMYlZMwU">
 <title>动态 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
@@ -87,7 +87,7 @@
      移到 head ⇒ 预加载扫描器让它与 CSS 并行取回，解析器不再停在半空页面上等。
      同 150ms 延迟实测：462/1536（0 条）→ **1536/1536（1 条）**，3/3。
      数据 ~2KB，值得。 -->
-<script src="../assets/data/posts.js?v=cce73e8c8d"></script>
+<script src="../assets/data/posts.js?v=70f67575c5"></script>
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -888,7 +888,7 @@ body.dy-lb-open { overflow: hidden; }
          删掉朋友圈式全宽封面（渐变天空 + 雨丝动画 + 叠放头像），改成站内统一标题区。 -->
     <header class="about-hero">
       <h1 class="about-title" aria-label="雨落笔记"><span class="about-title-char">雨</span><span class="about-title-char">落</span><span class="about-title-char hl">笔</span><span class="about-title-char hl">记</span></h1>
-      <p class="about-hero-desc">下雨、拍照、写点字 —— 想到什么就记一笔</p>
+      <p class="about-hero-desc">下雨、拍照、写点字，想到什么就记一笔</p>
     </header>
 
     <div class="dy-feed">
@@ -949,7 +949,7 @@ body.dy-lb-open { overflow: hidden; }
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=be01f61940"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=ac3dbe8dad" defer></script>
+  <script src="../assets/js/script.js?v=7748d1648f" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
@@ -1137,7 +1137,7 @@ body.dy-lb-open { overflow: hidden; }
     /* 兜底：全局没有数据时才动态加载（以后换成 fetch 版后端 / 数据标签被删掉的情况） */
     function loadPosts() {
       return new Promise(function (resolve, reject) {
-        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=cce73e8c8d');
+        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=70f67575c5');
         var s = document.createElement('script');
         s.src = url;
         s.onload = function () {
