@@ -538,11 +538,11 @@
       var typeTimer = null;
       if (typeEl) {
         var LINES = [
-          '外面在下雨，我在写代码。',
-          '代码跑通了，今天就没白过。',
-          '猫在窗台上睡觉，我在改 bug。',
-          '这个 bug 找了两小时，最后是少打一个括号。',
-          '雨还没停，那就再写一会儿。'
+          '时雨时猫，雨落，码落。',
+          '把淋湿的灵感，写成可运行的代码。',
+          '雨滴划过玻璃，灵感在代码里成型。',
+          '代码如诗，一写就是整个世界。',
+          '从零到一，每一步都算数。'
         ];
         var TYPE_MS = 90;        // 打字间隔
         var DELETE_MS = 42;      // 删除间隔
@@ -624,13 +624,13 @@
         var dateFmt = new Intl.DateTimeFormat(fmtLang, {
           year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
         });
-        /* hero 问候按时段变化：口语短句，各自长短不同，不写排比、不劝人 */
+        /* 安安问候按时段变化，句子长一点、带关心 */
         function greetFor(hour) {
-          if (hour >= 5 && hour < 11) return '早，今天想干点什么。';
-          if (hour >= 11 && hour < 13) return '中午了，先吃饭去。';
-          if (hour >= 13 && hour < 18) return '下午了，有点困。';
-          if (hour >= 18 && hour < 23) return '天黑了，收工没。';
-          return '这么晚还不睡，明天别喊困。';
+          if (hour >= 5 && hour < 11) return '早安呀，新的一天，慢慢来。';
+          if (hour >= 11 && hour < 13) return '午安呀，记得好好吃饭。';
+          if (hour >= 13 && hour < 18) return '下午好呀，累了就歇一歇。';
+          if (hour >= 18 && hour < 23) return '晚上好呀，今天也辛苦了。';
+          return '夜深了，早点休息，照顾好自己。';
         }
         tickClock = function () {
           var now = new Date();
