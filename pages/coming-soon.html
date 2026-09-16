@@ -220,7 +220,16 @@
 
   /* 第一百四十五批（加载页）：打字机等页面就绪（loader.js 派发 pageReady）再开打，
      加载页淡出后才开始打字，避免内容在加载页背后空转 */
-  function bootTypewriter() { setTimeout(tick, 600); }
+  /* ⚠️ 只能开打一次（2026-09-16）。原来 pageReady 与 load+1s 两条路**都会**调
+     bootTypewriter ⇒ 两条 tick 链同时写同一个元素：A 在 2s 停留里不动，B 还在打字，
+     用户看到的就是"句子之间没有停留"（实测 24s 内 319 次文本变化、≥900ms 的空档 0 次）。
+     现在用 booted 闸门：谁先到谁开打，另一条直接返回。 */
+  var booted = false;
+  function bootTypewriter() {
+    if (booted) return;
+    booted = true;
+    setTimeout(tick, 600);
+  }
   if (document.documentElement.classList.contains('page-ready')) {
     bootTypewriter();
   } else {
