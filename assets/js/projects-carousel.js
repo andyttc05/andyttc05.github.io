@@ -185,10 +185,10 @@
      后两张为「建设中」占位（标题「正在建设中」）；
      四张卡背景沿用现有四张角色图，不新增图片。 === */
   var PROJECTS = [
-    { no: '01', title: 'my-first-repo', desc: '学习 Git & GitHub 的第一个仓库', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/castorice.webp?v=1', link: 'https://github.com/andyttc05/my-first-repo' },
-    { no: '02', title: 'andyttc05.github.io', desc: '个人网站 · 你正看着的这个站点', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/hyacine.webp?v=1', link: 'https://github.com/andyttc05/andyttc05.github.io' },
-    { no: '03', title: '正在建设中', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/evernight.webp?v=1', wip: true },
-    { no: '04', title: '正在建设中', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/cyrene.webp?v=1', wip: true }
+    { no: '01', title: 'my-first-repo', desc: '学习 Git & GitHub 的第一个仓库', img: '../assets/images/projects/castorice.webp', link: 'https://github.com/andyttc05/my-first-repo' },
+    { no: '02', title: 'andyttc05.github.io', desc: '个人网站 · 你正看着的这个站点', img: '../assets/images/projects/hyacine.webp', link: 'https://github.com/andyttc05/andyttc05.github.io' },
+    { no: '03', title: '正在建设中', img: '../assets/images/projects/evernight.webp', wip: true },
+    { no: '04', title: '正在建设中', img: '../assets/images/projects/cyrene.webp', wip: true }
   ];
 
   /* 几何参数（第二百七十八批）：立牌影像排只跟 CSS 要**一个**数 —— 步距 --pj-step。
