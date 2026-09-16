@@ -141,27 +141,10 @@
      · 月历与目录之间加 hairline 分区 + 字号 10 → 11px：日历原来像是掉在
        目录底下的碎片，现在是有分隔的第二块。 */
 .dy-side {
-  /* 2026-09-17 主人「电脑版看到的空白间隙怎么还是没有变化」：
-     桌面滚到底时右栏是空的 —— 索引栏只有 410px 高、sticky 钉在视口上端，
-     它下面 190 x 381 那一块什么都没有；左边正文栏却一路到底，
-     于是"底部一大片白"的印象主要来自这一块（不是正文栏那 114px）。
-     ⚠️ 改的是**谁 sticky**：sticky 从 .dy-side 挪到里面的 .dy-idx，
-     .dy-side 自己改成"撑满整行 + flex 竖排" —— 撑满才有空间让页脚用
-     margin-top:auto 贴到列的底部，于是左右两栏在页尾同时收笔，
-     和「关于」页一样（内容铺满到底，再留白）。
-     ⚠️ .dy-idx 的 sticky 容器因此变成整根 .dy-side（和原来 sticky 的包含块
-     一样高，都是 grid 行高），所以钉住的行为逐像素不变。 */
+  position: sticky; top: clamp(78px, 12vh, 116px);
   min-width: 0;
-  align-self: stretch;              /* 撑满 grid 行高（= 左栏高度） */
-  display: flex;
-  flex-direction: column;
 }
-.dy-idx {
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-  top: clamp(78px, 12vh, 116px);
-}
+.dy-idx { display: flex; flex-direction: column; }
 
 /* 年份头：衬线年号 + hairline 收边（月份目录的 TOC 骨架，同 v9.3） */
 .dy-idx-year {
@@ -250,10 +233,12 @@
   transition: transform .16s ease, background .16s ease;
 }
 .dy-cal-d.has:hover { background: rgba(var(--color-accent-rgb), .24); transform: scale(1.12); }
-/* 下内边距 = 条目的下内边距（同一条 clamp）—— 目的只有一个：让右栏最后一行的墨迹
-   跟左栏最后一行（那条 00:49）落在同一水平线上。页脚盒底比正文栏盒底还低 24px
-   （grid 行高由别的盒子定），只靠贴底会错开 32px，看着像两条线没对齐。 */
-.dy-side-foot { margin-top: auto; padding-top: 18px; padding-bottom: clamp(24px, 3vw, 34px); font: 11.5px/1.6 var(--font-body); color: var(--color-muted); letter-spacing: .06em; }
+/* ⚠️ 2026-09-17：这一行**曾经**被 margin-top:auto 推到右栏列的底部，想让"两栏在页尾
+   同时收笔"（24e9465）。主人当场指出「"共 12 条动态"跑错地方了」—— 推到列底之后，
+   滚到底看到的是索引栏钉在视口上端、计数那行孤零零浮在页底，离日历 300px，
+   读起来像走丢了。已恢复：就贴着日历下面（margin-top: 18px）。
+   ⇒ 右栏页尾那块空另有原因（sticky 索引栏只有 410px 高），别再用"挪页脚"去补。 */
+.dy-side-foot { margin-top: 18px; font: 11.5px/1.6 var(--font-body); color: var(--color-muted); letter-spacing: .06em; }
 .dy-side-foot b { font-weight: 600; color: var(--color-ink); font-variant-numeric: tabular-nums; }
 
 .dy-stream { min-width: 0; width: 100%; }
