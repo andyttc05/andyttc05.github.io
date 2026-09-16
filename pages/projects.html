@@ -82,7 +82,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=321" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=38e8392225" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -221,7 +221,16 @@
          ⇒ .pj-scene__hang 整层删除；贴纸从左上角挪到**卡顶正中**，圆心压在卡顶那条 2px 墨线上，
          逐项目落点写在 projects-carousel.js 的 WOBBLE 表里（凌乱 = 四组具体落点，
          规则 = 都在同一个区间、同一尺寸、同一平涂）。摆动轴心与缩放不动点随之回到 `50% 0`。
-         同批：页面 max-width 1440 → 1200（= 导航栏），卡片 29.8vh → 27vh，卡间隙 1.6vw → 1.8vw。 -->
+         同批：页面 max-width 1440 → 1200（= 导航栏），卡片 29.8vh → 27vh，卡间隙 1.6vw → 1.8vw。
+         第二百八十五批 2026-09-16：**两侧补上真正的淡出**（主人"左右两边卡片淡化进入/进出的
+         效果做的不是很好，明显能看的到淡化的边界"）。量出来的结论是这里**根本没有"淡"** ——
+         两侧的"淡化"只来自 JS 写的**一个整张卡共用的** opacity，卡片不会在边缘变淡，它只是整体
+         变暗、然后在 .pj-scenes 的裁剪线上被硬切一刀（1440 那把刀 85.6 亮度级；390 的屏沿上
+         卡纸还剩 ~10 级 —— 邻卡 230.7px 里只有 33.7px 在屏内）。⇒ 把 mask 挂到 .pj-scenes
+         （它就是那个裁剪盒）上，渐变终点落在盒边，
+         裁剪线那一列的 alpha 恒为 0。淡出带宽度 --pj-fade 是**算出来的**不是调出来的：
+         主角卡到裁剪线的余量 = (盒宽 − 卡宽)/2，淡出带绝不能碰到主角卡（扫过 320…1920，
+         最小余量 14.7px）。 -->
     <section class="about-bento projects-bento" id="projects-intro" aria-label="项目列表" data-page-node-id="b58k4PgakGPOSiLCBywrtt">
       <div class="pj-scenes" id="projectScenes" aria-label="项目立牌" data-page-node-id="PbEB9EbeHYCWoqqUE37UIx">
         <div class="pj-stage" data-page-node-id="km9hF6YRlvEwUAEVMeESlJ"></div>
