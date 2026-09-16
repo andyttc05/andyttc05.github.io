@@ -37,13 +37,23 @@ node tools/stamp.mjs             # 校验：不一致 / 五页启动片段漂移
 标志只关掉那一次的原生还原。别在别处再加 `history.scrollRestoration = 'manual'` ——
 它是**粘在历史条目上**的，设过一次，这个标签页里后面的每次刷新都不再还原位置。
 
+### 兜底还原（2026-09-17）
+
+原生还原在 Chromium 上逐项精确，但 **WebKit/Safari 有一条时间窗**：滚动停稳约 0.4~0.8s
+**之内**就刷新，位置还没被记进历史条目 ⇒ 直接按 0 还原（回顶）。触板一甩带惯性，
+松手立刻 Cmd+R 正落在窗里，所以 `script.js` 加了一层兜底：滚动中节流记位置进
+`sessionStorage`（`rm-pos`），**卸载前**再记一次（权威值）；加载时只有满足三个条件才动手 ——
+本次导航是 `reload`、记录属于本页、原生给的与记录不一致。Chromium 上原生永远先还对，
+所以那一次连 `scrollTo` 都不发（夹具：`~/.workbuddy/scratch/refresh-pos/{edge,w3,flag}.js`，
+判据是 `window.__rmFallbackRestored` 必须始终为 undefined）。
+
 ### 与 ethereum.org 的边界（主人 2026-09-16：「参考 ethereum.org 设计就行」）
 
 照搬的是**机制**，不是外观 —— 它是 Next.js 客户端路由，很多做法在静态站上没有对应物：
 
 | | 照搬 | 说明 |
 |---|---|---|
-| 刷新时不动滚动位置 | ✅ | 原生还原，不设 `scrollRestoration` |
+| 刷新时不动滚动位置 | ✅ | 原生还原，不设 `scrollRestoration`；WebKit 那条时间窗另加兜底 |
 | 主题类在 head 里同步打上 | ✅ | 防首屏白闪 |
 | 资源 URL 内容寻址 | ✅ | `?v=` = 文件 sha256 前 10 位 |
 | 把无感切页交给平台能力 | ✅ | 本站用跨文档 VT + `speculationrules`（不是抄它的加载动画） |

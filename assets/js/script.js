@@ -1903,6 +1903,90 @@
         try { if ('scrollRestoration' in history) history.scrollRestoration = 'auto'; } catch (e) {}
       }
 
+      /* === 刷新位置兜底（2026-09-17 第一百八十四批）：只补「浏览器自己没还上」的那一次 ===
+
+         来由：原生还原在 chromium 上逐项精确（五页 × 0/600/1500/3000/6000/9000/底部 × 4 连刷，
+         全部 Δ0；线上站同样），但实测 **webkit 有一条时间窗**：滚动停稳约 0.4~0.8s **之内**就刷新，
+         位置还没被记进历史条目 ⇒ 直接按 0 还原（回顶）。
+         实测（1440×900，scrollTo 到 3000 后等 N ms 再刷新）：
+
+           WebKit   N=0/50/100/200ms → 回 0 ✘ ；N=400/800/1600ms → 3000 ✔
+           Chromium N=0~1600ms → 3000 ✔（全程精确）
+
+         触板一甩带惯性（松手后画面还在滚），松手立刻 Cmd+R 正好落在窗里 —— 不是纯理论边界。
+         所以加一层兜底：
+           ① 滚动中节流（250ms）写位置进 sessionStorage：key `rm-pos`，值「路径|y」；
+              **卸载前**（pagehide / beforeunload）再写一次并加尾标 `|u` —— 那次的值按定义
+              就是"用户最后看到的那个位置"，是权威值；
+           ② 加载时若本次是 **reload**、记录是本页：
+              · 权威值 ⇒ 只要求值 > 0 或原生给的与它不一致（>2px）→ 校正过去；
+                （webKit 还会出现"历史条目里是上一次的旧值"这种：实测连续两次刷新拿到 3000，
+                  而用户其实在 4200 —— 没有这一条就修不掉。）
+              · 节流值（没有 `|u`，说明 pagehide 没赶上）⇒ 只在原生给 0、且记录 > 0 时才补；
+              · 两者都**先看原生给了什么**：一致就一次 scrollTo 都不发。
+           ③ 点 logo 那一次（`rm-top-on-load`）优先：清掉记录，兜底让位。
+
+         ⚠️ 三条不许动：
+           · 不设 `history.scrollRestoration` —— 那是全局的，一设就把这个标签页后面的每次刷新废掉
+             （上面那段注释记着代价）；
+           · **只在 reload 生效**：站内跳转 / 前进后退 / 直接输入网址一律不碰，那些有原生语义；
+           · 在 chromium 上必须是**纯 no-op**：两台引擎实测原生都在本文件（defer）之前还完位置，
+             所以 `window.__rmFallbackRestored` 在 chromium 上**始终 undefined**、落点与改前一致。
+             夹具：~/.workbuddy/scratch/refresh-pos/{edge,w3,flag}.js。
+         机器判据：tools/stamp.mjs 的 ONE-PLACE 把 `rm-pos` 也列进策略 token ⇒ 只许住在本文件。 */
+      (function () {
+        var POS_KEY = 'rm-pos';
+        var MAX_DELTA = 2;                 /* 与原生还原值的容忍差（px）：≤ 它就算"还对了" */
+        function posStr(authoritative) {
+          try {
+            sessionStorage.setItem(POS_KEY,
+              location.pathname + '|' + Math.round(window.scrollY || 0) + (authoritative ? '|u' : ''));
+          } catch (e) {}
+        }
+        if (goTop) {
+          try { sessionStorage.removeItem(POS_KEY); } catch (e) {}   /* 回正面：这一次不许兜底 */
+          return;
+        }
+
+        /* ① 记录 */
+        var posTimer = null;
+        window.addEventListener('scroll', function () {
+          if (posTimer !== null) return;                 /* 节流：一次滚动最多每 250ms 写一次 */
+          posTimer = setTimeout(function () { posTimer = null; posStr(false); }, 250);
+        }, { passive: true });
+        window.addEventListener('pagehide', function () { posStr(true); });
+        window.addEventListener('beforeunload', function () { posStr(true); });
+
+        /* ② 补：只在 reload 且记录是本页时才有话说 */
+        var navType = '';
+        try {
+          var navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+          navType = navEntry ? navEntry.type : '';
+        } catch (e) {}
+        if (navType !== 'reload') return;
+        var raw = null;
+        try { raw = sessionStorage.getItem(POS_KEY); } catch (e) {}
+        if (!raw) return;
+        var parts = raw.split('|');
+        if (parts.length < 2 || parts[0] !== location.pathname) return;
+        var want = parseInt(parts[1], 10);
+        if (isNaN(want) || want < 0) return;
+        var authoritative = parts[2] === 'u';
+        /* 权威值：位置为 0 也算数（用户滚回顶部再刷新，旧实现会留在原地的旧值上）。
+           非权威值：只敢在原生彻底没还上（0）时用。 */
+        if (!authoritative && want === 0) return;
+
+        requestAnimationFrame(function () {
+          var cur = window.scrollY || 0;
+          if (Math.abs(cur - want) <= MAX_DELTA) return;  /* 原生这次还的就是这个 → 一次 scrollTo 都不发 */
+          if (!authoritative && cur !== 0) return;        /* 原生给了别的非零值 → 让位，别抢 */
+          var max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          if (max <= 0) return;                           /* 文档还没铺开：别把位置钉在 0 */
+          window.scrollTo(0, Math.min(want, max));
+          window.__rmFallbackRestored = want;             /* 只给夹具看：真兜底过才有值 */
+        });
+      })();
+
       /* rain.meow logo = 刷新界面（第一百七十七批）：
          首页内 → 整页重载（状态全新 + 回正面，靠上面那个标志）；
          子页（about 等）→ 走默认 href 跳转首页（同样是整页加载，天然回正面）。 */
