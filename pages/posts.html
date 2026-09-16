@@ -106,7 +106,14 @@
 /* ---- 内容容器：整宽（与导航栏同宽 1200）---- */
 .dy-feed {
   width: 100%;
-  padding: clamp(10px, 1.6vw, 18px) 0 clamp(72px, 11vw, 128px);
+  /* 底部留白（2026-09-16 主人「下滑到最低，底部的空白空间太多了，参考关于页」）：
+     原 clamp(72px, 11vw, 128px) 是本站最大的一档页尾留白，量下来比「关于」页多出
+     48px 一整档（1440:128 vs 80 / 920:101 vs 55.2 / 390:72 vs 40），滚到底会看到
+     一条明显空带。现直接取「关于」页尾的同一组值 —— .about-bento-contact 的
+     bottom padding 就是 clamp(48px, 6vw, 80px)，≤768px 另设 40px；
+     本页照抄这两个数，三个视口逐像素对齐（见 @media (max-width:768px) 内的同款覆盖）。
+     顶部留白不动：它只对首屏标题区负责。 */
+  padding: clamp(10px, 1.6vw, 18px) 0 clamp(48px, 6vw, 80px);
 }
 
 /* ---- 两栏：左内容流 + 右月历（桌面 ≥920px；窄屏收一列） ---- */
@@ -685,6 +692,13 @@ body.dy-lb-open { overflow: hidden; }
   .dy-text.collapsed { -webkit-line-clamp: 4; }
   .dy-images.dy-c1 { max-width: 100%; }
   .dy-images.dy-c1 .dy-img { border-radius: 8px; }
+}
+
+/* 页尾留白（手机档）：断点与值都照抄「关于」页 —— .about-bento-contact 在
+   max-width:768px 里把底部 padding 钉成 40px。这里用 768（不是上面的 760），
+   否则 761~768 这一段本页仍走 clamp 下限 48px，比关于页多 8px。 */
+@media (max-width: 768px) {
+  .dy-feed { padding-bottom: 40px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
