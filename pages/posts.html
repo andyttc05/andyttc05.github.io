@@ -659,12 +659,68 @@ body.dy-lb-open { overflow: hidden; }
   .dy-lb-next { right: 10px; }
 }
 
-/* ---- 入场（轻）---- */
-.dy-item, .dy-day {
-  opacity: 0; transform: translateY(12px);
-  transition: opacity .5s cubic-bezier(0.22,1,0.36,1), transform .5s cubic-bezier(0.22,1,0.36,1);
+/* ---- 入场 / 出场：滚动驱动（2026-09-16 主人「加入滑动时内容进入/出去的动画，参考「关于」页」）----
+   改前：一次性入场（IntersectionObserver 加 .is-visible 后 unobserve）——
+   只进不出，滚过去就再也没有后半场。现在与「关于」页同一套：**滚动位置就是动画进度**，
+   进（下方升入 + 淡入 + 微缩）与出（升到导航栏下方淡出）都由 view() 时间轴连续驱动。
+
+   基础态 = 全显（不再是 opacity:0）。CSS 动画的优先级高于普通声明，所以支持
+   view() 的引擎由动画接管；不支持的引擎退回下面 @supports not 里那套老办法。 */
+.dy-item, .dy-day { opacity: 1; transform: none; }
+
+/* 老引擎回退（无 animation-timeline: view()：iOS Safari ≤17 / 老 Chrome / 部分 WebView）：
+   保留原来的一次性 IO 入场（.is-visible 由页尾 initEntrance 写），只进不出。
+   ⚠️ 必须门控：不门控的话基础态 opacity:0 在没有动画的引擎里会让整条内容流不可见。 */
+@supports not (animation-timeline: view()) {
+  .dy-item, .dy-day {
+    opacity: 0; transform: translateY(12px);
+    transition: opacity .5s cubic-bezier(0.22,1,0.36,1), transform .5s cubic-bezier(0.22,1,0.36,1);
+  }
+  .dy-item.is-visible, .dy-day.is-visible { opacity: 1; transform: none; }
 }
-.dy-item.is-visible, .dy-day.is-visible { opacity: 1; transform: none; }
+
+/* === 滚动驱动进出场（与「关于」页同一套机制）===
+   keyframes 复用 style.css 的 scroll-fade-opacity / scroll-fade-move（本站通用运动语言，
+   别在本页另写一套，否则两页手感会分叉）：
+     scroll-fade-opacity  opacity 0 → 7% 全显 → 80% 仍全显 → 100% 淡尽（composition: replace）
+     scroll-fade-move     0% translateY(var(--enter-y,48px)) scale(var(--enter-s,.96)) → 7% 归位（add）
+   view(block 100px)：视口上下各内缩 100px，把"出"的落点抬到导航栏（64px）下方 ——
+   与「关于」页同一个数，同一理由（别让淡出发生在导航栏遮挡区里，用户看不见）。
+   ⚠️ 位置必须在本块**下面**那条 .dy-arrive 之前：.dy-arrive 的 animation 简写会把
+      animation-timeline 复位成 auto，"同特异性 + 后写覆盖"才能让落地动画接管住。
+      顺序一反，点目录跳转的落地入场会被这里吃掉。 */
+@supports (animation-timeline: view()) {
+  .dy-item, .dy-day {
+    animation:
+      scroll-fade-opacity linear both,
+      scroll-fade-move linear both;
+    animation-timeline: view(block 100px), view(block 100px);
+    animation-range: entry 0% cover 100%, entry 0% cover 100%;
+    animation-composition: replace, add;
+  }
+  /* 日期头**只进不出** —— 「关于」页没有的东西，本页必须有。
+     时间轴的进度是几何算出来的：p = (视口下内缩线 − 元素top) / (可视高 + 元素高)。
+     日期头只有 20px 高，而点月份目录的落点被 .dy-day 的 scroll-margin-top 钉在
+     **top = 88px**（= nav 64 + 24），代进去
+         inset 100 ⇒ p = (800 − 88) / (700 + 20) = 0.989
+         inset  64 ⇒ p = (836 − 88) / (772 + 20) = 0.944
+     都躺在"淡出段"（80%~100%）里 —— 实测落地后 dyDock 一撤，日期头就被自己的淡出段
+     抓回去，opacity 掉到 **0.055**（几乎看不见）。这不是调参能救的：hold 提到 93 也只到
+     0.79，提到 98 才勉强全显，而那样一来整条的退场就没了。
+     所以日期头单独换成"只进不出"的 keyframes —— 20px 的 hairline 行本来也没有
+     "退场"可言（它退场只有 20px 的行程，读起来是闪一下而不是动），
+     而且它同时是月份目录高亮跟随的锚点，保持实心更对。
+     ⚠️ 条目（500~1000px）不换：它们的淡出发生在 280~380px 可见时，是真正的"在离场"。
+     数值全部来自探针实测（~/.workbuddy/scratch/posts-scroll/），不是估算。 */
+  .dy-day {
+    animation-name: dy-fade-in, scroll-fade-move;
+  }
+}
+@keyframes dy-fade-in {
+  0%   { opacity: 0; }
+  7%   { opacity: 1; }
+  100% { opacity: 1; }
+}
 
 /* ---- 目录跳转落地（v9.6）----
    点月/点日之后，目标那一「天」（日期头 + 它的条目）做一次轻入场。
@@ -701,6 +757,25 @@ body.dy-lb-open { overflow: hidden; }
   .dy-feed { padding-bottom: 40px; }
 }
 
+/* 移动端滚动驱动动画：数值照抄「关于」页 ≤768px 那条（inset 100→56、位移 48→28px、
+   scale 0.96→0.98）——理由与关于页写下的完全一样：窄屏视口矮，100px inset 会让
+   淡出落在元素还在屏幕上时（"动画挡内容"），且大位移在窄屏上会跟相邻内容交叠。
+   合并进 @supports 门控：无 view() 的引擎不播动画、内容全显。 */
+@supports (animation-timeline: view()) {
+  @media (max-width: 768px) {
+    .dy-item, .dy-day {
+      animation-timeline: view(block 56px), view(block 56px);
+      --enter-y: 28px;
+      --enter-s: 0.98;
+    }
+  }
+}
+
+/* 减弱动态：只兜**老引擎**那条回退路径（@supports not 里的 opacity:0 + 过渡）——
+   让内容直接全显。支持 view() 的引擎不受影响：CSS 动画优先级高于普通声明，
+   滚动驱动的进出场照跑（站内约定，见 .dy-arrive 上方那段说明）。
+   ⚠️ 别在这里写 animation: none —— 主人系统正是开着「减弱动态」，
+      那样等于把他刚点名要的动画静默关掉。 */
 @media (prefers-reduced-motion: reduce) {
   .dy-item, .dy-day { opacity: 1; transform: none; }
 }
@@ -2523,8 +2598,17 @@ body.dy-lb-open { overflow: hidden; }
       lbGoSlide(i);
     });
 
-    /* ---------- 入场 stagger ---------- */
+    /* ---------- 入场 stagger（只服务老引擎）----------
+       2026-09-16：进出场已改成 CSS 滚动驱动（见页内「滚动驱动进出场」注释块）。
+       支持 animation-timeline: view() 的引擎里**不该**再跑这套 —— 两边同时写
+       opacity 会打架（IO 的 .is-visible 是普通声明，动画会赢，等于白跑一趟还多挂
+       24 个 observer）。所以这里第一件事就是探测并让路，只在没有 view() 时兜底。 */
+    function supportsViewTimeline() {
+      return !!(window.CSS && CSS.supports &&
+                CSS.supports('animation-timeline', 'view()'));
+    }
     function initEntrance() {
+      if (supportsViewTimeline()) return;
       var els = Array.prototype.slice.call(document.querySelectorAll('.dy-item, .dy-day'));
       if (!('IntersectionObserver' in window)) {
         els.forEach(function (x) { x.classList.add('is-visible'); });
@@ -2551,11 +2635,13 @@ body.dy-lb-open { overflow: hidden; }
       render(posts);
       setupCollapse();
       updateSpy();
-      /* 条目渐入等 page-ready：站内导航时 loader.js 会把 .page-ready 推迟到
+      /* 老引擎的条目渐入等 page-ready：站内导航时 loader.js 会把 .page-ready 推迟到
          「新页快照拍完之后」（见 loader.js 的 navGate），这样
          ① 拍摄时条目处于终态（snapshot 完整、不白闪），
          ② 幕布撤掉时它们才带着 stagger 渐入 —— 与首页 hero 的入场同一时刻起跑。
-         首访时 page-ready 早就绪，等价于「立刻 initEntrance」，行为不变。 */
+         首访时 page-ready 早就绪，等价于「立刻 initEntrance」，行为不变。
+         ⚠️ 支持 view() 时 initEntrance 会自己让路（见上），这里的 page-ready 等待
+            就只是白等一次 —— 滚动驱动不依赖它，首帧的透明度直接由滚动位置决定。 */
       if (document.documentElement.classList.contains('page-ready')) initEntrance();
       else document.addEventListener('pageReady', initEntrance, { once: true });
     }
