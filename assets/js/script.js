@@ -1853,42 +1853,54 @@
        visibilitychange（切后台）使用。移动端滚动流畅改由原生滚动 + vslide 引擎
        优化（p 缓存 / touch 禁 blur）承担。 */
 
-    /* === 第一百七十一批（batch-175 反转）/ 第一百七十七批：刷新回正面 + logo 刷新 ===
-       问题（2026-08-25 主人反馈，batch-175/177）：
-       - 原 batch-171/172 实现"刷新恢复滚动位置"（当时 Safari 丢位置被当 bug）。
-       - 主人明确语义：刷新 = 重新开始 = 回到页面正面（顶部），不能停留在中间；
-         点击 rain.meow logo = 刷新界面（回正面 + 全部状态重置）。
-       方案：
-       - history.scrollRestoration = 'manual' —— 禁用浏览器原生恢复（否则刷新
-         会停留中间）
-       - reload 后滚回顶部（pageReady 解锁 + load 兜底；manual 下 scrollY 本为 0，
-         此处是浏览器忽略 manual 时的兜底）
-       - .nav-brand 点击（第一百七十七批）：首页内 → location.reload() 完整刷新
-         （触发 loader + hero 入场重播，状态全新，配合上面回顶逻辑停在正面）；
-         子页（about 等）→ 走默认 href 跳转首页（同样整页加载回正面） */
-    (function () {
-      /* 禁用原生滚动恢复：刷新后浏览器不恢复旧位置 → 天然停在顶部 */
-      try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    /* === 刷新策略（2026-09-16 第一百八十三批：对齐 ethereum.org，全站只有这一处）===
 
-      /* 仅刷新（reload）回顶；首次导航/后退（bfcache 或 back_forward）不干预 */
-      var navType = 'navigate';
+       历史：batch-171/172 做了「刷新恢复滚动位置」（当时 Safari 丢位置被当 bug）；
+       batch-175/177 反过来一刀切 `history.scrollRestoration = 'manual'` ——
+       代价是**任何**刷新都被扔回页面顶部，`coming-soon` 那种没引本文件的页另走一套。
+
+       2026-09-16 主人：「确保所有页面的刷新逻辑一致性。刷新逻辑可以照搬 ethereum.org」。
+       实测 ethereum.org 刷新（同探针，1440×900）：不画任何幕布；滚动位置**原生还原**
+       （首帧 y=0 → 约 50ms 后落回 900）；主题类在 head 里同步打上；不重播任何入场编排。
+       本站刷新早就只剩这一处与他们不同（幕布不画、入场重播五页都一致）。
+
+       所以现在：
+       ① 普通刷新 → **什么都不做**，交给浏览器原生还原。
+          这一条同时把「coming-soon 没引 script.js」那个潜在缺口消掉了 ——
+          「不做特殊处理」就是默认行为，引不引本文件都一致。
+          ⚠️ 别再往这里加 `scrollRestoration = 'manual'`：那是全局的，
+            一加就等于把①整个推翻（这正是上一版同时挨两句骂的原因）。
+       ② 唯一例外：点 rain.meow logo（batch-177 的语义：刷新界面 = 回正面 + 状态重置）。
+          那一次刷新要回顶，靠 `rm-top-on-load` 标志**只关掉这一次**的原生还原，
+          用完即清 —— 不影响用户自己的 Cmd+R / F5。
+       ⚠️ 机器判据在 tools/stamp.mjs：全仓除了本文件不许出现 scrollRestoration /
+          rm-top-on-load；五个 HTML 里不许有 reload 相关代码。 */
+    (function () {
+      var goTop = false;
       try {
-        var navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
-        if (navEntries && navEntries[0]) navType = navEntries[0].type;
+        goTop = sessionStorage.getItem('rm-top-on-load') === '1';
+        if (goTop) sessionStorage.removeItem('rm-top-on-load'); /* 一次性：用完即清 */
       } catch (e) {}
 
-      if (navType === 'reload') {
-        function toTop() {
-          if ((window.scrollY || 0) > 0) window.scrollTo(0, 0);
-        }
-        document.addEventListener('pageReady', function () { setTimeout(toTop, 0); });
-        window.addEventListener('load', function () { setTimeout(toTop, 100); });
+      if (goTop) {
+        /* 只在这一次加载里关掉原生还原（本文件是 defer，早于浏览器的还原时机） */
+        try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+        function pin() { if ((window.scrollY || 0) > 0) window.scrollTo(0, 0); }
+        document.addEventListener('pageReady', function () { setTimeout(pin, 0); });
+        window.addEventListener('load', function () { setTimeout(pin, 100); });
+      } else {
+        /* 🔴 必须**显式收**回 auto，别指望"不设就是默认"：
+           实测（2026-09-16，chromium）`scrollRestoration` 是**粘在历史条目上**的 ——
+           一旦某次加载把它设成 manual，之后**同一条目的每一次刷新都会读到 manual**，
+           哪怕新文档的脚本根本没碰它。症状：点过一次 logo 之后，这个标签页里
+           所有普通刷新就再也不还原位置了（而且看不出是谁干的）。
+           本文件是 defer，早于还原时机，在这里改回 auto 就能救回来。 */
+        try { if ('scrollRestoration' in history) history.scrollRestoration = 'auto'; } catch (e) {}
       }
 
       /* rain.meow logo = 刷新界面（第一百七十七批）：
-         href="index.html" 整页重载在首页内会被浏览器恢复位置停留在中间。
-         改为拦截：首页内 → location.reload()（完整刷新，回正面 + 状态重置，
-         与 Cmd+R 行为一致）；子页 → 走默认 href 跳转首页（同样回正面）。 */
+         首页内 → 整页重载（状态全新 + 回正面，靠上面那个标志）；
+         子页（about 等）→ 走默认 href 跳转首页（同样是整页加载，天然回正面）。 */
       var brand = document.querySelector('.nav-brand');
       if (brand) {
         brand.addEventListener('click', function (e) {
@@ -1896,6 +1908,7 @@
             location.pathname.toLowerCase().endsWith('/index.html');
           if (!isIndex) return; /* 子页 → 走默认 href 跳转 */
           e.preventDefault();
+          try { sessionStorage.setItem('rm-top-on-load', '1'); } catch (err) {}
           location.reload();
         });
       }

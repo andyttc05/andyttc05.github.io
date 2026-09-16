@@ -74,10 +74,10 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2" data-page-node-id="dzOtL5NkPZOkuYiRP6Ge5c">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2" data-page-node-id="UFNlyLOZmCnmL9leCPVQ9X">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22）：woff2 本地化，中文走系统字体回退 -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=1" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=0607b79448" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=4" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
+<link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
 <link rel="stylesheet" href="../assets/css/style.css?v=38e8392225" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 内容数据：必须是**阻塞式** <script src>，不要改回 JS 动态插（v11，2026-09-13）；
      而且要放在 **<head>** 里（2026-09-15 修）——
@@ -87,7 +87,7 @@
      移到 head ⇒ 预加载扫描器让它与 CSS 并行取回，解析器不再停在半空页面上等。
      同 150ms 延迟实测：462/1536（0 条）→ **1536/1536（1 条）**，3/3。
      数据 ~2KB，值得。 -->
-<script src="../assets/data/posts.js?v=4"></script>
+<script src="../assets/data/posts.js?v=20c7b106fb"></script>
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -795,10 +795,10 @@ body.dy-lb-open { overflow: hidden; }
   <!-- 全屏动态背景（2026-09-07 主人"动态页面要和其他页面一样有同款背景"）：canvas-nest 粒子
        + ribbons 飘带，与 index/about/projects 同款配置；script.js 主题切换经
        window.RainNest/RainRibbons.setColor 联动 -->
-  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=10"></script>
-  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=10"></script>
-  <script src="../assets/js/loader.js?v=7" defer></script>
-  <script src="../assets/js/script.js?v=138" defer></script>
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=be01f61940"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
+  <script src="../assets/js/loader.js?v=7d81072196" defer></script>
+  <script src="../assets/js/script.js?v=ac3dbe8dad" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
@@ -968,7 +968,8 @@ body.dy-lb-open { overflow: hidden; }
        v9.44：改用 <script src> 取数，不再 fetch。原因：浏览器禁止 file:// 下
        的 fetch（URL scheme "file" is not supported），双击打开页面会整页空掉；
        script 标签在 http 与 file 下都能加载，本地预览不必再起服务器。
-       http 下带 ?v=N 控缓存（改了内容记得 +1）；file:// 下带 query 会被当成不同
+       http 下带 ?v=<内容哈希> 控缓存（**别再手改**：跑 node tools/stamp.mjs --write，
+       它会按文件内容重算；忘了改就等于把旧数据发给用户）；file:// 下带 query 会被当成不同
        文件路径，故跳过。 */
     var DY_DATA = '../assets/data/posts.js';
 
@@ -985,7 +986,7 @@ body.dy-lb-open { overflow: hidden; }
     /* 兜底：全局没有数据时才动态加载（以后换成 fetch 版后端 / 数据标签被删掉的情况） */
     function loadPosts() {
       return new Promise(function (resolve, reject) {
-        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=4');
+        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=20c7b106fb');
         var s = document.createElement('script');
         s.src = url;
         s.onload = function () {
