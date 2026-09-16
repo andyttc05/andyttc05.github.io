@@ -38,8 +38,9 @@
        滚轮/触控板改回连续跟手（0.9 逼近，同拖拽），停滚平滑吸附最近档位 ——
        无咔哒、滑动全程卡片持续倾斜缩放；轮播区滚轮 stopPropagation，
        不与整页平滑滚动叠加。
-   数据：PROJECTS 数组（4 张图片卡，图在 assets/images/projects/；n<5 时一屏
-   自动重复，n≥5 时一屏全唯一）。
+   数据：PROJECTS 数组（4 张图片卡，图在 Cloudflare R2 的 images/projects/；
+   n<5 时一屏自动重复，n≥5 时一屏全唯一）。换图要顺手把那条 URL 的 ?v= 加一
+   —— 对象带 immutable 一年缓存，不升版本号老访客看不到新图。
    第二百六十三批 2026-09-05（主人"自动轮动卡片动画太快"）：
    - 舒缓展示系数 0.15（≈0.45~0.5s 优雅减速滑到中心，倾斜/缩放动效
      全程可见）：自动轮播切换、点击侧卡居中、键盘 ←→ 统一使用
@@ -185,10 +186,10 @@
      后两张为「建设中」占位（标题「正在建设中」）；
      四张卡背景沿用现有四张角色图，不新增图片。 === */
   var PROJECTS = [
-    { no: '01', title: 'my-first-repo', desc: '学习 Git & GitHub 的第一个仓库', img: '../assets/images/projects/castorice.webp', link: 'https://github.com/andyttc05/my-first-repo' },
-    { no: '02', title: 'andyttc05.github.io', desc: '个人网站 · 你正看着的这个站点', img: '../assets/images/projects/hyacine.webp', link: 'https://github.com/andyttc05/andyttc05.github.io' },
-    { no: '03', title: '正在建设中', img: '../assets/images/projects/evernight.webp', wip: true },
-    { no: '04', title: '正在建设中', img: '../assets/images/projects/cyrene.webp', wip: true }
+    { no: '01', title: 'my-first-repo', desc: '学习 Git & GitHub 的第一个仓库', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/castorice.webp?v=2', link: 'https://github.com/andyttc05/my-first-repo' },
+    { no: '02', title: 'andyttc05.github.io', desc: '个人网站 · 你正看着的这个站点', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/hyacine.webp?v=2', link: 'https://github.com/andyttc05/andyttc05.github.io' },
+    { no: '03', title: '正在建设中', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/evernight.webp?v=2', wip: true },
+    { no: '04', title: '正在建设中', img: 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/projects/cyrene.webp?v=2', wip: true }
   ];
 
   /* 几何参数（第二百七十八批）：立牌影像排只跟 CSS 要**一个**数 —— 步距 --pj-step。
