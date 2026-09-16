@@ -26,7 +26,7 @@ window.__DY_POSTS = {
     {
       "id": "20260829-nanchang",
       "date": "2026-08-29T21:22",
-      "text": "開學前去了一趟南昌旅遊，bro開著小車帶我四處逛。好玩的地方基本都轉了一遍，玩得挺開心的～可惜因為颱風，沒坐上摩天輪，不過這趟旅行還是充滿回憶。到時候香港見～",
+      "text": "开学前去了一趟南昌旅游，bro开着小车带我四处逛。好玩的地方基本都转了一遍，玩得挺开心的～可惜因为台风，没坐上摩天轮，不过这趟旅行还是充满回忆。到时候香港见～",
       "photos": [
         { "src": "../assets/images/posts/2026-08-29-01-nanchang-dialect-wall.jpg", "alt": "墙上的南昌方言词" },
         { "src": "../assets/images/posts/2026-08-29-02-hills-and-lake.jpg",        "alt": "山与湖" },
@@ -39,7 +39,7 @@ window.__DY_POSTS = {
     {
       "id": "20260816-suzhou",
       "date": "2026-08-16T23:16",
-      "text": "今天從無錫出發去蘇州玩了w\n逛了留園，人真多，不過穿古裝的也特別多，到處都是拍寫真的，特別熱鬧。山塘街人也少不了多少，那邊景點和居民區混在一起，走兩步就是小橋流水，感覺挺自在。後來實在走不動了，躲到萬象城去了，吹著空調逛小店，確實比在外面曬著舒服。\n晚上回來腿都酸了，不過跑了這麼多地方，還是挺好玩的～o(≧v≦)o",
+      "text": "今天从无锡出发去苏州玩了w\n逛了留园，人真多，不过穿古装的也特别多，到处都是拍写真的，特别热闹。山塘街人也少不了多少，那边景点和居民区混在一起，走两步就是小桥流水，感觉挺自在。后来实在走不动了，躲到万象城去了，吹着空调逛小店，确实比在外面晒着舒服。\n晚上回来腿都酸了，不过跑了这么多地方，还是挺好玩的～o(≧v≦)o",
       "photos": [
         { "src": "../assets/images/posts/2026-08-16-01-cat-in-garden.jpg",   "alt": "院子里的猫与绿植" },
         { "src": "../assets/images/posts/2026-08-16-02-street-and-dog.jpg",  "alt": "街角的小狗与横幅" },
@@ -50,7 +50,7 @@ window.__DY_POSTS = {
     {
       "id": "20260726-bbq",
       "date": "2026-07-26T01:55",
-      "text": "這個烤肉還挺好吃的\n(^_−)−☆",
+      "text": "这个烤肉还挺好吃的\n(^_−)−☆",
       "photos": [
         { "src": "../assets/images/posts/2026-07-26-01-bbq-platter.jpg", "alt": "盘里的肉与配菜" },
         { "src": "../assets/images/posts/2026-07-26-02-bbq-grill.jpg",   "alt": "盘里的肉与香肠" }
@@ -59,7 +59,7 @@ window.__DY_POSTS = {
     {
       "id": "20260725-cat",
       "date": "2026-07-25T10:47",
-      "text": "是一隻好可愛的小貓咪呀～(´▽｀)",
+      "text": "是一只好可爱的小猫咪呀～(´▽｀)",
       "photos": [
         { "src": "../assets/images/posts/2026-07-25-01-cat-on-wood.jpg", "alt": "木栏上的猫" },
         { "src": "../assets/images/posts/2026-07-25-02-cat-resting.jpg", "alt": "趴着的猫" },
@@ -69,7 +69,7 @@ window.__DY_POSTS = {
     {
       "id": "20260718-birthday",
       "date": "2026-07-18T22:16",
-      "text": "和 bro 一起過生日\n今年的生日沒有遺憾了\n(´▽｀)",
+      "text": "和 bro 一起过生日\n今年的生日没有遗憾了\n(´▽｀)",
       "photos": [
         { "src": "../assets/images/posts/2026-07-18-01-birthday-cake.jpg", "alt": "写着 love you 的生日蛋糕" }
       ]
@@ -77,7 +77,7 @@ window.__DY_POSTS = {
     {
       "id": "20260716-gift",
       "date": "2026-07-16T23:40",
-      "text": "今天收到的小禮物，挺棒的～\no(*////▽////*)q",
+      "text": "今天收到的小礼物，挺棒的～\no(*////▽////*)q",
       "photos": [
         { "src": "../assets/images/posts/2026-07-16-01-gift-flatlay.jpg", "alt": "摊在桌上的小礼物：T 恤与水壶" }
       ]
@@ -125,7 +125,7 @@ window.__DY_POSTS = {
     {
       "id": "20260223-gold-medal",
       "date": "2026-02-23T11:21",
-      "text": "拿下鎧的的金標，我的第二個萬戰英雄\no(≧v≦)o",
+      "text": "拿下铠的的金标，我的第二个万战英雄\no(≧v≦)o",
       "photos": [
         { "src": "../assets/images/posts/2026-02-23-01-hero-title-screen.jpg", "alt": "「恭喜您获得本周荣耀称号」的结算页" },
         { "src": "../assets/images/posts/2026-02-23-02-gold-medal-rank.jpg",   "alt": "金标结算：星级 +2、距离市榜前 100" }
