@@ -638,6 +638,8 @@ body.dy-lb-open { overflow: hidden; }
   <!-- 全屏加载页（第一百四十七批）：taozhiyy 同款 three-body loader。
        样式：loader.css；逻辑：loader.js（放行时给 <html> 加 .page-ready）。
        noscript 兜底：JS 禁用时直接隐藏加载页。 -->
+  <!-- ⚠️ 加载幕布是设计特色，别删：只在本次会话第一次进入时露脸（站内点击 / 刷新都不画）。
+       守卫见 tools/stamp.mjs 的 CURTAIN 那条 + README「加载幕布」一节。 -->
   <div id="pageLoader" role="status" aria-label="页面加载中" data-page-node-id="XfmMNGEsNUJj3yaGRCwtuB">
     <div class="page-loader-three" aria-hidden="true" data-page-node-id="F91TH8KF9gUAXeNlfbHVmh">
       <div class="page-loader-dot" data-page-node-id="SgJ8tesGIyTEELDP9ZWV7B"></div>

@@ -95,6 +95,8 @@
        就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
        script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
        noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+  <!-- ⚠️ 加载幕布是设计特色，别删：只在本次会话第一次进入时露脸（站内点击 / 刷新都不画）。
+       守卫见 tools/stamp.mjs 的 CURTAIN 那条 + README「加载幕布」一节。 -->
   <div id="pageLoader" role="status" aria-label="页面加载中" data-page-node-id="OtWLDy7CE5ooAkeGu3NoNS">
     <div class="page-loader-three" aria-hidden="true" data-page-node-id="W5vD7HTjgIA9xk19cm3S6A">
       <div class="page-loader-dot" data-page-node-id="iL3yKFhEHrk5C9fhNCC49h"></div>

@@ -16,6 +16,10 @@
  *              load+2s 兜底。（比的是**去注释去空白**后的代码。）
  *   ④ ONE-PLACE 刷新策略只许出现在 assets/js/script.js 一处；HTML 里不许有
  *              刷新/滚动恢复相关代码。
+ *   ⑤ CURTAIN  加载幕布（#pageLoader）还在、还能露脸。主人 2026-09-16 原话：
+ *              「过渡幕布不要删，这个我网页的设计特色」—— 但幕布**更容易死于"优化"
+ *              而不是死于删除**（把露出阈值调大 = 等于删掉），所以这里判的是四条
+ *              硬指标，不是"文件在不在"。
  *
  * 用法：
  *   node tools/stamp.mjs            # 校验（默认），有漂移则退出码 1
@@ -28,7 +32,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/* 仓库根：默认 = 本文件上一级。`--root=<dir>` 可以指向一份副本 —— 反证夹具
+   （nav-perf/stamp-fixture.js）靠它把"改坏一份副本再跑"做成自动的。
+   ⚠️ 这个参数以前写在文档里但**没实现**，被静默忽略；夹具之所以还能跑，是因为它
+   调的是副本里的 tools/stamp.mjs（import.meta.url 自己就指向副本）。
+   那种"参数被吃掉但看起来正常"正是本项目反复踩的坑，所以补上。 */
+const ROOT_ARG = (process.argv.find((a) => a.startsWith('--root=')) || '').split('=')[1];
+const ROOT = ROOT_ARG ? resolve(ROOT_ARG) : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WRITE = process.argv.includes('--write');
 const JSON_ONLY = process.argv.includes('--json');
 const VERBOSE = process.argv.includes('--verbose');
@@ -272,6 +282,67 @@ for (const f of readdirSync(join(ROOT, 'assets/js')).filter((n) => n.endsWith('.
   if (rel === POLICY_HOME) continue;
   for (const tok of POLICY_TOKENS) {
     if (read(rel).includes(tok)) fail('ONE-PLACE', `${rel} 里出现了「${tok}」—— 刷新策略只许住在 ${POLICY_HOME}`);
+  }
+}
+
+/* ------------------------------------------------------------- ⑤ CURTAIN */
+/* 五条里唯一一条**判"审美存在"**而不是判"一致性"的检查。
+   理由是幕布的失效方式全都长得像优化：
+     · 有人觉得首访多等 900ms 碍事，把 REVEAL_AFTER_MS 抬到 1000 —— loader.js 里
+       记着主人「试过，已回退」，那等于线上首访的幕布再也不会出现；
+     · 有人觉得"站内导航也别画"顺手把 nav-instant 那条 CSS 一起删了 —— 幕布还在，
+       但再也见不到；
+     · 有人重构 loader.js 时把唯一的放行动作 `is-shown` 去掉 —— 幕布永远 opacity:0。
+   三种都不会让任何页面报错、也不会让 KEY/SNIPPET 变红，所以必须在这里拦。 */
+const REVEAL_MAX = 300;   /* 露出阈值上限：再大就等于删幕布（线上首访 load 462~911ms） */
+const MIN_VISIBLE_MIN = 400; /* 露脸下限：不许一闪 */
+
+{
+  const loaderJs = read('assets/js/loader.js');
+  const loaderCss = read('assets/css/loader.css');
+
+  for (const page of PAGES) {
+    const src = read(page);
+    if (!src.includes('id="pageLoader"')) {
+      fail('CURTAIN', `${page}: 找不到 #pageLoader 标记 —— 加载幕布被删了（主人的设计特色，别删）`);
+    }
+    const dots = (src.match(/class="page-loader-dot"/g) || []).length;
+    if (dots !== 3) {
+      fail('CURTAIN', `${page}: three-body 幕布应有 3 个圆点，实到 ${dots} 个`);
+    }
+  }
+
+  const mReveal = loaderJs.match(/REVEAL_AFTER_MS\s*=\s*(\d+)/);
+  if (!mReveal) {
+    fail('CURTAIN', 'assets/js/loader.js: 找不到 REVEAL_AFTER_MS —— 幕布露出时机被摘了');
+  } else if (Number(mReveal[1]) > REVEAL_MAX) {
+    fail('CURTAIN', `assets/js/loader.js: REVEAL_AFTER_MS=${mReveal[1]} > ${REVEAL_MAX} —— ` +
+      '线上首访 load 是 462~911ms，抬到这个数就等于首访永远看不到幕布（= 把幕布删掉）');
+  }
+
+  const mMin = loaderJs.match(/MIN_VISIBLE_MS\s*=\s*(\d+)/);
+  if (!mMin) {
+    fail('CURTAIN', 'assets/js/loader.js: 找不到 MIN_VISIBLE_MS —— 防「一闪」的闸门被摘了');
+  } else if (Number(mMin[1]) < MIN_VISIBLE_MIN) {
+    fail('CURTAIN', `assets/js/loader.js: MIN_VISIBLE_MS=${mMin[1]} < ${MIN_VISIBLE_MIN} —— 幕布会一闪即走`);
+  }
+
+  if (!loaderJs.includes("classList.add('is-shown')")) {
+    fail('CURTAIN', "assets/js/loader.js: 找不到唯一的放行动作 `classList.add('is-shown')` —— " +
+      '幕布会永远停在 opacity:0');
+  }
+  if (!/#pageLoader:not\(\.is-shown\)\s*\{\s*opacity:\s*0;?\s*\}/.test(loaderCss)) {
+    fail('CURTAIN', 'assets/css/loader.css: 找不到 `#pageLoader:not(.is-shown){opacity:0}` —— ' +
+      '这是 loader.js 唯一的表现开关，别为了"少一层样式"删它');
+  }
+  if (!/html\.nav-instant\s+#pageLoader\s*\{\s*display:\s*none;?\s*\}/.test(loaderCss)) {
+    fail('CURTAIN', 'assets/css/loader.css: 找不到 `html.nav-instant #pageLoader{display:none}` —— ' +
+      '站内导航会重新闪出全屏幕布');
+  }
+
+  if (mReveal && mMin) {
+    note('CURTAIN', `幕布在位：#pageLoader ×${PAGES.length} 页（各 3 圆点）· ` +
+      `REVEAL_AFTER_MS=${mReveal[1]} · MIN_VISIBLE_MS=${mMin[1]}`);
   }
 }
 
