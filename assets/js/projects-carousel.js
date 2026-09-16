@@ -380,6 +380,58 @@
      每槽按距中心连续距离写 transform/opacity/z-index。
      （第二百四十批撤掉的内容滞后动效留下的"清残留"循环随本次重写一并删除：
        新结构里没有 media/inner 两层，池复用只需清 _zi/_active/_txt 三个缓存。） */
+  /* ── 装配动画只在"导轨静止"时起跑（2026-09-17 修"快速滑动时蓝色数字连续快速播放"）──
+     实测（scratch/pj-enter-2026-09-17/probe-enter2.js，1440×900，step 451）：
+       · 单步 1 档：pj-stick 起 1 / 完 1 / 被杀 0     ← 正常
+       · 持续快滑 1.6s（1.5px/ms，穿过 7 张卡）：起 6 / 完 1 / **被杀 5**
+       · 更猛（5px/ms，穿过 22 张卡）：起 1 / 完 1 / **被杀 14**（卡在中心只停 ~55ms，
+         连 pj-stick 那 0.1s 的延迟都没到 ⇒ 只有 cancel 没有 start）
+       · 拖拽快甩：起 1 / 完 1 / 被杀 0              ← 正常
+     即：卡在中心只停 55~230ms，而装配是带 0.05~0.5s 错峰延迟、最长一件要 0.92s 的
+     一串动画 ⇒ 每一件都"刚起跑就随 is-enter 被摘掉而取消"。肉眼就是蓝色序号贴纸
+     一张接一张弹起又半路消失（主人报的"连续快速播放"）。
+     成因不是设计错，是设计意图与场景冲突：**"成为主角时播一次"**在"主角每 ~200ms
+     换一张"时无解。缺的只是"什么时候算真的到了" —— 导轨**静止**才叫到了。
+     ⇒ 飞行中成为主角的卡不挂 is-enter，只记一笔 pendingEnter，等导轨**静止**了再补播。
+     静止时再没人摘它，所以**结构上不可能再出现半路取消**（不是把阈值调小、不是调快动画）。
+     静止判定全部用现成状态（拖拽 / 滚轮 / 落位曲线 / 两个 rAF 循环 / 目标未到位），
+     不引入任何新参数、不做速度采样。
+     ⚠️ 补播**不能只挂在 render 末尾**：滚轮停手后 wheeling 还要 120ms 才落下（wheelEnd），
+     而 rAF 循环在 ~80ms 就收敛退出 ⇒ 收敛那一帧 wheelEnd 还没跑、判"未静止"，
+     之后再没有任何东西调 render ⇒ 补播永远不发生（实测：单步 1 档变成**一个动画都不播**）。
+     ⇒ 用一条**只在有 pending 时存在、播完即止**的 90ms 重试链兜住，不依赖任何调用点被记得。 */
+  var pendingEnter = null, enterTimer = null;
+  /* 静止 = 没有落位曲线、两个 rAF 循环都没在跑、目标已到位。
+     拖拽/滚轮中即使导轨暂时贴住目标也不算静止（手指还按着，随时会再动）。 */
+  function railResting() {
+    return !dragging && !wheeling && !FIN && !raf && !dragRaf && Math.abs(xTarget - x) < 0.5;
+  }
+  function enterStart(el) { void el.offsetWidth; el.classList.add('is-enter'); }
+  /* schedule=false：render 末尾用，静止才播，不动定时器。
+     schedule=true ：被推迟时用，导轨还没停就 90ms 后再试一次（自终止）。 */
+  function flushEnter(schedule) {
+    if (!pendingEnter) {
+      if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+      return;
+    }
+    if (!railResting()) {
+      if (schedule && !enterTimer) {
+        enterTimer = setTimeout(function () { enterTimer = null; flushEnter(true); }, 90);
+      }
+      return;
+    }
+    if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+    var pe = pendingEnter;
+    pendingEnter = null;
+    enterStart(pe);
+  }
+  /* 先摘类 → 强制重排 → 再挂上，否则同一个元素的动画不会重播（原逻辑，未动）。 */
+  function playEnter(el) {
+    if (railResting()) { pendingEnter = null; enterStart(el); return; }
+    pendingEnter = el;
+    flushEnter(true);
+  }
+
   function render() {
     var st = step();
     var jmin = Math.ceil((-RENDER_RANGE * st - x) / st);
@@ -392,6 +444,7 @@
         var pel = slots[k].el;
         pel.classList.remove('is-active', 'is-enter');
         pel._active = false;
+        if (pendingEnter === pel) pendingEnter = null;
         pool.push(pel);
         slots.splice(k, 1);
       }
@@ -480,9 +533,13 @@
         /* 入场装配只在新成为主角时播一次。必须"先摘类 → 强制重排 → 再挂上"，
            否则同一个元素的动画不会重播；邻居不动 —— 整排一起抖就是主人最烦的多余动作。 */
         slot.el.classList.remove('is-enter');
-        if (active) { void slot.el.offsetWidth; slot.el.classList.add('is-enter'); }
+        if (active) playEnter(slot.el);
+        else if (pendingEnter === slot.el) pendingEnter = null;
       }
     }
+    /* 补播：飞行中被跳过装配的那张，等导轨真的停了再给它一次。此刻没有任何输入
+       在跑 ⇒ 这一遍必然完整播完（这里只试不排期，排期由 playEnter 那条自终止链管）。 */
+    flushEnter(false);
   }
 
 
