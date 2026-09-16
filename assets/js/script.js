@@ -458,8 +458,6 @@
          兜底：pageReady 未触发（loader 脚本缺失/异常）时 window load + 1s 强制入场，
          页面永不因加载页而不可见。 */
       function heroEnter() {
-        /* 入场被加载页推迟 → 锚点抑制窗口重新从入场时刻计时 1.3s（第一百四十二批） */
-        suppressUntil = Math.max(suppressUntil || 0, performance.now() + 1300);
         requestAnimationFrame(function () {
           hero.classList.add('entered');
         });
@@ -474,58 +472,16 @@
         }, { once: true });
       }
 
-      /* --- hero 布局锚点（第六十批）：图片垂直居中 + 第三层跟图片底部对齐 ---
-         图片在 hero 内容区垂直居中（.hero-art align-self: center）→ 图片底部 =
-         (内容区高 + 图片高) / 2。hero-text 是 stretch 占满内容区，layer-3 margin-top:auto
-         会落到 hero-text 内容盒底部 = 内容区底部 → 比图片底部多出 (内容区高-图片高)/2。
-         修正：把 (内容区高-图片高)/2 写成 --hero-anchor 作 hero-text 的 padding-bottom，
-         layer-3 的落点被抬到图片底部，精准对齐。
-         移动端（≤768px）：单列流式，hero-text 非 stretch → 锚点置 0，间距交给 CSS margin。
-         resize 重算（图片宽高随列宽变）；用 rAF 防抖 + 首帧字体加载后再补一次 */
-      var heroText = hero.querySelector('.hero-text');
+      /* --- hero 立绘 ---
+         2026-09-17 删掉「hero 布局锚点」整段（--hero-anchor）：
+         它算 (内容区高 − 图片高)/2 写进 .hero-text 的 padding-bottom，用来把 .hero-layer-3 的
+         margin-top:auto 落点抬到图片底。那个 auto 在第一百二十批就被换成普通 margin 了
+         ⇒ 这个变量从此没有任何消费者，公式却仍拿 clientHeight 减自己写进去的 padding 当内容高，
+         每次 resize 都自减（实测 (空)→115→57→86），是个永不收敛的循环。
+         CSS 侧同步删除，详见 style.css .hero-text 那条注释。 */
       var artCard = hero.querySelector('.hero-art-card');
-      var mqMobile = window.matchMedia('(max-width: 768px)');
-      var anchorTicking = false;
-      /* 第一百四十二批（2026-08-22 主人"连续刷新后 SCROLL 动画结束时定位偶发不一致"）：
-         入场动画期间（≤1.2s）任何 --hero-anchor 重算都会触发 .hero 高度 reflow →
-         .hero-scroll（bottom 32px 锚定 .hero 内容盒底部）瞬时跳变；用户感知为
-         "动画刚结束位置却飘了一下"。suppressUntil = now() + 1300ms（hero.entered
-         0.45s delay + 0.7s 时长 ≈ 1.15s 落定 + 100ms 余量）。所有 syncHeroAnchor 调用
-         (初始 / fonts.ready / img.load / resize) 在此期间都 no-op；期间 --hero-anchor
-         保持 0，hero-text 默认 padding-bottom=0（layout 与最初 CSS 一致，SCROLL
-         位置稳定）；跨过 1.3s 后第一次 resize / fonts.ready 回调 / img.load 才会回填
-         —— 此时 hero 入场已落定，reflow 不再影响视觉锚点。 */
-      var suppressUntil = performance.now() + 1300;
-      function syncHeroAnchor() {
-        if (anchorTicking) return;
-        if (performance.now() < suppressUntil) return;
-        anchorTicking = true;
-        requestAnimationFrame(function () {
-          var anchor = 0;
-          if (!mqMobile.matches && heroText && artCard) {
-            /* 内容区高 = hero-text clientHeight（stretch 撑满）减去它自身的 padding；
-               offsetHeight 含 border，用 clientHeight 保持一致 */
-            var contentH = heroText.clientHeight - (parseFloat(getComputedStyle(heroText).paddingBottom) || 0);
-            var imgH = artCard.clientHeight;
-            anchor = Math.max(0, Math.round((contentH - imgH) / 2));
-          }
-          hero.style.setProperty('--hero-anchor', anchor + 'px');
-          anchorTicking = false;
-        });
-      }
-      window.addEventListener('resize', syncHeroAnchor);
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(syncHeroAnchor);
-      }
-      /* 图片加载完成（intrinsic 尺寸确定）后再校一次，防 aspect-ratio 计算误差。
-         但 inline preload + 已缓存图经常在 50ms 内就 complete，过早 sync 会和入场撞车
-         —— 所以这里不再立即 sync；fonts.ready + resize 兜底即可（同一资源栈里
-         img.complete 触发时 fonts 也已 ready，至少一个会落 1.3s 后回调，触发回填） */
       if (artCard) {
         var img = artCard.querySelector('img');
-        if (img && !img.complete) {
-          img.addEventListener('load', syncHeroAnchor, { once: true });
-        }
         /* 第一百四十三批：图片就绪前透明 → 就绪后淡入（防晚到图片弹出闪现） */
         markImageLoaded(img);
       }

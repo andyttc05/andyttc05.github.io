@@ -799,10 +799,11 @@
        safe-area-inset (2026-08-20): iPhone 灵动岛让 hero 左右不贴边 */
     padding: clamp(48px, 8vh, 96px) max(16px, env(safe-area-inset-right)) clamp(48px, 7vh, 88px) max(16px, env(safe-area-inset-left));
     /* 第六十批：恢复 min-height 撑满首屏（nav 高 + hero 高 = 100svh），图片垂直居中在页面上下的中间。
-       第五十七批"移除 min-height"的折中（当时 hero 内容高 = 图片高才对齐）被 JS 锚点方案取代：
-       hero-text 底部 padding = --hero-anchor（JS 实测 (内容高-图高)/2），
-       把 layer-3 的 margin-top:auto 落点从 hero 底抬到图片底 → 图片居中 + 第三层跟图片底部对齐。
-       nav 高度公式与 .nav-inner 的 height clamp 完全一致，hero 恰好补满首屏剩余空间 */
+       nav 高度公式与 .nav-inner 的 height clamp 完全一致，hero 恰好补满首屏剩余空间。
+       ⚠️ 2026-09-17：原本这里还有一套「JS 锚点」——把 (内容高-图高)/2 写成 --hero-anchor 当
+       .hero-text 的 padding-bottom，用来把 .hero-layer-3 的 margin-top:auto 落点抬到图片底。
+       那个 auto 在第一百二十批就被换成普通 margin 了，这段 padding 从此没有消费者，
+       只剩「把 hero 撑高」一个效果 ⇒ 已整段删除（详见下面 .hero-text 那条注释）。 */
     min-height: calc(100svh - clamp(56px, calc(3.125vw + 32px), 64px));
     display: grid;
     /* 立绘列略宽于文字列：立绘是视觉主角（v35 前为 1.08fr/0.92fr，照片偏小） */
@@ -813,9 +814,7 @@
     overflow: clip;
   }
   /* 左右列非对称对齐：文字列 stretch（占满首屏高）+ 图片列 center（垂直居中，页面上下的中间）。
-     layer-3 的 margin-top: auto 落点 = hero-text 内容盒底部，该底部被 hero-text 的
-     padding-bottom（--hero-anchor，JS 实测）垫到图片底部 → 第三层精准锚在图片底部。
-     2026-08-17 第六十批：JS 锚点方案（替代第五十七批"移除 min-height"的折中） */
+     （原「把 layer-3 锚到图片底」的 JS 锚点方案 2026-09-17 已删 —— 见下面 .hero-text 那条注释） */
   .hero-text { align-self: stretch; }
   /* 第九十四批：恢复 hero-scroll-exit（主人澄清只移大卡 hover 浮动，hero 滚动出场保留）
      scroll(root) 时间轴 range 12vh 55vh：滚动 12% 开始、55% 完成淡出 + 上滑 56px；
@@ -841,9 +840,15 @@
   .hero-text {
     position: relative; z-index: 1;
     display: flex; flex-direction: column;
-    /* 底部锚点：JS 实测 (内容高-图高)/2 写入 --hero-anchor，把 layer-3 的 margin-top:auto
-       落点从 hero 底抬到图片底（配合 .hero-layer-3） */
-    padding-bottom: var(--hero-anchor, 0px);
+    /* 2026-09-17 删掉 `padding-bottom: var(--hero-anchor, 0px)`（原来的「底部锚点」）：
+       它唯一的消费者是 .hero-layer-3 的 margin-top:auto，而那个 auto 在第一百二十批就被换成
+       普通 margin 了 ⇒ 这段 padding 不再对齐任何东西：手写 0 或 400，meta 的 top 都是 610，
+       它只把 hero-text 的内容盒往上缩。
+       公式自己也不稳：拿 `clientHeight − 自己上次写进去的 paddingBottom` 当「内容高」，
+       连续 4 次 resize 实测 anchor 走 (空) → 115 → 57 → 86，永不收敛。
+       值得删的理由是潜在危害：手写 --hero-anchor:400px 能把 hero 从 836 撑到 1107、SCROLL 底
+       869 → 1140（挤出首屏）；公式自己产出的最大值（1440×2000 上 321）还没到触发阈值，
+       但这根引线没有存在的理由。删掉后 hero 高度与这个变量彻底无关。 */
   }
   /* 第一层→第二层：小间距（紧凑，视觉上"标题+副题"成一组） */
   .hero-layer-2 { margin-top: clamp(32px, 5vw, 56px); }
@@ -933,12 +938,11 @@
   }
   @keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   /* 第三层 hero-layer-3：原 .hero-meta 容器已合并到 hero-layer（继承 flex+gap）。
-     自有样式只保留字体（IBM Plex Mono 14px muted + 0.3px tracking）——
+     自有样式只保留字体（IBM Plex Mono 16px muted + 0.3px tracking）——
      这是 meta 信息的视觉特征：辅助层、灰色 mono。
-     margin-top: auto 让第三层在 hero-text（align-self: stretch）内被推到 hero-text
-     内容盒底部；该底部被 hero-text 的 padding-bottom（--hero-anchor，JS 实测 (内容高-图高)/2）
-     抬到图片底部 → 第三层跟图片底部精准对齐。同时吸收全部剩余空间 → gap(2→3) > gap(1→2)。
-     2026-08-17 第六十批：JS 锚点方案（替代第五十七批"min-height:auto 靠运气对齐"） */
+     （原设计：margin-top:auto 把它推到 hero-text 内容盒底部，再由 hero-text 的 --hero-anchor
+     padding 抬到图片底。第一百二十批 auto 换成下面的普通 margin 后锚点即失效，
+     2026-09-17 连 hero-text 那段 padding 一起删了。） */
   .hero-layer-3 {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     /* 辅助信息：仍小于副标题/打字机，但不再小到要凑近看
@@ -1335,9 +1339,8 @@
     .hero-art {
       animation-range: 30vh 80vh;
     }
-    /* 第六十批：移动端 hero-text 非 stretch，--hero-anchor 无意义（JS 置 0），
-       层间距改显式 margin 阶梯：gap(2→3) > gap(1→2) 在移动端也成立
-       第六十一批：margin-bottom 归零（桌面抬起逻辑只服务锚点布局，移动端流式不需要） */
+    /* 移动端 hero-text 非 stretch，层间距改显式 margin 阶梯：gap(2→3) > gap(1→2) 在移动端也成立。
+       （第六十一批的「margin-bottom 归零」原本是为锚点布局服务，锚点已删，这条归零继续保留） */
     .hero-layer-2 { margin-top: 28px; }
     .hero-layer-3 { margin-top: 40px; margin-bottom: 0; }
     .hero {
