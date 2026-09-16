@@ -632,11 +632,16 @@
           if (hour >= 18 && hour < 23) return '晚上好呀，今天也辛苦了。';
           return '夜深了，早点休息，照顾好自己。';
         }
+        /* 只在文本真的变了才写 DOM（2026-09-17 修「秒针一动问候语就跟着挪」）：
+           原来每秒无条件重写三个节点 —— 问候语一小时才变一次，却也跟着每秒被
+           拆掉重建一次文本节点，白白触发重排/重绘，正是那一下抖动的来源。
+           CSS 侧另有一条加固：#heroTime 的宽度已钉死，见 style.css「修…」那段注释。 */
+        function setText(el, s) { if (el && el.textContent !== s) el.textContent = s; }
         tickClock = function () {
           var now = new Date();
-          timeEl.textContent = timeFmt.format(now);
-          dateEl.textContent = dateFmt.format(now);
-          if (greetEl) greetEl.textContent = greetFor(now.getHours());
+          setText(timeEl, timeFmt.format(now));
+          setText(dateEl, dateFmt.format(now));
+          if (greetEl) setText(greetEl, greetFor(now.getHours()));
         };
         tickClock();
         clockTimer = setInterval(tickClock, 1000);

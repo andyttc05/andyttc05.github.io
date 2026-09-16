@@ -897,15 +897,18 @@
     color: var(--color-paper);
   }
   .hero-sub {
-    font-size: 18px; line-height: 1.7;  /* 之前 1.8：略松 */
+    /* 2026-09-17 主人「这些字有点小」：18 → 19（打字机同时 17 → 18，层级仍让副标在上） */
+    font-size: 19px; line-height: 1.72;
     color: var(--color-muted);
     max-width: 46ch;
   }
   .hero-type {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
-    font-size: 17px;
+    /* 2026-09-17：17 → 18（主人「这些字有点小」）。
+       min-height 跟着行的实际高度走，打字期间行盒不跳 */
+    font-size: 18px;
     color: var(--color-ink);
-    min-height: 30px; /* 打字过程中行高稳定，不跳动；字级 < 副标题(18px) */
+    min-height: 31px;
   }
   .hero-type-caret {
     display: inline-block;
@@ -925,8 +928,9 @@
      2026-08-17 第六十批：JS 锚点方案（替代第五十七批"min-height:auto 靠运气对齐"） */
   .hero-layer-3 {
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
-    /* 辅助信息：明显小于副标题(18)/打字机(17)，拉开层级 */
-    font-size: 14px; letter-spacing: 0.3px;
+    /* 辅助信息：仍小于副标题/打字机，但不再小到要凑近看
+       —— 2026-09-17 主人「这些字有点小」：14 → 16 */
+    font-size: 16px; letter-spacing: 0.3px;
     color: var(--color-muted);
     /* 第一百二十批：移除 margin-top: auto —— CTA 移到 layer-2 后，meta 不再是 hero-text
        最后一个元素。auto 会把 meta 推到 hero-text 底部、把 CTA 挤上去，
@@ -937,6 +941,10 @@
   }
   .hero-meta-line {
     display: flex; align-items: center; gap: 12px;
+    /* 字号抬大一档后一行可能放不下：允许换行兜底，别让它溢出色栏。
+       实测：≥375px 一行放得下（390 剩 17px）；320/360 会折成
+       「时钟一行 / 问候语一行」—— 折得整齐，不是挤在一起（row-gap 给 6px） */
+    flex-wrap: wrap; row-gap: 6px;
     margin: 0;
   }
   .hero-meta-sep { color: var(--color-rule); }
@@ -956,9 +964,19 @@
   #heroTime {
     font-family: 'IBM Plex Serif', 'Plex Serif FB', serif;
     font-weight: 500;
-    font-size: 22px;
+    /* 2026-09-17：22 → 26（主人「这些字有点小」） */
+    font-size: 26px;
     letter-spacing: 1.5px;
     font-variant-numeric: tabular-nums;
+    /* === 修「秒针一变，后面那句问候语就跟着左右挪」（2026-09-17）===
+       问候语的水平位置 = 这个元素的**实际渲染宽度** + gap。只要宽度动一个亚像素，
+       后面那句就整体平移。tabular-nums 只在字体真带 tnum 特征时才管用 ——
+       字体回退、字重合成、Intl 输出位数变化都会让它失效。
+       所以不赌字体特性，直接把行盒宽度钉死：4.7em 在 26px 下约 122px，
+       而 8 个字符 + 8 个 letter-spacing 实测 120.6px，留 1.6px 富余。
+       flex:none 防被压缩；宽度定死之后，里面数字怎么变都推不动后面的元素。 */
+    flex: none;
+    width: 4.7em;
   }
 
   /* === 第一百一十五批（2026-08-21）：hero「来认识本猫」入口 ——
@@ -1348,14 +1366,14 @@
     .hero-welcome {
       font-size: 14px;          /* 之前 15：移动端留白比例不需要那么显眼 */
     }
-    .hero-sub { font-size: 17px; }   /* 之前 16：可读性提升 */
+    .hero-sub { font-size: 18px; }   /* 2026-09-17：17 → 18 */
     .hero-layer { gap: 10px; }      /* 移动端层内紧凑（2026-08-17 第五十三批） */
     .hero-layer-3 {
-      font-size: 14px;          /* 之前 13：太挤，错误可读性差 */
+      font-size: 15px;          /* 2026-09-17：14 → 15（桌面 16，移动窄，比桌面收一档） */
       gap: 10px;
     }
     .hero-meta-line { gap: 12px; }
-    #heroTime { font-size: 18px; letter-spacing: 1px; }   /* 时钟缩到 18px、tracking 收紧（2026-08-17 第五十二批） */
+    #heroTime { font-size: 21px; letter-spacing: 1px; }   /* 2026-09-17：18 → 21；宽度钉死见基础规则 */
     .hero-scroll {
       position: static;
       transform: none;
