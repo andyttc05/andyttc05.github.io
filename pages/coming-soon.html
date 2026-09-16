@@ -186,9 +186,9 @@
   var isDeleting = false;
   var typingSpeed = 80;
   var deletingSpeed = 40;
-  /* 间隔取 2s（2026-09-16 主人"打字机间隔两秒比较好"）：整句打完后停 2s 再开始回删，
-     回删完停 400ms 立刻接下一句 —— 两句之间的空档约 2s + 回删耗时，读起来不催也不拖。 */
-  var pauseAfterType = 2000;
+  /* 间隔（2026-09-16 主人"两秒比较好" → 看真机后又定 2.5s）：整句打完后停 2500ms
+     再开始回删，回删完停 400ms 立刻接下一句 —— 两句之间的空档约 2.5s + 回删耗时。 */
+  var pauseAfterType = 2500;
   var pauseAfterDelete = 400;
 
   function tick() {
