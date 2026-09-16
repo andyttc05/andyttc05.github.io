@@ -96,8 +96,10 @@
    动态页 v9 · 朋友圈实用版（2026-09-06 移植）
    参考微信朋友圈：无头像、朋友圈标准图片网格（单图 4:3 / 2+ 统一 1:1
    宫格 3=左大右二）、日期分组头（8月30日 + 周日）+ 每条仅时刻。
-   v9.5（本版）：右栏 = 文字月份目录（原索引）+ 单一迷你月历，跟随
+   v9.5：右栏 = 文字月份目录（原索引）+ 单一迷你月历，跟随
    正在阅读的月份切换（不再每月堆一张）。
+   v9.6（本版，2026-09-16）：右栏排版精修（并排 demo 里选中的 V2）+ 点目录的
+   切换动画（自绘缓动滚动 / 落地入场 / 月历换月交叉淡入）。
    配色全部继承站内 tokens；类名 dy- 前缀防冲突。
    ================================================================ */
 
@@ -115,34 +117,44 @@
   align-items: start;
 }
 
-/* 右栏 sticky 索引（v9.5）：文字月份目录（原索引内容）+ 单一当前月迷你日历 */
+/* 右栏 sticky 索引（v9.5）：文字月份目录（原索引内容）+ 单一当前月迷你日历
+   v9.6 排版精修（2026-09-16，主人「优化一下动态页面右边目录的排版」，
+   三版并排 demo 里选了 V2「精修」）—— 结构一个字没动，只动节奏与层级：
+     · 年号 32 → 24px：原来它在 190px 的栏里是**最大**的东西，读起来像一节的
+       标题在跟正文抢，而它其实只是个年份标签；
+     · 月行 25 → 30px（padding 8px）：13px 的字挤在 25px 行里 + .08em 额外字距，
+       整列偏"飘"；字距收到 .05em、行高给到 30 ⇒ 一列读下来有节拍；
+     · 月名与条数之间补一条**点线 leader**（`.dy-ml-lead`）—— 原来条数孤零零
+       贴在 190px 的最右，和月名隔着 100px 空气，两个数字谁属谁要靠猜；
+     · 月历与目录之间加 hairline 分区 + 字号 10 → 11px：日历原来像是掉在
+       目录底下的碎片，现在是有分隔的第二块。 */
 .dy-side {
   position: sticky; top: clamp(78px, 12vh, 116px);
   min-width: 0;
 }
 .dy-idx { display: flex; flex-direction: column; }
 
-/* 年份头：大衬线年号 + hairline 收边（月份目录的 TOC 骨架，同 v9.3） */
+/* 年份头：衬线年号 + hairline 收边（月份目录的 TOC 骨架，同 v9.3） */
 .dy-idx-year {
-  margin: 0 0 14px;
-  font: 600 clamp(25px, 2.4vw, 32px)/1 var(--font-head);
+  margin: 0 0 12px;
+  font: 600 clamp(20px, 1.9vw, 24px)/1 var(--font-head);
   letter-spacing: .04em; color: var(--color-ink);
   font-variant-numeric: tabular-nums;
 }
 .dy-idx-year::after {
-  content: ""; display: block; margin-top: 12px;
+  content: ""; display: block; margin-top: 10px;
   height: 1px; background: var(--color-rule);
 }
 
-/* 文字月份目录（原本索引：圆点 + 月名 + 条数；当前月 accent 实心点） */
+/* 文字月份目录（原本索引：圆点 + 月名 + 点线 + 条数；当前月 accent 实心点） */
 .dy-ml { display: flex; flex-direction: column; }
 .dy-ml-row {
-  display: flex; align-items: center; gap: 9px;
-  width: 100%; padding: 6px 2px;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 8px 2px;
   background: none; border: 0; cursor: pointer;
   text-align: left;
-  font: 13px/1 var(--font-body); color: var(--color-muted);
-  letter-spacing: .08em;
+  font: 13.5px/1 var(--font-body); color: var(--color-muted);
+  letter-spacing: .05em;
   user-select: none; -webkit-user-select: none;
   transition: color .3s ease;
 }
@@ -150,7 +162,7 @@
 .dy-ml-row:focus-visible { outline: 2px solid rgba(var(--color-accent-rgb), .5); outline-offset: 2px; border-radius: 4px; }
 .dy-ml-row:hover { color: var(--color-accent); }
 .dy-ml-dot {
-  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
   background: var(--color-muted); opacity: .35;
   transition: opacity .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
 }
@@ -158,43 +170,58 @@
 .dy-ml-row.is-active { color: var(--color-ink); }
 .dy-ml-row.is-active .dy-ml-dot {
   opacity: 1; background: var(--color-accent);
-  transform: scale(1.12); box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), .14);
+  transform: scale(1.12); box-shadow: 0 0 0 3.5px rgba(var(--color-accent-rgb), .13);
+}
+/* 点线 leader：用站内 hairline 的密度（2px 墨 / 4px 空），把月名与条数连起来。
+   flex:1 + min-width 是必须的 —— 否则月名一长（「十一月」）这条线会被压成 0。 */
+.dy-ml-lead {
+  flex: 1 1 8px; min-width: 8px; height: 1px; align-self: center;
+  background-image: repeating-linear-gradient(90deg,
+    var(--color-rule) 0 2px, transparent 2px 6px);
 }
 .dy-ml-yr { font: 10px/1 var(--font-body); color: var(--color-muted); letter-spacing: 0; }
 .dy-ml-n {
   margin-left: auto;
-  font: 500 12px/1 var(--font-mono); color: var(--color-muted);
+  font: 500 11.5px/1 var(--font-mono); color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
 .dy-ml-row.is-active .dy-ml-n,
 .dy-ml-row:hover .dy-ml-n { color: var(--color-accent); }
 
-/* 单一迷你月历：跟随正在阅读的月份切换（不再每月一张堆叠） */
-.dy-cal { margin-top: 20px; }
+/* 单一迷你月历：跟随正在阅读的月份切换（不再每月一张堆叠）
+   v9.6：与目录之间加 hairline 分区，字号 10 → 11px。
+   ⚠️ 换月动画（`.is-swap`）挂的是 `.dy-cal-head` / `.dy-cal-grid` 两个子元素，
+      不是 `.dy-cal` 本身 —— border-top 若跟着淡入淡出，每次换月都会闪一下边。 */
+.dy-cal { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-rule); }
+.dy-cal-head, .dy-cal-grid {
+  transition: opacity .18s ease, transform .18s ease;
+}
+.dy-cal.is-swap .dy-cal-head,
+.dy-cal.is-swap .dy-cal-grid { opacity: 0; transform: translateY(5px); }
 .dy-cal-head {
   display: flex; align-items: baseline; gap: 6px;
-  margin: 0 0 9px;
-  font: 600 14px/1 var(--font-head); letter-spacing: .12em;
+  margin: 0 0 10px;
+  font: 600 13px/1 var(--font-head); letter-spacing: .12em;
   color: var(--color-ink);
 }
 .dy-cal-yr { font: 500 10px/1 var(--font-body); color: var(--color-muted); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .dy-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.dy-cal-wk { font: 9px/1 var(--font-body); color: var(--color-muted); opacity: .7; text-align: center; padding: 1px 0 3px; }
+.dy-cal-wk { font: 9.5px/1 var(--font-body); color: var(--color-muted); opacity: .7; text-align: center; padding: 2px 0 5px; }
 .dy-cal-d {
   display: flex; align-items: center; justify-content: center;
-  height: 23px; border-radius: 7px;
-  font: 500 10px/1 var(--font-body); color: var(--color-muted); opacity: .4;
+  height: 25px; border-radius: 8px;
+  font: 500 11px/1 var(--font-body); color: var(--color-muted); opacity: .4;
   font-variant-numeric: tabular-nums;
 }
 /* 有记的日子：accent 浅底 + accent 数字（深浅主题通吃） */
 .dy-cal-d.has {
   opacity: 1; color: var(--color-accent); cursor: pointer;
-  background: rgba(var(--color-accent-rgb), .15);
+  background: rgba(var(--color-accent-rgb), .13);
   font-weight: 700;
   transition: transform .16s ease, background .16s ease;
 }
 .dy-cal-d.has:hover { background: rgba(var(--color-accent-rgb), .24); transform: scale(1.12); }
-.dy-side-foot { margin-top: 20px; font: 12px/1.6 var(--font-body); color: var(--color-muted); letter-spacing: .06em; }
+.dy-side-foot { margin-top: 18px; font: 11.5px/1.6 var(--font-body); color: var(--color-muted); letter-spacing: .06em; }
 .dy-side-foot b { font-weight: 600; color: var(--color-ink); font-variant-numeric: tabular-nums; }
 
 .dy-stream { min-width: 0; width: 100%; }
@@ -631,6 +658,19 @@ body.dy-lb-open { overflow: hidden; }
   transition: opacity .5s cubic-bezier(0.22,1,0.36,1), transform .5s cubic-bezier(0.22,1,0.36,1);
 }
 .dy-item.is-visible, .dy-day.is-visible { opacity: 1; transform: none; }
+
+/* ---- 目录跳转落地（v9.6）----
+   点月/点日之后，目标那一「天」（日期头 + 它的条目）做一次轻入场。
+   ⚠️ 不复用 .is-visible：那条过渡带着入场 stagger 写在元素上的 inline
+      transition-delay，直接复用会把旧 delay 一起带回来（落地后还在慢慢等）。
+      所以这里走独立的 keyframe + animation-delay（delay 由 JS 按序写）。
+   ⚠️ 按站内约定**不写** prefers-reduced-motion 降级 —— 主人系统开着「减弱动态」，
+      写了就等于把这个动画静默关掉。 */
+@keyframes dyDock {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.dy-arrive { animation: dyDock .52s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* ---- 移动端 ---- */
 @media (max-width: 920px) {
@@ -1146,6 +1186,7 @@ body.dy-lb-open { overflow: hidden; }
         row.appendChild(el('span', 'dy-ml-dot'));
         row.appendChild(el('span', 'dy-ml-name', MONTH[m.m - 1]));
         if (m.y !== topYear) row.appendChild(el('span', 'dy-ml-yr', String(m.y)));
+        row.appendChild(el('span', 'dy-ml-lead'));   /* v9.6 点线：把月名与条数连起来 */
         row.appendChild(el('span', 'dy-ml-n', String(monthCount(m.y, m.m, counts))));
         ml.appendChild(row);
       });
@@ -1155,16 +1196,38 @@ body.dy-lb-open { overflow: hidden; }
       side.hidden = false;
     }
 
-    /* 切换当前月：文字目录高亮 + （必要时）重绘单一月历 */
+    /* 切换当前月：文字目录高亮 + （必要时）换月历 */
     function setActiveMonth(mkey) {
       Array.prototype.forEach.call(document.querySelectorAll('.dy-ml-row'), function (r) {
         r.classList.toggle('is-active', r.getAttribute('data-mkey') === mkey);
       });
-      if (mkey !== curMKey) drawCal(mkey);
+      if (mkey !== curMKey) swapCal(mkey);
     }
 
-    /* 画一张月历（周一开头；有记日子点亮、可点击跳当天） */
-    function drawCal(mkey) {
+    /* 换月历：先让旧的淡出，再落新的，再淡回来（v9.6）。
+       ⚠️ 淡出期间又来了新的月份（快速滚动 / 连点目录）**不排队**，直接改记
+          「最新那个」—— 排队会让日历一路放旧月份，是本末倒置。
+       ⚠️ 首绘不做动画（`!cal.firstChild`）：那是页面刚渲染，不是"切换"。 */
+    var calSwapping = false, calPending = null;
+    function swapCal(mkey) {
+      if (!calYears[mkey] || mkey === curMKey) return;
+      var cal = document.getElementById('dyCal');
+      if (!cal.firstChild) { buildCal(mkey); return; }
+      if (calSwapping) { calPending = mkey; return; }
+      calSwapping = true;
+      cal.classList.add('is-swap');
+      setTimeout(function () {
+        if (calPending !== null) { mkey = calPending; calPending = null; }
+        buildCal(mkey);
+        requestAnimationFrame(function () {
+          cal.classList.remove('is-swap');
+          calSwapping = false;
+        });
+      }, 170);                                    /* = .is-swap 的 .18s，留一点余量 */
+    }
+
+    /* 落一张月历（周一开头；有记日子点亮、可点击跳当天）。纯重建，不带动画。 */
+    function buildCal(mkey) {
       var m = calYears[mkey];
       if (!m) return;
       curMKey = mkey;
@@ -1198,7 +1261,80 @@ body.dy-lb-open { overflow: hidden; }
       cal.appendChild(grid);
     }
 
-    /* 索引点击：文字月份 → 跳到该月最早一天；日历有记日 → 跳到当天。都带日期头闪烁 */
+    /* ---------- 目录跳转 v9.6：自绘缓动滚动 + 落地入场 ----------
+       为什么不用 scrollIntoView({behavior:'smooth'})：
+         原生 smooth 的时长与曲线由引擎定（Chrome 的 300~500ms 是直线加速后
+         就停），跳一个"八月 → 二月"这种跨整屏的距离时，观感是"被甩过去"而不是
+         "翻过去"。这里用与站内 script.js 的 smoothScrollTo **同一条** easeInOutCubic，
+         时长按距离算 —— 手感与全站一致，而这条曲线的尾巴长，落地不发飘。
+       ⚠️ 起手先 window.__wheelPause()：那个引擎的 rAF lerp 也在写 scrollY，
+          不停掉就是两套滚动互相追（与站点抽屉关后滚顶前的处理同一招）。
+       ⚠️ 用户一动滚轮/手指/方向键就**立刻交出控制权**（cancelJump）——
+          程序化滚动再好看，也不该跟用户抢。 */
+    var jumpRaf = null;
+    function cancelJump() {
+      if (jumpRaf !== null) { cancelAnimationFrame(jumpRaf); jumpRaf = null; }
+    }
+    function scrollToY(targetY, onLand) {
+      cancelJump();
+      if (window.__wheelPause) window.__wheelPause();
+      var startY = window.scrollY || window.pageYOffset;
+      var maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      targetY = Math.max(0, Math.min(maxY, targetY));
+      var d = targetY - startY;
+      if (Math.abs(d) < 1) { window.scrollTo(0, targetY); onLand(); return; }
+      var duration = Math.min(950, Math.max(450, 320 + Math.abs(d) / 4.2));   /* ms */
+      var t0 = performance.now();
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function frame(now) {
+        var t = Math.min(1, (now - t0) / duration);
+        window.scrollTo(0, startY + d * ease(t));
+        if (t < 1) { jumpRaf = requestAnimationFrame(frame); }
+        else { jumpRaf = null; onLand(); }
+      }
+      jumpRaf = requestAnimationFrame(frame);
+    }
+    window.addEventListener('wheel', cancelJump, { passive: true });
+    window.addEventListener('touchstart', cancelJump, { passive: true });
+    window.addEventListener('keydown', cancelJump);
+
+    /* 落地入场：目标那一「天」= 日期头 + 紧随其后的条目（直到下一个日期头）。
+       ⚠️ 条目是日期头的**兄弟**，不在它里面（render 时按文档序 append 到同一个
+          fragment）—— 所以按 nextElementSibling 往后走，别去 querySelector。 */
+    var arriveTimer = null, arriveNodes = [];
+    function clearArrive() {
+      if (arriveTimer) { clearTimeout(arriveTimer); arriveTimer = null; }
+      arriveNodes.forEach(function (n) {
+        n.style.animationDelay = '';
+        n.classList.add('is-visible');   /* 先钉住终态，再摘动画 —— 否则摘的那一帧可能闪回 opacity:0 */
+        n.classList.remove('dy-arrive');
+      });
+      arriveNodes = [];
+    }
+    function arriveGroup(h) {
+      clearArrive();
+      var group = [h], n = h.nextElementSibling;
+      while (n && !n.classList.contains('dy-day')) {
+        if (n.classList.contains('dy-item')) group.push(n);
+        n = n.nextElementSibling;
+      }
+      group.forEach(function (x, i) {
+        x.style.animationDelay = (i * 55) + 'ms';
+        x.classList.add('dy-arrive');
+      });
+      arriveNodes = group;
+      arriveTimer = setTimeout(clearArrive, (group.length - 1) * 55 + 520 + 80);
+    }
+    /* 跳到某个日期头：算好落点（扣掉 CSS 的 scroll-margin-top，别在 JS 里再抄一遍
+       那个 88），滚过去，落地时才闪 + 入场 —— 原来闪是在点击瞬间就放，滚到的时候
+       半场已经结束了。 */
+    function jumpToDay(h) {
+      var mt = parseFloat(getComputedStyle(h).scrollMarginTop) || 0;
+      var y = h.getBoundingClientRect().top + (window.scrollY || window.pageYOffset) - mt;
+      scrollToY(y, function () { flashDay(h); arriveGroup(h); });
+    }
+
+    /* 索引点击：文字月份 → 跳到该月最早一天；日历有记日 → 跳到当天 */
     function flashDay(h) {
       var prev = document.querySelector('.dy-day.flash');
       if (prev) prev.classList.remove('flash');
@@ -1209,21 +1345,15 @@ body.dy-lb-open { overflow: hidden; }
       var row = e.target.closest ? e.target.closest('.dy-ml-row') : null;
       if (row) {
         var mk = row.getAttribute('data-mkey');
-        setActiveMonth(mk);
+        setActiveMonth(mk);        /* 右栏立刻反应（目录高亮 + 月历换月），页面再滑过去 */
         var h = document.querySelector('.dy-day[id^="dy-d-' + mk + '"]');
-        if (h) {
-          flashDay(h);
-          h.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (h) jumpToDay(h);
         return;
       }
       var d = e.target.closest ? e.target.closest('.dy-cal-d.has') : null;
       if (!d) return;
       var hd = document.getElementById('dy-d-' + d.getAttribute('data-date'));
-      if (hd) {
-        flashDay(hd);
-        hd.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (hd) jumpToDay(hd);
     });
 
     /* 目录高亮 + 单月历切换：滚动时标出当前所在月份 */
