@@ -1221,10 +1221,13 @@ body.dy-lb-open { overflow: hidden; }
     /* 换月历：先让旧的淡出，再落新的，再淡回来（v9.6）。
        ⚠️ 淡出期间又来了新的月份（快速滚动 / 连点目录）**不排队**，直接改记
           「最新那个」—— 排队会让日历一路放旧月份，是本末倒置。
-       ⚠️ 首绘不做动画（`!cal.firstChild`）：那是页面刚渲染，不是"切换"。 */
+       ⚠️ 首绘不做动画（`!cal.firstChild`）：那是页面刚渲染，不是"切换"。
+       ⚠️ 程序化跳转途中（`jumping`）**一次都不重绘**：跨月跳转会在 900ms 里
+          路过三四个日期头，逐月淡入淡出等于让日历全程半透明地闪；飞行中没人看得
+          清日历，落地后 `updateSpy()` 再补一次淡入就够了 —— 高亮条照旧一路跟着走。 */
     var calSwapping = false, calPending = null;
     function swapCal(mkey) {
-      if (!calYears[mkey] || mkey === curMKey) return;
+      if (!calYears[mkey] || mkey === curMKey || jumping) return;
       var cal = document.getElementById('dyCal');
       if (!cal.firstChild) { buildCal(mkey); return; }
       if (calSwapping) { calPending = mkey; return; }
@@ -1277,26 +1280,37 @@ body.dy-lb-open { overflow: hidden; }
 
     /* ---------- 目录跳转 v9.6：自绘缓动滚动 + 落地入场 ----------
        为什么不用 scrollIntoView({behavior:'smooth'})：
-         原生 smooth 的时长与曲线由引擎定（Chrome 的 300~500ms 是直线加速后
-         就停），跳一个"八月 → 二月"这种跨整屏的距离时，观感是"被甩过去"而不是
-         "翻过去"。这里用与站内 script.js 的 smoothScrollTo **同一条** easeInOutCubic，
-         时长按距离算 —— 手感与全站一致，而这条曲线的尾巴长，落地不发飘。
-       ⚠️ 起手先 window.__wheelPause()：那个引擎的 rAF lerp 也在写 scrollY，
-          不停掉就是两套滚动互相追（与站点抽屉关后滚顶前的处理同一招）。
-       ⚠️ 用户一动滚轮/手指/方向键就**立刻交出控制权**（cancelJump）——
-          程序化滚动再好看，也不该跟用户抢。 */
-    var jumpRaf = null;
-    function cancelJump() {
+         同一次跳跃（点「二月」，8475px，1440×900，用 CDP screencast 抓**真呈现帧**
+         再量 scrollY）：原生 smooth 落定 **1451ms**，而且节奏是"先甩后爬"——
+         走过一半距离只用掉 **28%** 的时间，剩下一半靠 72% 的时间慢慢挪；
+         本实现落定 **885ms**，半程落在 **51%** 的时间上，是一条对称的 S 曲线。
+         ⚠️ 所以理由不是"原生太快"（它反而慢 64%），是**不可控 + 节奏错**：时长与
+            曲线由引擎定，跨整屏时观感是被甩过去、后半程又拖。这里与站内
+            script.js 的 smoothScrollTo 用**同一条** easeInOutCubic，时长按距离算
+            （450~950ms）⇒ 手感与全站一致，曲线的尾巴长、落地不发飘。
+         ⚠️ 起手先 `__wheelPause()`：那个引擎的 rAF lerp 也在写 scrollY，
+            不停掉就是两套滚动互相追（与站点抽屉关后滚顶前的处理同一招）。
+         ⚠️ 用户一动滚轮/手指/方向键就**立刻交出控制权**（cancelJump）——
+            程序化滚动再好看，也不该跟用户抢。 */
+    var jumpRaf = null, jumping = false;
+    /* silent：scrollToY 换段时调它，只收尾不补绘（那一刻正要开新的一段，补绘是白干）。 */
+    function cancelJump(silent) {
       if (jumpRaf !== null) { cancelAnimationFrame(jumpRaf); jumpRaf = null; }
+      if (jumping) {
+        jumping = false;
+        if (!silent) updateSpy();   /* 用户接管 / 被打断：月历得补上落点那一月 */
+      }
     }
+    function onUserScrollInput() { cancelJump(false); }
     function scrollToY(targetY, onLand) {
-      cancelJump();
+      cancelJump(true);                                   /* 上一段立即让位 */
       if (window.__wheelPause) window.__wheelPause();
+      jumping = true;                                     /* 飞行中月历不重绘（见 swapCal） */
       var startY = window.scrollY || window.pageYOffset;
       var maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       targetY = Math.max(0, Math.min(maxY, targetY));
       var d = targetY - startY;
-      if (Math.abs(d) < 1) { window.scrollTo(0, targetY); onLand(); return; }
+      if (Math.abs(d) < 1) { window.scrollTo(0, targetY); jumping = false; onLand(); return; }
       var duration = Math.min(950, Math.max(450, 320 + Math.abs(d) / 4.2));   /* ms */
       var t0 = performance.now();
       function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
@@ -1304,13 +1318,13 @@ body.dy-lb-open { overflow: hidden; }
         var t = Math.min(1, (now - t0) / duration);
         window.scrollTo(0, startY + d * ease(t));
         if (t < 1) { jumpRaf = requestAnimationFrame(frame); }
-        else { jumpRaf = null; onLand(); }
+        else { jumpRaf = null; jumping = false; onLand(); updateSpy(); }
       }
       jumpRaf = requestAnimationFrame(frame);
     }
-    window.addEventListener('wheel', cancelJump, { passive: true });
-    window.addEventListener('touchstart', cancelJump, { passive: true });
-    window.addEventListener('keydown', cancelJump);
+    window.addEventListener('wheel', onUserScrollInput, { passive: true });
+    window.addEventListener('touchstart', onUserScrollInput, { passive: true });
+    window.addEventListener('keydown', onUserScrollInput);
 
     /* 落地入场：目标那一「天」= 日期头 + 紧随其后的条目（直到下一个日期头）。
        ⚠️ 条目是日期头的**兄弟**，不在它里面（render 时按文档序 append 到同一个
