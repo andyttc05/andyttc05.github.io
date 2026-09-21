@@ -175,6 +175,55 @@
    - AUTO_K 更名 STEP_K（同批）：它从来只服务"离散跳一档"（点击侧卡居中 + 键盘
      ←→），移除自动轮播后叫 AUTO 会把人骗去别处找轮播代码。数值 0.15 未变。
    - 拖拽松手 / 停滚落位的三次 Hermite 曲线、1:1 跟手、点击安全闸一行未动。
+
+
+   第二百八十六批 2026-09-21（主人"项目页卡片，滑动置卡片后，卡片的动画明显有延迟"）：
+   装配起跑判据从「**整条导轨静止**」改成「**手停了 + 目的地已定 + 离目的地 ≤0.2 档**」。
+   实测（scratch/pj-enter-lag/probe-lag.js；下表 = **手势最后一个输入 → 装配真正出现
+   第一个动作帧**的毫秒数，括号里是 390×844 的对照）：
+
+     单步整档（一次滚轮 = 一档）        228（218）→ 93（97）
+     触控板停在半档外（0.6 档惯性尾巴）   481（479）→ 262（258）
+     触控板甩 1.4 档停下                482（483）→ 310（311）
+     触控板连续 12 事件 / 500ms（一档）  157（165）→ 86（86）
+     快甩 4 档 / 160ms                 191（187）→ 98（87）
+     两段连滑（各 2 档，间隔 400ms）     177（193）→ 99（91）
+     拖拽 240px 后松手                 296（298）→ 180（47）
+     键盘 →（离散跳一档）                719（668）→ 196（186）
+     点侧卡居中                        723（—）  → 189（—）
+   即：**每一次"把卡片滑到位"的动画都提前了 100~530ms**，最狠的是
+   键盘 ←→ / 点侧卡（原来要等指数逼近收敛到 0.5px，实测 0.7s）。
+
+   改前为什么这么慢 —— 三道**串行**的等待，谁也不能提前：
+     ① `wheeling` 要等 W_IDLE=120ms 静默才敢落位（那 120ms 是"手势结束"的判据，
+        不是"卡片到位"的判据），落位曲线本身还要最多 320ms（FIN_TMAX_WHEEL）；
+     ② `railResting()` 把"落位曲线跑完"也算进"静止"，所以装配只能等曲线收尾；
+     ③ 落下来之后**没有任何调用点会重判**（wheelEnd 只改标志位、不 render），
+        全靠一条 90ms 粒度的重试链兜 —— 于是又白白多等 0~90ms。
+     再加一条独立的（编号 ④）：`animateTo` 的指数逼近（k=0.15）收敛到 0.5px 要
+     ~0.45s，装配也一直等它 —— 这就是键盘/点击那 0.7s 的来源。
+
+   新判据 railCanEnter()（三条缺一不可，见函数注释）：
+     · 手停了：距最近一次滚轮事件 ≥ ENTER_QUIET=50ms。**这是"不误播"的唯一闸门** ——
+       触控板/惯性尾巴的事件间隔是 8~32ms，连续滑动时永远凑不出 50ms 静默，
+       所以 2026-09-17 那批"快速滑动连续播放"的场景在结构上放不出来
+       （反证：probe-enter3.js 在 1.6s 连续快滑里采样贴纸 scale，改后仍是
+        "全程平在 1、停下后一条完整山丘"，回升次数 1，与改前逐项一致）。
+     · 目的地已定：落位曲线的终点（FIN.to）/ 指数逼近的目标（xTarget）落在档位上 ——
+       "手还在滑、导轨在追一个非档位目标"与"停在半路、还没开始落位"两种情况都被它挡住。
+     · 离目的地 ≤ ENTER_NEAR=0.2 档：**这一条让装配的最后 ~100ms 与落位重叠** ——
+       0.2 档 ≈ 落位曲线剩余 100ms（Hermite 中段速度 0.85px/ms），
+       于是装配的定音件（蓝色贴纸，延迟 0.1s）正好落在卡片停稳那一刻，
+       开场的圆点/眉标/竖线则在最后那几帧里跑完 —— 参考站的装配本来也是**随到位一起**
+       发生的，不是"先停稳两拍、再起跑"。
+   为什么不会多播：装配只在 `.is-active` 翻真的那一次触发（原逻辑未动），
+   本批只改"什么时候起跑"，不改"起跑几次"（反证：probe-enter.js 的 pj-stick 触发数
+   1 / 1 / 3、同元素 520ms 内被重启 0 —— 与改前逐行相同）。
+   摘 is-enter 从"立即"改成"播完再摘"（dropEnter）：起跑提前后必然多出"起跑后又被滑走"
+   的场合，直接摘类会让动画瞬间跳回静止态；而所有装配动画的收尾值本来就等于静止态
+   （pj-stick → scale 1、pj-char → opacity 1、pj-unveil → clip 全开、pj-swing → rotate 0），
+   所以留着播完看不见任何跳变。回池（出渲染范围）时仍然立即摘干净，池里不留装扮。
+   重试链 90ms 定时器 → 逐帧 rAF：50ms 的静默阈值比 90ms 细，粗粒度会把省下的时间还回去。
 */
 (function () {
   var root = document.getElementById('projectScenes');
@@ -399,35 +448,78 @@
      ⚠️ 补播**不能只挂在 render 末尾**：滚轮停手后 wheeling 还要 120ms 才落下（wheelEnd），
      而 rAF 循环在 ~80ms 就收敛退出 ⇒ 收敛那一帧 wheelEnd 还没跑、判"未静止"，
      之后再没有任何东西调 render ⇒ 补播永远不发生（实测：单步 1 档变成**一个动画都不播**）。
-     ⇒ 用一条**只在有 pending 时存在、播完即止**的 90ms 重试链兜住，不依赖任何调用点被记得。 */
-  var pendingEnter = null, enterTimer = null;
-  /* 静止 = 没有落位曲线、两个 rAF 循环都没在跑、目标已到位。
-     拖拽/滚轮中即使导轨暂时贴住目标也不算静止（手指还按着，随时会再动）。 */
-  function railResting() {
-    return !dragging && !wheeling && !FIN && !raf && !dragRaf && Math.abs(xTarget - x) < 0.5;
+     ⇒ 用一条**只在有 pending 时存在、播完即止**的重试链兜住，不依赖任何调用点被记得。
+     （第二百八十六批把这条链从 90ms 定时器改成逐帧 rAF：起跑阈值细化到 50ms 静默 +
+       0.2 档之后，90ms 的粒度会把省下的时间又还回去。） */
+  var pendingEnter = null, enterRaf = null;
+  /* 第二百八十六批的两个常量（推导见文件头 286 批）：
+     ENTER_QUIET —— 滚轮静默多少毫秒算"手停了"；它是"不误播"的唯一闸门。
+     ENTER_NEAR  —— "差不多到位"的判据（单位：档）。0.2 档 ≈ 落位曲线剩余 ~100ms。 */
+  var ENTER_QUIET = 50;
+  var ENTER_NEAR = 0.2;
+  /* 最近一次滚轮事件时刻（performance.now() 钟，与 rAF 同源）。-1e9 = "从来没有过"，
+     于是首屏那次 render() 不会被静默判据挡住。 */
+  var lastWheelT = -1e9;
+  /* 第二百八十六批：装配起跑。三条缺一不可 —— 手停了 / 目的地已定 / 离目的地 ≤0.2 档。
+     **它包含老的 railResting()**（导轨真的不动了 ⇒ dest 已到位 ⇒ |dest−x|=0），
+     所以那条"整条导轨静止"的判据整段撤掉，不再有两套话说同一件事。
+     不看 `wheeling`：它是"手势结束"（W_IDLE=120ms 静默才敢下的结论），
+     而装配要等的是"这张主角到位"；也不看 `raf` / `FIN` 是否在跑：落位曲线的最后
+     ~100ms 正是要重叠进去的那一段。 */
+  function railCanEnter() {
+    if (dragging) return false;                                  /* 手指还按着 */
+    if (performance.now() - lastWheelT < ENTER_QUIET) return false;   /* 还在滚 */
+    var st = step();
+    var dest = FIN ? FIN.to : xTarget;      /* 落位曲线的终点 / 指数逼近的目标 */
+    if (Math.abs(dest - Math.round(dest / st) * st) > 1) return false;  /* 目的地不在档位上 */
+    return Math.abs(dest - x) <= ENTER_NEAR * st;
   }
-  function enterStart(el) { void el.offsetWidth; el.classList.add('is-enter'); }
-  /* schedule=false：render 末尾用，静止才播，不动定时器。
-     schedule=true ：被推迟时用，导轨还没停就 90ms 后再试一次（自终止）。 */
+  function enterStart(el) {
+    void el.offsetWidth;
+    el._enterT = performance.now();
+    el.classList.add('is-enter');
+  }
+  /* 第二百八十六批：摘 is-enter 从"立即"改成"播完再摘" —— 起跑提前后必然多出
+     "起跑后又被滑走"的场合，直接摘类会让动画**瞬间跳回静止态**（2026-09-17 报的
+     "半路消失"）。所有装配动画的收尾值本来就等于静止态（见文件头 286 批），
+     所以留着播完看不见任何跳变。ENTER_MS 取最长一件（pj-char 尾字 0.2+i×0.022+0.36
+     ≈ 1.0s）加余量。 */
+  var ENTER_MS = 1100;
+  function clearEnter(el) {
+    if (el._enterOff) { clearTimeout(el._enterOff); el._enterOff = null; }
+    el._enterT = 0;
+    el.classList.remove('is-enter');
+  }
+  function dropEnter(el) {
+    if (!el.classList.contains('is-enter')) { el._enterT = 0; return; }
+    var left = el._enterT ? ENTER_MS - (performance.now() - el._enterT) : 0;
+    if (left <= 0) { clearEnter(el); return; }
+    if (el._enterOff) clearTimeout(el._enterOff);
+    el._enterOff = setTimeout(function () { el._enterOff = null; clearEnter(el); }, left);
+  }
+  /* schedule=false：render 末尾用，能起跑才播，不动定时器。
+     schedule=true ：被推迟时用，**逐帧**重试直到能起跑（自终止）。
+     第二百八十六批：原来是 90ms 定时器 —— 新的 ENTER_QUIET=50ms 比 90ms 细，
+     粗粒度会把"静默够了"这件事白等到 90~140ms 才兑现（等于把省下的时间还回去）。 */
   function flushEnter(schedule) {
     if (!pendingEnter) {
-      if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+      if (enterRaf) { cancelAnimationFrame(enterRaf); enterRaf = null; }
       return;
     }
-    if (!railResting()) {
-      if (schedule && !enterTimer) {
-        enterTimer = setTimeout(function () { enterTimer = null; flushEnter(true); }, 90);
+    if (!railCanEnter()) {
+      if (schedule && !enterRaf) {
+        enterRaf = requestAnimationFrame(function () { enterRaf = null; flushEnter(true); });
       }
       return;
     }
-    if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+    if (enterRaf) { cancelAnimationFrame(enterRaf); enterRaf = null; }
     var pe = pendingEnter;
     pendingEnter = null;
     enterStart(pe);
   }
   /* 先摘类 → 强制重排 → 再挂上，否则同一个元素的动画不会重播（原逻辑，未动）。 */
   function playEnter(el) {
-    if (railResting()) { pendingEnter = null; enterStart(el); return; }
+    if (railCanEnter()) { pendingEnter = null; enterStart(el); return; }
     pendingEnter = el;
     flushEnter(true);
   }
@@ -442,7 +534,8 @@
            元素在池里躺着时还留着这些，复用到新槽位就会"带着上一张的装扮出场"
            （第二百七十八批实测：主角计数偶尔出现 2 个，就是池里那张没摘 is-active）。 */
         var pel = slots[k].el;
-        pel.classList.remove('is-active', 'is-enter');
+        pel.classList.remove('is-active');
+        clearEnter(pel);   /* 第二百八十六批：回池前立刻摘干净（不许把上一张的装扮带出去） */
         pel._active = false;
         if (pendingEnter === pel) pendingEnter = null;
         pool.push(pel);
@@ -532,9 +625,10 @@
         slot.el.classList.toggle('is-active', active);
         /* 入场装配只在新成为主角时播一次。必须"先摘类 → 强制重排 → 再挂上"，
            否则同一个元素的动画不会重播；邻居不动 —— 整排一起抖就是主人最烦的多余动作。 */
-        slot.el.classList.remove('is-enter');
-        if (active) playEnter(slot.el);
-        else if (pendingEnter === slot.el) pendingEnter = null;
+        /* 第二百八十六批：起跑见 railCanEnter；离开主角位时**不立刻摘** —— 让它播完
+           （dropEnter），否则起跑提前后会看见装配"啪"地跳回静止态。 */
+        if (active) { clearEnter(slot.el); playEnter(slot.el); }
+        else { dropEnter(slot.el); if (pendingEnter === slot.el) pendingEnter = null; }
       }
     }
     /* 补播：飞行中被跳过装配的那张，等导轨真的停了再给它一次。此刻没有任何输入
@@ -997,6 +1091,7 @@
        强制复位后接管；这正是此前"连续滑动突然卡住"的主因 */
     resetDrag();
     lastInputT = Date.now();   /* 第二百六十六批：滚轮后紧跟的点击也计入交互簇 */
+    lastWheelT = performance.now();   /* 第二百八十六批：起跑判据的"手停了"用这个时刻 */
     /* 第二百七十一批：deltaMode 归一化 —— Safari 物理滚轮常报 line 模式
        （deltaY≈1-3 行），原样累加几乎不动；page 模式 ×step。触控板恒为
        pixel 模式（deltaMode=0）不受影响。 */
