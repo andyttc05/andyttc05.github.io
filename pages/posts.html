@@ -81,7 +81,7 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=8b57ab4066" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=40953a2e89" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
@@ -975,18 +975,55 @@
        三路兜底，缺一路就会偶发"永远一块空底板"：
          · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
          · load  → 点亮
-         · error → 也点亮（宁可看见裂图的 alt，也别留一块永远的空底板）
+         · error → 见下面「破图」那段（2026-09-23 起不再当成功处理）
        ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
-       全站照片就都不出现；现在脚本挂了顶多是硬切。 */
+       全站照片就都不出现；现在脚本挂了顶多是硬切。
+
+       ── 破图（2026-09-23 主人「网页上没加载出来的照片的底片设计有点不好看，显示有问题」）──
+       原来 error 也走 done()（"宁可看见裂图的 alt"），代价是浏览器那枚破图图标 + alt 文字
+       压在底板上。现在失败先重试一次、再失败才挂 .is-broken（img 隐形、底板正中一枚细线
+       图形）。三个消费点共用 style.css 的「破图兜底」那段，本页只负责挂类。
+       ⚠️ 与 photos.js 的 fadeIn() 逐条对齐 —— 两个文件是同一套交接逻辑的两份实现，
+         改一边记得看另一边（那边还解释了 BROKEN_OUTAGE_AT 那条"整片挂掉就不逐张重试"）。 */
+    var BROKEN_RETRY_MS = 1200;
+    var BROKEN_OUTAGE_AT = 3;
+    var imgFailStreak = 0;
+
+    function brokenMark(img, on) {
+      img.classList[on ? 'add' : 'remove']('is-broken');
+      var box = img.parentNode;
+      if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+    }
+
     function fadeInImg(img) {
       img.classList.add('is-pending');
       var done = function () {
+        imgFailStreak = 0;
+        brokenMark(img, false);
         img.classList.remove('is-pending');
         img.classList.add('is-loaded');
       };
-      if (img.complete) { done(); return; }
+      var failed = function () {
+        imgFailStreak += 1;
+        if (!img.dataset.retried && imgFailStreak < BROKEN_OUTAGE_AT) {
+          img.dataset.retried = '1';
+          setTimeout(function () {
+            /* ⚠️ 只往后加查询参数，别动 ?v= —— 重试要的是绕过缓存里那次失败的记录 */
+            img.src = img.src + (img.src.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+          }, BROKEN_RETRY_MS);
+          return;                      /* 仍压在 .is-pending 上：底板照旧，不闪 */
+        }
+        img.classList.remove('is-pending');
+        brokenMark(img, true);
+      };
+      /* ⚠️ 光看 complete 不够：缓存里存着一次失败时 complete 也为真，要靠 naturalWidth 分；
+         "压根没设 src"的图（complete 真、naturalWidth 也 0）不算破图，仍然点亮。 */
+      if (img.complete) {
+        if (img.getAttribute('src') && !img.naturalWidth) failed(); else done();
+        return;
+      }
       img.addEventListener('load', done);
-      img.addEventListener('error', done);
+      img.addEventListener('error', failed);
     }
 
     /* ---------- 数据源：assets/data/posts.js（换 GitHub Issues 只改这里） ----------

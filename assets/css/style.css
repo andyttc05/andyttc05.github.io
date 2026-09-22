@@ -48,6 +48,12 @@
        ⚠️ 初始的"透明"状态由 JS 加 .is-pending 才有（不是 CSS 默认透明）：
        否则脚本没跑起来时，照片永远停在透明上不出现。 */
     --img-fade: opacity 0.4s ease;
+    /* 破图兜底那枚细线图形（2026-09-23）：照片加载失败时印在底板正中的图标。
+       ⚠️ 这是给 **mask** 用的，只取 alpha —— 描边颜色在这里写什么都无所谓，
+       真正上色的是调用处的 `background-color: var(--color-muted)`，
+       所以两种主题共用一份，不用在 :root.theme-dark 里再写一遍。
+       规则本体见文件后面的「破图兜底」那段（相簿封面 / 单册照片墙 / 动态页照片格共用）。 */
+    --glyph-broken: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4.5' width='18' height='15' rx='2.4'/><circle cx='8.6' cy='10' r='1.7'/><path d='M3.6 17.6 9 12.2l3.9 3.9 3-3 4.6 4.6'/><path d='M4.2 4.8 19.8 19.2'/></svg>");
     /* 页尾留白（2026-09-21）：每个子页面最后一个区块距窗口底的距离。
        一档值管全站，见 .about-main > :last-child 的注释。
        桌面 56 / 窄屏 36 —— 比原来的 128/115/80/56/0 五种值都紧，也不会紧到贴边。 */
@@ -2784,6 +2790,22 @@
   .skills-chip:hover::before {
     transform: translateY(3px); /* 反向抵消 chip -3px 上浮，命中区锚定视口 */
   }
+  /* 第二百八十九批（2026-09-23 主人："鼠标悬浮卡片微微向上移动，然后按住 —— 卡片取消
+     微微向上移动、回到原本的位置；鼠标松开（不再按住）仍停在卡片上时，恢复微微向上移动"）：
+     按压 = 被按住的物理反馈，chip 落回静止位。上浮量仍是 hover 的 -3px，不改。
+     ::before 必须同步归零 —— 它与 chip 是反向同拍的两枚（同为 0.3s + 同一缓动），
+     两者位移之和恒为 0 ⇒ 整个按压过渡中命中区都锚在静止位，不会重现第一百四十二批
+     那种"过渡中途 hover 反复切换"的抖动。
+     松开后指针仍在卡上 ⇒ :hover 继续成立，自动回到 -3px（无需 JS）。
+     ⚠️ 顺序：这两条必须排在 :hover 之后（同为 0,2,0 特指度，靠源序取胜）。
+     ⚠️ 拖动时 :hover 会因 setPointerCapture 熄灭（实测），chip 本来就落在 0，
+     这条 :active 只是把"按住不动"这一情形也拉进同一手感，不改变拖拽表现。 */
+  .skills-chip:active {
+    transform: none;
+  }
+  .skills-chip:active::before {
+    transform: translateY(0);
+  }
 
   /* 第一百零五批：矮桌面视口（高 ≤767，如 1280×720 窗口/小笔记本）额外收紧，
      保证首屏 标题 + 副标题 + 介绍卡 完整可见；正常桌面（≥768 高）已由 base 收紧覆盖 */
@@ -4197,6 +4219,10 @@ html.nav-anim-reset *::after {
     padding: 0;
     border: 0;
     margin: 0;
+    /* 破图兜底（2026-09-23）：底板上那枚图形是 `.album-shot.is-broken::after`，
+       ::after 要挂在**自己**身上（原来这里没有定位，绝对定位的伪元素会一路往上
+       找到最近的定位祖先 = 页面），所以必须补这一条。框内 img 是静态定位，不受影响。 */
+    position: relative;
     border-radius: 8px;
     overflow: hidden;
     /* 空图片底板：与相簿封面同一套 token（--plate-*）—— 密排墙上那圈 1px 描边
@@ -4217,6 +4243,50 @@ html.nav-anim-reset *::after {
   }
   .album-shot img.is-pending { opacity: 0; }
   .album-shot img.is-loaded { opacity: 1; }
+
+  /* ═════════════════════ 破图兜底（2026-09-23）═════════════════════
+     主人原话：「网页上没加载出来的照片的底片设计有点不好看，显示有问题」——
+     照片加载失败时，浏览器默认的表演是：**左上角一枚破图小图标 + 一行 alt 文字**
+     直接压在底板上。一格看是"小图标跟字挤在角落"，一整面墙看就是一片噪声。
+
+     现在失败的照片 = 底板 + 正中一枚细线图形（--glyph-broken，:root 里那枚）：
+       · img 自己 opacity: 0 —— 破图图标与 alt 文字都是浏览器画在 img 盒子里的，
+         把盒子藏掉，底板才是干净的（alt 照旧念给读屏，只是不再画在画面上）；
+       · 图形画在**容器**的 ::after 上（img 是替换元素，挂不上伪元素）——
+         所以那个类要 img 与容器各挂一次，见 photos.js 的 brokenMark()。
+     ⚠️ `img.is-broken` 这条必须写在 `.is-loaded` **之后**：两者特指度相同
+       （.album-tile-cover img.is-broken 与 …img.is-loaded 都是 (0,2,1)），
+       同分按先后定胜负 —— 写到前面去，先挂上的 .is-loaded 会把它盖掉。
+     ⚠️ 三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）**共用这一段**，
+       调尺寸与浓度只改这里。动态页那个容器在 posts.html 里叫 `.dy-img`
+       （样子是那边定义的，这里只借它的类名上兜底 —— 两边都加载本文件）。
+     ⚠️ mask 必须长写：shorthand 里塞 var() 在 Safari 上不稳，别图省事合成一条。
+     ⚠️ 静止态**不是**"破图"：正常加载中的底板不长这样（那条路是 .is-pending，
+       底板空着、等图淡入）。所以密排墙上不会出现一整片重复图形。 */
+  .album-tile-cover img.is-broken,
+  .album-shot img.is-broken,
+  .dy-img > img.is-broken { opacity: 0; }
+  .album-tile-cover.is-broken::after,
+  .album-shot.is-broken::after,
+  .dy-img.is-broken::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    transform: translate(-50%, -50%);
+    background-color: var(--color-muted);
+    opacity: 0.42;
+    -webkit-mask-image: var(--glyph-broken);
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    mask-image: var(--glyph-broken);
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+  }
   /* 2026-09-21：原 hover 是全格 brightness(1.06) —— 整块变白像"蒙了层雾"，
      且和相簿封面的放大动作不一致。改成与封面同一套微放大：
      框（button）不动，照片在框内放大，overflow:hidden 裁回圆角。

@@ -69,12 +69,35 @@
      三路兜底，缺一路就会偶发"永远一块空底板"：
        · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
        · load   → 点亮
-       · error  → 也点亮（宁可让人看见裂图的 alt，也别留一块永远的空底板）
+       · error  → 见下面「破图」那段（2026-09-23 起不再当成功处理）
      ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
      全站照片就都不出现；而现在脚本挂了顶多是硬切，照片照旧。（progressive enhancement）
 
      ⚠️ 同一个 src 只淡一次：paint() 在 resize 时会整面墙重建，重挂 .is-pending
-     会让已经看过的照片在每次拖窗口时集体闪一遍。 */
+     会让已经看过的照片在每次拖窗口时集体闪一遍。
+
+     ── 破图（2026-09-23 主人「网页上没加载出来的照片的底片设计有点不好看，显示有问题」）──
+     原来 error 也走 done()，理由是"宁可让人看见裂图的 alt，也别留一块永远的空底板"。
+     代价是那枚浏览器破图图标 + alt 文字直接压在底板上，一格是小图标跟字挤在角落，
+     一整面墙就是一片噪声。现在失败改走两条路：
+       · 这一张**第一次**失败 → 隔 BROKEN_RETRY_MS 换一个带时间戳的 URL 再试一次。
+         能救回来的正是最常见的那两类：缓存里存着的失败结果、边缘节点的偶发 5xx。
+       · 再失败 / 已经连着倒了好几张 → 才认定是破图：img 隐形，底板正中一枚细线图形
+         （规则与色值在 style.css 的「破图兜底」那段，本文件只负责挂类）。
+     ⚠️ 连续失败到 BROKEN_OUTAGE_AT 张就不再逐张重试 —— 断网或整桶挂掉时，每张各发一次
+       重试等于把失败请求翻倍，而结果一张也不会变；有一张成功就清零重新开始。
+     ⚠️ .is-broken 要 **img 与容器各挂一次**：底板上那枚图形是容器的 ::after
+       （img 是替换元素，挂不上伪元素）。 */
+  var BROKEN_RETRY_MS = 1200;
+  var BROKEN_OUTAGE_AT = 3;
+  var failStreak = 0;
+
+  function brokenMark(img, on) {
+    img.classList[on ? 'add' : 'remove']('is-broken');
+    var box = img.parentNode;
+    if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+  }
+
   var fadedOnce = Object.create(null);
   function fadeIn(img) {
     var key = img.getAttribute('src');
@@ -82,12 +105,34 @@
     if (key) fadedOnce[key] = 1;
     img.classList.add('is-pending');
     var done = function () {
+      failStreak = 0;
+      brokenMark(img, false);
       img.classList.remove('is-pending');
       img.classList.add('is-loaded');
     };
-    if (img.complete) { done(); return; }
+    var failed = function () {
+      failStreak += 1;
+      if (!img.dataset.retried && failStreak < BROKEN_OUTAGE_AT) {
+        img.dataset.retried = '1';
+        setTimeout(function () {
+          /* ⚠️ 只往后加一个查询参数，别动 ?v= —— 那个管的是盖版本，重试要的恰恰是
+             **绕过**缓存里那次失败的记录。 */
+          img.src = img.src + (img.src.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+        }, BROKEN_RETRY_MS);
+        return;                        /* 仍压在 .is-pending 上：底板照旧，不闪 */
+      }
+      img.classList.remove('is-pending');
+      brokenMark(img, true);
+    };
+    /* complete 已为真时 load/error 可能早在本函数之前就烧过了。⚠️ 光看 complete 不够：
+       缓存里存的是一次失败时 complete 也为真 —— 要靠 naturalWidth 才分得清成败；
+       而"压根没设 src"的图（complete 为真、naturalWidth 也是 0）不算破图，仍然点亮。 */
+    if (img.complete) {
+      if (img.getAttribute('src') && !img.naturalWidth) failed(); else done();
+      return;
+    }
     img.addEventListener('load', done);
-    img.addEventListener('error', done);
+    img.addEventListener('error', failed);
   }
 
   /* =========================================================================
