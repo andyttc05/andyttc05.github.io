@@ -15,6 +15,43 @@
     --color-accent-rgb: 37, 99, 235;
     --color-shadow: rgba(0, 0, 0, 0.06);
     --color-glass-edge: rgba(255, 255, 255, 0.55);
+    /* 悬停微放大（2026-09-21 统一）：相簿封面 / 单册照片 / 动态照片三处共用，
+       改一处即全站一致。1.05 = 专业级"微放档"（1.1 是明显档，本站在静与活之间取微）。
+       进 0.6s / 出 0.4s 不对称：放大铺开得慢一点像呼吸，收回要快 ——
+       否则鼠标横扫一排图，前一张的缩小动画会拖成"尾巴"，看起来脏。
+       easeOutQuint(0.22,1,0.36,1) 是站内既有缓动，起步快、收尾极缓，放大不突兀。 */
+    --zoom-scale: 1.05;
+    --zoom-in: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    --zoom-out: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    /* 空图片底板（2026-09-21 主人「优化图片没加载出来时空图片底板的设计」）——
+       图还没到 / 加载中时那块占位面的样式，六个候选里主人挑的 D。
+       原来只有一枚平涂 --color-alt（亮 #f1f5f9 / 暗 #1a2438），与纸色的最大通道差
+       亮色下只有 7/255 —— 缩略图里读起来不是"画框在等照片"，是"这里有个洞"。
+       现在两件事，各管一半：
+         ① 152° 由深到浅的极淡渐变，整块始终压在纸色下一档（亮 12/255 · 暗 16/255），
+            底板有方向、有厚度，不再是块死平涂；
+         ② 内圈 1px 半透明描边（inset box-shadow）—— 边界从"靠软阴影猜"变成看得见，
+            而且不加任何图形符号（候选 E 的照片图形在 52 张密排时退化成整片重复图案，F 的
+            斜织纹在墙面缩图下退化成摩尔纹，两个都淘汰）。
+       底板只在"没照片"时可见：img 是不透明 webp 且铺满容器，图一到就整块盖住。
+       消费点：.album-tile-cover（相簿封面）、.album-shot（单册照片墙）。
+       ⚠️ 内圈描边必须走 box-shadow 的 `inset`，**不能**塞进 background 的层列表 ——
+       一个非法层会让整条 background 声明被整段丢弃，而且控制台一声不吭（实测踩过）。
+       ⚠️ 改渐变的色标要在两种主题下各量一次「板/纸最大通道差」，别凭眼睛调。 */
+    --plate-grad: linear-gradient(152deg, #e7ecf5 0%, #eef3f9 56%, #f6f9fc 100%);
+    --plate-ring: rgba(15, 23, 42, 0.075);
+    /* 软阴影沿用原来那条 0 1px 2px，只往后追加描边 —— 别把原阴影写丢 */
+    --plate-edge: 0 1px 2px var(--color-shadow), inset 0 0 0 1px var(--plate-ring);
+    /* 照片到位那一下的淡入（2026-09-21）：底板 → 照片是 0.4s 淡入，不是硬切。
+       全站只有首页立绘 / 项目轮播帧有这套交接（script.js 的 markImageLoaded，IIFE 内部
+       函数没导出，服务不到相簿），相簿两处的渲染层自己挂 —— 见 photos.js 的 fadeIn()。
+       ⚠️ 初始的"透明"状态由 JS 加 .is-pending 才有（不是 CSS 默认透明）：
+       否则脚本没跑起来时，照片永远停在透明上不出现。 */
+    --img-fade: opacity 0.4s ease;
+    /* 页尾留白（2026-09-21）：每个子页面最后一个区块距窗口底的距离。
+       一档值管全站，见 .about-main > :last-child 的注释。
+       桌面 56 / 窄屏 36 —— 比原来的 128/115/80/56/0 五种值都紧，也不会紧到贴边。 */
+    --tail: clamp(36px, 4vw, 56px);
     /* 新拟态 token（2026-08-20 About 页专属）：元素面 = --neu-surface，
        凸起/凹陷全靠 暗影+高光 双影。hex 兜底，@supports oklch 内被替换。
        第五十七批：整体转蓝调（浅蓝白面 + 蓝灰影）消除"灰补丁"违和感；
@@ -40,6 +77,12 @@
     --color-accent-rgb: 96, 165, 250;
     --color-shadow: rgba(0, 0, 0, 0.45);
     --color-glass-edge: rgba(255, 255, 255, 0.08);
+    /* 空图片底板走同一套（亮色的定义见上面 :root）：色标按暗底重排，极性不变 ——
+       左上最深 #141c2e（几乎贴住纸色 #0f172a）→ 右下提亮 #232f4a，于是底板从左上的
+       "融进纸里"过渡到右下"浮出来一档"（原平涂 #1a2438 与纸色通体只差 14/255，看不出方向）。
+       描边换成 7.5% 白 —— 深底上"墨色描边"是看不见的。 */
+    --plate-grad: linear-gradient(152deg, #141c2e 0%, #1b2540 56%, #232f4a 100%);
+    --plate-ring: rgba(255, 255, 255, 0.075);
     --neu-b1-surface:      #2b3552;
     --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
     --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
@@ -1217,7 +1260,13 @@
     border-radius: 20px;
     overflow: hidden;
     border: 1px solid var(--color-rule);
-    background: var(--color-alt);
+    /* 空图片底板（2026-09-21 全站同步）：立绘是不**透明** webp（实测 catgirl_sailor.webp
+       是 RGB、无 alpha、1280×1025），所以这一层只在"图还没到"时露脸 ——
+       换成与相簿同一套 --plate-grad 不会有任何常态观感变化。
+       ⚠️ 这里**不加** --plate-edge 里那圈 inset 描边：本规则上面已经有真边框
+       （1px solid var(--color-rule)），再叠一圈就成了 2px 双线。 */
+    background-color: var(--color-alt);
+    background-image: var(--plate-grad);
     /* 微歪：与 echo 层同角度，整组倾斜（比 v3 的 -4deg 减小）。
        位移/缩放用变量管理：hover 时 --lift -6px + --scale 1.02，
        JS 按压动画读取同一变量，保证按压/回弹期间不产生额外位移（之前 keyframes 缺位移导致动画后跳变） */
@@ -2082,6 +2131,19 @@
     margin: 0 auto;
     padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
     /* 第八十八批：无页面级浮动 —— 只保留滚动驱动入场动画 */
+  }
+  /* 页尾留白（2026-09-21 主人"底部空白太多，优化所有页面"）——
+     这一站没有 footer，所以页面止于最后一个区块的下边距，而这个值原本每页各写一个：
+     相簿 128 / 项目 115（含 margin）/ 关于 80 / 动态 56 / 单册 0。
+     128 读起来像"下面还有东西没加载"，0 又让「上一册／下一册」贴着窗口边。
+     统一到 --tail 一档，顺手把 128 那一档砍掉一半多。
+     ⚠️ 作用域只写 .about-main：首页 <main> 没这个类（末屏是满屏 slide，
+     给它垫 56px 会在满屏底图上留一条白边），coming-soon 根本没有 <main>。
+     ⚠️ 选择器要带 main 这个标签 —— `.projects-main .projects-bento`（窄屏那条
+     `padding-block: 0`）是 (0,2,0)，只写类的话打平、按后来者取胜，窄屏页尾就变 0 了。
+     带上 main 是 (0,2,1)，稳定压过它。 */
+  main.about-main > :last-child {
+    padding-bottom: var(--tail);
   }
   /* 标题区：主标题居中、accent 色调（第九批，替代纯 ink + 装饰线） */
   .about-hero {
@@ -3503,7 +3565,11 @@
     width: 100%;
     height: var(--pj-photo-h);
     overflow: hidden;
-    background: var(--color-alt);
+    /* 空图片底板（2026-09-21 全站同步）：与相簿/单册/首页立绘同一套 --plate-*。
+       这一格没有自己的边框（外面是明信片卡片的 2px 墨线），所以描边照加。 */
+    background-color: var(--color-alt);
+    background-image: var(--plate-grad);
+    box-shadow: var(--plate-edge);
   }
   .pj-scene__image {
     position: absolute;
@@ -3511,8 +3577,14 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    background: var(--color-alt);
+    /* 原来是 --color-alt：那层会盖住帧自己的底板，等于白换。
+       改成透明 —— 图没到时露出来的是 .pj-scene__frame 的底板。 */
+    background: transparent;
+    /* 换项目时新图到位走 0.4s 淡入（--img-fade），不是硬切 */
+    transition: var(--img-fade);
   }
+  .pj-scene__image.is-pending { opacity: 0; }
+  .pj-scene__image.is-loaded { opacity: 1; }
   /* 说明带：手绘涂鸦垫底 + 居中说明（逐字落下） */
   .pj-scene__band {
     position: relative;
@@ -3719,6 +3791,9 @@
     .pj-scene--raised.is-enter .pj-scene__swing,
     .pj-scene:not(.pj-scene--raised).is-enter .pj-scene__swing { animation: none; }
     .pj-scene__stamp-flourish { stroke-dashoffset: 0; }
+    /* 换图那一下的淡入（--img-fade）一并瞬切：它是纯装饰，
+       图照样换成下一张，只是不再有那 0.4s（与相簿两处的口径一致）。 */
+    .pj-scene__image { transition: none; }
   }
 
 /* ============================================================================
@@ -3802,6 +3877,21 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
   transition: none;
 }
 
+/* 「← 全部相簿」回到墙那一次（`.album-back-instant`，由 photos.js 二号段加类）：
+   **不播开场动画** —— 2026-09-22 主人「点击相册，然后放回所有相册页，不触发页面开场动画」。
+   这一跳的语义是"回到你离开的地方"，所以标题不弹、跨文档过渡也 skip 掉
+   （后者在 photos.js 的 pageswap 里做），页面直接在那儿。
+
+   ⚠️ 特指度写到 (0,3,1)（html + 两个类 + 类）：比上面 `html.page-ready .about-title-char`
+      的 (0,2,1) 高一层，**不依赖本文件里的先后顺序** —— 上面那个块是"靠留在文件末尾"
+      赢的，这条不学它，免得将来有人往中间插一条同级的规则就把它盖掉。
+   ⚠️ 只关"入场编排"（page-ready 才播的那批弹出）。滚动驱动的那批（view() timeline）
+      不归这里管，它们跟"开场"无关。 */
+html.album-back-instant .about-title-char,
+html.album-back-instant .hero-title-char,
+html.album-back-instant.page-ready .about-title-char,
+html.album-back-instant.page-ready .hero-title-char { animation: none; }
+
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
 
@@ -3821,3 +3911,455 @@ html.nav-anim-reset *::after {
   transition: none !important;
   animation: none !important;
 }
+
+/* ===========================================================================
+   相簿（2026-09-21）：旧时留影 —— 顶部数据条 + 相簿墙 + 单册页 + 灯箱
+
+   结构参考了 dreamcenter.top/album（数据条 + 封面卡网格 + 张数角标 + 点开进单册），
+   但**只借结构不借皮**：配色一律走站内 token（--color-accent 蓝），字体 IBM Plex，
+   封面不加卡片外框与重投影 —— 这站是 type-led 的，网格由图片本身撑起来，
+   文字层用 hairline 与字重分级，不用圆角白卡 + 阴影那套。
+
+   三块互不依赖，可以单独摘掉：
+     ① .album-stats  顶部数据条（hairline 分栏；不用参考站的渐变卡）
+     ② .album-wall   19 个封面磁贴（图片 4:3 + 张数角标 + 书名号下方的名字/一句话；
+                     原第三行「年份区间」2026-09-21 撤掉）
+     ③ .album-strip  单册页照片墙 —— 行高由 JS 按真实长宽比算的「对齐行」，
+                     点开看大图走共享灯箱（assets/css/lightbox.css）。CSS 这里只管行容器与项的外观。
+   =========================================================================== */
+
+  /* ---------------------------------------------------------------- ① 数据条 */
+  .album-stats {
+    display: grid;
+    /* 三格纯计数。第四格原来放「2024.01 → 2026.09　第一张到最后一张」，
+       2026-09-21 主人「相册移除日期的资料」—— 区间也是日期资料，撤掉，不留第四格 */
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--color-rule);
+    border-bottom: 1px solid var(--color-rule);
+    margin-bottom: clamp(34px, 4.4vw, 56px);
+  }
+  .album-stat {
+    padding: clamp(18px, 2.3vw, 26px) clamp(10px, 1.5vw, 22px);
+    border-left: 1px solid var(--color-rule);
+    min-width: 0;
+  }
+  .album-stat:first-child { border-left: 0; padding-left: 0; }
+  .album-stat-v {
+    display: block;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(24px, 3.2vw, 38px);
+    line-height: 1.12;
+    letter-spacing: 0.01em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  /* .album-stat--range 的字号特例随第四格一起删除（2026-09-21） */
+  .album-stat-k {
+    display: block;
+    margin-top: 7px;
+    font-family: var(--font-body);
+    font-size: clamp(11px, 1.05vw, 12.5px);
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
+  }
+
+  /* ---------------------------------------------------------------- ② 相簿墙 */
+  .album-wall {
+    display: grid;
+    /* 252px 下限：1200 容器下正好 4 列（跟参考站同节奏），窄屏自动降列 */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 252px), 1fr));
+    gap: clamp(26px, 3vw, 38px) clamp(14px, 1.8vw, 22px);
+  }
+  .album-tile {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+  }
+  /* ⛔ `.album-tile--wide`（开头 N 本跨 2 列 × 2 行，把占格数凑成列数整数倍、末行不留洞）
+     2026-09-21 主人两次退回后**整条删除**：
+       ① 只跨 2 列、与普通行同高 ⇒ 槽位 2.773:1，封面全是 4:3 ⇒ 上下各切 26%、
+          只剩中间 48% 的横带（「第 1、2 张相册显示异常」）；
+       ② 改成跨 2 列 × 2 行（槽位 1.27:1、裁切 0%）⇒ 主人「不是第 1、2 相册为什么大了？
+          做得和其他相册一样就行」。
+     ⇒ 18 本**必须一样大**。别再加任何让格子尺寸不一致的机制（跨列 / 跨行 / 特大自然尺寸
+     的"门面格"都不行）。末行那个洞（桌面 4 列 ≈595px）主人认了 —— 详见 photos.js 里那段
+     删除说明，三种填洞方案都被退过。 */
+  .album-tile-cover {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 14px;
+    overflow: hidden;
+    /* 空图片底板（2026-09-21）：--color-alt 兜底 + 极淡渐变 + 内圈细描边，
+       三枚 token 在 :root 的 --plate-* 里（改底板只改那一处）。 */
+    background-color: var(--color-alt);
+    background-image: var(--plate-grad);
+    box-shadow: var(--plate-edge);
+  }
+  .album-tile-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    /* 照片到位时从底板淡入（--img-fade）；transform 那条照旧给 hover 微放大用。
+       基础规则里就带上 opacity 过渡 —— 触摸设备没有 hover 分支，淡入也得生效。 */
+    transition: var(--img-fade), transform var(--zoom-out);
+  }
+  /* 淡入的两个状态（photos.js 的 fadeIn() 挂）：
+     .is-pending = 图还没到，压在透明上（底板露出来）→ 去掉它即 0→1 淡入。
+     没有这两个类时默认 opacity 1 —— 脚本没跑起来照片照常显示，不会卡在透明。 */
+  .album-tile-cover img.is-pending { opacity: 0; }
+  .album-tile-cover img.is-loaded { opacity: 1; }
+  /* 封面还没到时不闪白：底色交给 .album-tile-cover 的 --color-alt。
+     2026-09-21：整格不再上浮（原 translateY(-4px) + 阴影加深已去掉）——
+     鼠标扫过网格时 18 个格子一起上下错动，页面像在抖；改成"只有照片自己放大"，
+     框不动、字不动，视线落在图上而不是布局上。 */
+  @media (hover: hover) {
+    /* 这里原来还有一条 `.album-tile-cover img { transition: transform var(--zoom-out) }`
+       —— 2026-09-21 给 img 补淡入时并进基础规则了，同值重复，删掉。 */
+    .album-tile:hover .album-tile-cover img,
+    .album-tile:focus-visible .album-tile-cover img {
+      transform: scale(var(--zoom-scale));
+      /* 进入用 0.6s：transition 写在 :hover 里 → 只作用于"进"这一程；
+         基础规则里的 --zoom-out 负责"出"。
+         ⚠️ opacity 那条必须一起带上：transition 是整条替换的，只写 transform 会把
+         基础规则里的淡入踢掉 —— 恰好在这张图上加载完成时就变成硬切。 */
+      transition: var(--img-fade), transform var(--zoom-in);
+    }
+  }
+  .album-tile:focus-visible { outline: none; }
+  .album-tile:focus-visible .album-tile-name { color: var(--color-accent); }
+  .album-tile-count {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    padding: 3px 9px 4px;
+    border-radius: 999px;
+    /* 角标压在照片上，两种主题都可能落到浅底上 —— 所以固定深底白字 + 毛玻璃，
+       不跟随主题翻转（跟随的话浅色主题下白底白字） */
+    background: rgba(15, 23, 42, 0.6);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: #ffffff;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.35;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .album-tile-name {
+    margin-top: 15px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(18px, 1.85vw, 21px);
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    color: var(--color-ink);
+    transition: color 0.25s ease;
+  }
+  .album-tile-note {
+    margin-top: 7px;
+    font-family: var(--font-body);
+    font-size: clamp(13.5px, 1.4vw, 14.5px);
+    line-height: 1.72;
+    color: var(--color-muted);
+  }
+  /* 封面下原来还有一行等宽日期区间（.album-tile-span，如「2024.01 – 2026.06」）。
+     2026-09-21 主人「相册移除日期的资料，点击照片可以显示日期」——
+     墙上、单册页标题下都不留日期，日期只在灯箱里按张给（见 photos.js 的 stamp()） */
+
+  /* 墙尾那块收口（.album-wall-end / -k / -t / -a，以及配套的 fitWallEnd()）
+     2026-09-21 整块删除，主人原话「移除 MORE　随手拍的都丢在 IG，这儿只放归好类的」。
+     删掉后最后一行右侧空 2 格（约 594px）—— 这是主人认下的效果，别自作主张填回去。 */
+
+  /* --------------------------------------------------------- ③ 单册页照片墙 */
+  .album-hero { padding-block: clamp(40px, 5.5vh, 60px) clamp(18px, 2.2vw, 28px); }
+  /* 「← 全部相簿」放容器左上角（2026-09-21 主人「「全部相簿」应该放在左上角」）。
+     它原来是 .about-hero 的 text-align:center 顺带居中掉的 —— 一个导航控件压在居中的
+     标题序列正上方，读起来像标题的第一行，而不像"回上一级"。
+     标题那一坨（地区 / 书名 / 一句话 / 张数）**保持居中**：墙页的标题区也居中，
+     只有单册页改成左对齐会跟它裂开。这里只把它单独拎到容器左边。
+
+     ══════════════ 相簿页三个导航控件的统一按钮规格 ══════════════
+     2026-09-21 晚主人：「只可以点击上一页/下一页，上一页/下一页的名字不可以点击，
+     名字移到上一页/下一页的上面。优化全部相簿/上一页/下一页的按钮大小。」
+     ⇒ 页脚那两块的**名字不再是链接**（见 .album-nav-side），能点的只剩按钮本身。
+       尺寸按那句"按钮大小"落定：
+         · `min-height: 44px`（拇指标准，站内其它可点元素同一档）
+         · **15px mono**（原来 11.5 / 12.5px 太小，翻页是主要动作，不该比正文还弱）
+         · `padding-inline: 12px`（横向的呼吸；`min-height` 已经把纵向撑开）
+     三个控件（`.album-back` / `.album-nav-link`）**共用同一条规则** —— 改尺寸只改这一处。
+
+     🔴 **不加框**（2026-09-21 晚主人看完两个候选后原话：「不加框比较好」）。
+        所以这里没有 border / 没有圆角 / 没有底 —— 也**别再加回来**：
+        一旦有框，三个按钮在页脚会跟上面的大书名抢重量，观感比现在噪。
+        代价认下：没有框，"哪块能点"只能靠**字色反馈**（见下面那组 hover 规则）与
+        名字的 `cursor: default` 区分 —— 所以那组反馈不能删。
+
+     🆕 **但字下面有一条淡淡的下划线**（2026-09-21 23:40 主人：「← 全部相簿 / ← 上一册 /
+        下一册 → 按钮可以参考 coming-soon 页面的按钮，功能字下方加入一条淡淡的下划线」）。
+        参考对象是 `pages/coming-soon.html` 的 `.back-link a`（那边写的是
+        `border-bottom: 1px solid var(--color-rule)` + `padding-bottom: 2px`，
+        悬停时连边色一起转 accent）。
+        ⚠️ **这里不能直接照抄 border-bottom**：按钮的盒高是 `min-height: 44px`（拇指标准）、
+        字在盒里竖向居中，border 会画在 44px 的盒底、离字 15px 远，看着像一条分隔线；
+        而且它会把 `padding-inline: 12px` 那两段也画上，线比字宽 24px。
+        ⇒ 改用 `text-decoration`：线的位置由字形自己算，天然贴着字，
+          宽度天然只有字那么宽（padding 不算），三个按钮自动一致。
+        ⚠️ 它**不是框**：没有左右两边、没有底、没有圆角 —— 上面那条「不加框」依然成立。
+
+     ⚠️ `width: fit-content` 不能省：盒子一旦铺满整行，书名右边那片空白也成了可点区域。
+     ⚠️ `display: flex`（不是 inline-flex）+ 下面 `.album-back` 的 `margin-right: auto`：
+     父级 `.about-hero` 是 `text-align: center`，inline 级的盒子会被它居中回去。
+     ⚠️ `white-space: nowrap` 是给 320 视口的：盒子不许把「← 全部相簿」折成两行。 */
+  .album-back,
+  .album-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    white-space: nowrap;
+    min-height: 44px;
+    padding-inline: 12px;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: var(--color-ink);
+    /* 淡淡的下划线（见上面那段说明）：线色 --color-rule = 全站 hairline 同一支，
+       悬停/聚焦/按下时与字色一起转 accent。 */
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-rule);
+    text-decoration-thickness: 1px;
+    /* 空档是**量出来**的，不是估的（2026-09-21 23:46 主人「下划线离文字太近了吧，
+       coming-soon 页面的下划线离文字没有那么近」）：
+         · 初版 3px → 字墨下沿到线顶只有 **1.5px**（太贴，主人一眼看出）
+         · 参考系 coming-soon 的 `.back-link a`：12px 字下空档 **3.5px** = 0.29em
+         · 按 em 等比搬到 15px 字 = 4.4px 空档 ⇒ 需要 offset ≈ 6px
+       用 **0.4em**（=15px 字下 6px、空档 4.5px = 0.30em，与参考系 0.29em 基本一致），
+       不写 6px 是为了将来字号一动，空档按比例跟着走。
+       ⚠️ 别改小：3px / 4px / 5px 三档实测空档 1.5 / 2.5 / 3.5px，`7px` = 5.5px 偏散。 */
+    text-underline-offset: 0.4em;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  }
+  /* 页顶那个只多两条：贴容器左边（父级居中要压回来）+ 它下面那道间距 */
+  .album-back {
+    text-align: left;
+    margin: 0 auto clamp(12px, 1.6vw, 18px) 0;
+  }
+  /* 相簿名长短差三倍（「大澳」到「深圳｜南山・罗湖・龙华・龙岗」），
+     所以不能沿用 about-title 的 clamp(52px,9vw,96px) —— 长名会撑出容器 */
+  .album-title {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(28px, 4.4vw, 52px);
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    color: var(--color-ink);
+  }
+  .album-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
+    margin-bottom: 10px;
+  }
+  .album-hero-meta {
+    margin-top: 14px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.05em;
+    line-height: 1.9;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  /* 「28 张 · Tsim Sha Tsui & Avenue of Stars」中间那个点。
+     用 muted + 降透明度而不是 --color-rule：深色主题的 --color-rule 是 16% 白的
+     rgba，压在 12.5px 的点上会淡到看不见。 */
+  .album-hero-meta-sep {
+    margin: 0 0.55em;
+    color: var(--color-muted);
+    opacity: 0.5;
+  }
+
+  .album-strip {
+    --strip-gap: clamp(6px, 0.7vw, 10px);
+    padding-block: clamp(8px, 1.2vw, 16px) clamp(56px, 7vw, 96px);
+  }
+  .album-strip-row {
+    display: flex;
+    gap: var(--strip-gap);
+    margin-bottom: var(--strip-gap);
+  }
+  .album-strip-row:last-child { margin-bottom: 0; }
+  .album-shot {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    margin: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    /* 空图片底板：与相簿封面同一套 token（--plate-*）—— 密排墙上那圈 1px 描边
+       正好当照片之间的细缝，图没到时整面墙是"排好的画框"，不是一片灰。 */
+    background-color: var(--color-alt);
+    background-image: var(--plate-grad);
+    box-shadow: var(--plate-edge);
+    cursor: zoom-in;
+    line-height: 0;
+  }
+  .album-shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* 淡入 / 微放大，与 .album-tile-cover img 逐条对齐 */
+    transition: var(--img-fade), transform var(--zoom-out);
+  }
+  .album-shot img.is-pending { opacity: 0; }
+  .album-shot img.is-loaded { opacity: 1; }
+  /* 2026-09-21：原 hover 是全格 brightness(1.06) —— 整块变白像"蒙了层雾"，
+     且和相簿封面的放大动作不一致。改成与封面同一套微放大：
+     框（button）不动，照片在框内放大，overflow:hidden 裁回圆角。
+     密排照片墙里这一下最有效：邻格纹丝不动，只有指针底下的那一张"活"了。 */
+  @media (hover: hover) {
+    .album-shot:hover img,
+    .album-shot:focus-visible img {
+      transform: scale(var(--zoom-scale));
+      /* opacity 一起带上，理由同 .album-tile-cover 那条（transition 整条替换） */
+      transition: var(--img-fade), transform var(--zoom-in);
+    }
+  }
+  .album-shot:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* 末行"全部相簿 →"文字格 2026-09-21 撤掉（主人原话「也撤掉」）——
+     代价认下：18 本里 6 本末行只剩 1 张照片，右侧空 819px。别再加回来。 */
+
+  /* 吸顶册条（.album-bar*，约 100 行）2026-09-21 整体删除 —— 主人当晚原话：
+     「现在滑动时不要有，全部相册和上一页/下一页在导航栏下面弹出来」。
+     它第一刀是为了解决"翻页入口压在照片墙最底下、要滚 2658px"而加的（46px 固定条，
+     top:0 + translateY(-100%) 藏着，标题区滚出视口后滑到导航栏高度）。
+     现在明确不要这个滑出行为：JS 那边 `buildAlbumBar()` 一并删掉，别只留 CSS 或只留 JS。
+     ⇒ **别再加回来。** 单册页的导航入口只有两处：页顶左上 `.album-back`、页脚 `.album-nav`。 */
+
+  /* 单册页收尾的上下册 —— 三栏：上一册 / 第几本 / 下一册。
+     用 grid 而不是 flex + margin-left:auto：中间那格要真居中。
+     ⚠️ 原来这里有一条 `.album-nav a { max-width: 46% }`，随改成 grid 一起删掉 ——
+     46% 的参照从"整行"变成"自己那一栏"，会直接把书名压成两三个字一行。 */
+  .album-nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    /* 一册现在是「名字 + 按钮」两行的竖块，比中间那格数字高得多 ⇒
+       整块按重心对齐，那行数字才不会挂在小标签那一行的位置。 */
+    align-items: center;
+    gap: clamp(12px, 2vw, 24px);
+    border-top: 1px solid var(--color-rule);
+    padding-top: clamp(22px, 2.6vw, 32px);
+  }
+  /* 一册 = 名字（`<span>`，**不可点**）+ 按钮（`<a>`，可点）。名字在上、按钮在下。
+     2026-09-21 晚主人：「只可以点击上一页/下一页，上一页/下一页的名字不可以点击，
+     名字移到上一页/下一页的上面。」
+     ⚠️ 名字与按钮是**兄弟节点**，别把名字塞回 `<a>` 里 —— 那样点名字也会跳页。
+     三个控件（`.album-back` / `.album-nav-link`）**共用同一条规则** —— 改尺寸只改这一处。 */
+  .album-nav-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+  }
+  .album-nav-side--prev { grid-column: 1; }
+  .album-nav-side--next { grid-column: 3; align-items: flex-end; }
+  .album-nav-idx {
+    grid-column: 2;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .album-nav-n {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: clamp(16px, 1.8vw, 20px);
+    line-height: 1.35;
+    color: var(--color-ink);
+    /* 不可点：光标不给"能点"的暗示（hover / active 也一律没有反馈） */
+    cursor: default;
+  }
+  /* `.album-nav-k`（按钮里那行字）**故意没有自己的规则**：字体/字号/字距/颜色全部继承
+     `.album-nav-link` 的按钮规格，这样三个按钮的字一定一样大。
+     那条淡下划线同理 —— `text-decoration` 会从 `.album-nav-link` 往下传播到这里，
+     **别在这里再声明一遍线宽/线色**，两处一写就会分叉。
+     留着这个类名是给 JS 挂、给测试选。 */
+
+  /* --------------------------------- 相簿页的导航按钮：一条交互语汇
+     2026-09-21 主人「按钮的设计逻辑不是很统一」（第一版）→ 当晚
+     「名字不可以点击、名字移到上面、优化按钮大小」（第二版）→
+     「不加框比较好」（第三版，去掉边框与底色）。
+     现在能点的只剩三个按钮本身，而按钮**没有框**，所以反馈全压在**字色**上：
+       静止        字 --color-ink
+       悬停/聚焦/按下  字 → --color-accent（`transition: color` 那条就是为它写的）
+       焦点环      2px accent + offset 2 —— 与 `.nav-links a` / `.hero-cta` / `.album-shot` 同一套
+     ⚠️ **这三条不能删。** 没有框、没有底，字色就是"能点/正被指着"的唯一信号；
+        删了之后三个按钮跟旁边不可点的名字长得一模一样。
+     `:active` 是给触摸设备的：那边没有 hover，按下不变色等于没有反馈。
+     站内范式：`.nav-menu-links a:hover, .nav-menu-links a:active { color: accent }`。
+     ⚠️ 名字（`.album-nav-n`）**故意不在这组选择器里** —— 它不是链接，不该有任何反馈。 */
+  .album-back:hover,
+  .album-back:focus-visible,
+  .album-back:active,
+  .album-nav-link:hover,
+  .album-nav-link:focus-visible,
+  .album-nav-link:active {
+    color: var(--color-accent);
+    /* 字色变了线色不变 = 字底下挂着一根旧的灰线，看着更脏（coming-soon 那边也是两样一起转） */
+    text-decoration-color: var(--color-accent);
+  }
+  .album-back:focus-visible,
+  .album-nav-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* ------------------------------------------------- 灯箱（已搬去共享引擎） */
+  /* 本文件里原来那 ~80 行 `.lb*` 规则（相册页自己那套简化灯箱：淡入淡出 + 左右箭头 +
+     底部「说明 · 日期 · 计数」条）在 2026-09-21 整体删除 —— 主人那天要求
+     「相册页点击浏览图片的引擎和动态页点击浏览图片的引擎使用同一套」，
+     相册页改引共享引擎（assets/css/lightbox.css + assets/js/lightbox.js），
+     那套引擎带着自己全部的反算几何（--lb-band / --lb-edge-y）与窄屏档，
+     在那边自成一体，本文件不需要、也不该再留一份。
+     ⚠️ 别在这里给 .dy-lb* 补任何覆盖：两个页面必须一字不差地跑同一份几何。 */
+
+  /* --------------------------------------------------------------- 窄屏适配 */
+  @media (max-width: 860px) {
+    .album-stats { grid-template-columns: repeat(2, 1fr); }
+    .album-stat { padding-inline: clamp(8px, 2vw, 16px); }
+    .album-stat:nth-child(odd) { border-left: 0; padding-left: 0; }
+    .album-stat:nth-child(n + 3) { border-top: 1px solid var(--color-rule); }
+    /* 窄屏要两列：一列 358px 宽的封面一路滚下去太长了。
+       148px 下限保证 390 视口下能塞下两列（2×148 + 14 间隙 = 310 ≤ 358）。 */
+    .album-wall {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr));
+      gap: clamp(20px, 5vw, 26px) clamp(10px, 3vw, 16px);
+    }
+    .album-tile-name { font-size: 16.5px; margin-top: 11px; }
+    .album-tile-note { font-size: 12.5px; line-height: 1.65; margin-top: 5px; }
+    /* 灯箱的窄屏档（撤箭头 / 收让位）在 assets/css/lightbox.css 里，本文件不管。 */
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* 只掐掉过渡，不掐掉放大本身 —— 放大是"指针在哪张"的状态反馈，
+       一并不显示反而丢了信息。所以是瞬切，不是取消。
+       ⚠️ 必须连 :hover 那条一起写：`.album-tile-cover img` 只有 (0,1,1)，
+       压不过上面的 `.album-tile:hover .album-tile-cover img` (0,2,1) ——
+       只写前者会静默失效（实测 reduced-motion 下仍是 0.6s 动画）。 */
+    .album-tile-cover,
+    .album-tile-cover img,
+    .album-shot img,
+    .album-tile:hover .album-tile-cover img,
+    .album-tile:focus-visible .album-tile-cover img,
+    .album-shot:hover img,
+    .album-shot:focus-visible img { transition: none; }
+  }

@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page-node-id="OPYeNF5CXU3OHtBAf4V2fg">
+<html lang="zh-CN" data-scroll="native" data-page-node-id="OPYeNF5CXU3OHtBAf4V2fg">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：全站写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 开头那套自研滚轮平滑整体让位。
+     该属性就是那套引擎的逃生开关：写了它引擎直接 return，连 __wheelLock/__wheelPause
+     都不注册（调用方都有 if 守卫）。历史：09-07 曾在子页面写它，09-14 撤销过一次，
+     09-21 按主人要求再统一收回原生。 -->
 <head data-page-node-id="6BpsEB1rhLzKyZdUBf0bDC">
 <meta charset="UTF-8" data-page-node-id="VxbBySPFF1JOtCLE5dZEQn">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" data-page-node-id="t7tWJ4xmspCLYUV1J3V9yE">
@@ -89,7 +94,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="assets/css/loader.css?v=5ce8d862e9" data-page-node-id="e27DsJyyEIMwfAPlv5xHl1">
-<link rel="stylesheet" href="assets/css/style.css?v=9929cd257f" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
+<link rel="stylesheet" href="assets/css/style.css?v=8b57ab4066" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
 
 </head>
 <body data-page-node-id="gjOkzZwhhcAGo2quk6epB4">
@@ -146,7 +151,7 @@
         <li class="nav-hover-indicator" aria-hidden="true" data-page-node-id="iXXWOrEz5dfQ1AVDqCR3GY"></li>
         <li data-page-node-id="IzX6gGpi7zNeUBlOmntTif"><a href="pages/projects.html" data-page-node-id="CTAuBfEA3AUFPAZi5RZVCN">项目</a></li>
         <li data-page-node-id="XuikBJn1ymCKYkNuBMHGbr"><a href="pages/posts.html" data-page-node-id="JjjByfBRzjSOW436zSgvn7">动态</a></li>
-        <li data-page-node-id="xHQmLytsS0Egkwn8dnJxNd"><a href="pages/coming-soon.html" data-page-node-id="YSKvNUAVdWSYxrzqnONBEG">照片</a></li>
+        <li data-page-node-id="xHQmLytsS0Egkwn8dnJxNd"><a href="pages/photos.html" data-page-node-id="YSKvNUAVdWSYxrzqnONBEG">照片</a></li>
         <li data-page-node-id="zitCpmh0dhZXNSnvKhAXYX"><a href="pages/about.html" data-page-node-id="DaFrx3EtWNr3MKNiLacAJb">关于</a></li>
       </ul>
       <div class="nav-actions" data-page-node-id="mDuUW5uXqfya5uvfVL2iOc">
@@ -183,7 +188,7 @@
       <ul class="nav-menu-links" data-page-node-id="49k89hqnZmm98NES4n38bT">
         <li data-page-node-id="9ofaiqlU1obp90HibGhD7T"><a href="pages/projects.html" data-page-node-id="aEt30pmd2CfDbAaH5qgh75"><span class="label" data-page-node-id="nuTSc4CAuBleII5LHbvlXE">项目</span><span class="arrow" data-page-node-id="KgzrfxQqEdbkxtvTGsV4mi">&rarr;</span></a></li>
         <li data-page-node-id="1DgmPlGJqFs06zv4VpXkVO"><a href="pages/posts.html" data-page-node-id="crnzWwjYAScxReiR613MQC"><span class="label" data-page-node-id="alsVSyv9genLNHqGFBOEL5">动态</span><span class="arrow" data-page-node-id="AouyYFOgt3XWtHnSDnBXVa">&rarr;</span></a></li>
-        <li data-page-node-id="HeScVaA9nb7EWHD84iscHZ"><a href="pages/coming-soon.html" data-page-node-id="FBFhdE9C49v5EmILDryebm"><span class="label" data-page-node-id="e362h4rs5srhfQ4BW9thda">相册</span><span class="arrow" data-page-node-id="JCKneWhu06H6XRvCPbj8Zn">&rarr;</span></a></li>
+        <li data-page-node-id="HeScVaA9nb7EWHD84iscHZ"><a href="pages/photos.html" data-page-node-id="FBFhdE9C49v5EmILDryebm"><span class="label" data-page-node-id="e362h4rs5srhfQ4BW9thda">相册</span><span class="arrow" data-page-node-id="JCKneWhu06H6XRvCPbj8Zn">&rarr;</span></a></li>
         <li data-page-node-id="QKKwGZtlGAisnTKuhSANWP"><a href="pages/about.html" data-page-node-id="nNfMZiuHrc5DjRG0UZ2Kom"><span class="label" data-page-node-id="F0BUzjgjR45h7DtqCpYmN0">关于</span><span class="arrow" data-page-node-id="K8GhBokANmEHZhXYULmlCA">&rarr;</span></a></li>
       </ul>
     </div>
@@ -395,7 +400,7 @@
 </script>
 
 <script src="assets/js/loader.js?v=7d81072196" defer></script>
-<script src="assets/js/script.js?v=cd295b1f36" defer></script>
+<script src="assets/js/script.js?v=7cb94c80b3" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=be01f61940"></script>

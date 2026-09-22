@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<!-- 滚动触感（2026-09-14 主人"所有页面都使用首页的滑动触感"）：本页不再写
-     data-scroll="native"，与首页共用 script.js 的滚轮平滑引擎；该属性保留为逃生开关。 -->
+<html lang="zh-CN" data-scroll="native">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：本页写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 那套自研滚轮平滑整体让位。
+     历史：09-07 曾在子页面写它，09-14 主人要"所有页面都使用首页的滑动触感"撤销过一次，
+     09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。 -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,7 +83,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=9929cd257f">
+<link rel="stylesheet" href="../assets/css/style.css?v=8b57ab4066">
 </head>
 <body>
 
@@ -135,7 +137,7 @@
         <li class="nav-hover-indicator" aria-hidden="true"></li>
         <li><a href="projects.html">项目</a></li>
         <li><a href="posts.html">动态</a></li>
-        <li><a href="coming-soon.html">照片</a></li>
+        <li><a href="photos.html">照片</a></li>
         <li><a href="about.html">关于</a></li>
       </ul>
       <div class="nav-actions">
@@ -172,7 +174,7 @@
       <ul class="nav-menu-links">
         <li><a href="projects.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
         <li><a href="posts.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="coming-soon.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="photos.html"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
         <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
       </ul>
     </div>
@@ -223,13 +225,23 @@
           <p class="about-card-name"><span class="about-card-name-me">我是</span>时雨时猫</p>
           <p class="about-card-text">在 HKUST 读大二，专业是<span class="hl">数据科学</span>。MBTI 之前测过，是 INTJ，标准的 I 人。<br>平时喜欢打游戏和游泳，也爱在网上冲浪，研究杂七杂八的东西，自学点有意思的内容。<br>最近在学 <span class="hl">vibe coding</span>，把自己的想法说给 AI 听，让它帮我实现出来。</p>
         </div>
-        <!-- 诗意卡（右半）：第一百零四批（2026-08-21）主题回归 雨/水/编程 ——
-             雨替天空写代码（转瞬即逝）vs 我替自己写代码（把想法变成真的），
-             与左卡 vibe coding 呼应，去掉励志套话 -->
+        <!-- 诗意卡（右半）：第二百八十七批（2026-09-21 主人"设计的可爱一点、真实一点"）整首换掉。
+             旧句（第一百零四批）＝「雨替天空写代码 / 一行落下，一行蒸发 / 我替自己写代码，把想法一行一行变成真的」——
+             毛病是"工整对仗的比喻 + 给自己颁奖"：雨/我 双轨对称，收尾「变成真的」把人往高处抬，
+             像口号不像人写的。新句回到一幕能看见的小场景：下雨、猫占键盘、挪开半只爪子接着写。
+             可爱来自猫真的挡在那儿；真实来自"它耽误我写码"这件具体小事；不再讲道理、不再总结升华。
+             注意：3 行续行必须顶格（<p> 内 white-space: pre-line，缩进会被当成真的空格画出来）。
+             第二百八十八批（2026-09-21 主人"这卡片左方部分空了很多诶"）：**行宽不够，被量出来的**。
+             Playwright 实测 1440 视口：卡内容区 406px，四行短句最长只 176px（「猫趴在我的键盘上」8 字 ×22px）
+             ⇒ 单侧死白 229px = 版心 56%，填充仅 43%。旧句看不出来是因为它第 3 行 19 字会折行、撑满版心；
+             换成四行短句后，空才露出来。修法不是居中（那只是把空摆正），而是**把行写宽**：
+             四行各 11–14 字 → 墨迹 286px，填充 43%→71%（窄屏 44%→72%），左对齐不变，整排与左卡对齐关系不动。
+             实测脚本 ~/.workbuddy/scratch/about-poem-2026-09-21/{probe,candidates}.js（改这块前先重跑它，别靠肉眼猜）。 -->
         <div class="about-card about-card-poem">
-          <p>雨替<span class="poem-hl">天空</span>写<span class="poem-hl">代码</span>
-<span class="poem-hl">一行</span>落下，<span class="poem-hl">一行</span>蒸发
-我替自己写代码，把想法一行一行变成<span class="poem-hl">真的</span></p>
+          <p>窗外的雨从下午一直下到天黑
+猫趴在我的键盘上不肯挪窝
+我只好挪开它<span class="poem-hl">半只爪子</span>
+接着写我没写完的那几行代码</p>
         </div>
 
         <!-- 技能/游戏 Section 标题通用类 about-sub-section（grid 内 span 12 满行靠左） -->
@@ -376,7 +388,7 @@
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=cd295b1f36" defer></script>
+  <script src="../assets/js/script.js?v=7cb94c80b3" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <script src="../assets/js/about-loop.js?v=910a6e3b4b" defer></script>
 </body>

@@ -49,6 +49,8 @@ const PAGES = [
   'pages/about.html',
   'pages/projects.html',
   'pages/posts.html',
+  'pages/photos.html',
+  'pages/album.html',
   'pages/coming-soon.html',
 ];
 
@@ -347,6 +349,32 @@ const MIN_VISIBLE_MIN = 400; /* 露脸下限：不许一闪 */
   if (mReveal && mMin) {
     note('CURTAIN', `幕布在位：#pageLoader ×${PAGES.length} 页（各 3 圆点）· ` +
       `REVEAL_AFTER_MS=${mReveal[1]} · MIN_VISIBLE_MS=${mMin[1]}`);
+  }
+}
+
+/* -------------------------------------------------------------- ⑥ SCROLL */
+/* 滚动触感的站点级开关：`<html data-scroll="native">` = 退回浏览器原生滚动；
+   **没写**才轮到 script.js 开头那套自研滚轮平滑。所以这条属性一旦在几页之间漂移，
+   用户看到的就是"一页一个手感"——而且不报错、上面五条检查全绿也发现不了。
+   历史来回三次：09-07 子页面原生 → 09-14 全站平滑 → 09-21 全站原生（主人
+   "网页滑动手感调回和普通页面的滑动手感一样"）。三趟都栽在"靠人记住七页都写"，
+   所以在这里把它变成机器判据：值必须七页一致，不一致就红。
+   ⚠️ 判的是**去注释后的**源码 —— 各页 <html> 上面那段说明里本身就写着这个属性名，
+   不去注释会把它误当成真的写了。 */
+{
+  const vals = new Map();
+  for (const page of PAGES) {
+    const src = read(page).replace(/<!--[\s\S]*?-->/g, '');
+    const m = src.match(/<html[^>]*\bdata-scroll="([^"]*)"/);
+    const v = m ? m[1] : '(未写 → 该页会走自研平滑引擎)';
+    if (!vals.has(v)) vals.set(v, []);
+    vals.get(v).push(page);
+  }
+  if (vals.size > 1) {
+    const groups = [...vals.entries()].map(([v, ps]) => `${v}:[${ps.join(' / ')}]`).join('  ');
+    fail('SCROLL', `data-scroll 在各页不一致 —— ${groups}`);
+  } else {
+    note('SCROLL', `<html data-scroll="${[...vals.keys()][0]}" ×${PAGES.length} 页 —— 全站同一套滚动`);
   }
 }
 

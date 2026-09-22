@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page-node-id="0qO5eAcnrcKdhoqT78CyD4">
-<!-- 滚动触感（2026-09-14 主人"所有页面都使用首页的滑动触感"）：本页不再写
-     data-scroll="native"，与首页共用 script.js 的滚轮平滑引擎；该属性保留为逃生开关。
-     灯箱开着时靠 window.__wheelLock(true) 钉死页面（引擎存在后这条路才真正生效）。 -->
+<html lang="zh-CN" data-scroll="native" data-page-node-id="0qO5eAcnrcKdhoqT78CyD4">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：本页写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 那套自研滚轮平滑整体让位。
+     历史：09-07 曾在子页面写它，09-14 主人要"所有页面都使用首页的滑动触感"撤销过一次，
+     09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。
+     灯箱开着时靠 body.dy-lb-open 的 overflow:hidden 钉死页面（原生输入它挡得住）；
+     lightbox.js 里那两处 window.__wheelLock 随之变成空调用，有 if 守卫，不必改。 -->
 <head data-page-node-id="p4DWBPmlzUfJjEJHTSniKR">
 <meta charset="UTF-8" data-page-node-id="IFkSz2HYbvBTd68x7B3rH9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="E05y3sH8pVzxQukNpVwOfD">
@@ -78,7 +81,11 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=9929cd257f" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=8b57ab4066" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
+     2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
+     引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
+<link rel="stylesheet" href="../assets/css/lightbox.css?v=b5b8ca4447">
 <!-- 内容数据：必须是**阻塞式** <script src>，不要改回 JS 动态插（v11，2026-09-13）；
      而且要放在 **<head>** 里（2026-09-15 修）——
      跨文档 View Transition 的新页快照在 pagereveal 抓（实测 ≈ 文档创建后 40~90ms），
@@ -87,7 +94,7 @@
      移到 head ⇒ 预加载扫描器让它与 CSS 并行取回，解析器不再停在半空页面上等。
      同 150ms 延迟实测：462/1536（0 条）→ **1536/1536（1 条）**，3/3。
      数据 ~2KB，值得。 -->
-<script src="../assets/data/posts.js?v=cce73e8c8d"></script>
+<script src="../assets/data/posts.js?v=cccf78ae6d"></script>
 <!-- v11（2026-09-13）：灯箱换回自绘单图容器，Swiper 的 CSS/JS 与 vendor 目录一并移除 -->
 
 
@@ -117,7 +124,12 @@
         数值刻意再收一档（clamp 上界 80 → 56），落地墨迹 34 + 56 = **90px**，
         比关于页略紧、比原来 162px 少 72px。判据用**墨迹**量（scratch/posts-blank/ink.js），
         不要拿 CSS 数字跟关于页比。
-     顶部留白不动：它只对首屏标题区负责。 */
+     顶部留白不动：它只对首屏标题区负责。
+     ⚠️ 2026-09-21 起下面这条 padding-bottom **已被全站页尾那一档接管**：
+       style.css 的 `main.about-main > :last-child { padding-bottom: var(--tail) }`
+       （0,2,1）压过本条的 (0,1,0)，所以实际落地值 = --tail（1440 下 56 / 1280 下 51.2 / 390 下 36），
+       不再是这里写的 clamp(40px, 4.5vw, 56px)。留着它是为了"顶部的 10~18px"那一段；
+       改页尾请改 --tail，别改这里。 */
   padding: clamp(10px, 1.6vw, 18px) 0 clamp(40px, 4.5vw, 56px);
 }
 
@@ -289,6 +301,17 @@
   padding: clamp(22px, 2.8vw, 30px) 0 clamp(24px, 3vw, 34px);
 }
 .dy-item + .dy-item { border-top: 1px solid var(--color-rule); }
+/* 最后一条不要自己那 24~34px 的下内边距（2026-09-21 主人「动态页底部的空白位置为什么比其他页面多」）。
+   那一段是**条目之间**的节奏，条目后面没有下一条时它就纯粹变成页尾留白的一部分，
+   于是和页尾那一档叠成两层：实测 1440 下 末行行盒底 9 + 本项 34 + .dy-feed 的 --tail 56 = 99px，
+   而「关于」「相册」的末尾是**有可见面的块**（白卡 / 相框），它们自己的 padding 被背景填掉，
+   所以只剩页尾 56 —— 同一站里两种页尾观感，差 40px 左右。
+   页尾留白只归 .dy-feed 那一档 --tail 管，这里把重复的那层摘掉。
+   ⚠️ 只摘最后一条；条目之间的 24~34px 是版式节奏，别动。
+   ⚠️ 用 :last-child 而不是 :last-of-type —— .dy-list 是**扁平**结构（.dy-day 日期头与
+   .dy-item 是兄弟，见 renderFeed 的 frag），:last-of-type 会去匹配最后一个 <article>，
+   而 <article> 正是 .dy-item 本身，语义上等价但更绕；扁平结构下 :last-child 就是它。 */
+.dy-list > .dy-item:last-child { padding-bottom: 0; }
 
 /* 正文：整宽排铺，字号随宽稍放大 */
 .dy-text {
@@ -319,31 +342,63 @@
 .dy-img {
   position: relative; overflow: hidden; cursor: zoom-in;
   aspect-ratio: 1/1; border-radius: 6px;
+  /* 12 色渐变占位留给"没有照片的格子"（emoji 格 / 以后加的纯色块）；
+     照片格走下面 .is-photo 那套全站统一的空图片底板 */
   background:
     radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
     linear-gradient(140deg, var(--g1), var(--g2));
   display: flex; align-items: center; justify-content: center;
   font-size: clamp(20px, 1.8vw, 28px);
 }
+/* 空图片底板（2026-09-21 主人「所有有图片显示的都要同步，动态的照片还没同步」）：
+   照片格不再用 12 色渐变，改用 style.css 里那三枚 token —— 与相簿封面 / 单册照片墙 /
+   首页立绘卡 / 项目轮播帧完全是同一套（改底板只改 style.css 的 :root）。
+   ⚠️ `background-color` + `background-image` 分开写：简写会把上面那两层渐变一起冲掉，
+   而这里只想换掉渐变、保留 --color-alt 兜底。 */
+.dy-img.is-photo {
+  background-color: var(--color-alt);
+  background-image: var(--plate-grad);
+  box-shadow: var(--plate-edge);
+}
 /* v9.26 悬停微放大（图库通用 hover-zoom 设计，见 grid hover-zoom 惯例）：
    只动内层图片 transform —— GPU 合成、不触发 layout；父格 overflow:hidden
    把放大后的图裁回圆角框，不影响相邻格与整体布局。
-   数值取"专业级微放档" scale 1.05（1.1 = 常规明显档，本页偏静不取）；
-   时长 .5s + 站内 easeOutQuint 缓动 (0.22,1,0.36,1)，收尾柔顺不拖沓。
+   2026-09-21：参数抽到 style.css 的 --zoom-scale / --zoom-in / --zoom-out，
+   与相簿封面、单册照片墙共用同一组值（数档从 1.05 不变，改的是节奏：
+   进 0.6s 铺开、出 0.4s 收回，去掉原来进出同 0.5s 的"平均感"）。
    原 hover 为整格 filter 增亮 → 按主人要求改为图片微放大动画。
    hover:hover 门控：触屏无悬停态，不产生"点一下卡在放大"的残留。 */
 .dy-img > img {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: block; border-radius: inherit;
+  /* 图到位时从底板淡入（--img-fade，与相簿 / 项目帧同一个 0.4s）；
+     transform 那条照旧给 hover 微放大。
+     ⚠️ 基础规则里就带上 opacity —— 触摸设备没有 hover 分支，淡入也得生效。 */
+  transition: var(--img-fade), transform var(--zoom-out, 0.4s ease);
 }
+/* 淡入的两个状态（本页脚本的 fadeInImg() 挂）：
+   .is-pending = 图还没到、压在透明上（底板露出来）→ 去掉它即 0→1 淡入。
+   没有这两个类时默认 opacity 1 —— 脚本没跑起来照片照常显示，不会卡在透明。 */
+.dy-img > img.is-pending { opacity: 0; }
+.dy-img > img.is-loaded { opacity: 1; }
 @media (hover: hover) {
-  .dy-img > img { transition: transform .5s cubic-bezier(0.22, 1, 0.36, 1); }
+  /* 这里原来还有一条 `.dy-img > img { transition: transform var(--zoom-out,.4s) }`
+     —— 2026-09-21 给 img 补淡入时并进基础规则了，同值重复，删掉。 */
   .dy-img:hover > img,
   .dy-img:focus-visible > img,
-  .dy-img:focus-within > img { transform: scale(1.05); }
+  .dy-img:focus-within > img {
+    transform: scale(var(--zoom-scale, 1.05));
+    /* opacity 一起带上：transition 是整条替换，只写 transform 会把淡入踢掉 */
+    transition: var(--img-fade), transform var(--zoom-in, 0.6s ease);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dy-img > img { transition: none; }
+  /* ⚠️ 得连 :hover 那条一起写 —— `.dy-img > img` 是 (0,1,1)，
+     压不过 `.dy-img:hover > img` (0,2,1)，只写前者等于没写。 */
+  .dy-img > img,
+  .dy-img:hover > img,
+  .dy-img:focus-visible > img,
+  .dy-img:focus-within > img { transition: none; }
 }
 /* 「+N 更多」叠加层：覆盖在第 9 张格子上。
    v9.10e（再放大）：数字 24→28px、标注 11→13px 仍主次分明 ——
@@ -431,243 +486,9 @@
   text-align: center;
 }
 
-/* ---- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
-   DOM：.dy-lb > .dy-lb-stage（唯一媒体子节点）+ 左右箭头 + 底部圆点
-   v11.1 起外壳只剩「左右箭头 + 底部圆点」—— 左上时刻计数与右上关闭钮已按主人
-   要求移除（关闭 = 点空白 / ESC）。
-   v11.2（2026-09-13，主人"原比例显示图片即可，同等比例的图片大小要一致，我要显示
-   完整图片内容"）：v11.1 的统一 4:3 框（cover 裁切）**撤销** —— 照片一律按原比例
-   完整显示；尺寸只给上界，所以【同一视口下，长宽比相同的照片渲染盒必然相同】
-   （见下 .dy-lb-stage > img 的注释）。
-   2026-09-13：v10 的 Swiper freeMode 是「连续跟手」，同一时刻必然显示邻图；yibi 的
-   切换是「单图容器 + 出-进两段淡滑」，两者结构上互斥。主人看过参考站后选了后者，
-   于是 Swiper（连同捏合 / 双击缩放 / 放大后平移）整体移除。
-   参考站实测（真机 + 逐帧采样 + getAnimations()，2026-09-13 / 09-15）：
-   出 150ms cubic-bezier(.4,0,1,1)、位移 ∓32px、opacity 1→0；进 150ms cubic-bezier(0,0,.2,1)、
-   反向 32px → 0、opacity 0→1；两段之间约 40~50ms 空档，【顺序】执行没有交叉淡化 ——
-   同一时刻舞台上只有一张图。v12（2026-09-15）主人指定换回这一套并加了拖动轻微跟手
-   （位移 = 手指位移 × 0.29，封顶 32px；邻图不参与）。 */
-body.dy-lb-open { overflow: hidden; }
-.dy-lb {
-  /* v12.5（2026-09-16，主人「预览图片置于荧幕中间比较好，优化一下预览界面的 UI 排版和
-     功能/图片大小」）—— 上一版把画面**抬高了**：
-
-       v12.4 的舞台是 top: --lb-pad-top(26) / bottom: --lb-band(87)，两个数不等
-       ⇒ 舞台中心比视口中心高 (87 − 26) / 2 = **30.5px**。实测 3 种比例 × 4 档视口，
-       画面中心 dy 恒在 **−28 ~ −31px**（dx = 0）—— 就是主人说的"没在荧幕中间"。
-       根因不是"没居中"，而是**上下留白取了两个不同的数**，舞台自己一直是居中的。
-
-     ⇒ 这版只认**一个**留白 `--lb-edge-y`，上下同值 ⇒ 画面中心 = 荧幕中心
-       （数学上恒等，不是调出来的数）。它也不再是手感值，而是**由底部 chrome 反算**：
-         --lb-edge-y = --lb-band = 圆点条离下沿 + 条高 + 图下缘净空
-       —— 于是"图下缘 ↔ 圆点"那条净空变成**构造保证**：图高上界 = 100vh − 2·band
-       ⇒ 下缘最多到 100vh − band，正好在圆点条上方留出 --lb-gap。
-       ⚠️ 别再单独调 --lb-pad-top：那正是上一版的病根（上下不等 ⇒ 图必然偏心）。
-
-       尺寸随之重算：宽上界 = 100vw − 2·--lb-edge-x，高上界 = 100vh − 2·--lb-edge-y，
-       `--lb-fit` 仍是唯一的大小旋钮。fit 取 .94 是为了让画面**与 v12.4 等大**
-       （1440×900 下 4:3 940×705，v12.4 是 936×702）—— 主人上一版刚说过"稍微小一点就好"，
-       这版不该反手放大。
-
-       顺带收掉一处"同一份算术写两遍"：箭头中线回到 `top: 50%`（舞台上下对称 ⇒ 舞台
-       中线就是荧幕中线），不再重抄一遍 stage 的 calc。 */
-  --lb-edge-x: 78px;      /* 左右让开箭头 */
-  --lb-fit: .94;          /* 画面占可用区的比例 —— 整体大小只调这一个数 */
-  --lb-max-w: 1040px;     /* 大屏时的横向绝对上界 */
-  --lb-bar-b: 18px;       /* 圆点条离视口下沿的距离 */
-  --lb-bar-pad: 10px;     /* 圆点条自身内边距 */
-  --lb-dot: 7px;          /* 常态圆点直径（当前张 = 3 倍宽）。定义在这里，见 --lb-band */
-  --lb-gap: 30px;         /* 图下缘与圆点条之间**保证**的净空 */
-  /* 底部那条带 = 下沿 + 条高 + 净空。只在这里算一次：上下留白与高上界都用它。
-     ⚠️ `--lb-band` 的定义里不能出现 `--lb-edge-y`（会自指），只能反着来。 */
-  --lb-band: calc(var(--lb-bar-b) + var(--lb-bar-pad) * 2 + var(--lb-dot) + var(--lb-gap));
-  /* 上下同值 ⇒ 画面中心 = 荧幕中心。它由 chrome 反算，不是手感值。 */
-  --lb-edge-y: var(--lb-band);
-  --lb-w: calc(min(100vw - var(--lb-edge-x) * 2, var(--lb-max-w)) * var(--lb-fit));
-  --lb-h: calc((100vh - var(--lb-edge-y) * 2) * var(--lb-fit));
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(10,13,18,.86);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  opacity: 0; pointer-events: none;
-  transition: opacity .22s ease;
-  /* 灯箱内不产生原生滚动 / 原生缩放；滚轮也不再传给背后的页面 */
-  touch-action: none;
-  overflow: hidden;
-}
-.dy-lb.is-open { opacity: 1; pointer-events: auto; }
-
-/* 舞台：纯居中盒。分寸交给下面的 max-width/max-height ——
-   ⚠️ 不要改成嵌套百分比（父层 auto 高度时 max-height:100% 会被当 none 丢掉）。
-   也不要靠给子节点写 92vw：窄屏会压到两侧箭头上。
-   v11.4（2026-09-13，主人"增加滑动图片的功能，一次滑动只能滑动一张图片"）：
-   舞台里改成三个【角色槽位】prev / cur / next，各自绝对定位铺满、媒体在槽位里居中。
-   ⚠️ v12（2026-09-15）之后：手势期间**只有当前槽位动**（位移 = 手指位移 × 0.29、
-   封顶 32px），两个邻居槽位全程压在 opacity:0。所以「舞台上任何时刻只有一张图」
-   从 v11 的"静止态不变式"升级成了硬不变式 —— 邻图槽位留着只为量步距和 debug，
-   别再把它们拉进画面（参考站的 mode="out-in" 结构上就不允许两张图同时在场）。 */
-.dy-lb-stage {
-  /* v12.5：上下同值（`--lb-edge-y`）⇒ 画面的几何中心落在荧幕中心。
-     水平本来就是 left:0 / right:0 + flex 居中，宽度上界由 `--lb-w` 收。
-     ⚠️ 不要顺手改成四个方向都 inset `--lb-edge-x`：舞台同时是"点空白关闭"的命中面，
-        左右各收 78px 会多出两条"点了就关"的死区，v12check 的手势用例也会跟着漂。 */
-  position: absolute;
-  left: 0; right: 0; top: var(--lb-edge-y); bottom: var(--lb-edge-y);
-  display: flex; align-items: center; justify-content: center;
-  cursor: grab;
-}
-.dy-lb.is-dragging .dy-lb-stage { cursor: grabbing; }
-.dy-lb-slot {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  pointer-events: none;            /* 命中测试只认媒体本身，空白处落在舞台上 */
-  will-change: transform, opacity;
-}
-/* 媒体：实图【无框】（v9.10 起的不变式）；无 src 的 emoji 兜底才上 tile。
-   尺寸只给上界，比例由浏览器自己保持。
-   ⚠️ 命中测试的那条线，两个坑都在这：
-     ① **只有当前张**（#dyLbSlotCur）可以收 pointer-events。邻居在静止态是
-        opacity:0 但**仍在原位**（左邻偏移 ≈ -1023px，955 宽的图能盖住屏幕左边到 x≈94），
-        给它们 auto 就等于屏幕左右各有一块"看不见但吃点击"的区域 —— 点空白关不掉灯箱。
-     ② **绝不能无条件写 auto**：`.dy-lb` 关闭时是 pointer-events:none，而子元素显式写
-        auto 会【穿透】祖先的 none，于是关掉的灯箱里那几个不可见的 img 会继续吃掉
-        整页的点击（Playwright 会报 "subtree intercepts pointer events"）。
-   ⇒ 两条一起收：`.dy-lb.is-open` 限定 + 只认当前槽位。 */
-.dy-lb-stage img,
-.dy-lb-stage .dy-lb-emoji {
-  max-width: var(--lb-w);
-  max-height: var(--lb-h);
-  width: auto; height: auto;
-  object-fit: contain;
-  user-select: none; -webkit-user-select: none;
-  -webkit-user-drag: none;
-  backface-visibility: hidden;
-}
-.dy-lb.is-open #dyLbSlotCur img,
-.dy-lb.is-open #dyLbSlotCur .dy-lb-emoji { pointer-events: auto; }
-.dy-lb-stage img { display: block; }
-
-/* 尺寸不变式（v11.2，2026-09-13 主人："原比例显示图片即可，同等比例的图片大小
-   要一致，我要显示完整图片内容"）—— 三条要求，只有一种写法能同时满足：
-     · 原比例 + 完整内容 ⇒ 盒子的长宽比必须等于原图长宽比，且不裁 → object-fit:
-       contain / cover 都不需要，因为【盒子就等于图】：width/height 保持 auto。
-     · 同等比例 ⇒ 同样大小 ⇒ 尺寸只能是"原图长宽比"的函数，不能掺进像素尺寸。
-       width:auto + height:auto + max-width/max-height 正好是这个函数：
-       长宽比 r 的图恒定渲染成 min 后能放进可用区的最大尺寸，与它自己的像素数无关。
-     ⚠️ 不要改成 `width: min(可用宽, 1040px); height: auto; max-height: …`
-        —— 有确定 width 时 max-height 只压高度、宽度不回缩，竖图会被拉扁（CSS2.1 §10.4
-        仅在宽度为 auto 时才按比例回算）。必须两边都 auto，让浏览器走 replaced
-        element 的等比约束路径。
-   v11.1 的「统一 4:3 框 + cover 裁切」已按主人要求撤销：等比完整与"每张一样大"
-   数学上不可能同时成立（同一条动态里 1500×1125 / 1125×1500 / 1500×692 三种比例，
-   塞进同一个框必然裁掉内容）。现在的规则是"同比例才同尺寸"。
-   v12.4（2026-09-16 主人"预览图片是不是太大了，稍微小一点就好"）：上界改成
-   `--lb-w` / `--lb-h` 两个变量（都乘 `--lb-fit`），尺寸规则本身一个字没动 ——
-   fit 只改**可用区**的大小，所以"同比例 ⇒ 同尺寸"照旧成立。
-   v12.5：同样一个字没动，只把可用区改成上下对称（见 `.dy-lb` 的注释）。
-   DOM 探针实测（`scratch/moment-2026-09-16/lbgeom2.js`，chromium，四档视口）：
-
-     视口      4:3 1500×1125   16:9 1500×844    竖图 1125×1500   宽幅 1500×692
-     1440×900     940×705         978×550          529×705          978×451
-     1280×800     815×611         978×550          458×611          978×451
-     1920×1080    978×733         978×550          656×874          978×451
-     390×844      286×215         286×161          286×381          286×132
-
-   vs v12.4：1440 下 4:3 936×702 / 竖图 531×708、1280 下 824×618 / 464×618
-   ⇒ 桌面档差在 **±1%** 内；1920 与"宽幅"两档因为横向是 1040×fit 收的，
-   从 936 变成 978（+4.5%）—— 想再小就把 `--lb-fit` 往下拧一格，那是唯一的大小旋钮。
-   四档 × 四种比例下 **dx = dy = 0**（画面中心 = 荧幕中心），箭头中心 y = 荧幕中心。 */
-
-   对照 v12.3 旧值（1440×900）：4:3 1040×780、竖图 612×816 ⇒ 现在都是 **86~90%**。 */
-
-/* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
-.dy-lb-emoji {
-  display: flex; align-items: center; justify-content: center;
-  font-size: clamp(60px, 10vw, 120px);
-  line-height: 1;
-  padding: 40px;
-  border-radius: 10px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
-    linear-gradient(140deg, var(--g1), var(--g2));
-  box-shadow: 0 40px 90px rgba(0,0,0,.5);
-}
-
-/* 圆钮：左右箭头共用（2026-09-13 移除关闭钮后，这是页内唯一的圆钮） */
-.dy-lb-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 42px; height: 42px; padding: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.07);
-  color: rgba(255,255,255,.95);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  cursor: pointer;
-  pointer-events: auto;
-  -webkit-tap-highlight-color: transparent;
-  transition: background .18s ease, opacity .22s ease;
-}
-.dy-lb-btn:hover { background: rgba(255,255,255,.18); }
-.dy-lb-btn:active { transform: scale(.94); }
-.dy-lb-btn svg { width: 20px; height: 20px; display: block; }
-
-/* 左右箭头：钉在画面中线。v12.5 起舞台上下对称 ⇒ 舞台中线 = 荧幕中线 = 画面中心，
-   所以回到 `top: 50%`；v12.4 那句"重抄一遍 stage 的 calc"已无必要，删掉免得两处漂移
-   （上一版的注释就写着"与 .dy-lb-stage 用的是同两个变量"，而那两个变量已经不等了）。 */
-.dy-lb-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 5;
-  opacity: 0;
-  transition: background .18s ease, opacity .22s ease, transform .18s ease;
-}
-.dy-lb.is-open .dy-lb-arrow { opacity: 1; }
-.dy-lb-arrow:active { transform: translateY(-50%) scale(.92); }
-/* v9.42 的权重坑：禁用态必须让 pointer-events:none 真正赢 —— 旧规则 (0,2,0) 低于
-   `.dy-lb.is-open .dy-lb-arrow` (0,3,0)，灯箱打开时禁用箭头照样吃点击。 */
-.dy-lb.is-open .dy-lb-arrow[disabled],
-.dy-lb-arrow[disabled] { opacity: .16; pointer-events: none; }
-.dy-lb-prev { left: 18px; }
-.dy-lb-next { right: 18px; }
-
-/* 圆点：只在同一条动态有多张图时出现；点哪张走哪张（动画方向按前后判）。
-   当前张 = 长条（v11.3，照 yibi2333.fun/photowall）—— 参考站实测：
-   常态 8×8 圆点、当前张 24×8 胶囊（宽 = 3 倍高）、gap 8px、
-   transition all .3s cubic-bezier(.4,0,.2,1)、常态 rgba(255,255,255,.3) /
-   hover .5 / 当前 #fff。本站沿用 7px 基准（配自家的箭头/净空），当前张仍是 3 倍 = 21px。
-   ⚠️ 圆角写 999px（不写 50%）：50% 会把长条变成椭圆，胶囊必须靠半径夹取。 */
-.dy-lb-dots {
-  /* v12.5：不再需要"给它让出一条带"——画面上下留白同值，圆点条就直接悬浮在
-     画面下方那份留白里（它下面还剩一个 --lb-edge-y 减去自身高度的空档）。
-     离下沿的距离仍是 `--lb-bar-b`：v12.4 之前 bottom:0 + padding:14px 让圆点中心
-     离下沿只有 17.5px，900 高的视口里像被切掉半截。
-     ⚠️ `--lb-dot` 定义在 `.dy-lb` 上（`--lb-band` 要用它），这里不要再写一份。 */
-  position: absolute; bottom: var(--lb-bar-b); left: 0; right: 0; z-index: 4;
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 8px;
-  padding: var(--lb-bar-pad) 18px;
-}
-.dy-lb-dot {
-  width: var(--lb-dot); height: var(--lb-dot); padding: 0;
-  border-radius: 999px; border: 0;
-  background: rgba(255,255,255,.3);
-  cursor: pointer;
-  transition: width .3s cubic-bezier(.4,0,.2,1), background-color .3s cubic-bezier(.4,0,.2,1);
-}
-.dy-lb-dot:hover { background: rgba(255,255,255,.5); }
-.dy-lb-dot.is-on { width: calc(var(--lb-dot) * 3); background: rgba(255,255,255,.95); }
-
-@media (max-width: 600px) {
-  /* 窄屏只收紧净空 —— 尺寸规则不变（v11.2 起不再有"窄屏换成正方形框"这回事，
-     照片永远按原比例完整显示，改变的是可用区大小，不是框的形状）。
-     ⚠️ 窄屏把 `--lb-fit` 放回 1：这里横向可用宽本来就只有 100vw − 104（390 的屏 ≈ 286px），
-        再乘 0.9 等于在手机上白亏 10% —— 那个比例是给桌面大留白准备的，不是给手机的。 */
-  .dy-lb { --lb-edge-x: 52px; --lb-fit: 1; --lb-bar-b: 14px; --lb-bar-pad: 8px; --lb-gap: 24px; }
-  .dy-lb-btn { width: 38px; height: 38px; }
-  .dy-lb-btn svg { width: 18px; height: 18px; }
-  .dy-lb-prev { left: 10px; }
-  .dy-lb-next { right: 10px; }
-}
+/* ==== 灯箱 CSS 已抽到 assets/css/lightbox.css（2026-09-21，与相册页同一份）====
+   本页原来那 317 行 `.dy-lb*` 一字未改地搬了过去，注释也一起带走了 ——
+   要查"为什么 32px / 为什么 band 要反算"就去那个文件读。 */
 
 /* ---- 入场 / 出场：滚动驱动（2026-09-16 主人「加入滑动时内容进入/出去的动画，参考「关于」页」）----
    改前：一次性入场（IntersectionObserver 加 .is-visible 后 unobserve）——
@@ -835,7 +656,7 @@ body.dy-lb-open { overflow: hidden; }
         <li class="nav-hover-indicator" aria-hidden="true" data-page-node-id="B10EnhNqQqGjM3QZdFDWvo"></li>
         <li data-page-node-id="cDiUIdhp2pXMpYmEwy3kmx"><a href="projects.html" data-page-node-id="B240CnpG2YmpFmvuyit9OK">项目</a></li>
         <li data-page-node-id="sjKlzas7W2YSYg0NvEYZ3c"><a href="posts.html" aria-current="page" data-page-node-id="2oR9BFM7UYAN5yA6Ucmdzc">动态</a></li>
-        <li data-page-node-id="kvEYqHVjdD9DR8H8Mt5DIf"><a href="coming-soon.html" data-page-node-id="85Z1rlc91yTRNMhstmMyYf">照片</a></li>
+        <li data-page-node-id="kvEYqHVjdD9DR8H8Mt5DIf"><a href="photos.html" data-page-node-id="85Z1rlc91yTRNMhstmMyYf">照片</a></li>
         <li data-page-node-id="K6mhdXsFMGbCFdlRlFpeNU"><a href="about.html" data-page-node-id="1a9Of3SuuoqeHSMnpFstSS">关于</a></li>
       </ul>
       <div class="nav-actions" data-page-node-id="nFy6LcufMwfOB9Zenb8ggv">
@@ -870,7 +691,7 @@ body.dy-lb-open { overflow: hidden; }
       <ul class="nav-menu-links" data-page-node-id="WeQNgCZ4WNJExDc2goCGDF">
         <li data-page-node-id="CIIwP6mr7xvr1efd98cAMD"><a href="projects.html" data-page-node-id="m0KV5iZ3lSqAlrcKj7UlVI"><span class="label" data-page-node-id="GEHVDpkHLJ3LrovPvaahka">项目</span><span class="arrow" data-page-node-id="YVt7YnjIiRINW1nFUqEJnL">&rarr;</span></a></li>
         <li data-page-node-id="L5mUiVYrMyRuvavQncGgf0"><a href="posts.html" aria-current="page" data-page-node-id="BvrPuGWRIk0CBuFQqwVZUn"><span class="label" data-page-node-id="MRvLu3VSyBApVYruTk51Zs">动态</span><span class="arrow" data-page-node-id="ohgVRHOwcZxzvbliHpa9zv">&rarr;</span></a></li>
-        <li data-page-node-id="8fQEdlIYObinqXLlcD0bvP"><a href="coming-soon.html" data-page-node-id="DmwgzPhH1eg3YysmQJjOjD"><span class="label" data-page-node-id="iY1IBn7K75Y1rAW3lSr6Rt">相册</span><span class="arrow" data-page-node-id="wPUMFTimDa3D3UjbO2dVcV">&rarr;</span></a></li>
+        <li data-page-node-id="8fQEdlIYObinqXLlcD0bvP"><a href="photos.html" data-page-node-id="DmwgzPhH1eg3YysmQJjOjD"><span class="label" data-page-node-id="iY1IBn7K75Y1rAW3lSr6Rt">相册</span><span class="arrow" data-page-node-id="wPUMFTimDa3D3UjbO2dVcV">&rarr;</span></a></li>
         <li data-page-node-id="mCCv9XIpiEODCiLWE4hPFZ"><a href="about.html" data-page-node-id="N6u2weUfEb5gl3LIKf9FQK"><span class="label" data-page-node-id="y2KQdftFw7MOvfx9RzzxSS">关于</span><span class="arrow" data-page-node-id="HDG5PR1qm9qxcEjL5yOwwi">&rarr;</span></a></li>
       </ul>
     </div>
@@ -940,6 +761,12 @@ body.dy-lb-open { overflow: hidden; }
     <button class="dy-lb-btn dy-lb-arrow dy-lb-next" id="dyLbNext" type="button" aria-label="下一张" data-page-node-id="KqM3rW8bT5sZ1dA7fG9hJ2k">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
+    <!-- 横屏观看：v13.1（2026-09-21 主人「不要右上角一颗圆钮」）起屏幕上不出现 ——
+         这颗是 sr-only，只当 aria 出口；触发 = 点照片（触屏）。别改回可见样式。 -->
+    <button class="dy-lb-btn dy-lb-rotate" id="dyLbRotate" type="button" aria-label="横屏观看" aria-pressed="false" data-page-node-id="Rt5Kp9Wm2Nd7Qb4Vz1Ls6X">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 4v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="dy-lb-cap" id="dyLbCap" hidden></div>
     <div class="dy-lb-dots" id="dyLbDots"></div>
   </div>
 
@@ -959,7 +786,10 @@ body.dy-lb-open { overflow: hidden; }
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=be01f61940"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=cd295b1f36" defer></script>
+  <script src="../assets/js/script.js?v=7cb94c80b3" defer></script>
+  <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
+       所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
+  <script src="../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）
@@ -1083,7 +913,21 @@ body.dy-lb-open { overflow: hidden; }
    同时把外壳同步提前：原来是出相 150ms 走完（lbShow）才换高亮，现在一开段
    （lbSwitchTo）就按【目标索引】切 —— 对齐参考站"点下即动"的手感（它点击后 ~20ms 起、
    300ms 走完）。
-   圆角必须写 999px 而非 50%，否则长条变椭圆。 -->
+   圆角必须写 999px 而非 50%，否则长条变椭圆。
+   v13（2026-09-21，主人「手机版预览图片时移除左右滑动的按钮，电脑版则保留；手机版预览
+   图片时新增可以横屏观看；优化一下手机版和电脑版预览图片的图片大小」）：
+   ① 手机（触屏 ∪ ≤860px，与相簿灯箱同断点）移除左右箭头，桌面保留；
+      左右让位 52px → 12px。
+   ② 手机可横屏观看：先 requestFullscreen 再
+      screen.orientation.lock('landscape')；两条都不可用（iOS Safari 全中）时退成
+      CSS 沉浸态 .is-immersive；横屏时另有"chrome 最小"那一档自动生效。
+      ②'（v13.1，2026-09-21 主人「不要右上角一颗圆钮」）：触发从右上角那颗圆钮换成
+      **点一下照片**（只给触屏；桌面点照片仍然什么都不发生）。#dyLbRotate 收成 sr-only，
+      只为 aria 出口留着 —— 屏幕上不再出现。实现在 assets/css/lightbox.css 与本页引的
+      assets/js/lightbox.js（两个页面共用那一份）。
+   ③ 桌面档 +9% 面积（fit .94→.96 / 上界 1040→1120 / band 75→67），
+      手机竖屏 +60% 面积（去掉箭头的直接结果）。逐档量测见上面「灯箱 v11」注释块里的
+      v13 那段。 -->
 
   <!-- 内容数据已上移到 <head>（2026-09-15）：挂在这行会让解析器停在"只有页头"的
        半个页面上等一次网络往返，跨文档过渡抓到的快照就是半空的（详见 head 里的注释）。 -->
@@ -1125,6 +969,26 @@ body.dy-lb-open { overflow: hidden; }
       return n;
     }
 
+    /* 图到位那一下的交接（2026-09-21 主人「所有有图片显示的都要同步」）：
+       底板（.dy-img.is-photo 的 --plate-*）→ 照片是 0.4s 淡入，不是硬切。
+       与 photos.js 的 fadeIn() 是同一套逻辑（那边服务相簿两页，本页自包含）。
+       三路兜底，缺一路就会偶发"永远一块空底板"：
+         · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
+         · load  → 点亮
+         · error → 也点亮（宁可看见裂图的 alt，也别留一块永远的空底板）
+       ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
+       全站照片就都不出现；现在脚本挂了顶多是硬切。 */
+    function fadeInImg(img) {
+      img.classList.add('is-pending');
+      var done = function () {
+        img.classList.remove('is-pending');
+        img.classList.add('is-loaded');
+      };
+      if (img.complete) { done(); return; }
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+    }
+
     /* ---------- 数据源：assets/data/posts.js（换 GitHub Issues 只改这里） ----------
        v9.44：改用 <script src> 取数，不再 fetch。原因：浏览器禁止 file:// 下
        的 fetch（URL scheme "file" is not supported），双击打开页面会整页空掉；
@@ -1147,7 +1011,7 @@ body.dy-lb-open { overflow: hidden; }
     /* 兜底：全局没有数据时才动态加载（以后换成 fetch 版后端 / 数据标签被删掉的情况） */
     function loadPosts() {
       return new Promise(function (resolve, reject) {
-        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=cce73e8c8d');
+        var url = DY_DATA + (location.protocol === 'file:' ? '' : '?v=cccf78ae6d');
         var s = document.createElement('script');
         s.src = url;
         s.onload = function () {
@@ -1173,7 +1037,9 @@ body.dy-lb-open { overflow: hidden; }
         var i;
         for (i = 0; i < visible; i++) {
           var ph = photos[i];
-          var tile = el('div', 'dy-img ' + (ph.tone || 'dy-g1'));
+          /* 有照片的格子挂 .is-photo ⇒ 走全站统一的空图片底板（见本页 <style>）；
+             没有照片的（emoji 格）保留 12 色渐变 —— 那不是"图没到"，是设计好的色块。 */
+          var tile = el('div', 'dy-img' + (ph.src ? ' is-photo' : '') + ' ' + (ph.tone || 'dy-g1'));
           tile.dataset.idx = String(i);
           if (ph.src) {
             var img = document.createElement('img');
@@ -1181,6 +1047,7 @@ body.dy-lb-open { overflow: hidden; }
             img.alt = ph.alt || '';
             img.loading = i === 0 ? 'eager' : 'lazy';
             img.decoding = 'async';
+            fadeInImg(img);
             tile.appendChild(img);
           } else if (ph.emoji) {
             tile.appendChild(document.createTextNode(ph.emoji));
@@ -1518,1094 +1385,33 @@ body.dy-lb-open { overflow: hidden; }
       });
     }
 
-    /* ======================================================================
-       ---------- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
-       ⚠️ 下面这套 32px 出-进淡滑的**来龙去脉**（v11 照搬 → v11.7 下线 → v12 又启用）：
-          v11 起就是它；v11.7（09-14）主人嫌"拖动与点击两套动画不一致"，统一成了
-          "整条胶片平移一步"；v12（09-15）主人指着参考站说"滑动切换图片的那个动画
-          参考这个网页" ⇒ 又换回这一套（加了拖动轻微跟手）。**当前线上跑的就是它。**
-       参考站实测（逐帧采样 + getAnimations()，2026-09-13 / 09-15 两次）：
-         出：opacity 1→0，translateX 0 → ∓32px，150ms，ease-in  cubic-bezier(.4,0,1,1)
-         进：opacity 0→1，translateX ±32px → 0，150ms，ease-out cubic-bezier(0,0,.2,1)
-       两段【顺序】执行（Vue <Transition mode="out-in">）：同一时刻舞台上只有一张图。
-       方向按导航方向镜像：下一张 → 旧图向左出、新图从右进；上一张 → 反过来。
+    /* ---------- 灯箱：共享引擎（assets/js/lightbox.js）----------
+       引擎（换图 / 出-进淡滑 / 拖动跟手 / 圆点 / 触控板手势 / 环形 / 手机横屏）
+       全在共享文件里，本页只留一句话：**点哪一格就开哪一格显示的那张**。
 
-       ⚠️ 参考站的 class 写着 duration-250 / duration-400，但那两个值不在 Tailwind 的
-          默认刻度里（任意值要写 duration-[400ms]），实测 computed transition-duration
-          恒为 0.15s —— 两段其实都是 150ms。这里用实测值。
+       v11.6（2026-09-14，主人「点击+3显示图片错误，显示的不是对应图片」）：
+       这里原来对「+N 更多」格做 `idx += 1`（跳到"第一张没在网格里露出的照片"，
+       照朋友圈习惯），于是格子里明明显示的是第 9 张（09-bookshelf-cat），点开却是
+       第 10 张（10-game-event）—— 看得见的那张跟点开的那张对不上。
+       规则改成一句话：**点哪一格就打开那一格【里显示的那张】**，
+       没露出来的往右滑即可看到（圆点数本来就是全部张数）。
 
-       为什么又回到自绘（v11 删掉 Swiper 11 与 assets/vendor/swiper/）
-         v10 的 freeMode 是「连续跟手」：拖动时导轨直接位移，邻图必然同时可见。
-         参考站的切换是「单图容器 + 出-进淡滑」，舞台上永远只有一张图。同一个手势
-         旋钮不可能同时是这两种东西 —— 主人看过参考站后选了后者（"完全照搬"）。
-         代价：触控板/触摸的侧滑翻页与捏合缩放一并去掉，导航回到按钮 / ←→ 键 / 圆点。
-
-       v11.4（2026-09-13，主人"增加滑动图片的功能，一次滑动，只能滑动一张图片"）：
-         滑动回来了，但和 v10 的 freeMode 不是一回事 —— **一次手势只走一张**。
-         网上与 GitHub 的实现语义完全一致（Embla `skipSnaps:false`、Swiper
-         `freeMode:false, shortSwipes:false, longSwipes:false`、ItemSlide `oneItem`、
-         Simple Swipe Card `swipe_behavior:single`）：目标索引在手势【开始】时锁成 ±1，
-         松手只决定方向、不决定距离。本站把这条规则收在 lbSlideTo 一处。
-         结构上：舞台里是三个角色槽位（prev/cur/next），手势期间整条平移，静止时邻居
-         opacity:0 ⇒ 「舞台上只有一张图」仍未破坏。拖动/触控板走轨道，按钮/←→/圆点
-         继续走出-进淡滑（两套共用一个阶段机，见 lbPhase）。
-         触控板那条路最难：惯性尾巴会连来几十个事件，所以手势一旦定向就 lock 死，
-         后面的事件只刷新时间戳、一律丢弃（v10.2 / v273 都栽在这条上）。
-       v11.5（2026-09-14，主人"怎么还有滑动反弹动画，我不喜欢反弹动画"）：
-         **把两处"动一下再回来"都去掉** ——
-         ① 端到端不再有 0.28 阻尼橡皮筋（拖到头就是硬停，图完全不动），
-            邻图方向也不再给 36px 余量（超拖会让落位往回走，那也是一次可见回弹）；
-         ② 松手没过阈值不再是 130~280ms 滑回原位，而是**瞬间归位、无过渡**。
-         代价（已与主人确认）：短拖松手会看到一次 ≤110px 的小跳跃。
-       v11.6（2026-09-14，主人两条上报：「点击+3显示图片错误，显示的不是对应图片」
-       /「在首图和尾图继续滑动会进行循环滑动，首图滑向尾图，尾图滑向首图」）：
-         ① 「+N 更多」格不再 `idx += 1` —— 点哪一格就打开那一格里显示的那张（見 openLb）；
-         ② **边界只认索引**。原来是否还能翻页看的是手势开始时抓的快照
-            （dim.hasP/hasN，源自"槽位里有没有节点"），快照与索引不一致时
-            （拖动中换了图、触控板惯性尾巴跨了两次提交）就可能算出一个越界的 target：
-            舞台先滑到底、再落进一个空槽位，看上去正是"首图滑到了尾图"。
-            现在三层同收：lbSlideTo 按索引硬夹紧 ⇒ 越界一律一动不动；
-            lbDims 的 hasP/hasN 也改成按索引推；lbShow/lbMount 再夹一次索引（永不越界）。
-            另：端到端被挡下时清掉滚轮累计值（否则反方向要先把位移还完才动），
-            并在灯箱打开期间给 <html> 关掉 overscroll-behavior-x（横滑到底不该被
-            浏览器的"前进/后退"手势接走）。
-       v11.7（2026-09-14，主人「动态页，预览图片拖动滑动动画和点击滑动的动画不一致」
-       → 定「统一到点击滑动的那一套：整条胶片平移一步」）：
-         · **只剩一套切换动画**：轨道滑动（lbSlideTo）。箭头 / ←→ / 圆点 / 拖动 /
-           触控板全都走它，同一段时长模型、同一条曲线。lbGoTo（32px 出-进淡滑）与
-           LB_SHIFT / LB_OUT_MS / LB_IN_MS / LB_OUT_EASE / LB_IN_EASE 全部删除，
-           lbPhase 也回到只有 idle | settle 两个状态。
-           于是"这个动画"只有一处实现、一处时长、一处曲线 —— 以后调手感只调那一处。
-         · 有意偏离参考站：它的 mode="out-in" 在结构上要求"舞台同一时刻只有一张图"，
-           而"手指跟着走"必然露出邻图，两者数学上互斥。主人的优先级是先要跟手
-           （v11.4），再要两条路一致（v11.7）⇒ 统一到轨道这一套，32px 淡滑下线。
-         · 顺带的动画优化（见 LB_* 常量与 lbSlideTo 里的注释）：
-           ① 位移曲线改 cubic-bezier(.32,.72,0,1)：起手接住手势的动量、尾巴长，
-              落位没有过冲（"不反弹"仍在）；
-           ② 位移与 opacity 解耦 —— 到位的那张 120ms 内就实心（不要半透明地滑进来），
-              滑出去的那张全程实心、只在最后 30% 收干净（不要还占着屏内一大块就淡掉），
-              另一侧的邻居立刻归 0；
-           ③ 拖动中只有"正在被拉进画面"的那个邻居渐显，另一侧不再跟着亮
-              （原来两侧同时淡入，屏边会出现一条对不上的残影）。
-         · 点击圆点跨多张：目标先摆进屏外邻居槽（静止时邻居透明，看不见换内容），
-           量好尺寸再滑一步 ⇒ "跳 5 张"和"翻 1 张"是同一段动画（不是一个快切）。
-       v11.8（2026-09-14，主人「我想要的就是首图继续往前滑可以继续滑动，从尾部开始滑动；
-       尾图继续往后可以继续滑动，从开首开始滑动。你怎么没做实现这功能」）：
-         · **端到端从"硬夹紧"改成"环形"**。v11.6 我把"首图滑向尾图"当成 bug 掐掉了
-           （主人当时的话是两次上报），其实那正是他要的功能 —— 他要的不是"到端点停住"，
-           是**转过去**。所以：首图继续往前 = 末张从左边滑进来；末张继续往后 = 首张从
-           右边滑进来。六条通路（拖动 / 甩 / 触控板 / 键盘 / 箭头按钮 / 触摸）一视同仁。
-         · 折回只有一个实现点：lbWrapIdx(i) = ((i % n) + n) % n。
-           ⚠️ 别在第二个地方再写一遍取模 —— v9.11~v9.26 就是散着写 (i + dir + n) % n，
-             出现了"只有走到边界才暴露"的错位（那才是真 bug，v9.43 全删）。
-             环形的正确性依赖"索引是唯一真相 + 邻居槽里永远摆着环形邻居"这两件事同时成立。
-         · lbDims 的 hasP/hasN = (n > 1)：n ≥ 2 时两端永远有邻居 ⇒ 拖动不再有"拉到 0 就不动"
-           的硬边界（边界感消失正是环形要的效果）；lbFill 把环形邻居（末张 / 首张）真的摆进
-           邻居槽，所以绕过来那张是按它自己的宽高比与宽度滑进来的，步距不用特判。
-         · 箭头不再在两端变灰（"首图时上一张灰掉"本身就没意义了）——
-           顺带解决了"点灰箭头会穿到遮罩把灯箱关掉"这个别扭（v9.42 起的老行为）。
-         · 只有 n < 2（真的只有一张）时两侧才都没有邻居，所有通路自然停住。
-       v11.9（2026-09-15，主人「第 1 张往左滑动，第 12 张应该从左边滑进来，这和第 2 张往
-       第 1 张图片的滑动一样。第 12 张往右滑动，第 1 张应该从右边滑进来」）：
-         · 补上 v11.8 漏掉的一半 —— 点击类通路（←→ 键 / 左右箭头 / 圆点）在两端
-           **不同形**：lbGoSlide 用 `Math.abs(target - lbIndex) === 1` 判"相邻"，而首图的
-           上一张数值上是第 n 张（差 n−1）⇒ 掉进"跨多张跳转"分支，方向按数值取反、
-           目标被塞进反侧槽位，朝着中心来的槽位是空的：当前张往反方向滑走、下一张
-           直接冒出来。改成按【环形】判相邻（target === wrap(i±1)）。
-         · 拖动 / 甩 / 触控板原本就对（dir 由手势给，直接进 lbSlideTo）；圆点从首图点
-           末张现在也是"从左边滑一步进来"，与拖动同一个观感。
-         ⚠️ 教训：环形里**任何**"数值相邻"的判断都是错的 —— 判相邻、判方向、判边界
-           一律走 lbWrapIdx。
-       v12（2026-09-15，主人「图片滑动的动画参考这个网页（yibi2333.fun/photowall），
-       你只用优化我网页的滑动时切换图片的那个动画」）：
-         · **切换动画换回参考站那套 32px 出-进淡滑**（v11.7 的轨道滑动下线）。先做了
-           三版并排 demo（现状 / 参考站+轻微跟手 / 参考站+不跟手）让主人挑，选的是
-           **参考站 + 轻微跟手**：
-             拖动 → 画面位移 = 手指位移 × damp(0.29)，封顶 32px（邻图全程不参与，
-                    所以"舞台上任何时刻只有一张图"这条不变式反而更硬了）；
-             松手过线 / 点箭头 / ←→ / 圆点 / 触控板 → 出 150ms ease-in（→ ∓32px + 淡到 0）
-                    → 空档 40ms → 进 150ms ease-out（±32px / 透明 → 0 / 实心）。
-         · 好处是**环形彻底免费**：所有通路的落位都只有"32px 两段"，谁也不用算步距、
-           不用判相邻、不用摆槽位 ⇒ v11.6/v11.8/v11.9 那一串绕回边界的病根（判数值相邻、
-           空槽位、半格偏移）在结构上消失了。
-         · 代价（已知并接受）：拖动时不再看见邻图跟进来（参考站本来就没有拖动）。
-         · 提交阈值仍沿用原来的像素判据（见 lbCommitDist），只是**判据读的是原始手指
-           位移**，不是画面位移 —— 画面被封顶在 32px，拿它当判据的话永远过不了线。
-         · 实测口径：`v11check.js` 第 5/12/13/15/16 组已按新契约重写。
-         ⚠️ 上面 v11.4~v11.9 的历史注释里出现的 `lbSlideTo` 就是现在的 `lbSwitchTo`
-            （v12 改名 —— 它不再"滑一整步"，叫 slide 会误导下一个读代码的人）。
-       v12.1（2026-09-15 21:31，主人「连续滑动图片不是很流畅」）——**连发输入不吞不弹**：
-         · 病根两条，都是"连发"才暴露的：
-             ① `lbSettle()` 只在进相成立 —— 出相里落定 = 把已提交的那一步**取消**掉
-                （那时 lbIndex 还没改）⇒ 画面往回弹。实测：连续拖动 5 次只走掉 **1 张**，
-                而且屏幕上能看到 -32px 弹回 0 的那一下。
-             ② 触控板那条有 `if (lbPhase !== 'idle') return;` —— 淡滑中来的**新手势**
-                被整条丢掉（它的头几个事件进不来，acc 恒为 0，只剩尾巴凑数）。实测：
-                连发 6 条只走 5 张，还出现过 ~1.8s 的死区（"我滑了它不动"）。
-         · 修法是**一处根因**：lbIndex 在**开段那一刻**就提交（不再等换图那一帧）。
-           于是"落定"在任何相位都落在这一段的终点上，永远不会往回弹；内容仍然只在
-           出相结束的空档里换（lbFill）⇒ 观感还是"先淡干净、再淡进来"，契约没动。
-         · 触控板去掉相位闸：lbSwitchTo 本来就可被打断（新一段从**当前渲染位置**接着走，
-           CSS 过渡自动连续），"一条手势一张"依旧由 lock 保证。
-         · 拖动：`pointerdown` 不再落定（原来"点一下"就会把动画砍掉，包括点到图外想关灯箱），
-           改到**轴向判明、真开始横拖**时才落定。
-         · ⚠️ 教训：**"落定到终点"必须真的是终点**。旧注释写着"推到终点"，代码在出相里
-           干的是"取消"——注释与实现不一致比没注释更坏。
-       v12.2（2026-09-15 22:31，主人「有时一个手势可以滑动两张图」+「手指不离开、慢慢拖」）
-         ——**把 v12.1 的幅度判据整个删掉**，边界只认"事件流里真正的停顿"：
-         · v12.1 为了不让"尾巴里再滑一下"被吞，加了 peak / inTail / push 三件套
-           （幅度掉到峰值一半以下 + 抬头 ≥1.25 倍 + ≥6px）。它把**手自己在一次接触里的
-           变速**（加速→减速→再加速）当成了"新手势"⇒ 同一次拖动翻两张。
-         · 复现（`scratch/lb-v12/probe-onestroke.js`，一段连续接触、全程无空档）：
-           v12 = **1 张**、v12.1 = **2 张** ⇒ 这个 bug 是 v12.1 引入的，不是老毛病。
-         · 现在**唯一**的解锁口是 `fresh`（静默 > LB_WHEEL_GAP，140ms → 70ms）。
-           理由：新的手指动作必然要求手指先停/离开 ⇒ 事件流里必然有空档；
-           而**连续接触期间没有空档**（~17ms 一拍）、**惯性尾巴也没有空档**。
-           于是连续拖动和快甩都只走一张，抬手再滑才走第二张 —— 结构上保住了，
-           不依赖任何幅度阈值。70ms 取在"心跳 ~17ms"与"人手抬手再放回 ~100~300ms"之间。
-         · ⚠️ 教训：**"一个手势一张"只能靠结构性判据保住**。凡是靠"幅度够不够大"的写法，
-           都会被"手自己会变速"和"尾巴会抖"打穿 —— v12.1 已经用一次线上 bug 证明过。
-         · 动画本身也改了一处（主人同一条消息里的「优化一下动画」）：换图之后挂进相过渡
-           原来要**等两个 rAF**，那是与帧率绑死的 —— 本机常态 27fps 时两个 rAF ≈54ms，
-           叠在 gapMs 40ms 上，out-in 空档实测从设计值 40ms 涨到 **135ms**（每切一张都白等）。
-           改成读一次 `offsetWidth` 强制重算，空档回到 ~40ms，且**与帧率无关**。
-           ⚠️ 这个改动必须靠套件里"进相挂的是 150ms ease-out / 进相单调回 0 / 起点在屏外那侧"
-             三条守住 —— 一旦过渡没挂上，新图会直接出现、没有进相（老注释记的正是这个坑）。
-       v12.3（2026-09-16 00:21，主人「现在滑动怎么不能连续滑动了」）
-         ——**v12.2 那条"只认停顿"的边界是错的**：惯性尾巴本身就把"停顿"永远占着，
-         尾巴没走完再滑一下会被整条吞掉 ⇒ 不能连续滑。这次不再凭想象写判据，改成
-         **移植 wheel-gestures 的惯性探测**（MIT © xiel），并拿它仓库里**真机录制的**
-         12 段 macOS 触控板 / 妙控板事件流当验收数据（`scratch/lb-v12/tp-fixtures/`）：
-         · 判据①`isMomentum` 看的是**加速比**（每 2 条事件合成一个速度取样点，最近 5 个
-           取样点的逐轴速度比都落在 [0.6,0.96]）—— 尾巴是"每拍稳定掉一点"，手的变速
-           做不到连续 5 拍稳定。实测：真实慢拖 194 条、画方块 207 条，**一次都没误判**。
-         · 判据②"平滑衰减之后的一次突降"（连续 4 拍平滑衰减，然后单拍掉到一半以下）=
-           手指落下、系统停掉惯性时报的那一下（真实录制里是 `11 → 2`）。
-         · 判据③库自带的 cancel（`|Δ| > 上一拍 ×2` 且已在惯性里）= 手指**砸**下来。
-         · **惯性期间的事件一条都不算**（不再只靠 lock 挡），所以尾巴再长也不会多走一张。
-         · 覆盖：只用语料库自己的边界，把第二笔接到尾巴各处只认得出 1/21 个位置；
-           加上②是 21/21。连甩 1/2/3/4/5/6 下 → 1/2/3/4/5/6 张。
-         · ⚠️ 同时把 `LB_WHEEL_MIN` 12 → 24：真实录制里"手搁在触控板上"的 1px 漂移
-           10 拍就能凑到 12，于是**搁手 + 随后一甩 = 2 张**（`swipe-right-fast` 就是这么
-           翻两张的）。24 之后 11 段真实"一次接触"全部恰好 1 张。
-         · ⚠️ 别再用"幅度抬头"当判据（v12.1 栽过，v12.3 又拿真实数据验了一遍：
-           任何"抬头型"规则都会在真实连续拖上误报）。关键在于**掉得比别人突然**，
-           不是掉得深。
-         · ⚠️ 顺带修掉套件里一个**已经过时的合成模型**：⑪.a 原来写的是"尾巴平滑衰减到
-           -0.8 再抬头 + 静默 120ms"来模拟连发 —— 那个形状在真机里不存在（尾巴在手指
-           搭上那一刻是**被截断**的：实录 `11 → 2`，中间只隔 39ms），所以它测的其实是
-           一个假动作集。改成照抄实录的三段（衰减 7 拍 → 静默 39ms → 报信 `-2` + 重新
-           发力），连发 1..6 就稳定是 1..6 了。**合成模型也要有物理依据**。
-         · ⚠️ 还揪出一处**页面与离线复现不一致**：复现里写的是"惯性里的事件丢位移、
-           但仍然看解锁口"（`if (st.momentum && !extra) continue`），页面第一版却写成
-           无条件 `if (st.momentum) return`。拿 66 个样本数过（`tp-invariant.js`）：
-           **61 次解锁里有 38 次发生在 momentum 已为真那一拍**（cliff 与 momentum
-           可以同时为真；start/cancel 不会，因为 cancel 自己先 end()）⇒ 那条无条件
-           return 会吃掉 38 次重滑。两行顺序已按复现对齐。**"套件全绿"只有在页面与
-           复现逐字一致时才证明得了这份实现。**
-       ⚠️ v11.7 那条"只剩一套切换动画（轨道滑动）"已被 v12 取代 —— 见上。
-
-       保留的三个坑位（跨版本反复踩到，别再丢）：
-         ① 「换图片」必须用**已解码**的同一个 <img> 元素，而且在槽位间【移动】而不是
-            重建 —— 舞台是 flex shrink-wrap，子图没解码时尺寸 0，整盒塌缩（v9.43 的
-            老问题）。做法：lbWarm 缓存 new Image() 并 decode()，lbSlotPut 搬元素。
-         ② 剩余外壳（左右箭头 / 底部圆点）一律绝对定位，不能进 flex 流（会把图挤偏）。
-         ③ 阅读框用 min(calc(100vw - pad*2), …) 算。不要给嵌套层写 max-height:100%
-            —— 父层高度是 auto 时，百分比会被当成 none 丢掉。
-       参数覆盖：?lbspeed=1.3（滑动时长倍率 0.4~3）、?lbdebug=1（暴露 window.__lb()）
-       ====================================================================== */
-    var lb = document.getElementById('dyLb');
-    var lbStage = document.getElementById('dyLbStage');
-    var lbPrev = document.getElementById('dyLbPrev');
-    var lbNext = document.getElementById('dyLbNext');
-    var lbDots = document.getElementById('dyLbDots');
-    /* 三个【角色槽位】—— cur 恒为当前张，prev / next 恒为其左右邻居。
-       槽位固定不变，内容靠"移动节点"换（理由见 lbSlotPut）。 */
-    var lbSlotPrev = document.getElementById('dyLbSlotPrev');
-    var lbSlotCur = document.getElementById('dyLbSlotCur');
-    var lbSlotNext = document.getElementById('dyLbSlotNext');
-    var lbSlots = [lbSlotPrev, lbSlotCur, lbSlotNext];
-
-    var lbPhotos = [];
-    var lbIndex = 0;
-    var lbNode = null;        /* 当前张的节点：<img> 或 .dy-lb-emoji */
-    var lbPhase = 'idle';     /* idle | out | in（v12 起两段式回来了，见 lbSwitchTo） */
-    var lbTo = 0;             /* 本段的目标索引 */
-    var lbTimer = null;
-    /* v12：段号。每开一段 / 每次落定都 +1；出→进之间的那两个 rAF 回调靠它判断
-       "我还属于当前这一段吗"。少了它，落定后紧接着开的下一段会被上一段的回调盖掉
-       （症状：拖一下再点箭头，新一段刚起步就被写回 0 / 实心）。 */
-    var lbSeq = 0;
-    var lbWarm = {};          /* src -> 已 decode 的 HTMLImageElement（复用，不重建） */
-
-    /* ⚠️ v11.7 曾把上面那套（LB_OUT_MS / LB_IN_MS / LB_OUT_EASE / LB_IN_EASE）删掉，
-       理由是"点击与滑动要一致"。v12（09-15）主人指定换回参考站那套之后它们又回来了 ——
-       而且这次是**唯一**一套：拖动 / 触控板 / 箭头 / ←→ / 圆点全走 lbSwitchTo，
-       所以"两套不一致"这个病在结构上不可能再出现。 */
-    var LB_SPEED = (function () {
-      var m = /[?&]lbspeed=([0-9.]+)/.exec(location.search);
-      var v = m ? parseFloat(m[1]) : 1;
-      return (v >= 0.4 && v <= 3) ? v : 1;
-    })();
-    var LB_DEBUG = /[?&]lbdebug=1/.test(location.search);
-    /* v11.2：不再有"统一画框 / 等比"两种模式 —— 尺寸规则只有一条，写在 CSS 里
-       （.dy-lb-slot 里 img 的 max-width/max-height）。`?lbfit=` 已删除。 */
-
-    /* ---- 滑动参数（v11.4）----
-       网上与 GitHub 上"一次滑动只走一张"的全部实现，语义都是同一句话：
-       **目标索引在手势【开始】时就锁成 ±1，松手只决定方向，不决定距离。**
-         · Embla Carousel  `skipSnaps: false`（默认）—— "Allow the carousel to skip
-           snap points if it's dragged vigorously"，关掉即一次手势一步。
-         · Swiper          `freeMode: false, shortSwipes: false, longSwipes: false`
-           —— 非 freeMode 下滑动只走一张（v10 恰恰开的是 freeMode，所以会连翻）。
-         · ItemSlide       `oneItem: true`；Simple Swipe Card `swipe_behavior: single`
-           （"Each swipe moves exactly one card"）。
-       本站没有引库，但把同一条规则落在 lbSwitchTo 里（target = lbIndex ± 1，恒定）。
-       触控板那条路径还要额外对抗惯性尾巴（v10.2 / v273 都栽在这），见下面的 wheel。 */
-    var LB_GAP = 26;             /* 胶片里两张照片之间的缝（px） */
-    var LB_DRAG_MIN = 8;         /* 超过这个位移才判定轴向：区分"点一下"与"拖" */
-    var LB_COMMIT_FRAC = 0.22;   /* 走完 22% 步距即提交（Swiper 用 50%，Embla 靠速度） */
-    var LB_COMMIT_MAX = 110;     /* 但阈值不超过这个像素数（宽图步距近千） */
-    var LB_COMMIT_MIN = 46;
-    var LB_FLICK = 0.45;         /* px/ms：轻甩也能翻 */
-    var LB_FLICK_MIN = 12;       /* 但要真的动过，否则是抖动 */
-    /* ---- 切换动画（v12，2026-09-15 主人选定参考站那套）----
-       「图片滑动的动画参考这个网页（yibi2333.fun/photowall），你只用优化我网页的滑动时
-         切换图片的那个动画」⇒ 三选一 demo 里挑了 **B：参考站 + 拖动轻微跟手**。
-       结构：舞台任何时刻只有一张图（邻图全程不参与），一步 =
-         出 150ms ease-in（位移到 ∓32px + 淡到 0）→ 空档 ~40ms → 进 150ms ease-out
-         （从 ±32px / 透明处回到 0 / 实心）。两段顺序执行，不重叠。
-       ⚠️ 这推翻了 v11.7 的决定（当时统一到"整条胶片平移一步"）—— 两次都是主人的选择，
-          别再拿 v11.7 的注释去"修回"轨道滑动；要改先问。 */
-    var LB_NUDGE = 32;           /* 出/进相位移（参考站实测值，逐帧核过） */
-    var LB_OUT_MS = 150;         /* 出相时长 */
-    var LB_IN_MS = 150;          /* 进相时长 */
-    var LB_SWAP_GAP = 40;        /* 出完到进之间的空档（参考站 Vue mode="out-in" 实测 ~50ms） */
-    var LB_OUT_EASE = 'cubic-bezier(.4,0,1,1)';    /* = ease-in（与参考站一致） */
-    var LB_IN_EASE = 'cubic-bezier(0,0,.2,1)';     /* = ease-out（与参考站一致） */
-    /* 跟手：画面位移 = 手指位移 × damp，封顶 32px（= 出相终点，所以松手再接出相是连续的）。
-       damp 取 32/110 ⇒ 手指正好拉到提交线时，画面恰好吃满 32px。 */
-    var LB_DRAG_CAP = LB_NUDGE;
-    var LB_DRAG_DAMP = LB_NUDGE / LB_COMMIT_MAX;
-    /* ⚠️ 这里原来有 LB_NEAR_FADE（邻图随拖动渐显的像素阈值），v12 删除 ——
-       跟手封顶只有 32px，邻图从第一帧起就是透明的，没有"渐显"这回事了。
-       再往上还有 LB_EDGE_RUBBER / LB_EDGE_SLACK（端到端 0.28 阻尼 + 36px 余量）：
-       2026-09-14 按主人要求**删除**（「怎么还有滑动反弹动画，我不喜欢反弹动画」）。
-       拖动现在是硬封顶（见 lbDragVis），松手没过阈值也是瞬间归位（见 lbDragEnd）。
-       v12 的 32px 跟手封顶不是"回弹"：到顶就不动，松手也不会往回弹。
-       别再把它当成"手感更好"加回来。 */
-    var LB_WHEEL_MIN = 24;       /* 轮子手势的最小累计位移。
-       ⚠️ v12.3 从 12 抬到 24：真实录制（`tp-fixtures/swipe-right-fast.json`）里，
-       "手搁在触控板上"会产生 ~1px/拍 的漂移，10 拍就凑到 12 ⇒ 搁手 + 随后真甩一下
-       = 翻两张。24 之后 11 段真实"一次接触"全部恰好 1 张，真甩（累计 700~3000）
-       一点都不受影响。 */
-    /* ---- 触控板手势边界：惯性尾巴探测（v12.3）----------------------------
-       移植 wheel-gestures（MIT © xiel，https://github.com/xiel/wheel-gestures）。
-       选它的理由：它是唯一拿**真机录制的** macOS 触控板 / 妙控板事件流做回归的实现，
-       那 12 段录制现在就是本项目的验收数据（`scratch/lb-v12/tp-fixtures/`）。
-
-       三段历史（别再把走过的错路走一遍）：
-         v12.2 只认"静默 > 70ms" ⇒ 惯性尾巴每 ~17ms 来一条、能连着来 1 秒多，
-                              "静默"永远凑不满 ⇒ 尾巴没走完再滑会被整条吞掉
-                              （主人 09-16 报的「滑动不能连续」就是这个）。
-         v12.1 用"幅度抬头" ⇒ 手在一次接触里本来就会变速（加速→减速→再加速），
-                              幅度自己就会掉一半再抬头 ⇒ 同一次拖动翻两张。
-         教训：**"同一个动作到底走了几步"只能靠事件流的形状判**（加速比 / 突降 / 停顿），
-               靠"幅度够不够大"永远判不出来。
-
-       ① 惯性判据（库原值，一行没改）：每 2 条事件合成一个速度取样点，看最近 5 个
-          取样点的逐轴速度比是否都落在 [0.6, 0.96] —— 尾巴是"每拍稳定掉一点"，
-          手的变速做不到连续 5 拍都稳定在那个带里。
-          ⚠️ 惯性期的事件【一条都不算】（不累加 acc），所以尾巴再长也只走一张。
-       ② 突降判据（我们加的，有数据）：尾巴是**平滑**衰减（逐拍比值 0.88~0.93），
-          做不出"突然单拍掉一半"。真实录制里手指落下那一下就是 `11 → 2`（比值 0.18）。
-          所以：连续 4 拍平滑衰减之后出现一次 ≤0.5 的突降 ⇒ 手指落下了 ⇒ 解锁。
-          为什么必须有它：只靠库自己的 cancel，把第二笔接到尾巴各处只认得出 1/21 个
-          位置；加上这条是 21/21。而它在 11 段真实"一次接触"上一场都没误报。
-       ③ 库的 cancel（`|Δ| > 上一拍 ×2` 且已在惯性里）：手指**砸**下来时走这条。
-       三者合起来：连续拖 = 1 张（真实慢拖 194 条、画方块 207 条全程不误判）；
-                  连甩 1/2/3/4/5/6 下 = 1/2/3/4/5/6 张。
-       ⚠️ 千万别退回"抬头型"判据 —— v12.1 和 v12.3 两次都拿真实数据验过它会误报。
-       ⚠️ 只有**横向事件**喂给探测器（竖滚不接管）：竖向也喂的话，竖滚的惯性会让
-          随后那次横滑被当成尾巴丢掉。
-       -------------------------------------------------------------------- */
-    var LB_TP_MERGE = 2;         /* 每 2 条事件合成一个速度取样点（库原值） */
-    var LB_TP_ANALYZE = 5;       /* 看最近 5 个取样点（库原值） */
-    var LB_TP_ACC_MIN = 0.6;     /* 速度比落在这个带里 = 像惯性（库原值） */
-    var LB_TP_ACC_MAX = 0.96;
-    var LB_TP_SMOOTH = 4;        /* 连续 4 拍平滑衰减 = 已经在尾巴里 */
-    var LB_TP_CLIFF = 0.5;       /* 其中单拍掉到一半以下 = 手指落下那一下 */
-    var LB_TP_CANCEL_JUMP = 2;   /* 库的 cancel：|Δ| > 上一拍 ×2（且已在惯性里） */
-    var LB_TP_CANCEL_MIN = 2;
-    /* 手势结束的静默门槛。库在惯性期只给 ~24ms（它只想尽快报 end），太短：尾巴中途卡
-       一下就会被当成"手指离开了"，剩下那些 1px 的事件会被算成新手势、再翻一张。
-       真实数据（12 段录制的**手势内**最大事件间隔，排除掉已知的两次抬手）：
-         32 33 33 34 34 34 34 39 64 —— 最大 64ms（`square-move-trackpad`，系统合并了事件）
-       这一档只影响**没有物理报信的重滑**（慢拖抬手、再慢拖）能容忍多长的停顿，以及
-       **尾巴中途卡顿**能容忍多久，两边的实测边界（`scratch/lb-v12/tp-sweep.js`）：
-         floor=200 → 卡顿 ≤100ms 安全；慢拖·停 ≥200ms 认得出
-         floor=300 → 卡顿 ≤200ms 安全；慢拖·停 ≥300ms 认得出  ← 选它
-         floor=400 → 卡顿 ≤300ms 安全；慢拖·停 只有 ≥500ms 才认得出（300ms 的会吞）
-       300 是两侧的膝盖：64ms 的 4.7× 余量，且不与"慢拖·停 300ms"打架。
-       ⚠️ 有物理报信的重滑（真机双甩：静默 39ms + 幅度 `11→2` 那一下）**与这个值无关**，
-          200/300/400/800 都认得出（`tp-a.js` 实测）。所以抬高它不会让"连滑"变吞。
-       ⚠️ 残余风险：尾巴中途卡顿 **>300ms**（主线程被卡住，罕见）时，尾巴残段会被算成
-          一次新手势、多翻一张。这是静默类判据的硬边界，消除不了；要消除只能靠
-          物理报信，而报信在卡顿里正好也丢了。 */
-    var LB_TP_END_FLOOR = 300;
-    var LB_CLICK_MUTE = 260;     /* 拖完抑制 click 的窗口（否则指针落在图外会误关灯箱） */
-
-    function lbMs(base) { return Math.round(base / LB_SPEED); }
-
-    /* 预热 = 建一个 Image 并 decode()，缓存起来复用。
-       ⚠️ 不是"预加载"这种模糊说法：只有解码完成，把元素搬进 DOM 才不会出现尺寸 0
-       的那一两帧（舞台塌缩 → 图先跳一下再落位）。 */
-    function lbWarmSrc(src) {
-      if (!src || lbWarm[src]) return;
-      var im = new Image();
-      im.decoding = 'async';
-      lbWarm[src] = im;
-      im.src = src;
-      if (im.decode) im.decode().catch(function () {});
-    }
-    /* 邻近预热：上到第 i 张时把 i±1 先解码好，下一段进相才不用等。
-       ⚠️ 环形下"邻居"也是按环形取的：走到末张时预热的是首张 —— 不这么写，
-       从末张滑回首张那一步会用一张还没解码的图，宽度按 0 算 ⇒ 落位错一下。 */
-    function lbWarmNear(i) {
-      var n = lbPhotos.length;
-      if (n < 2) return;
-      lbWarmSrc(lbPhotos[lbWrapIdx(i - 1)].src);
-      lbWarmSrc(lbPhotos[lbWrapIdx(i + 1)].src);
-    }
-
-    /* 要放进舞台的那个节点：有 src → 复用预热好的 <img>；无 src → emoji tile */
-    function lbPick(ph) {
-      if (ph.src) {
-        if (!lbWarm[ph.src]) lbWarmSrc(ph.src);
-        var im = lbWarm[ph.src];
-        im.alt = ph.alt || '';
-        im.draggable = false;
-        return im;
-      }
-      var sp = document.createElement('span');
-      sp.className = 'dy-lb-emoji';
-      sp.textContent = ph.emoji || '\u{1F5BC}';
-      return sp;
-    }
-
-    /* 位移与 opacity 是**两件独立的事**，时长/曲线/延迟都不一定相同（v11.7）——
-       `transition` 是简写属性，分两次写会互相覆盖（后写的把整条列表顶掉），
-       所以必须一次写全：transform 一段 + opacity 一段（oDelay 非 0 时带延迟）。 */
-    function lbFx(el, tMs, tEase, oMs, oEase, oDelay) {
-      el.style.transition = 'transform ' + tMs + 'ms ' + tEase +
-                            ', opacity ' + oMs + 'ms ' + oEase +
-                            (oDelay ? ' ' + oDelay + 'ms' : '');
-    }
-    /* 关掉过渡 = 下一次写 transform 立刻生效（拖动跟手 / 归位都用它） */
-    function lbFx0(el) { el.style.transition = 'none'; }
-
-    /* 圆点高亮（当前张 = 长条）。抽出来是因为它有两个调用时机：
-       ① lbFill 落定后按 lbIndex 同步；② lbSwitchTo 一开段就按【目标】同步 ——
-       参考站的圆点是点下即动（实测点击后 ~20ms 起、300ms 走完），而不是等一相播完。 */
-    function lbDotsMark(i) {
-      var ds = lbDots.children, k;
-      for (k = 0; k < ds.length; k++) ds[k].classList.toggle('is-on', k === i);
-    }
-
-    /* at 缺省 = 当前索引；传目标索引 = 提前把外壳切到"将要去的那张" */
-    function lbSyncChrome(at) {
-      var n = lbPhotos.length;
-      var i = lbWrapIdx(at === undefined ? lbIndex : at);
-      /* v11.8 环形：两端也能继续走（绕回另一端），箭头只在"只有一张图"时才禁用。
-         "首图时上一张灰掉"在环形里没有意义；顺带也没有了"点灰箭头穿到遮罩 = 关灯箱"
-         那个别扭（禁用态是 pointer-events:none，v9.42 起如此）。 */
-      lbPrev.disabled = n < 2;
-      lbNext.disabled = n < 2;
-      lbDotsMark(i);
-    }
-
-    /* 【环形归一】v11.8：把任意索引折进 [0, n-1]。
-       **环形的唯一真相点就是这里** —— 别在第二个地方再写一遍取模。 */
-    function lbWrapIdx(i) {
-      var n = lbPhotos.length;
-      if (n < 1) return 0;
-      return ((i % n) + n) % n;
-    }
-
-    /* 换图（终态）：把 lbIndex 设到 i 并把槽位归位。本身不带任何动画，
-       动画只由 lbSwitchTo 挂 —— 两件事分开，才不会互相盖掉。 */
-    function lbShow(i) {
-      /* v11.6 这里兜底**夹紧**（越界一动不动），v11.8 起改成**折回另一端**。
-         任何调用方算错也只会落到一张真实存在的照片上，不会把空槽位当当前张
-         （后者 = 整块舞台空掉）。 */
-      lbIndex = lbWrapIdx(i);
-      lbFill();
-    }
-
-    /* ---------- 槽位 / 胶片几何 ---------- */
-
-    /* 把一个槽位的内容换成 ph 的节点；已经就是同一个节点就不动。
-       ⚠️ 换内容必须是【移动已解码的元素】，不能 `slot.innerHTML=''` 后新建 img —— 
-       新建的那一帧还没解码，舞台又是 flex shrink-wrap，尺寸 0 会让整盒塌一下
-       （v9.43 的老坑，这里是它在新结构里的形态）。 */
-    function lbSlotPut(slot, ph) {
-      var want = ph ? lbPick(ph) : null;
-      if (slot.firstChild === want) return want;
-      if (slot.firstChild) slot.removeChild(slot.firstChild);
-      if (want) slot.appendChild(want);
-      return want;
-    }
-
-    /* 同一槽位里那个节点的渲染宽度（translate 不影响 width，所以过渡中量也准） */
-    function lbW(el) { return el ? el.getBoundingClientRect().width : 0; }
-
-    /* 邻居的间距 = 半个当前 + 半个邻居 + 缝。**不能写固定步距** —— 同一条动态里
-       1500×1125 / 1125×1500 / 1500×692 三种原比例，渲染宽度 955 / 537 / 1040 差近一倍，
-       固定步距会让两张照片在拖动中叠在一起。
-       ⚠️ v11.6：边界（hasP / hasN）改成按【索引】判，不再按"槽位里有没有节点"。
-       槽位内容只决定几何（宽度），索引才是"还有没有上一张 / 下一张"的唯一真相 ——
-       两者不一致时（例如手势快照 + 换图）按节点判会算出越界的目标。
-       宽度仍按真实盒子量，两条路都留着。
-       ⚠️ v11.8 环形：n ≥ 2 时**两端永远有邻居**（首张的上一张是末张），
-       于是拖动不再有"拉到 0 就不动"的硬边界 —— 边界感消失正是环形要的效果。
-       只有 n < 2 这一种情况下两侧才都没有邻居。宽度仍按真实盒子量：
-       绕过来的是哪张，就按哪张的宽度算步距。 */
-    function lbDims() {
-      var n = lbPhotos.length;
-      var hasP = n > 1, hasN = n > 1;
-      var wc = lbW(lbSlotCur.firstChild), wp = lbW(lbSlotPrev.firstChild), wn = lbW(lbSlotNext.firstChild);
-      return {
-        c: wc, wp: wp, wn: wn, hasP: hasP, hasN: hasN,
-        p: hasP ? (wc + wp) / 2 + LB_GAP : 0,
-        n: hasN ? (wc + wn) / 2 + LB_GAP : 0
-      };
-    }
-
-    /* 静止态：当前张归位到 0 / 实心，邻居各归各位【但透明】—— 所以静止时看到的
-       仍然只有一张图（v11 不变式，v12 之后连拖动中也不露邻图）。
-       ⚠️ 当前张的 opacity 必须显式写回 1：lbSwitchTo 的出相把**当前槽位**淡到 0，
-       而换图之后新图恰好落进同一个槽位元素（节点是移动的，槽位不变）—— 少了这一行，
-       每次切换完舞台就是全黑的。
-       ⚠️ 邻居的 translate 值（±d.p / ±d.n）v12 之后纯属"摆着"，视觉上永远看不见；
-       留着是因为 lbDims 要靠槽里的节点量宽度（提交阈值按步距算），以及 ?lbdebug 的
-       off 数组仍然读它。别以为它们还有动画含义。 */
-    function lbRest() {
-      var d = lbDims(), k;
-      for (k = 0; k < 3; k++) lbFx0(lbSlots[k]);
-      lbSlotCur.style.transform = 'translateX(0px)';
-      lbSlotPrev.style.transform = 'translateX(' + (-d.p) + 'px)';
-      lbSlotNext.style.transform = 'translateX(' + (d.n) + 'px)';
-      lbSlotCur.style.opacity = '1';
-      lbSlotPrev.style.opacity = '0';
-      lbSlotNext.style.opacity = '0';
-    }
-
-    /* 拖动跟手（v12）：**只动当前张**。
-       参考站的舞台上任何时刻只有一张图（mode="out-in"），所以跟手也不露邻图 ——
-       邻图槽位全程压在 opacity:0（它们还在，只是不参与，理由见 lbDims 的注释）。
-       位移由 lbDragVis 算好（阻尼 + 封顶 32px）再传进来。 */
-    function lbShift(v) {
-      lbSlotCur.style.transform = 'translateX(' + v + 'px)';
-      lbSlotPrev.style.opacity = '0';
-      lbSlotNext.style.opacity = '0';
-    }
-
-    /* 跟手位移：手指位移 → 画面位移。damp 之后**硬封顶**在 32px。
-       ⚠️ 封顶值刻意等于出相终点（LB_NUDGE）—— 于是"拖到顶再松手"与"出相"是同一点，
-       中间不会有一跳。别把这里改成整步步距：v12 之后一步的位移就是 32px。 */
-    function lbDragVis(dx) {
-      var v = dx * LB_DRAG_DAMP;
-      if (v > LB_DRAG_CAP) v = LB_DRAG_CAP;
-      if (v < -LB_DRAG_CAP) v = -LB_DRAG_CAP;
-      return v;
-    }
-
-    /* 按 lbIndex 把三个槽位摆好（终态，无动画） */
-    function lbFill() {
-      var n = lbPhotos.length;
-      lbNode = lbSlotPut(lbSlotCur, lbPhotos[lbIndex]);
-      /* 邻居按环形取：首张的上一张 = 末张，末张的下一张 = 首张。
-         槽位里放的是真图，所以"绕过来"的那张按它自己的宽高比滑进来。 */
-      lbSlotPut(lbSlotPrev, n > 1 ? lbPhotos[lbWrapIdx(lbIndex - 1)] : null);
-      lbSlotPut(lbSlotNext, n > 1 ? lbPhotos[lbWrapIdx(lbIndex + 1)] : null);
-      lbRest();
-      lbSyncChrome();
-      lbWarmNear(lbIndex);
-      /* v11.9：静止态邻居的位置是按【渲染宽度】算的，而刚搬进槽位的 <img> 可能还没解码
-         （宽度 0）⇒ 邻居会被摆在"半格"而不是一整步的位置上。静止时它透明看不见，
-         但下一次拖动的第一帧会按新鲜宽度重摆 —— 那次位置跳变恰好落在邻图开始渐显的
-         时刻，于是"绕回来的那张"进场起点与正常翻页不一样（主人要的是同形）。
-         解码完再摆一次即可（只在 idle 且没在拖动时；宽度一旦非 0 不会再触发）。 */
-      for (var s = 0; s < 3; s++) {
-        var el = lbSlots[s].firstChild;
-        if (el && el.tagName === 'IMG' && !el.naturalWidth && el.decode) {
-          el.decode().then(lbRestFix, lbRestFix);
-        }
-      }
-    }
-    function lbRestFix() { if (lbPhase === 'idle' && !lbDrag) lbRest(); }
-
-    /* 把当前这一段立刻推到终点（连点箭头 / 方向键连发时用）。
-       不排队、不吞输入：先落定，再从落定后的索引起新的一段。
-       🔴 v12.1（09-15 21:31 主人「连续滑动图片不是很流畅」）：**"推到终点"必须真的是终点**。
-       v12 只在进相成立 —— 出相中途落定会把那次切换【取消】掉（那时 lbIndex 还没改），
-       画面往回弹。实测的后果：连续拖动 5 次只走掉 1 张，屏幕上还能看到 -32px 弹回 0 的那一下。
-       现在 lbIndex 在【开段那一刻】就提交（见 lbSwitchTo），所以两种相位都落在新图上：
-         · 出相中途落定 → 内容还没换（lbFill 本来在空档里才跑）⇒ 这里补一次 lbFill()
-         · 进相中途落定 → 内容已经换了 ⇒ lbRest() 就够
-       ⚠️ lbSeq 必须在这里 +1：出→进之间挂着两个 rAF 回调，落定后它们若还活着，
-          会把紧接着开的新一段盖掉（新一段刚起步就被写回 0 / 实心）。 */
-    function lbSettle() {
-      if (lbTimer) { clearTimeout(lbTimer); lbTimer = null; }
-      lbSeq++;
-      if (lbPhase === 'out') lbFill();   /* 补上没做完的换图：落定 = 那一步照走，不回退 */
-      lbPhase = 'idle';
-      lbTo = lbIndex;
-      lbDrag = null; lbDragDim = null;
-      lbWheel.acc = 0; lbWheel.dir = 0; lbWheel.lock = false;
-      if (lbTp) lbTp.reset();   /* 手势边界也一起清：落定之后下一条事件算"新手势" */
-      lb.classList.remove('is-dragging');
-      lbRest();
-    }
-
-    /* ================= 唯一的切换动画：32px 出-进淡滑（v12）=================
-       箭头 / ←→ / 圆点 / 拖动松手 / 触控板，全部落到 lbSwitchTo 一处。
-       v11.7 曾把这里统一成"整条胶片平移一步"，v12（09-15）主人指定换回参考站那套 ——
-       注意两次都是**同一个诉求**（全站只能有一套切换动画），只是选中的那一套不同。
-       --------------------------------------------------------------------------- */
-
-    /* 跳到第 target 张（点击圆点用；箭头走 lbGo(dir)）。
-       v12 之后这条通路比 v11.9 **简单得多**：一步的动画与"翻一张"完全同形（都只是
-       32px 两段），所以不再需要"先把目标摆进屏外邻居槽再滑一步"那一套 ——
-       目标只在出相结束、换图那一刻才被搬进当前槽位（lbSwitchTo 内部做）。
-       ⚠️ 唯一要守的是**解码**：换图时节点宽度为 0 会让舞台塌一帧（v9.43 的老坑），
-       所以先把目标 decode 好再开动画 —— 近邻由 lbWarmNear 预热，远的靠这里现等。
-       ⚠️ **方向**（v12 第一次写就错了，探针抓到）：
-         · 走"上一张 / 下一张"意图的通路（箭头 / ←→ 键）必须把意图**传进来**，
-           不能按 target 与 lbIndex 的数值大小反推 —— 环形下首图的上一张是末张，
-           数值差是负的，反推出来的方向正好相反（首图按上一张变成"往左出、从右进"，
-           与"末张该从左边进来"相反，正是主人 v11.9 上报过的那件事）。
-         · 点圆点才算数值方向：圆点在底栏从左到右排，点右边的圆点就该"往右走"。
-       教训与 v11.9 同一条：**环形里任何"数值"判断都要让位给环形判断**。 */
-    function lbGoSlide(target, forceDir) {
-      var n = lbPhotos.length;
-      if (n < 2 || !lbNode) return;
-      if (lbPhase !== 'idle') lbSettle();
-      target = lbWrapIdx(target);              /* v11.8 环形：越界即折回另一端 */
-      if (target === lbIndex) return;
-      var nxt = lbWrapIdx(lbIndex + 1), prv = lbWrapIdx(lbIndex - 1);
-      var dir = forceDir ? forceDir
-        : (target === nxt ? 1 : (target === prv ? -1 : (target > lbIndex ? 1 : -1)));
-      var ph = lbPhotos[target];
-      lbWarmSrc(ph.src);
-      var go = function () { lbSwitchTo(dir, target); };
-      var im = lbWarm[ph.src];
-      if (im && !im.naturalWidth && im.decode) im.decode().then(go).catch(go);
-      else go();
-    }
-
-    /* 键盘 ←→ / 左右箭头：目标恒为 ±1，越界由 lbWrapIdx 折回另一端（v11.8 环形）。
-       ⚠️ 必须先把**方向意图**显式传下去（forceDir）：环形下"上一张"的落点在数值上
-       可能大于当前索引（首图的上一张 = 末张），让 lbGoSlide 按数值反推方向会反。
-       ⚠️ 必须先 lbSettle 再算目标索引：lbIndex 是**换图那一刻**才更新的，上一段还在飞
-       的时候直接读 lbIndex 会读到旧值 ⇒ 连点两下只走一张（验收 8.4 抓到的）。 */
-    function lbGo(dir) {
-      if (lbPhotos.length < 2) return;
-      if (lbPhase !== 'idle') lbSettle();
-      var d = dir > 0 ? 1 : -1;
-      lbGoSlide(lbIndex + d, d);
-    }
-
-    /* ================= 拖动 / 触控板：与点击共用同一条动画（v12）=================
-       "一次滑动一张"仍然成立，而且现在更彻底：目标在手势【开始】时就锁成 ±1，
-       松手只决定方向、不决定距离（Embla skipSnaps:false / Swiper 非 freeMode /
-       ItemSlide oneItem 都是这一句）。v12 起点击与滑动**共用 lbSwitchTo**，
-       所以"两套动画不一致"这件事在结构上不可能再发生。
-       ==================================================================== */
-
-    var lbDrag = null;        /* 拖动中的手势：{id,x0,y0,axis,v,raw,moved,hist}
-                                 v = 画面位移（阻尼+封顶），raw = 原始手指位移（判提交） */
-    var lbDragDim = null;     /* 手势开始时的胶片几何；中途不重量，免得步距抖动 */
-    var lbClickMute = 0;      /* 拖完到这个时刻之前忽略 click（否则指针落在图外会误关） */
-    var lbWheel = { acc: 0, dir: 0, lock: false, dim: null };
-    /* ⚠️ v12.3 删掉了 lbWheel.last（"上一条事件的时间戳"）—— v12.2 拿它算"静默 > 70ms"，
-       而那个判据是错的（见 LB_WHEEL_MIN 上面那段）。现在时间账由 lbTp 里的
-       "手势结束门槛"负责，它按事件间隔自适应。 */
-
-    function lbCommitDist(step) {
-      if (!step) return LB_COMMIT_MAX;
-      return Math.max(LB_COMMIT_MIN, Math.min(step * LB_COMMIT_FRAC, LB_COMMIT_MAX));
-    }
-
-    /* ============ 唯一的切换动画（v12）：32px 出-进两段淡滑 ============
-       参考站实测（2026-09-15，逐帧 + getAnimations() 双口径核对）：
-         出：transform → translateX(∓32px)，opacity 1 → 0，150ms，cubic-bezier(.4,0,1,1)
-         进：从 translateX(±32px) / opacity 0 → 0 / 1，150ms，cubic-bezier(0,0,.2,1)
-       两段**顺序**执行（Vue <Transition mode="out-in">），不重叠 ⇒ 舞台上任何时刻只有一张图。
-       方向按导航方向镜像：下一张 = 旧图往左出、新图从右边进；上一张 = 反过来。
-       ⚠️ 换图发生在 out 相结束的那一帧（lbFill 把目标节点搬进当前槽位）——
-          lbIndex 也在那一刻改，所以"落定"与"到位"的语义自动对齐（见 lbSettle）。
-       ⚠️ "一次滑动只能滑一张"的唯一实现点仍然在这里：默认 target = lbIndex ± 1，
-          与手势走了多远、甩得多快都无关 —— 距离与速度只决定【要不要走】。
-          唯一例外是点圆点跨多张（lbGoSlide 显式传 target）：走的还是**同一段动画**，
-          只是落点不是邻居。 */
-    function lbSwitchTo(dir, targetIdx) {
-      var n = lbPhotos.length;
-      if (n < 2 || !lbNode) return;
-      dir = dir > 0 ? 1 : -1;
-      var target = (targetIdx === undefined || targetIdx === null) ? lbIndex + dir : targetIdx;
-      target = lbWrapIdx(target);              /* v11.8 环形：越界即折回另一端 */
-      if (target === lbIndex) return;
-
-      var outMs = lbMs(LB_OUT_MS), inMs = lbMs(LB_IN_MS), gapMs = lbMs(LB_SWAP_GAP);
-      var outX = -LB_NUDGE * dir;              /* 出相终点（下一张 → -32，上一张 → +32） */
-      var inX = LB_NUDGE * dir;                /* 进相起点：从出相的反侧来 */
-      var seq = ++lbSeq;
-      /* 🔴 v12.1：lbIndex 在【开段这一刻】就提交，不再等"换图"那一帧 —— 这是"不吞输入"的
-         前提：任何相位被打断或落定，落点都是**这一段的终点**，永远不会往回弹（见 lbSettle）。
-         内容仍然只在出相结束、空档里才换（lbFill），所以观感还是"先淡干净、再淡进来"。
-         ⚠️ 代价：出相那 190ms 里，"索引"比"槽位里摆着的图"早一步 —— 槽位只在 lbFill
-            那一刻才真的换。所以出相里量出来的步距（lbDims）可能还是上一张的，
-            只影响提交阈值的估算，不影响"一步 = 32px"这条契约。 */
-      lbIndex = target;
-      lbTo = target;
-
-      lbFx(lbSlotCur, outMs, LB_OUT_EASE, outMs, LB_OUT_EASE, 0);
-      lbSlotCur.style.transform = 'translateX(' + outX + 'px)';
-      lbSlotCur.style.opacity = '0';
-
-      lbPhase = 'out';
-      lbSyncChrome(target);                    /* 圆点 / 箭头点下即动（v11.3 的行为） */
-      lbTimer = setTimeout(function () {
-        if (seq !== lbSeq) return;             /* 已被落定或新一段顶掉 */
-        lbTimer = null;
-        /* —— 换图：目标节点搬进当前槽位（搬的是已解码的同一个 <img>，像素不变），
-              然后从反侧 32px / 透明处开始"进" ——（索引早在开段时就提交了，这里只换内容） */
-        lbFill();                              /* 重摆三槽（含环形邻居）+ 归位（无过渡） */
-        lbFx0(lbSlotCur);
-        lbSlotCur.style.transform = 'translateX(' + inX + 'px)';
-        lbSlotCur.style.opacity = '0';
-        /* 🔴 v12.2：同一帧里"写 transition + 写终值"会被合并成"没有过渡"
-           （浏览器只在样式重算后才发现 transition 变了）—— 症状是新图直接出现、没有进相。
-           老写法是**等两个 rAF** 把起点刷进去。那是**和帧率绑死**的：60fps 下两个 rAF ≈33ms
-           还能忍，本机常态 27fps 时两个 rAF 就是 ~54ms，叠在 gapMs 40ms 上，
-           out-in 的空档实测从设计值 40ms 涨到 **135ms** —— 每切一张都白等这么久，
-           这就是"不流畅"里能量出来的那一块。
-           ✅ 改成**读一次 offsetWidth** 强制重算样式：同一个任务里就能挂过渡，
-              空档回到 ~40ms，而且**与帧率无关**。这是标准做法，但必须验证：
-              套件里"进相挂的是 150ms ease-out / 进相单调回 0 / 起点真的在屏外那侧"
-              三条会立刻抓住"过渡没挂上"这种退化。 */
-        void lbSlotCur.offsetWidth;
-        lbFx(lbSlotCur, inMs, LB_IN_EASE, inMs, LB_IN_EASE, 0);
-        lbSlotCur.style.transform = 'translateX(0px)';
-        lbSlotCur.style.opacity = '1';
-        lbPhase = 'in';
-        lbTimer = setTimeout(function () {
-          if (seq !== lbSeq) return;
-          lbTimer = null;
-          lbPhase = 'idle';
-          lbRest();                        /* 收尾归位（无过渡，值本来就一样） */
-        }, inMs + 16);
-      }, outMs + gapMs);
-    }
-
-    /* 拖动位移的封顶见上面的 lbDragVis —— **没有橡皮筋**（主人「我不喜欢反弹动画」）：
-       到顶就不动，松手也不会往回弹。于是拖动的手感只有两种状态：跟手，或者不动；
-       松手时要么提交，要么瞬间归位。 */
-
-    lbStage.addEventListener('pointerdown', function (e) {
-      if (!lb.classList.contains('is-open')) return;
-      if (e.button) return;                       /* 只认主键 / 触摸 / 笔 */
-      if (lbPhotos.length < 2) return;
-      /* 🔴 v12.1：这里**不再** lbSettle()。原来一按下就把正在跑的淡滑落定，
-         于是任何一次"点一下"（包括点到图外想关灯箱）都会把动画砍掉。
-         改成等轴向判明、真的开始横向拖了再落定（见 pointermove）。 */
-      lbDrag = {
-        id: e.pointerId, x0: e.clientX, y0: e.clientY,
-        axis: 0, v: 0, raw: 0, moved: false,
-        hist: [{ x: e.clientX, t: performance.now() }]
-      };
-      lbDragDim = lbDims();
-    });
-
-    window.addEventListener('pointermove', function (e) {
-      if (!lbDrag || e.pointerId !== lbDrag.id) return;
-      var dx = e.clientX - lbDrag.x0, dy = e.clientY - lbDrag.y0;
-      if (!lbDrag.axis) {
-        if (Math.abs(dx) < LB_DRAG_MIN && Math.abs(dy) < LB_DRAG_MIN) return;
-        lbDrag.axis = Math.abs(dx) > Math.abs(dy) ? 1 : 2;
-        if (lbDrag.axis === 2) { lbDrag = null; return; }   /* 竖滑不接管 */
-        /* 真开始横向拖了 —— 这时才把在跑的那一段推到终点（v12.1 起落定只会【向前】，
-           不会把已经提交的那一步取消掉）。落定后重新量几何：刚换过图，步距可能变了。
-           ⚠️ lbSettle() 会把 lbDrag 清掉（它假设"落定 = 这次手势作废"），但这里
-              这一次手势正是【我们自己】—— 清完必须放回去，否则下面第一行就抛空指针。 */
-        if (lbPhase !== 'idle') {
-          var keepDrag = lbDrag;
-          lbSettle();
-          lbDrag = keepDrag;
-          lbDragDim = lbDims();
-        }
-        lb.classList.add('is-dragging');
-        lbFx0(lbSlotPrev); lbFx0(lbSlotCur); lbFx0(lbSlotNext);  /* 跟手：必须无过渡 */
-      }
-      if (e.cancelable) e.preventDefault();
-      /* ⚠️ v12：raw 与 v 必须分开。raw = 真实手指位移（**提交判据**用），
-         v = 画面位移（阻尼后封顶在 32px，**只用来摆画面**）。
-         合成一个数的后果实测踩过：画面被封顶在 32px，拿它去比 110px 的提交线，
-         永远过不了 ⇒ 拖到底也翻不了页。 */
-      lbDrag.raw = dx;
-      lbDrag.v = lbDragVis(dx);
-      lbDrag.moved = true;
-      var now = performance.now();
-      lbDrag.hist.push({ x: e.clientX, t: now });
-      while (lbDrag.hist.length > 2 && now - lbDrag.hist[0].t > 90) lbDrag.hist.shift();
-      lbShift(lbDrag.v);
-    }, { passive: false });
-
-    function lbDragEnd(e) {
-      if (!lbDrag || (e && e.pointerId !== lbDrag.id)) return;
-      var g = lbDrag, dim = lbDragDim;
-      lbDrag = null; lbDragDim = null;
-      if (!g.axis || !g.moved) return;            /* 只是点了一下 → 交给 click 逻辑 */
-      lb.classList.remove('is-dragging');
-      lbClickMute = performance.now() + LB_CLICK_MUTE;
-
-      var v = g.raw;                              /* ← 判据用原始手指位移，不是画面位移 */
-      var a = g.hist[0], b = g.hist[g.hist.length - 1];
-      var vel = (b.x - a.x) / Math.max(1, b.t - a.t);    /* px/ms，右正左负 */
-      var dir = 0;
-      if (v <= -lbCommitDist(dim.n) || (vel < -LB_FLICK && v < -LB_FLICK_MIN)) dir = 1;
-      else if (v >= lbCommitDist(dim.p) || (vel > LB_FLICK && v > LB_FLICK_MIN)) dir = -1;
-      /* v11.6 在这里把两端的 dir 清零（"不外绕"）；v11.8 环形取消 ——
-         首图继续往左拖、末图继续往右拖都照常提交，落点由 lbWrapIdx 折到另一端。 */
-
-      if (dir) { lbSwitchTo(dir); return; }
-
-      /* 没过阈值 → **瞬间归位，没有过渡**（主人「我不喜欢反弹动画」）。
-         原来这里要走 130~280ms 的 ease-out 滑回去，那一小段"动一下再回来"就是他不喜欢的。
-         lbRest 内部先 lbFx0（transition:none）再写终值，所以这一步是同步落定的 ——
-         松手当帧就在原位，不存在任何回位动画。
-         v12 之后跳跃幅度最多 32px（跟手封顶值），比 v11 的 ≤110px 小得多。 */
-      lbRest();
-      lbPhase = 'idle';
-      lbTo = lbIndex;
-    }
-    window.addEventListener('pointerup', lbDragEnd);
-    window.addEventListener('pointercancel', lbDragEnd);
-
-    /* ===== 触控板手势边界探测器（v12.3）=====
-       惯性判据移植自 wheel-gestures（MIT © xiel）—— 常量一个字没改；另外两条
-       （突降 / 静默门槛）是我们加的，理由与实测见 LB_WHEEL_MIN 上面那段长注释。
-       feed(dx, dy, t) 返回 { start, momentum, cancel, cliff }：
-         · momentum = 现在在**惯性尾巴**里（手指已离开）⇒ 调用方一条都不许算
-         · start    = 这条事件开启了新手势（上一手势已结束，或就没有过）
-         · cancel   = 手指**砸**下来（库判据：已在惯性里，且 |Δ| > 上一拍 ×2）
-         · cliff    = 手指**轻轻**落下（平滑衰减 4 拍后突然单拍掉一半以下）
-       最后两个都是"新的一次手指动作开始了"的证据 ⇒ 解掉"一次手势一张"的锁。 */
-    function lbTpNew() {
-      var started = false, momentum = false, lastAbs = 0, willEndMs = LB_TP_END_FLOOR;
-      var toMerge = [], points = [], vel = [0, 0], accs = [], startPub = false, negZero = false;
-      var timer = null, ratioRun = 0;
-      var res = { start: false, momentum: false, cancel: false, cliff: false };
-
-      function reset() {
-        if (timer) { clearTimeout(timer); timer = null; }
-        started = false; momentum = false; lastAbs = 0; willEndMs = LB_TP_END_FLOOR;
-        toMerge = []; points = []; vel = [0, 0]; accs = []; startPub = false; negZero = false;
-        ratioRun = 0;
-      }
-      function start() { reset(); started = true; }
-      function end() { started = false; momentum = false; }
-      function arm() { if (timer) clearTimeout(timer); timer = setTimeout(end, willEndMs); }
-      function rateInRange(f) { return f === 0 ? true : (f >= LB_TP_ACC_MIN && f <= LB_TP_ACC_MAX); }
-      /* 库原逻辑：最近 5 个取样点的逐轴速度比都要落带（0 轴算通过） */
-      function detect() {
-        if (accs.length < LB_TP_ANALYZE) return;
-        if (negZero) {   /* Windows + Blink 的"手指离开"专用事件（macOS 上不会出现） */
-          negZero = false;
-          if (Math.abs(vel[0]) >= 0.2 || Math.abs(vel[1]) >= 0.2) momentum = true;
-        }
-        var recent = accs.slice(-LB_TP_ANALYZE), ok = true, i, k;
-        for (i = 0; i < recent.length && ok; i++) {
-          for (k = 0; k < recent[i].length; k++) if (!rateInRange(recent[i][k])) { ok = false; break; }
-        }
-        if (ok) momentum = true;
-        accs = recent;
-      }
-      function setWillEnd(dt) {
-        var nt = Math.ceil(dt / 10) * 10 * 1.2;
-        if (!momentum) nt = Math.max(100, nt * 2);      /* 库原式 */
-        willEndMs = Math.min(1000, Math.round(Math.max(nt, LB_TP_END_FLOOR)));
-      }
-      /* 每 LB_TP_MERGE 条事件合成一个速度取样点，用相邻两点算逐轴加速比 */
-      function merge() {
-        if (toMerge.length === LB_TP_MERGE) {
-          var d = [0, 0], t = 0, j;
-          for (j = 0; j < toMerge.length; j++) { d[0] += toMerge[j][0]; d[1] += toMerge[j][1]; t += toMerge[j][2]; }
-          t /= LB_TP_MERGE;
-          var prevPoint = points[0];
-          points[0] = [d, t];
-          if (prevPoint) {
-            var dt = t - prevPoint[1];
-            if (dt > 0) {
-              var v = [d[0] / dt, d[1] / dt];
-              accs.push([v[0] / (vel[0] || 1), v[1] / (vel[1] || 1)]);
-              vel = v;
-              setWillEnd(dt);
-            }
-          }
-          toMerge = [];
-          if (!momentum) detect();
-        } else if (!startPub && toMerge.length) {
-          /* 手势的第一条：还没有速度，先拿它当起点（库的 updateStartVelocity） */
-          var l = toMerge[toMerge.length - 1];
-          vel = [l[0] / willEndMs, l[1] / willEndMs];
-        }
-      }
-      return {
-        reset: reset,
-        feed: function (dx, dy, t) {
-          var dmax = Math.max(Math.abs(dx), Math.abs(dy));
-          res.start = false; res.cancel = false; res.cliff = false;
-          if (!started) { start(); res.start = true; }
-          else if (momentum && dmax > Math.max(LB_TP_CANCEL_MIN, lastAbs * LB_TP_CANCEL_JUMP)) {
-            end(); res.cancel = true; start(); res.start = true;
-          }
-          if (dmax === 0 && typeof Object.is === 'function' && Object.is(dx, -0)) {
-            negZero = true;                      /* 零位移事件不许影响速度（库原样） */
-            res.momentum = momentum;
-            return res;
-          }
-          /* ② 突降：连续平滑衰减之后，单拍掉到一半以下 ⇒ 手指落下（macOS 停惯性的报信） */
-          if (lastAbs > 0) {
-            var r = dmax / lastAbs;
-            if (r <= LB_TP_CLIFF && ratioRun >= LB_TP_SMOOTH) { ratioRun = 0; res.cliff = true; }
-            else if (r >= 0.7 && r <= 1.0) ratioRun++;
-            else ratioRun = 0;
-          }
-          lastAbs = dmax;
-          toMerge.push([dx, dy, t]);
-          merge();
-          res.momentum = momentum;
-          startPub = true;
-          arm();
-          return res;
-        }
-      };
-    }
-    var lbTp = lbTpNew();
-
-    /* 触控板双指横扫：deltaX 驱动同一条动画。
-       "一次滑动一张"在这条路径上最难 —— macOS 松手后的惯性尾巴会连来几十条事件
-       （v10.2 / v273 都栽在这）。做法分两层：
-         · **台阶一**：惯性期的事件一条都不算（不累加 acc），所以不管甩得多猛、
-           尾巴多长，都不可能多走一张。这一层是硬的。
-         · **台阶二**：`lock` 保证"一次手指动作只走一张"；解锁口只有 lbTp 报的三个
-           "新的手指动作开始了"（start / cancel / cliff）。
-       ⚠️ v12.2 在这里放过一条 `fresh`（静默 > 70ms）当唯一解锁口 —— 那是错的，
-          尾巴会把静默永远占着 ⇒ 不能连续滑。别再退回去。
-       ⚠️⚠️ **两行的顺序是硬的，别"顺手精简"成 `if (st.momentum) return;`**：
-          `start` / `cancel` 不可能与 momentum 同时为真（cancel 自己先 end()），
-          但 **`cliff` 可以** —— 离线复现拿 66 个样本（12 段真机录制 + 连甩 + 拼接口）
-          数过：**61 次解锁里有 38 次发生在 momentum 已确认为真那一拍**
-          （`tp-invariant.js`）。写成无条件 `if (st.momentum) return;` 会把那 38 次
-          全吃掉 ⇒ 又是"滑了它不动"。所以必须带 `&& !unlocked`。
-          这条也正是离线复现里的写法（`if (st.momentum && !extra) continue;`）；
-          页面与复现**必须逐字一致**，否则"套件全绿"证明的不是这份实现。 */
-    window.addEventListener('wheel', function (e) {
-      if (!lb.classList.contains('is-open')) return;
-      var dx = e.deltaX;
-      if (!dx || Math.abs(e.deltaY) > Math.abs(dx)) return;   /* 竖滚不接管（也不喂探测器）*/
-      e.preventDefault();
-      var now = (typeof e.timeStamp === 'number' && e.timeStamp > 0) ? e.timeStamp : performance.now();
-      var st = lbTp.feed(dx, e.deltaY, now);
-      var unlocked = st.start || st.cancel || st.cliff;
-      if (st.momentum && !unlocked) { lbWheel.acc = 0; return; }   /* 惯性尾巴：一条都不算 */
-      if (unlocked) {
-        lbWheel.acc = 0; lbWheel.lock = false;
-        /* v11.6 起 dim 每条【新手势】都重抓：步距按真实渲染宽度算，换过图就变了。 */
-        lbWheel.dim = lbDims();
-      }
-      if (!lbWheel.dim) lbWheel.dim = lbDims();   /* 兜底：灯箱刚开、还没量过几何 */
-      if (lbWheel.lock) return;                  /* 这次手指动作已经走掉一张了 */
-      /* 🔴 v12.1：这里原来有一条 `if (lbPhase !== 'idle') return;` —— 淡滑中来的
-         【新手势】会被整条丢掉（它的头几个事件进不来、acc 一直是 0，只剩尾巴在凑数），
-         实测连发 6 条只走 5 张，而且还出现过 ~1.8s 的死区（"我滑了它不动"）。
-         lbSwitchTo 本身可被打断：新一段从【当前渲染位置】接着走，CSS 过渡自动连续，
-         所以不再需要这道闸。"一条手势一张"仍由上面的 lock 保证。 */
-      lbWheel.acc += dx;
-      if (Math.abs(lbWheel.acc) < LB_WHEEL_MIN) return;
-      var dir = lbWheel.acc > 0 ? 1 : -1;
-      /* v11.8 环形：两端都能继续走，所以不再有"被边界挡下"的分支；
-         只有真的只有一张（hasP / hasN 同时为 false）时才把那笔账清掉，
-         否则欠着的位移会让反方向"滑半天没反应"。 */
-      if (!lbWheel.dim.hasN && !lbWheel.dim.hasP) { lbWheel.acc = 0; return; }
-      lbWheel.dir = dir;
-      lbWheel.lock = true;                       /* ← 一次手指动作只走一张 */
-      lbSwitchTo(dir);
-    }, { passive: false });
-
-    /* 载入一组照片并直接停在 idx 张 */
-    function lbMount(list, idx) {
-      lbSettle();
-      for (var s = 0; s < 3; s++) {
-        if (lbSlots[s].firstChild) lbSlots[s].removeChild(lbSlots[s].firstChild);
-      }
-      lbNode = null;
-      lbPhotos = list;
-      idx = idx < 0 ? 0 : (idx > list.length - 1 ? list.length - 1 : idx);   /* v11.6 夹紧 */
-      lbIndex = idx;
-
-      lbDots.innerHTML = '';
-      if (list.length > 1) {
-        for (var i = 0; i < list.length; i++) {
-          var d = document.createElement('button');
-          d.type = 'button';
-          d.className = 'dy-lb-dot' + (i === idx ? ' is-on' : '');
-          d.dataset.i = String(i);
-          d.setAttribute('aria-label', '第 ' + (i + 1) + ' 张');
-          lbDots.appendChild(d);
-        }
-      }
-      lbShow(idx);
-
-      /* 首图 + 邻近先解码；剩下的延后 —— 9 张以上一次全解码会和首屏抢带宽 */
-      var rest = list.slice(Math.max(0, idx - 1), Math.min(list.length, idx + 2));
-      setTimeout(function () { for (var k = 0; k < rest.length; k++) lbWarmSrc(rest[k].src); }, 400);
-
-      if (LB_DEBUG) {
-        window.__lb = function () {
-          var off = function (el) {
-            var t = el.style.transform || '';
-            var m = /translateX\((-?[\d.]+)px\)/.exec(t);
-            return m ? Math.round(parseFloat(m[1]) * 10) / 10 : 0;
-          };
-          /* 引擎此刻真正渲染出来的 translateX（矩阵里的 tx）—— 与内联目标值是两件事 */
-          var cTx = function (el) {
-            var m = /matrix\(([^)]+)\)/.exec(getComputedStyle(el).transform);
-            return m ? Math.round(parseFloat(m[1].split(',')[4]) * 10) / 10 : 0;
-          };
-          var dm = lbDims();
-          return {
-            open: lb.classList.contains('is-open'),
-            idx: lbIndex, to: lbTo, n: lbPhotos.length, phase: lbPhase,
-            /* 槽位里一共有几个媒体节点（静止 1~3 个：当前 + 存在的邻居） */
-            nodes: lbSlots[0].children.length + lbSlots[1].children.length + lbSlots[2].children.length,
-            /* 真正【看得见】的槽位数。不变式有两半，别写成一句话：
-                 · **永远 ≤ 1**（v11「舞台上只有一张图」的硬不变式；v12 起连拖动中
-                   也不露邻图，两个邻居槽全程压在 opacity:0）
-                 · 静止态 = 1
-               ⚠️ 出相结束到进相开始之间那一两帧**会短暂为 0** —— 参考站的
-               mode="out-in" 本来就是"先淡干净、再淡进来"，台上那一下是空的。
-               把它当 bug 去"补一张图"会破坏 out-in 的观感（主人选的就是这一版）。 */
-            shown: lbSlots.filter(function (s) {
-              return parseFloat(getComputedStyle(s).opacity) > 0.02;
-            }).length,
-            off: [off(lbSlotPrev), off(lbSlotCur), off(lbSlotNext)],
-            /* v12：动画的**声明值**（验收直接读这里，别去采样猜曲线/时长） */
-            motion: {
-              nudge: LB_NUDGE,
-              outMs: lbMs(LB_OUT_MS), inMs: lbMs(LB_IN_MS), gapMs: lbMs(LB_SWAP_GAP),
-              outEase: LB_OUT_EASE, inEase: LB_IN_EASE,
-              cap: LB_DRAG_CAP, damp: LB_DRAG_DAMP
-            },
-            /* 当前槽位的实况。⚠️ 两组字段是**两件事**，验收时别混：
-                 · tx / op / tr = 内联的【目标值】与 transition 声明（"我要求的是什么"）
-                 · cx / cop     = getComputedStyle 读到的【引擎正在渲染的值】（"现在画到哪"）
-               只读内联值会得出"出相一动就是 -32、进相同样一帧到位"的假结论（踩过）。 */
-            cur: {
-              tx: off(lbSlotCur),
-              op: lbSlotCur.style.opacity === '' ? 1 : parseFloat(lbSlotCur.style.opacity),
-              tr: lbSlotCur.style.transition || '',
-              cx: cTx(lbSlotCur),
-              cop: Math.round(parseFloat(getComputedStyle(lbSlotCur).opacity) * 1000) / 1000
-            },
-            hasP: !!lbSlotPrev.firstChild, hasN: !!lbSlotNext.firstChild,
-            /* 一步的步距（邻居间距）。v12 之后**只剩提交阈值**在用（lbCommitDist），
-               动画本身与它无关 —— 一步的位移恒为 32px。 */
-            stepP: Math.round(dm.p * 10) / 10, stepN: Math.round(dm.n * 10) / 10,
-            loaded: lbNode ? (lbNode.tagName === 'IMG' ? (lbNode.naturalWidth > 0 ? 1 : 0) : 2) : -1,
-            /* 渲染盒 + 原始像素（验收「照片同尺寸」用）。取元素自身尺寸而不是采样式
-               的 getBoundingClientRect —— 后者会被过渡中的 translate 带偏。 */
-            box: lbNode ? [
-              Math.round(lbNode.getBoundingClientRect().width),
-              Math.round(lbNode.getBoundingClientRect().height),
-              lbNode.naturalWidth || 0, lbNode.naturalHeight || 0
-            ] : null,
-          };
-        };
-      }
-    }
-
-    function openLb(node) {
-      var item = node.closest ? node.closest('.dy-item') : null;
-      var list = (item && item._dyPhotos) || [];
-      if (!list.length) return;
-      var idx = parseInt(node.dataset.idx || '0', 10);
-      if (isNaN(idx)) idx = 0;
-      /* v11.6（2026-09-14，主人「点击+3显示图片错误，显示的不是对应图片」）：
-         这里原来对「+N 更多」格做 `idx += 1`（跳到"第一张没在网格里露出的照片"，
-         照朋友圈习惯），于是格子里明明显示的是第 9 张（09-bookshelf-cat），点开却是
-         第 10 张（10-game-event）—— 看得见的那张跟点开的那张对不上。
-         规则改成一句话：**点哪一格就打开那一格【里显示的那张】**，
-         没露出来的往右滑即可看到（圆点数本来就是全部张数）。 */
-      if (idx < 0) idx = 0;
-      if (idx > list.length - 1) idx = list.length - 1;
-      lbMount(list, idx);
-      lb.classList.add('is-open');
-      lb.setAttribute('aria-hidden', 'false');
-      /* 锁背后页面的滚动：站级 script.js 的滚轮平滑引擎用 window.scrollTo 程序化
-         滚动，CSS overflow:hidden 拦不住它 —— 必须显式告诉它灯箱开着。 */
-      document.body.classList.add('dy-lb-open');
-      /* v11.6：顺手关掉浏览器自己的"横滑前进 / 后退"手势（macOS 触控板、iOS 边缘侧滑）。
-         v11.8 起灯箱内部是**环形**（横滑永远有地方可去），这条更要留着 ——
-         否则甩得猛的那一下会整页滑走，看着像灯箱自己关了。 */
-      document.documentElement.style.overscrollBehaviorX = 'none';
-      if (window.__wheelLock) window.__wheelLock(true);
-    }
-
-    function closeLb() {
-      lb.classList.remove('is-open');
-      lb.setAttribute('aria-hidden', 'true');
-      lbSettle();
-      document.body.classList.remove('dy-lb-open');
-      document.documentElement.style.overscrollBehaviorX = '';
-      if (window.__wheelLock) window.__wheelLock(false);
-    }
-
-    /* 点图打开 / 点空白关闭。图、按钮、圆点都不关。
-       ⚠️ 刚拖完的那一下 click 必须丢掉：拖动的 pointerup 可能落在照片外面，
-       浏览器会把 click 发给共同祖先（= 舞台），于是"滑一下"会顺手把灯箱关掉。 */
-    document.addEventListener('click', function (e) {
-      if (performance.now() < lbClickMute) return;
-      var img = e.target.closest ? e.target.closest('.dy-img') : null;
-      if (img) { openLb(img); return; }
-      if (!lb.classList.contains('is-open')) return;
-      if (e.target.closest && (e.target.closest('.dy-lb-btn') ||
-                               e.target.closest('.dy-lb-dot') ||
-                               e.target.closest('.dy-lb-stage img') ||
-                               e.target.closest('.dy-lb-emoji'))) return;
-      closeLb();
-    });
-    /* 方向键翻页（v11.8 起环形：两端继续走就绕回另一端）、ESC 关闭 */
-    document.addEventListener('keydown', function (e) {
-      if (!lb.classList.contains('is-open')) return;
-      if (e.key === 'Escape') closeLb();
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); lbGo(-1); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); lbGo(1); }
-    });
-
-    lbPrev.addEventListener('click', function (e) { e.stopPropagation(); lbGo(-1); });
-    lbNext.addEventListener('click', function (e) { e.stopPropagation(); lbGo(1); });
-    /* 圆点：点哪张走哪张。v11.7 起跨多张也只播**一段**（目标先摆进屏外邻居槽再滑一步，
-       见 lbGoSlide）—— 逐段走 = N×280ms，而"跳 5 张"和"翻 1 张"本来就该是同一种观感。 */
-    lbDots.addEventListener('click', function (e) {
-      var d = e.target.closest ? e.target.closest('.dy-lb-dot') : null;
-      if (!d) return;
-      e.stopPropagation();
-      var i = parseInt(d.dataset.i, 10);
-      if (isNaN(i) || i === lbIndex) return;
-      lbGoSlide(i);
+       ⚠️ 为什么挂在 DOMContentLoaded 上：引擎是 defer 的，本页这段内联脚本不是 ——
+          内联脚本执行时 window.RMLightbox 还不存在。defer 脚本全部跑完才轮到
+          DOMContentLoaded，在这里绑才拿得到引擎
+          （顺序反了会静默绑不上：点图一点反应都没有，控制台也不报错）。 */
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!window.RMLightbox) return;
+      document.addEventListener('click', function (e) {
+        var img = e.target.closest ? e.target.closest('.dy-img') : null;
+        if (!img) return;
+        var item = img.closest ? img.closest('.dy-item') : null;
+        var list = (item && item._dyPhotos) || [];
+        if (!list.length) return;
+        var idx = parseInt(img.dataset.idx || '0', 10);
+        if (isNaN(idx)) idx = 0;
+        window.RMLightbox.open(list, idx);
+      });
     });
 
     /* ---------- 入场 stagger（只服务老引擎）----------

@@ -371,6 +371,23 @@
 
   function wrapIdx(i) { return ((i % n) + n) % n; }
 
+  /* 图到位那一下的交接（2026-09-21 全站同步空图片底板）：换项目时改的是**同一个 img
+     的 src**（槽位池化复用），新图没到之前帧里显示的是 .pj-scene__frame 的底板
+     （--plate-*），到了不该硬切 —— 和相簿 / 动态页 / 首页立绘同一套 0.4s 淡入（--img-fade）。
+     ⚠️ 每次换 src 都要**重置**状态：这里是复用节点，不是新建，不清掉 .is-loaded 就淡不起来。
+     三路兜底（complete / load / error）见 photos.js 的 fadeIn 注释。 */
+  function fadeInImage(img) {
+    img.classList.remove('is-loaded');
+    img.classList.add('is-pending');
+    var done = function () {
+      img.classList.remove('is-pending');
+      img.classList.add('is-loaded');
+    };
+    if (img.complete) { done(); return; }
+    img.addEventListener('load', done, { once: true });
+    img.addEventListener('error', done, { once: true });
+  }
+
   /* 预加载全部卡图：槽位复用换图时浏览器缓存秒切，不闪白；decode() 提前解码 ——
      回弹/步进时新卡入环不再触发"解码抖动"（第二百二十四批 主人"回弹有时像卡住"） */
   PROJECTS.forEach(function (p) {
@@ -561,6 +578,7 @@
           img.setAttribute('src', p.img);
           img.alt = p.title;
           if (img.decode) img.decode().catch(function () {});   /* 换图提前解码防抖动 */
+          fadeInImage(img);                                     /* ← 新图到位淡入（见上） */
         }
         /* 文字：眉标 = 类型、竖排标题 = 项目名、贴纸与印章 = 序号。
            类型只从数据推（有链接 = REPO / 建设中 = DRAFT），不为好看编造分类；

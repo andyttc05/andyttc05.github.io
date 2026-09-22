@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page-node-id="Bm5bWmuxJyiADSIGHE7QrE">
-<!-- 滚动触感（2026-09-14 主人"所有页面都使用首页的滑动触感"）：本页不再写
-     data-scroll="native"，与首页共用 script.js 的滚轮平滑引擎；该属性保留为逃生开关。
+<html lang="zh-CN" data-scroll="native" data-page-node-id="Bm5bWmuxJyiADSIGHE7QrE">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：本页写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 那套自研滚轮平滑整体让位。
+     历史：09-07 曾在子页面写它，09-14 主人要"所有页面都使用首页的滑动触感"撤销过一次，
+     09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。
      立牌影像排的横向滚轮由 projects-carousel.js 自己 preventDefault + stopPropagation
-     接管（不会冒泡到整页引擎），两条通道互不打架。 -->
+     接管，指针在排上时页面不跟着滚 —— 与整页用哪套滚动无关。 -->
 <head data-page-node-id="cJ7TS2e0bwSoncrknSeYP9">
 <meta charset="UTF-8" data-page-node-id="28SqVd7EaCAhIS1nzHozrO">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="HjJ5OZMSzpguY6V6G0EBpk">
@@ -82,7 +84,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=9929cd257f" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=8b57ab4066" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -135,7 +137,7 @@
         <li class="nav-hover-indicator" aria-hidden="true" data-page-node-id="7DkC7pJ6rBv6YHMdiWVG4e"></li>
         <li data-page-node-id="cAV3ED4MVDFbs7Uom7lG8Z"><a href="projects.html" aria-current="page" data-page-node-id="ksXlsDsvK3p8XBxuhaUimt">项目</a></li>
         <li data-page-node-id="mEGBifUKNb4dSEKBDm4uTR"><a href="posts.html" data-page-node-id="ZbZcNRJeNdiGtYAzfMaR5D">动态</a></li>
-        <li data-page-node-id="ynE41SElS1648IHiSf4a4V"><a href="coming-soon.html" data-page-node-id="r2pD1n7Bew6wYX1BCaJ48E">照片</a></li>
+        <li data-page-node-id="ynE41SElS1648IHiSf4a4V"><a href="photos.html" data-page-node-id="r2pD1n7Bew6wYX1BCaJ48E">照片</a></li>
         <li data-page-node-id="B58AAISDEbVFTFgge6iBeb"><a href="about.html" data-page-node-id="P8JfZi4UlGC6lA0fcioW9O">关于</a></li>
       </ul>
       <div class="nav-actions" data-page-node-id="1ImfedD6gerzqHWbn9W36B">
@@ -170,7 +172,7 @@
       <ul class="nav-menu-links" data-page-node-id="qtVBXK4zCVb9dt0sWGTtDO">
         <li data-page-node-id="dkdx8ngqFLB9ZlZDwK1wkm"><a href="projects.html" aria-current="page" data-page-node-id="FKatlIJZpny6UIlSx0uSL9"><span class="label" data-page-node-id="OcB0b2XoKFsovxRk0w5Ety">项目</span><span class="arrow" data-page-node-id="Cl6TUE59NOWAdKzeu5bGqm">&rarr;</span></a></li>
         <li data-page-node-id="lunddGTIQyxSx5WJe6rwGB"><a href="posts.html" data-page-node-id="4G5L6a8W7eofUljSJ1YEhw"><span class="label" data-page-node-id="rIHQfU2BKeWt3JiNQko9N6">动态</span><span class="arrow" data-page-node-id="tnF7xszUsBVkA5piGtqhPd">&rarr;</span></a></li>
-        <li data-page-node-id="SXQVSHHm664oWTyGXed5Fb"><a href="coming-soon.html" data-page-node-id="kYGl1DLpzhvjcTonGa48iR"><span class="label" data-page-node-id="FL8CrvZvGQ26zWkc8IcDjc">相册</span><span class="arrow" data-page-node-id="JEYPyBylhLy7lfS3RzKBwb">&rarr;</span></a></li>
+        <li data-page-node-id="SXQVSHHm664oWTyGXed5Fb"><a href="photos.html" data-page-node-id="kYGl1DLpzhvjcTonGa48iR"><span class="label" data-page-node-id="FL8CrvZvGQ26zWkc8IcDjc">相册</span><span class="arrow" data-page-node-id="JEYPyBylhLy7lfS3RzKBwb">&rarr;</span></a></li>
         <li data-page-node-id="l5NNXpKrkrG1bIvEL24IWU"><a href="about.html" data-page-node-id="jf6pABNO4Uz5SuQRPdsvEh"><span class="label" data-page-node-id="EXl5nbhOoHBJj3FF8pE5zs">关于</span><span class="arrow" data-page-node-id="bzaeJc8hhf5p0GkIBFiYxt">&rarr;</span></a></li>
       </ul>
     </div>
@@ -198,7 +200,7 @@
          与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。 -->
     <header class="about-hero" data-page-node-id="EOy30PMWp9ByIkNM5Y35US">
       <h1 class="about-title" aria-label="猫窝工坊" data-page-node-id="Iou4yYu55oHrMP1O2ww0sC"><span class="about-title-char" data-page-node-id="Cap8d4ZLCMcXihFYQZcWPs">猫</span><span class="about-title-char" data-page-node-id="P9BYKuEyAkqYZY6gj8FsSk">窝</span><span class="about-title-char hl" data-page-node-id="nfZZZkoIVD6veqhQk9cBHQ">工</span><span class="about-title-char hl" data-page-node-id="DAWqPoGmII8iYvdOL2rQId">坊</span></h1>
-      <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这儿。</p>
+      <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这里</p>
     </header>
 
     <!-- === 项目列表：立牌影像排（第二百七十八批 2026-09-13 主人"要不不用现在这款卡片的
@@ -255,8 +257,8 @@
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=cd295b1f36" defer></script>
+  <script src="../assets/js/script.js?v=7cb94c80b3" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
-  <script src="../assets/js/projects-carousel.js?v=cdb938d046" defer></script>
+  <script src="../assets/js/projects-carousel.js?v=0d32316679" defer></script>
 </body>
 </html>

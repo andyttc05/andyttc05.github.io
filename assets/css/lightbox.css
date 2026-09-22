@@ -1,0 +1,525 @@
+/* ===========================================================================
+   灯箱引擎（全站唯一一套）—— 2026-09-21 从 pages/posts.html 原样抽出
+
+   为什么抽出来：相册页（pages/album.html）点图放大原来跑的是自己那套简化灯箱
+   （淡入淡出 + 左右箭头），与动态页这套（32px 出-进淡滑 + 拖动跟手 + 圆点 +
+   触控板手势 + 手机横屏/全屏 + 环形翻页）观感明显两样。主人 2026-09-21：
+   「相册页点击浏览图片的引擎和动态页点击浏览图片的引擎使用同一套。」
+   ⇒ 引擎只留这一份，两个页面引同一对文件（本文件 + assets/js/lightbox.js）。
+
+   ⚠️ 这个文件里的注释是那套引擎**十几轮迭代的全部来龙去脉**（v9.43 / v11.x / v12.x / v13），
+      原样搬过来的，没有删。要改哪一条先读它，别重走已经走过的错路。
+
+   DOM（两个页面各自放一份，id 同名）：
+     .dy-lb                     遮罩层（`body.dy-lb-open` 锁背后滚动）
+       .dy-lb-stage             舞台（唯一媒体在场；也是"点空白关闭"的命中面）
+         .dy-lb-slot × 3        prev / cur / next 三个角色槽位
+       .dy-lb-btn ...           左右箭头（手机隐藏）/ 横屏钮（v13.1 起 sr-only，屏幕上没有）
+       .dy-lb-cap               说明行（动态页没有 ⇒ 不占位）
+       .dy-lb-dots              底部预览带（小照片；当前张 = 正方形、其余 = 竖长条）
+   =========================================================================== */
+
+/* ---- 灯箱 v11（单图容器 · 切换动效照搬 yibi2333.fun/photowall）----
+   DOM：.dy-lb > .dy-lb-stage（唯一媒体子节点）+ 左右箭头 + 底部圆点
+   v11.1 起外壳只剩「左右箭头 + 底部圆点」—— 左上时刻计数与右上关闭钮已按主人
+   要求移除（关闭 = 点空白 / ESC）。
+   v11.2（2026-09-13，主人"原比例显示图片即可，同等比例的图片大小要一致，我要显示
+   完整图片内容"）：v11.1 的统一 4:3 框（cover 裁切）**撤销** —— 照片一律按原比例
+   完整显示；尺寸只给上界，所以【同一视口下，长宽比相同的照片渲染盒必然相同】
+   （见下 .dy-lb-stage > img 的注释）。
+   2026-09-13：v10 的 Swiper freeMode 是「连续跟手」，同一时刻必然显示邻图；yibi 的
+   切换是「单图容器 + 出-进两段淡滑」，两者结构上互斥。主人看过参考站后选了后者，
+   于是 Swiper（连同捏合 / 双击缩放 / 放大后平移）整体移除。
+   参考站实测（真机 + 逐帧采样 + getAnimations()，2026-09-13 / 09-15）：
+   出 150ms cubic-bezier(.4,0,1,1)、位移 ∓32px、opacity 1→0；进 150ms cubic-bezier(0,0,.2,1)、
+   反向 32px → 0、opacity 0→1；两段之间约 40~50ms 空档，【顺序】执行没有交叉淡化 ——
+   同一时刻舞台上只有一张图。v12（2026-09-15）主人指定换回这一套并加了拖动轻微跟手
+   （位移 = 手指位移 × 0.29，封顶 32px；邻图不参与）。 */
+body.dy-lb-open { overflow: hidden; }
+.dy-lb {
+  /* v12.5（2026-09-16，主人「预览图片置于荧幕中间比较好，优化一下预览界面的 UI 排版和
+     功能/图片大小」）—— 上一版把画面**抬高了**：
+
+       v12.4 的舞台是 top: --lb-pad-top(26) / bottom: --lb-band(87)，两个数不等
+       ⇒ 舞台中心比视口中心高 (87 − 26) / 2 = **30.5px**。实测 3 种比例 × 4 档视口，
+       画面中心 dy 恒在 **−28 ~ −31px**（dx = 0）—— 就是主人说的"没在荧幕中间"。
+       根因不是"没居中"，而是**上下留白取了两个不同的数**，舞台自己一直是居中的。
+
+     ⇒ 这版只认**一个**留白 `--lb-edge-y`，上下同值 ⇒ 画面中心 = 荧幕中心
+       （数学上恒等，不是调出来的数）。它也不再是手感值，而是**由底部 chrome 反算**：
+         --lb-edge-y = --lb-band = 圆点条离下沿 + 条高 + 图下缘净空
+       —— 于是"图下缘 ↔ 圆点"那条净空变成**构造保证**：图高上界 = 100vh − 2·band
+       ⇒ 下缘最多到 100vh − band，正好在圆点条上方留出 --lb-gap。
+       ⚠️ 别再单独调 --lb-pad-top：那正是上一版的病根（上下不等 ⇒ 图必然偏心）。
+
+       尺寸随之重算：宽上界 = 100vw − 2·--lb-edge-x，高上界 = 100vh − 2·--lb-edge-y，
+       `--lb-fit` 仍是唯一的大小旋钮。fit 取 .94 是为了让画面**与 v12.4 等大**
+       （1440×900 下 4:3 940×705，v12.4 是 936×702）—— 主人上一版刚说过"稍微小一点就好"，
+       这版不该反手放大。
+
+       v13（2026-09-21，主人「手机版预览图片时移除左右滑动的按钮，电脑版则保留；
+       手机版预览图片时新增可以横屏观看；优化一下手机版和电脑版预览图片的图片大小」）
+       —— 尺寸这一件只动数字，尺寸规则一个字没改（还是"可用区上界 × --lb-fit"那一条）：
+
+         · 电脑档 +9% 面积：edge-x 78→68、fit .94→.96、上界 1040→1120、band 75→67。
+           1440×900 的 4:3：940×705 → 980×735；1920×1080：978×733 → 1075×806。
+           ⚠️ 别把 `--lb-edge-x` 当成"手感值"：桌面那个数是**箭头几何反算**的
+              （left 18 + 宽 42 + 8 净空）—— 改箭头尺寸就必须回来改它。
+         · 手机档的尺寸变化不是调数字来的，是「箭头在手机上移除」的直接结果：
+           左右那 52px 本来就是**为箭头让的位**，箭头没了就没有让的理由（→12px）。
+           390×844 的 4:3：286×215 → 362×271（宽 +26.6%）。
+         · 横屏手机单独一档（底部 chrome 压到最小），见下方 v13 那组媒体查询。
+
+       v13.1（2026-09-21，主人「不要右上角一颗圆钮」）：**那颗圆钮撤掉**。
+       横屏观看这条能力留着，触发从按钮换成「点一下照片」（只给触屏，判据不变）。
+       #dyLbRotate 收成 sr-only —— 元素还在，只当 aria 出口；见下方 .dy-lb-rotate 那段。
+       ⇒ 断点、让位、尺寸这些数字一个没动，只有"怎么触发"和"那颗钮在哪"变了。
+
+
+       顺带收掉一处"同一份算术写两遍"：箭头中线回到 `top: 50%`（舞台上下对称 ⇒ 舞台
+       中线就是荧幕中线），不再重抄一遍 stage 的 calc。 */
+  --lb-edge-x: 68px;      /* v13：= 箭头 left 18 + 宽 42 + 净空 8（原 78）。别塞手感值 */
+  --lb-fit: .96;          /* 画面占可用区的比例 —— 整体大小只调这一个数（v13：.94 → .96） */
+  --lb-max-w: 1120px;     /* 大屏时的横向绝对上界（v13：1040 → 1120） */
+  --lb-bar-b: 16px;       /* 圆点条离视口下沿的距离（v13：18 → 16） */
+  --lb-bar-pad: 9px;      /* 圆点条自身内边距（v13：10 → 9） */
+  --lb-thumb-h: 26px;     /* 底部预览带的高度（2026-09-21 晚：圆点换成小照片预览带）。
+                             非当前张宽 = 高 × 0.75（**高度比长度长**）；当前张 = 同高的正方形。
+                             想让预览带更大/更小，只改这一个数 —— 它会同时决定 band 与画面高度。 */
+  --lb-strip-h: 0px;      /* 预览带实际占的高度（= 高度 + 4px 描边余量）；只有 .dy-lb.has-thumbs 时非 0 */
+  --lb-dot: 7px;          /* 圆点直径。⚠️ 圆点 2026-09-21 晚已被预览带取代，此值只进 --lb-band 的
+                             `max()` 里当"下限"用（见 --lb-band），别再拿它去做新的圆点。 */
+  --lb-gap: 26px;         /* 图下缘与圆点条之间**保证**的净空（v13：30 → 26） */
+  /* 说明行（2026-09-21 共享引擎新增）：默认 `--lb-cap-h: 0` ⇒ 整行不占位。
+     2026-09-21（晚）起两个页面都不传说明/日期 ⇒ 只有「张数超过圆点上限（>18）」时
+     才靠它放「当前 / 总数」（本库是 4 本大相簿，见 lightbox.js lbMount）。
+     高度**不由 CSS 猜** —— 说明会折行（最长的说明在 390 视口下就是两行），猜一个固定值
+     要么白压掉画面、要么让说明行和圆点条叠在一起。所以引擎量一次真实高度，把
+     「行高 + 缝」写进 `--lb-cap-h`（见 lightbox.js 的 lbSyncCap）。
+     `--lb-cap-gap` 是说明行与圆点条之间的缝，引擎读它来算那个和 ——
+     ⚠️ 别只改这里：引擎读的是**计算值**，两处不同值会让说明行浮错位置。 */
+  --lb-cap-gap: 12px;
+  --lb-cap-h: 0px;
+  /* 底部那条带 = 下沿 + 条高 + 净空 + 说明行。只在这里算一次：上下留白与高上界都用它。
+     ⚠️ `--lb-band` 的定义里不能出现 `--lb-edge-y`（会自指），只能反着来。
+     ⚠️ `--lb-cap-h` 默认 0 ⇒ 没有说明行的页面（2026-09-21 晚起两页都是）band 与 v13 逐像素相同。 */
+  /* 底部那条带 = 下沿 + 条自身高 + 净空 + 说明行。
+     `max(圆点, 预览带)` 是**两条路取高的那个** —— 现在跑的是预览带（26+4 ≈ 30），
+     没有预览带时它与改造前逐像素相同。 */
+  --lb-band: calc(var(--lb-bar-b) + var(--lb-bar-pad) * 2
+             + max(var(--lb-dot), var(--lb-strip-h)) + var(--lb-gap) + var(--lb-cap-h));
+  /* 上下同值 ⇒ 画面中心 = 荧幕中心。它由 chrome 反算，不是手感值。 */
+  --lb-edge-y: var(--lb-band);
+  --lb-w: calc(min(100vw - var(--lb-edge-x) * 2, var(--lb-max-w)) * var(--lb-fit));
+  --lb-h: calc((100vh - var(--lb-edge-y) * 2) * var(--lb-fit));
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(10,13,18,.86);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s ease;
+  /* 灯箱内不产生原生滚动 / 原生缩放；滚轮也不再传给背后的页面 */
+  touch-action: none;
+  overflow: hidden;
+}
+.dy-lb.is-open { opacity: 1; pointer-events: auto; }
+
+/* 舞台：纯居中盒。分寸交给下面的 max-width/max-height ——
+   ⚠️ 不要改成嵌套百分比（父层 auto 高度时 max-height:100% 会被当 none 丢掉）。
+   也不要靠给子节点写 92vw：窄屏会压到两侧箭头上。
+   v11.4（2026-09-13，主人"增加滑动图片的功能，一次滑动只能滑动一张图片"）：
+   舞台里改成三个【角色槽位】prev / cur / next，各自绝对定位铺满、媒体在槽位里居中。
+   ⚠️ v12（2026-09-15）之后：手势期间**只有当前槽位动**（位移 = 手指位移 × 0.29、
+   封顶 32px），两个邻居槽位全程压在 opacity:0。所以「舞台上任何时刻只有一张图」
+   从 v11 的"静止态不变式"升级成了硬不变式 —— 邻图槽位留着只为量步距和 debug，
+   别再把它们拉进画面（参考站的 mode="out-in" 结构上就不允许两张图同时在场）。 */
+.dy-lb-stage {
+  /* v12.5：上下同值（`--lb-edge-y`）⇒ 画面的几何中心落在荧幕中心。
+     水平本来就是 left:0 / right:0 + flex 居中，宽度上界由 `--lb-w` 收。
+     ⚠️ 不要顺手改成四个方向都 inset `--lb-edge-x`：舞台同时是"点空白关闭"的命中面，
+        左右各收 78px 会多出两条"点了就关"的死区，v12check 的手势用例也会跟着漂。 */
+  position: absolute;
+  left: 0; right: 0; top: var(--lb-edge-y); bottom: var(--lb-edge-y);
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+}
+.dy-lb.is-dragging .dy-lb-stage { cursor: grabbing; }
+.dy-lb-slot {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;            /* 命中测试只认媒体本身，空白处落在舞台上 */
+  will-change: transform, opacity;
+}
+/* 媒体：实图【无框】（v9.10 起的不变式）；无 src 的 emoji 兜底才上 tile。
+   尺寸只给上界，比例由浏览器自己保持。
+   ⚠️ 命中测试的那条线，两个坑都在这：
+     ① **只有当前张**（#dyLbSlotCur）可以收 pointer-events。邻居在静止态是
+        opacity:0 但**仍在原位**（左邻偏移 ≈ -1023px，955 宽的图能盖住屏幕左边到 x≈94），
+        给它们 auto 就等于屏幕左右各有一块"看不见但吃点击"的区域 —— 点空白关不掉灯箱。
+     ② **绝不能无条件写 auto**：`.dy-lb` 关闭时是 pointer-events:none，而子元素显式写
+        auto 会【穿透】祖先的 none，于是关掉的灯箱里那几个不可见的 img 会继续吃掉
+        整页的点击（Playwright 会报 "subtree intercepts pointer events"）。
+   ⇒ 两条一起收：`.dy-lb.is-open` 限定 + 只认当前槽位。 */
+.dy-lb-stage img,
+.dy-lb-stage .dy-lb-emoji {
+  max-width: var(--lb-w);
+  max-height: var(--lb-h);
+  width: auto; height: auto;
+  object-fit: contain;
+  user-select: none; -webkit-user-select: none;
+  -webkit-user-drag: none;
+  backface-visibility: hidden;
+}
+.dy-lb.is-open #dyLbSlotCur img,
+.dy-lb.is-open #dyLbSlotCur .dy-lb-emoji { pointer-events: auto; }
+.dy-lb-stage img { display: block; }
+
+/* 尺寸不变式（v11.2，2026-09-13 主人："原比例显示图片即可，同等比例的图片大小
+   要一致，我要显示完整图片内容"）—— 三条要求，只有一种写法能同时满足：
+     · 原比例 + 完整内容 ⇒ 盒子的长宽比必须等于原图长宽比，且不裁 → object-fit:
+       contain / cover 都不需要，因为【盒子就等于图】：width/height 保持 auto。
+     · 同等比例 ⇒ 同样大小 ⇒ 尺寸只能是"原图长宽比"的函数，不能掺进像素尺寸。
+       width:auto + height:auto + max-width/max-height 正好是这个函数：
+       长宽比 r 的图恒定渲染成 min 后能放进可用区的最大尺寸，与它自己的像素数无关。
+     ⚠️ 不要改成 `width: min(可用宽, 1040px); height: auto; max-height: …`
+        —— 有确定 width 时 max-height 只压高度、宽度不回缩，竖图会被拉扁（CSS2.1 §10.4
+        仅在宽度为 auto 时才按比例回算）。必须两边都 auto，让浏览器走 replaced
+        element 的等比约束路径。
+   v11.1 的「统一 4:3 框 + cover 裁切」已按主人要求撤销：等比完整与"每张一样大"
+   数学上不可能同时成立（同一条动态里 1500×1125 / 1125×1500 / 1500×692 三种比例，
+   塞进同一个框必然裁掉内容）。现在的规则是"同比例才同尺寸"。
+   v12.4（2026-09-16 主人"预览图片是不是太大了，稍微小一点就好"）：上界改成
+   `--lb-w` / `--lb-h` 两个变量（都乘 `--lb-fit`），尺寸规则本身一个字没动 ——
+   fit 只改**可用区**的大小，所以"同比例 ⇒ 同尺寸"照旧成立。
+   v12.5：同样一个字没动，只把可用区改成上下对称（见 `.dy-lb` 的注释）。
+   DOM 探针实测（`scratch/moment-2026-09-16/lbgeom2.js`，chromium，四档视口）：
+
+     视口      4:3 1500×1125   16:9 1500×844    竖图 1125×1500   宽幅 1500×692
+     1440×900     940×705         978×550          529×705          978×451
+     1280×800     815×611         978×550          458×611          978×451
+     1920×1080    978×733         978×550          656×874          978×451
+     390×844      286×215         286×161          286×381          286×132
+
+   vs v12.4：1440 下 4:3 936×702 / 竖图 531×708、1280 下 824×618 / 464×618
+   ⇒ 桌面档差在 **±1%** 内；1920 与"宽幅"两档因为横向是 1040×fit 收的，
+   从 936 变成 978（+4.5%）—— 想再小就把 `--lb-fit` 往下拧一格，那是唯一的大小旋钮。
+   四档 × 四种比例下 **dx = dy = 0**（画面中心 = 荧幕中心），箭头中心 y = 荧幕中心。 */
+
+   对照 v12.3 旧值（1440×900）：4:3 1040×780、竖图 612×816 ⇒ 现在都是 **86~90%**。 */
+
+/* emoji 兜底（无 src 的照片）：保留原来的渐变 tile */
+.dy-lb-emoji {
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(60px, 10vw, 120px);
+  line-height: 1;
+  padding: 40px;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.30), transparent 56%),
+    linear-gradient(140deg, var(--g1), var(--g2));
+  box-shadow: 0 40px 90px rgba(0,0,0,.5);
+}
+
+/* 圆钮：左右箭头共用（2026-09-13 移除关闭钮后，这是页内唯一的圆钮） */
+/* 2026-09-22 主人「按钮移除圆形框框，优化一下按钮设计」⇒ **没有圆、没有底、没有边**：
+   按钮只留一枚 chevron，可读性靠两层 drop-shadow（一层贴近的下沉影 + 一层大范围的柔影）。
+   实测（同一块区域"隐藏态 vs 显形态"逐像素差，`check-btn-paint.py`）：
+     改前 = 42×42 圆盘，画出 1229 px，填充率 0.70（那是一整块底 + 边）
+     现在 = 12×21 的笔画，画出 88 px，填充率 0.35
+   命中盒仍是 56×56（宽高撑出来的），不会因为"看不见框"就变难点。
+   ⚠️ 别把 border-radius / background / border 加回来 —— 那正是被要求去掉的。
+   ⚠️ `stroke-width` 要写在 **path 选择器**上：写在 `svg` 上只会被继承，
+      而 path 自带 stroke-width="1.8" 属性，继承赢不过元素自己的属性（写了等于没写）。 */
+.dy-lb-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; padding: 0;
+  border: 0; border-radius: 0; background: none;
+  color: rgba(255,255,255,.92);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  opacity: .55;
+  /* 🔴 这里**不许出现 transform**（`.dy-lb-btn:active { transform: … }` 这种）——
+     见 `.dy-lb-arrow` 上那条 ⚠️：悬停/按下时会把它自己的居中位移顶掉，箭头当场跳 28px。 */
+  transition: opacity .24s ease, color .18s ease;
+}
+/* ⚠️ 箭头**自己就是** `.dy-lb-btn`（同一个 <button> 上挂了两个类，见 pages/album.html），
+   所以 `.dy-lb-arrow .dy-lb-btn` / `.is-near .dy-lb-btn` 这种**后代**选择器永远匹配不到东西。
+   原来这里有两条 `opacity: 1` 规则长着这个形状（随第三百零五批一起写的）——
+   实测它们没生效：真正让箭头显形的是 `.dy-lb-arrow` 自己那两条。2026-09-22 删掉死代码。
+   要写箭头的状态就直接写 `.dy-lb-arrow…`，别拐一个后代选择器。 */
+.dy-lb-btn:hover { color: #fff; }
+/* 悬停 / 按下的反馈**只做在图标上**：缩放中心就是图标自己的中心 ⇒ 墨迹重心一动不动
+   （实测图标中心恒 (39,450)），按钮盒的矩形也自始至终不变。 */
+.dy-lb-arrow:hover svg { transform: scale(1.06); }
+.dy-lb-arrow:active svg { transform: scale(.94); }
+.dy-lb-btn svg {
+  width: 30px; height: 30px; display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)) drop-shadow(0 2px 10px rgba(0,0,0,.35));
+  transition: transform .18s ease;
+}
+.dy-lb-btn svg path { stroke-width: 1.4; }
+
+/* 左右箭头：钉在画面中线。v12.5 起舞台上下对称 ⇒ 舞台中线 = 荧幕中线 = 画面中心，
+   所以回到 `top: 50%`；v12.4 那句"重抄一遍 stage 的 calc"已无必要，删掉免得两处漂移
+   （上一版的注释就写着"与 .dy-lb-stage 用的是同两个变量"，而那两个变量已经不等了）。
+   🔴🔴 **`.dy-lb-arrow` 的 transform 是它的垂直居中（`translateY(-50%)`），
+   状态规则绝不许重写它。** 2026-09-22（第三百零五批）我给 `.dy-lb-btn:hover` 写了
+   `transform: scale(1.08)` —— 特指度 `.dy-lb-btn:hover` (0,2,0) **高于** `.dy-lb-arrow`
+   (0,1,0)，悬停时 transform 变成纯 `scale(1.08)`，translateY 被顶掉，
+   整枚箭头**往下跳 28px**（= 盒高一半），移开再跳回；主人报的就是这个「箭头会动」。
+   想给箭头加动效：要么写全 `translateY(-50%) scale(…)`，要么把动效做在**子元素**上
+   （现在就是后者：scale 做在 `.dy-lb-btn svg` 上）。 */
+.dy-lb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  opacity: 0;
+  transition: background .18s ease, opacity .22s ease, transform .18s ease;
+}
+.dy-lb.is-open .dy-lb-arrow { opacity: 0; }
+/* 指针**靠近**才显形（lightbox.js 的 lbNear 那段逐枚加/摘 .is-near）。
+   ⚠️ 放在 disabled 那条**之后**：两者特指度相同 (0,4,0)，靠源码顺序赢。 */
+.dy-lb.is-open .dy-lb-arrow.is-near,
+.dy-lb.is-open .dy-lb-arrow:hover { opacity: 1; }
+/* 原来这里有 `.dy-lb-arrow:active { transform: translateY(-50%) scale(.92); }`。
+   它靠"把 translateY 重抄一遍"勉强自洽，但正是这类写法让下一次改的人以为
+   "箭头盒上可以随便写 transform" —— 按下反馈已改做在图标上，这条整条删掉。 */
+/* v9.42 的权重坑：禁用态必须让 pointer-events:none 真正赢 —— 旧规则 (0,2,0) 低于
+   `.dy-lb.is-open .dy-lb-arrow` (0,3,0)，灯箱打开时禁用箭头照样吃点击。 */
+.dy-lb.is-open .dy-lb-arrow[disabled],
+.dy-lb-arrow[disabled] { opacity: .16; pointer-events: none; }
+/* 键盘 Tab 到它身上也要显形（否则焦点落在两个"看不见"的按钮上） */
+.dy-lb.is-open .dy-lb-arrow:focus-visible { opacity: 1; }
+/* 2026-09-22（第三百零六批）：命中盒 42 → 56 之后若仍留 `left: 18px`，
+   图标盒中心会由 39px 变 46px（实测）—— 静止状态下箭头也朝里挪了 7px，同样是"箭头动了"。
+   减掉多出来的一半（(56−42)/2 = 7），让**图标盒中心回到原来的 39px**。 */
+.dy-lb-prev { left: 11px; }
+.dy-lb-next { right: 11px; }
+
+/* 横屏观看：v13.1（2026-09-21，主人「不要右上角一颗圆钮」）起**屏幕上不再有这一颗**。
+   触发换成「点一下照片」（触屏专属，见 lightbox.js 页尾 v13 注释块里那条 ⚠️）。
+   #dyLbRotate 元素本身留着，但收成 sr-only，只干两件事：
+     · 它是 aria-pressed / aria-label 的出口 —— 读屏与键盘用户仍有这一条路；
+     · 引擎里 lbSetImmersive 因此不必为"元素可能不存在"到处判空。
+   ⚠️ `pointer-events: none` 是硬要求，不是保险：不写的话这 40×40 的隐形盒会吞掉
+      右上角那一片点击 —— 点照片落到那里会变成"没反应"，正是这次要消灭的死区。
+   ⚠️ 可见性用 clip / clip-path 收，**不靠 display** —— `.dy-lb-btn` 的 display:flex
+      与本条特异性相同（0,1,0），靠源码顺序赢太脆；下面触屏那条媒体查询还会
+      把宽高顶回 40px，clip 不受它影响。
+   ⚠️ 那条 `.dy-lb-rotate.is-on`（点亮态底色）随之删掉：屏幕上没有的东西不需要点亮态。 */
+.dy-lb-rotate {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px; border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 圆点：只在同一条动态有多张图时出现；点哪张走哪张（动画方向按前后判）。
+   当前张 = 长条（v11.3，照 yibi2333.fun/photowall）—— 参考站实测：
+   常态 8×8 圆点、当前张 24×8 胶囊（宽 = 3 倍高）、gap 8px、
+   transition all .3s cubic-bezier(.4,0,.2,1)、常态 rgba(255,255,255,.3) /
+   hover .5 / 当前 #fff。本站沿用 7px 基准（配自家的箭头/净空），当前张仍是 3 倍 = 21px。
+   ⚠️ 圆角写 999px（不写 50%）：50% 会把长条变成椭圆，胶囊必须靠半径夹取。 */
+/* 有预览带 ⇒ 两件事：
+   ① 它比圆点高（26+4 vs 7），band 必须跟着长，否则压到画面上；
+   ② `--lb-bar-pad` 是**圆点条自己的内边距**，预览带不用它（下面 is-thumbs 把 padding 归零）
+      ⇒ 这里一并归零，否则 band 里白多算 18px、"图下缘 ↔ 带子"的净空会从设计的 26 变成 40。
+      实测（1440×900 4:3）：画面 735 → 726，只矮 1.2%；手机档画面不变（那边是宽度定的）。 */
+.dy-lb.has-thumbs { --lb-bar-pad: 0px; --lb-strip-h: calc(var(--lb-thumb-h) + 4px); }
+
+.dy-lb-dots {
+  /* v12.5：不再需要"给它让出一条带"——画面上下留白同值，圆点条就直接悬浮在
+     画面下方那份留白里（它下面还剩一个 --lb-edge-y 减去自身高度的空档）。
+     离下沿的距离仍是 `--lb-bar-b`：v12.4 之前 bottom:0 + padding:14px 让圆点中心
+     离下沿只有 17.5px，900 高的视口里像被切掉半截。
+     ⚠️ `--lb-dot` 定义在 `.dy-lb` 上（`--lb-band` 要用它），这里不要再写一份。 */
+  position: absolute; bottom: var(--lb-bar-b); left: 0; right: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 8px;
+  padding: var(--lb-bar-pad) 18px;
+}
+/* ---- 底部预览带（2026-09-21 晚 · 第二百九十六批，取代圆点）----
+   一条**小照片**预览带（Apple「照片」App 里照片下方那条缩略图带）。
+   非当前张 = 竖长条（高 `--lb-thumb-h`、宽 = 高 × 0.75 ⇒ 高度比长度长）；
+   当前张 = **同高的正方形**（变宽 + 点亮 + 一圈白描边）。
+   整条的横向平移由引擎写 track 的 transform。
+   张数超过 `LB_THUMB_MAX`（引擎里的常数，默认 25）时进入**窗口模式**（容器加 `.is-window`）：
+     两端那几枚按"离当前张多远"渐隐 + 渐糊（`--lb-th-t` 1→0、`--lb-th-blur` 0→3px）。
+   ⚠️ 容器必须 `overflow: hidden`：窗口外的枚数靠它裁，不然会横着溢出去。 */
+.dy-lb-dots.is-thumbs {
+  display: block; overflow: hidden;
+  /* ⚠️ 高度必须写死：里面的 track 是绝对定位，容器不写高度就会塌成 0。
+     上下各 2px 只是呼吸位（原来是给当前张那圈白描边留的，2026-09-21 晚主人
+     「不是很喜欢白色当前照片白色的框框」⇒ 描边撤了，这 2px 留着当留白）。 */
+  height: var(--lb-strip-h);
+  padding: 2px 0;
+  touch-action: pan-y;          /* 竖向手势仍然交给舞台，别在带子上吃掉 */
+}
+/* 齿距 = 非当前张宽(0.75·h) + gap(4px)。
+   当前张变宽时**不吃外边距**：那会让它与邻居只剩 0.75px（看着像贴在一起）——
+   主人 2026-09-21 晚点名要去掉。现在四边净空都是 4px。 */
+.dy-lb-thumb-track {
+  position: absolute; left: 0; top: 0;
+  display: flex; align-items: center; gap: 4px;
+  height: 100%;
+  will-change: transform;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.dy-lb-thumb {
+  /* 🔴 槽位尺寸**永远不变**（0.75·h × h）。当前张"长大"是**里面那张图自己过渡**出来的 ——
+     所以整条 track 的布局在动画期间一次都不用重算（见下面 img/emoji 与 .is-on 那两条）。
+     2026-09-22 主人「长方形变为正方形的动画不是很流畅」的根因就是这个：
+     让槽位宽度做过渡 ⇒ 每一帧都把整条 flex（52 枚）重排一次。 */
+  flex: 0 0 auto; position: relative;
+  width: calc(var(--lb-thumb-h) * 0.75); height: var(--lb-thumb-h);
+  padding: 0; border: 0; cursor: pointer;
+  background: none; border-radius: 0; overflow: visible;
+  contain: layout;      /* 里头的宽度过渡不许把布局脏标记传上去（这条是"顺"的关键之一） */
+  /* 渐隐系数：引擎在窗口模式里逐枚写（1 = 全亮）。非窗口模式永远是 1 ⇒ 与改前逐字相同。 */
+  --lb-th-t: 1;
+  /* 让位：当前张是正方形、两侧各多占 0.125·h，其余两边的各让出这么多（引擎按枚写）。
+     ⚠️ 必须用 transform 让位（合成层）；换成外边距/宽度就又变成整条重排了。 */
+  --lb-th-sh: 0px;
+  opacity: calc(.5 * var(--lb-th-t));
+  transform: translateX(var(--lb-th-sh));
+  transition: opacity .28s cubic-bezier(.4,0,.2,1),
+              filter .28s cubic-bezier(.4,0,.2,1),
+              transform .28s cubic-bezier(.4,0,.2,1);
+}
+/* 缩略图本体（照片 / emoji）：绝对定位 + 居中 ⇒ 它自己的宽度过渡只影响它那一小块，
+   不牵动兄弟。⚠️ **别改回 `width: 100%`** —— 那样"长大"就又要整条重排了。 */
+.dy-lb-thumb img,
+.dy-lb-thumb-emoji {
+  position: absolute; left: 50%; top: 0;
+  transform: translateX(-50%);
+  width: calc(var(--lb-thumb-h) * 0.75); height: var(--lb-thumb-h);
+  border-radius: 3px; background: rgba(255,255,255,.12);
+  transition: width .28s cubic-bezier(.4,0,.2,1);
+}
+.dy-lb-thumb img { display: block; object-fit: cover; }
+.dy-lb-thumb-emoji { display: flex; align-items: center; justify-content: center;
+                     font-size: calc(var(--lb-thumb-h) * 0.6); line-height: 1; }
+.dy-lb-thumb:hover { opacity: calc(.8 * var(--lb-th-t)); }
+/* 当前张：里面的图长成**正方形**（＝长方形变正方）+ 全亮。动画就是那条 width 过渡。
+   2026-09-21 晚主人：「不是很喜欢白色当前照片白色的框框」⇒ 那圈 1.5px 白描边已撤掉，
+   现在靠"更大 + 全亮"区分；**别再往描边/边框那条路上走**。
+   ⚠️ 变的是**图**、不是槽位（槽位 19.5 永远不动）—— 所以动画期间 track 不重排。
+   ⚠️ 两侧净空靠 `--lb-th-sh`（lbThumbGap 逐枚写）让出来，**不要**用负外边距：
+      那会把净空吃成 0.75px（2026-09-21 晚主人：「不能和旁边的图片有叠在一起」，退过一次）。 */
+.dy-lb-thumb.is-on img,
+.dy-lb-thumb.is-on .dy-lb-thumb-emoji {
+  width: var(--lb-thumb-h);
+}
+.dy-lb-thumb.is-on { opacity: var(--lb-th-t); }
+
+/* 「跳过去」那一步（引擎临时加 .is-jump，见 lbDotsMark）：
+   首↔末折回这种"可见集与上一步没有交集"的跳，**不播过渡** ——
+   预览带折回时没有空间连续性，那 900 多像素的横扫只会糊成一片（2026-09-22 主人报告）。
+   ⚠️ 必须在同一帧内 add → 写 transform/opacity → 强制 reflow → remove，
+      否则新那一簇会从 opacity 0 渐显上来。 */
+.dy-lb-dots.is-jump .dy-lb-thumb-track,
+.dy-lb-dots.is-jump .dy-lb-thumb,
+.dy-lb-dots.is-jump .dy-lb-thumb img,
+.dy-lb-dots.is-jump .dy-lb-thumb-emoji { transition: none; }
+
+/* 窗口模式（张数 > LB_THUMB_MAX，引擎给容器加 .is-window）：
+   两端那几枚在模糊里渐隐。⚠️ 这两条限定在 .is-window 里 ——
+   枚数没超上限时**一个 filter 都不加**（渲染回到改前那一版，零回归）。 */
+.dy-lb-dots.is-window .dy-lb-thumb { filter: blur(var(--lb-th-blur, 0px)); }
+.dy-lb-dots.is-window .dy-lb-thumb.is-out { pointer-events: none; }
+
+/* ⚠️ `[hidden]` 只是 UA 的 display:none，`.dy-lb-dots` 自己写了 display:flex（同特异性、
+   后写赢）⇒ 不补这一条，hidden 属性根本压不住，圆点会照旧显示。 */
+.dy-lb-dots[hidden] { display: none; }
+
+/* ---- 说明行（2026-09-21，随共享引擎一起落地）----
+   一行小字：说明 + 日期（+ 张数超过圆点上限时的「当前 / 总数」）。
+   ⚠️ 2026-09-21（晚）起没有页面传说明/日期了 ⇒ 实际只会画「当前 / 总数」那一段。
+   位置在**圆点条正上方**，离下沿 = 下沿 + 条高 + `--lb-cap-gap`；
+   它与画面的净空仍由 `--lb-gap` 保证（band 里已经把说明行的高度加进去了）。
+   用 flex + baseline 对齐：说明是正文体、日期是等宽小字，两者基线对齐才像一行。 */
+.dy-lb-cap {
+  position: absolute; left: 0; right: 0; z-index: 4;
+  bottom: calc(var(--lb-bar-b) + var(--lb-bar-pad) * 2 + var(--lb-dot) + var(--lb-cap-gap));
+  display: flex; align-items: baseline; justify-content: center;
+  flex-wrap: wrap; gap: 10px;
+  padding: 0 18px;
+  text-align: center;
+  /* 说明行只读不点：让"点空白关灯箱"的命中面保持干净 */
+  pointer-events: none;
+}
+.dy-lb-cap[hidden] { display: none; }
+.dy-lb-cap-t { color: rgba(255,255,255,.94); font-family: var(--font-body); font-size: 14px; line-height: 1.45; }
+.dy-lb-cap-m {
+  color: rgba(255,255,255,.72);
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45;
+  letter-spacing: .05em; font-variant-numeric: tabular-nums;
+}
+.dy-lb-cap-s { color: rgba(255,255,255,.28); font-size: 12px; line-height: 1.45; }
+
+/* ==== v13（2026-09-21）：手机档 —— 箭头移除 + 让位收窄 + 横屏档 ====
+
+   ① 「手机」= **触屏** ∪ **窄屏**，两条判据取或：
+        · `(hover: none) and (pointer: coarse)` = 设备能力（真机 coarse；
+          桌面把窗口拉窄仍然是 hover:hover / pointer:fine）。
+        · `max-width: 860px` —— **沿用相册旧灯箱那个断点**（2026-09-21 相册灯箱
+          已整体并入本文件，那座 `.lb-prev, .lb-next { display: none }` 连同它的
+          860px 媒体查询一起从 style.css 删掉了）。留 860 是为了不改变本页既有
+          行为：同一个"移除左右箭头"的诉求，理由就是那句"手机上翻页本来就该是滑动"。
+      ⚠️ 窄屏这一条为什么不是 600：手机**横过来**普遍是 844~960px 宽，600 当场失效 ——
+         箭头会在最不该占地方的时候"复活"（量过：844×390 留着箭头时 4:3 只有 301×226）。
+      ⚠️ 为什么还要并上触屏判据：iPhone 16 Pro Max（956）/ Galaxy S24 Ultra（960）
+         横屏都超过 900，只靠窄屏照样漏。两条取或，才没有"手机却留着箭头"的档位。
+
+   ② 竖屏手机：左右那 52px 原本是**给箭头让的位**，箭头移除后降到 12px ——
+      390×844 的 4:3 照片 286×215 → 362×271（宽 +26.6%，面积 +60%）。
+      底部 chrome 同时收一格（bar-b 14→11、pad 8→6、gap 24→16）：
+      可用高从 100vh − 122 变成 100vh − 86。
+      ⚠️ `--lb-fit` 仍然是 1：手机的可用宽本来就是"屏幕宽 − 一点"，再乘个 0.9
+         等于白亏 10%（那个比例是给桌面的大留白准备的）。
+
+   ③ 横屏手机单独一档：底部 chrome 压到最小（band = 6+6+7+6 = 25px），
+      844×390 下 4:3 从 301×226 变成 453×340。 */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  .dy-lb { --lb-edge-x: 12px; --lb-fit: 1; --lb-bar-b: 11px; --lb-bar-pad: 6px; --lb-gap: 16px; --lb-cap-gap: 10px; }
+  /* 左右箭头：手机上一律移除（主人 2026-09-21 原话「移除左右滑动的按钮」）。
+     翻页在触屏上本来就靠横扫 —— 舞台的 pointerdown/move/up 才是主通路
+     （display:none 不参与命中测试，所以不会留下"按了没反应"的死区）。 */
+  .dy-lb-arrow { display: none; }
+  /* ⚠️ 这里原来还有 `.dy-lb-btn { width/height: 40px }` + svg 19px 两条 ——
+     箭头在这一档本来就不渲染，尺寸改不改都看不见；留着反而会让人以为
+     "手机上按钮是 40px"。所以删掉，尺寸只有上面那一条（56 命中盒 / 30 图标）。 */
+  /* 箭头虽已隐藏，这两条留着无害：以后若要给平板放回箭头，位置已经是对的。 */
+  .dy-lb-prev { left: 10px; }
+  .dy-lb-next { right: 10px; }
+}
+
+/* v13.1：原来这里有一档「触屏才把横屏钮放出来」的媒体查询，现在没有规则了。
+   按钮撤了，触发改成「点照片」，**触屏判据原样搬进了 JS**（见 lightbox.js 的
+   lbIsTouch()，用 matchMedia('(hover: none) and (pointer: coarse)')）——
+   条件一字未改：桌面上点照片照样什么都不发生。
+   ⚠️ 别把"点照片"也放宽到桌面：桌面上 screen.orientation.lock 根本不存在，
+      点了只能全屏，那不是主人要的东西。 */
+
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  .dy-lb { --lb-edge-x: 10px; --lb-bar-b: 6px; --lb-bar-pad: 3px; --lb-gap: 6px; }
+}
+
+/* ==== v13：沉浸态（手机横屏观看切的状态；v13.1 起触发是"点照片"，不再是按钮）====
+   圆点条与上下两条 chrome 带全部让开，画面吃满视口。进入 / 退出的触发见页尾
+   lbSetImmersive 的长注释：Android 上能真的 requestFullscreen + 锁横屏，
+   iOS 上两条 API 都没有 ⇒ 退成这一层 CSS（画面立刻变大，视觉上有反馈）。
+   ⚠️ `--lb-max-w` 也要一起放开：1120px 的横向上界是给桌面的，手机上从来不是瓶颈，
+      但在沉浸态里它会真的卡住画面（高 dpr 的安卓机尤其明显）。
+   ⚠️ band 四个分量清零的**同时**必须把圆点条 display:none —— 只清分量的话，
+      圆点会掉出画面外，变成一排贴在屏幕底边上的半截圆点。 */
+.dy-lb.is-immersive {
+  --lb-edge-x: 6px; --lb-fit: 1; --lb-max-w: 100vw;
+  --lb-bar-b: 0px; --lb-bar-pad: 0px; --lb-gap: 0px;
+}
+.dy-lb.is-immersive .dy-lb-dots { display: none; }

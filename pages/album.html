@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-scroll="native">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：本页写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 那套自研滚轮平滑整体让位。
+     历史：09-07 曾在子页面写它，09-14 主人要"所有页面都使用首页的滑动触感"撤销过一次，
+     09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。 -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="一本相簿一个地方，都是当时拍的">
+<meta name="theme-color" content="#f8fafc">
+<title>相簿 — rain.meow</title>
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
+<style>
+  html { background: #f8fafc; }
+  html.theme-dark { background: #0f172a; }
+</style>
+<script>
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
+</script>
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
+<script>
+  /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+</script>
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+  /* 加载页关键定位（第一百四十五批）：先于 loader.css 就位 —— 首帧即全屏覆盖 + 主题底色，
+     防 loader.css 未就绪时页面内容透出；完整视觉（品牌/雨丝/进度条）在 loader.css */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
+  }
+  html.theme-dark #pageLoader {
+    background: var(--color-paper, #0f172a);
+    color: var(--color-ink, #e2e8f0);
+  }
+</style>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
+     替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
+     中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
+<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
+<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
+     独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
+<link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
+<link rel="stylesheet" href="../assets/css/style.css?v=8b57ab4066">
+<!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
+     点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
+     本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
+     连同 style.css 里的 .lb* 规则。 -->
+<link rel="stylesheet" href="../assets/css/lightbox.css?v=b5b8ca4447">
+</head>
+<body data-album-page="detail">
+
+  <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+       https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
+       三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+       渐进式加载：不再等图片，window load + 字体就绪即放行 —— 图片不阻塞首屏渲染，
+       技能图标/游戏 logo/联系方式图全 loading=lazy 按需到位，CSS .is-loaded 淡入兜底；
+       其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
+       script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
+       noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+  <!-- ⚠️ 加载幕布是设计特色，别删：只在本次会话第一次进入时露脸（站内点击 / 刷新都不画）。
+       守卫见 tools/stamp.mjs 的 CURTAIN 那条 + README「加载幕布」一节。 -->
+  <div id="pageLoader" role="status" aria-label="页面加载中">
+    <div class="page-loader-three" aria-hidden="true">
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+    </div>
+  </div>
+  <noscript><style>#pageLoader{display:none}</style></noscript>
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
+       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
+       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
+
+  <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <a href="#albumHero" class="skip-link">跳到主要内容</a>
+
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
+      <ul class="nav-links">
+        <li class="nav-hover-indicator" aria-hidden="true"></li>
+        <li><a href="projects.html">项目</a></li>
+        <li><a href="posts.html">动态</a></li>
+        <li><a href="photos.html" aria-current="page">照片</a></li>
+        <li><a href="about.html">关于</a></li>
+      </ul>
+      <div class="nav-actions">
+        <span class="nav-actions-indicator" aria-hidden="true"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+        </button>
+        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="nav-icon-label">EN</span>
+        </a>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
+    <header class="nav-menu-header">
+      <!-- 第一百零九批（2026-08-21）：从 span 改为 a —— 手机版抽屉的 rain.meow 可点击：
+           其他页 → 跳转首页；首页 → 拦截导航只关抽屉并滚回顶部 -->
+      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="nav-menu-body">
+      <ul class="nav-menu-links">
+        <li><a href="projects.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="posts.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="photos.html" aria-current="page"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+      </ul>
+    </div>
+    <footer class="nav-menu-footer">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
+        <span class="nav-menu-action-hit">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabelMobile">Dark</span>
+        </span>
+      </button>
+      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）">
+        <span class="nav-menu-action-hit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span>EN</span>
+        </span>
+      </a>
+    </footer>
+  </nav>
+
+  <main class="about-main">
+    <!-- === 单册页（2026-09-21 主人"设计相册，相册加入图片"）===
+         一本相簿一页，靠 ?slug=xxx 区分 —— 18 个相簿就一个文件，改版只改一处。
+         内容（书名 / 地区 / 一句话 / 起讫 / 照片）全部由 assets/js/photos.js 从
+         assets/js/photos-data.js 渲染；CSS 只管长相，不写死任何地名或张数。
+
+         照片墙是 JS 算的「对齐行」：行等高、每张按真实长宽比定宽、行宽铺满容器。
+         比 CSS grid 好在横竖混排时能看到每张的真实比例，比 CSS columns 好在
+         顺序是从左到右的（相簿要按时间读）。算法见 photos.js 的 rows2layout()。 -->
+    <header class="about-hero album-hero" id="albumHero"></header>
+
+    <div class="album-strip" id="albumStrip" aria-label="照片墙"></div>
+
+    <nav class="album-nav" id="albumNav" aria-label="上一册／下一册"></nav>
+  </main>
+
+  <!-- === 灯箱（全站唯一一套，引擎在 assets/js/lightbox.js）===
+       结构与行为与动态页逐字同源；本页比动态页多传两样东西给引擎：
+         · cap  = 照片说明（没填就用相簿名兜底，见 photos.js）
+         · meta = 拍摄日期（「点击照片可以显示日期」那条要求的唯一出口）
+       传了它们，引擎才会给说明行占位（--lb-cap-h）；动态页不传 ⇒ 那一行不存在。
+       说明行的排版、折行、与画面的净空全在引擎里算，**别在页面里给 .dy-lb-cap
+       写任何尺寸**。 -->
+  <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" aria-label="照片放大">
+    <div class="dy-lb-stage" id="dyLbStage">
+      <div class="dy-lb-slot" id="dyLbSlotPrev"></div>
+      <div class="dy-lb-slot" id="dyLbSlotCur"></div>
+      <div class="dy-lb-slot" id="dyLbSlotNext"></div>
+    </div>
+    <button class="dy-lb-btn dy-lb-arrow dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="dy-lb-btn dy-lb-arrow dy-lb-next" id="dyLbNext" type="button" aria-label="下一张">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <!-- 横屏观看：v13.1（2026-09-21 主人「不要右上角一颗圆钮」）起屏幕上不出现 ——
+         这颗是 sr-only，只当 aria 出口；触发 = 点照片（触屏）。别改回可见样式。 -->
+    <button class="dy-lb-btn dy-lb-rotate" id="dyLbRotate" type="button" aria-label="横屏观看" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 4v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="dy-lb-cap" id="dyLbCap" hidden></div>
+    <div class="dy-lb-dots" id="dyLbDots"></div>
+  </div>
+
+  <!-- nav 已解析完，立即设好主题文字 label（与首页同款，同步执行防闪） -->
+  <script>
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    d && (d.textContent = label);
+    m && (m.textContent = label);
+  </script>
+
+  <!-- 全屏动态背景（2026-08-20 主人"关于页背景也用主页的"）：canvas-nest 粒子 + ribbons 飘带，
+       与 index.html 同款配置；script.js 主题切换会经 window.RainNest/RainRibbons.setColor 联动 -->
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=be01f61940"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
+
+  <!-- 相簿：数据 + 渲染层（与 photos.html 同一对文件，靠 body 上的 data-album-page 分流）。
+       顺序不能反 —— photos.js 读的是 photos-data.js 挂在 window 上的 RM_PHOTOS。 -->
+  <script src="../assets/js/photos-data.js?v=0a825906e9" defer></script>
+  <!-- 灯箱引擎（全站唯一一套，与动态页同一份）—— 本页点图放大就是它。 -->
+  <script src="../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
+  <script src="../assets/js/photos.js?v=be0187d493" defer></script>
+
+  <script src="../assets/js/loader.js?v=7d81072196" defer></script>
+  <script src="../assets/js/script.js?v=7cb94c80b3" defer></script>
+  <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
+</body>
+</html>

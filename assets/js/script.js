@@ -23,9 +23,15 @@
          曾把 about/posts/projects 的 <html> 写 data-scroll="native" 退回浏览器原生滚动。
          ★ 第一百七十七批（2026-09-14 主人"所有页面都使用首页的滑动触感"）撤销该决定：
          全站所有页面都不写该属性 → 与首页共用这一套滚轮平滑（TAU 曲线 + 双通道自适应），
-         站内滚动观感统一。`data-scroll="native"` 保留为逃生开关：某个页面确实需要
-         原生逐格滚动时写它即可（写了就整体 return，连 __wheelLock/__wheelPause 都不注册，
-         调用方均有 if 守卫，灯箱锁页退化为 CSS overflow:hidden，原生输入本就挡得住）。
+         站内滚动观感统一。
+         ★★ 第二百八十七批（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）
+         **再次撤销**：七页的 <html> 全部写回 data-scroll="native"，退回浏览器原生滚动。
+         所以下面这段在今天的站点上是**不走的死代码** —— 刻意留着，因为它是主人反复
+         要过的手感（09-07 原生 → 09-14 平滑 → 09-21 原生），把某页的该属性摘掉就能
+         单独把那一页接回来，不用再从零写一遍。删掉它就等于把这个开关也删掉。
+         该属性是逃生开关：写了就整体 return，连 __wheelLock/__wheelPause 都不注册，
+         调用方均有 if 守卫 —— 灯箱锁页退化为 CSS overflow:hidden（原生输入本就挡得住），
+         帖子页目录跳转前的 __wheelPause 变成空调用。
          ⚠️ 页内自带横向滚轮的区域（如项目页立牌影像排）必须自己 stopPropagation，
          否则同一次滚轮会被两套滚动器各处理一遍。 */
       if (document.documentElement.getAttribute('data-scroll') === 'native') return;
