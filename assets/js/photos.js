@@ -36,8 +36,13 @@
 
   /* 照片从 R2 出货（2026-09-23），仓库里不再留 webp —— 与动态页那 58 张同一套做法。
      文件名就是拍摄时间戳、内容不会再变，所以缓存可以常年 immutable；
-     唯一会"同名换内容"的情况是重跑 tools/photos-derive.py，那时候把 CDN_V 加一。 */
-  var CDN = 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/photos';
+     唯一会"同名换内容"的情况是重跑 tools/photos-derive.py，那时候把 CDN_V 加一。
+
+     ⚠️ photos/ 在桶根，**不在 images/ 里**（2026-09-23，主人「cloudflare 上 photo 的
+     文件夹不要放进 image 里，参考我仓库的设计」）—— 照抄仓库的 assets/ 结构：
+     照片是 assets/photos/、插画与卡片是 assets/images/，两边平级；R2 这边同样
+     photos/ 与 images/ 平级。images/ 底下只剩 hero / projects / vslide（非照片）。 */
+  var CDN = 'https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos';
   var CDN_V = '?v=1';
 
   var view = function (slug, base) { return CDN + '/' + slug + '/' + base + '.webp' + CDN_V; };

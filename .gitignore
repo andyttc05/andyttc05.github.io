@@ -25,8 +25,13 @@ assets/.bak-originals/
 pages/__*.html
 
 # 相簿文件夹（assets/photos/）：仓库里只留 manifest.json / manifest.csv。
-# 图片一张都不进 —— 站点读 R2（https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/photos/…），
+# 图片一张都不进 —— 站点读 R2（桶 andyttc05 的桶根 photos/，公开域名
+# https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/…），
 # 地址写在 assets/js/photos.js 的 CDN / CDN_V 两行（与动态页那 58 张同一套做法）。
+#
+# ⚠️ R2 那边 photos/ 与 images/ **平级**（都在桶根），是照抄这里的 assets/ 结构：
+#    assets/photos/ = 照片、assets/images/ = hero/projects/vslide 等非照片。
+#    2026-09-23 从 images/photos/ 提到桶根，别搬回去。
 #
 # 本地完整生命周期（2026-09-23 主人「我只要保留 webp」定下）：
 #   1. 原图放 assets/photos/<slug>/<时间戳>.heic（临时，编完就删）

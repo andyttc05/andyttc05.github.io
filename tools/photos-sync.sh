@@ -10,7 +10,7 @@
 # 前置：
 #   · rclone 的 `r2:` remote 指向 Cloudflare R2（~/.config/rclone/rclone.conf）。
 #     R2 的 secret 轮换过、profile 里的旧值会静默 403（SignatureDoesNotMatch），
-#     改完先 `rclone lsf r2:andyttc05/images/` 确认能列。
+#     改完先 `rclone lsf r2:andyttc05/photos/` 确认能列。
 #   · 桶 andyttc05 的公开域名是 https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev
 #     （就是 index.html 里 hero/projects 用的那个）。
 #
@@ -24,7 +24,10 @@
 set -euo pipefail
 
 BUCKET="${R2_BUCKET:-r2:andyttc05}"
-PREFIX="${R2_PREFIX:-images/photos}"
+# ⚠️ photos/ 在**桶根**，不是 images/photos/ —— 照抄仓库的 assets/ 结构：
+#    assets/photos/（照片）与 assets/images/（hero/projects/vslide 等非照片）平级，
+#    R2 这边 photos/ 与 images/ 也平级。别把它塞回 images/ 里。
+PREFIX="${R2_PREFIX:-photos}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)/assets/photos"
 
 FILTER=(
