@@ -8,6 +8,9 @@
        循环取模保持无缝）→ pointerup 按释放前速度给惯性初速，TAU 平滑衰减回自动速度。
        触摸端 touch-action: pan-y 纵向滚动页面不受影响；拖动 >5px 抑制该次 click
        （避免与 tap 暂停逻辑冲突）。
+       ⚠️ 2026-09-23：setPointerCapture 从 pointerdown 挪到「位移 > DRAG_CAPTURE_PX」——
+       原地按一下（无 pointermove）不再抓指针，否则 WebKit 松手后不重算 :hover、
+       chip 上浮永久熄火（详见 pointermove 里那段注释）。
    - 方向：data-direction="left" 右→左 / "right" 左→右（与 React Bits 一致）
    - 主题切换不干预（CSS 变量走 --color-*，无 JS 联动）
    用法：<div class="skills-loop" data-direction="left" data-speed="120" data-hover="24">
@@ -18,6 +21,7 @@
   var TAU = 0.25;          /* 速度平滑时间常数（秒） */
   var HEADROOM = 2;        /* 额外复制份数缓冲 */
   var DRAG_VMAX = 800;     /* 拖拽释放惯性速度上限（px/s），防甩飞 */
+  var DRAG_CAPTURE_PX = 3; /* 越过多少像素才 setPointerCapture（见 pointermove 注释） */
 
   var loops = document.querySelectorAll('.skills-loop');
   if (!loops.length) return;
@@ -140,13 +144,24 @@
       dragLastT = performance.now();
       dragVel = 0;
       hovered = false;                 /* 拖拽期间完全停（含 hover 减速） */
-      root.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
     root.addEventListener('pointermove', function (e) {
       if (!dragging) return;
-      var now = performance.now();
       var dx = e.clientX - dragStartX;
+      /* 2026-09-23（主人"按住 chip → 取消上浮落回原位；松开 → 恢复上浮"）：
+         原来在 pointerdown 就 setPointerCapture，现改为**越过 3px 才抓**。
+         根因：WebKit 在 pointer capture 释放后不重算 :hover 链 —— 指针原地按一下
+         （没有任何 pointermove）也会被抓、松手后 hover 恒为 false，chip 的上浮
+         永久熄灭到下次鼠标移动；Chromium 松手会重算，所以只在 WebKit 露头
+         （HEAD 干树 A/B 实测：capture=off 时 WebKit 与 Chromium 表现一致）。
+         3px 阈值对拖拽零影响：真要拖出卡片，位移早就远大于 3px，
+         setPointerCapture 仍会在离开卡片之前完成（第一百三十批的"拖出后松开
+         仍跟随"修复不受影响），window 级 pointerup 兜底也原样保留。 */
+      if (Math.abs(dx) > DRAG_CAPTURE_PX && !root.hasPointerCapture(e.pointerId)) {
+        root.setPointerCapture(e.pointerId);
+      }
+      var now = performance.now();
       var dt = Math.max(1, now - dragLastT) / 1000;
       dragVel = (e.clientX - dragLastX) / dt;
       dragLastX = e.clientX;
