@@ -76,6 +76,30 @@
     var dragLastT = 0;
     var dragVel = 0;      /* 释放前瞬时速度（px/s）→ 松手惯性初速 */
 
+    /* === 松手那一刻就复原上浮（2026-09-23 第三百一十批） ===
+       症状（主人）：按住 chip 再松开，卡片**要等鼠标移动才上浮**，不丝滑。
+       根因：真实鼠标按一下几乎总会抖 3px 以上 ⇒ 越过 DRAG_CAPTURE_PX 抓了指针，
+       而 WebKit **在 pointer capture 释放后不重算 :hover 链** ⇒ 松手瞬间 :hover 仍 false，
+       卡片躺在静止位，直到下一次鼠标移动才重算（`jitter.js` 实测：抖 0/2px 正常，
+       抖 4/8px 复现；Chromium 松手会重算，所以只在 WebKit 露头）。
+       修法：不等引擎 —— 松手时用 elementFromPoint 自己判「指针还在不在这枚 chip 上」，
+       是就给 chip 挂 `.is-hover`（与 :hover 同款上浮，见 style.css），指针一动再交还原生 :hover。
+       ⚠️ 只对鼠标/触控笔做：触摸端不该有"上浮"（style.css 里 hover:none 那条只关 :hover）。 */
+    var jsHoverChip = null;   /* 松手时由命中测试挂上 .is-hover 的那枚 chip */
+    function hitAt(x, y) {
+      if (x == null || y == null) return { overRoot: false, chip: null };
+      var el = document.elementFromPoint(x, y);
+      if (!el) return { overRoot: false, chip: null };
+      var chip = el.closest ? el.closest('.skills-chip') : null;
+      return { overRoot: root.contains(el), chip: chip && root.contains(chip) ? chip : null };
+    }
+    function setJsHover(chip) {
+      if (chip === jsHoverChip) return;
+      if (jsHoverChip) jsHoverChip.classList.remove('is-hover');
+      jsHoverChip = chip || null;
+      if (jsHoverChip) jsHoverChip.classList.add('is-hover');
+    }
+
     /* 同步复制份数：覆盖视口 + headroom；只增不删（防 resize 抖动）
        所有克隆与首份同源，克隆失败/节点丢失时重新补 */
     function syncCopies() {
@@ -127,6 +151,7 @@
       });
       root.addEventListener('mouseleave', function () {
         hovered = false;
+        setJsHover(null);   /* 指针离开整条 loop：松手补的上浮也一起撤 */
       });
     }
 
@@ -144,20 +169,33 @@
       dragLastT = performance.now();
       dragVel = 0;
       hovered = false;                 /* 拖拽期间完全停（含 hover 减速） */
+      setJsHover(null);                /* 按下即落回静止位（:active 接手），清掉松手补的那枚 */
       e.preventDefault();
     });
     root.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
+      if (!dragging) {
+        /* 松手时补的 .is-hover（见 endDrag）：指针一动就核一次当前位置 ——
+           仍在某枚 chip 上就保持（换到隔壁一枚就跟着搬），离开 chip 才撤。
+           ⚠️ 判据是"指针底下有没有 chip"，**不是"还是不是同一枚节点"** ——
+           轨道里同一张卡有克隆件（aria-hidden），滑 1px 就可能命中另一枚节点，
+           按节点身份比会把刚补上的上浮立刻误撤（jitter.js 实测：抖 4/8px 时移动
+           1px 就掉回 ty=0）。 */
+        if (jsHoverChip) setJsHover(hitAt(e.clientX, e.clientY).chip);
+        return;
+      }
       var dx = e.clientX - dragStartX;
       /* 2026-09-23（主人"按住 chip → 取消上浮落回原位；松开 → 恢复上浮"）：
          原来在 pointerdown 就 setPointerCapture，现改为**越过 3px 才抓**。
          根因：WebKit 在 pointer capture 释放后不重算 :hover 链 —— 指针原地按一下
          （没有任何 pointermove）也会被抓、松手后 hover 恒为 false，chip 的上浮
          永久熄灭到下次鼠标移动；Chromium 松手会重算，所以只在 WebKit 露头
-         （HEAD 干树 A/B 实测：capture=off 时 WebKit 与 Chromium 表现一致）。
+          （HEAD 干树 A/B 实测：capture=off 时 WebKit 与 Chromium 表现一致）。
          3px 阈值对拖拽零影响：真要拖出卡片，位移早就远大于 3px，
          setPointerCapture 仍会在离开卡片之前完成（第一百三十批的"拖出后松开
-         仍跟随"修复不受影响），window 级 pointerup 兜底也原样保留。 */
+         仍跟随"修复不受影响），window 级 pointerup 兜底也原样保留。
+         ⚠️ 但 3px 只挡得住"完全不动"的点击 —— 真实鼠标按一下常抖 4~8px，照样抓指针
+         ⇒ 真正的兜底是松手时的命中测试（hitAt/setJsHover，第三百一十批），
+         别把这条阈值当成"WebKit hover 问题的解"。 */
       if (Math.abs(dx) > DRAG_CAPTURE_PX && !root.hasPointerCapture(e.pointerId)) {
         root.setPointerCapture(e.pointerId);
       }
@@ -178,8 +216,12 @@
       if (v < -DRAG_VMAX) v = -DRAG_VMAX;
       velocity = v;
       /* 鼠标释放：指针仍在 loop 上 → 恢复 hover 减速；已拖出 loop（兜底场景）
-         → matches(':hover') 为 false → 恢复全速；触摸：无 hover */
-      hovered = e.pointerType !== 'touch' && root.matches(':hover') && hover !== undefined;
+         → 恢复全速；触摸：无 hover。
+         ⚠️ 判据用命中测试，不用 root.matches(':hover') —— WebKit 在 capture 释放后
+         :hover 恒 false（见 endDrag 上方注释），用它会让减速也一起延迟到下次鼠标移动。 */
+      var h = hitAt(e.clientX, e.clientY);
+      hovered = e.pointerType !== 'touch' && h.overRoot && hover !== undefined;
+      setJsHover(e.pointerType === 'touch' ? null : h.chip);
       if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
     }
     /* 无事件对象可用的强制结束（blur/visibilitychange 兜底）：
@@ -189,6 +231,7 @@
       dragging = false;
       velocity = 0;
       hovered = hover !== undefined && root.matches(':hover');
+      setJsHover(null);
     }
     root.addEventListener('pointerup', endDrag);
     root.addEventListener('pointercancel', endDrag);

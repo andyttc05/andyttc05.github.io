@@ -2783,8 +2783,13 @@
     transition: color 0.2s ease;
   }
   /* hover：边框 accent + 名字霓虹青（第六十五批：现代 UI 反馈） */
-  /* hover：卡片微微悬浮（第六十七批，主人要求去边框/字体变色，只留上浮） */
-  .skills-chip:hover {
+  /* hover：卡片微微悬浮（第六十七批，主人要求去边框/字体变色，只留上浮）
+     `.is-hover`：JS 在**松手那一刻**按命中测试补的类（第三百一十批，见 about-loop.js
+     的 hitAt/setJsHover）。WebKit 在 pointer capture 释放后不重算 :hover，真实点击
+     抖几像素就抓指针 ⇒ 松手后卡片躺着不动，要等下次鼠标移动才上浮（主人："不丝滑"）。
+     `:active` 必须仍在它之后（同 0,2,0 特指度靠源序），按下时压过 .is-hover。 */
+  .skills-chip:hover,
+  .skills-chip.is-hover {
     transform: translateY(-3px);
   }
   /* 第一百四十二批（2026-08-22）：hover 边缘抖动彻底修复 —— 上版 ::before 命中区扩 8px
@@ -2799,7 +2804,8 @@
     border-radius: inherit;
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .skills-chip:hover::before {
+  .skills-chip:hover::before,
+  .skills-chip.is-hover::before {
     transform: translateY(3px); /* 反向抵消 chip -3px 上浮，命中区锚定视口 */
   }
   /* 第二百八十九批（2026-09-23 主人："鼠标悬浮卡片微微向上移动，然后按住 —— 卡片取消
@@ -2910,7 +2916,8 @@
        在手机版的 logo loop 上，动画会好奇怪，电脑版就没有这个问题")
        第五十八批：chip 已无常驻阴影，触摸端连带禁用 inset 按入（防粘滞） */
     @media (hover: none) and (pointer: coarse) {
-      .skills-chip:hover { transform: none; }
+      .skills-chip:hover,
+      .skills-chip.is-hover { transform: none; }
     }
     .skills-loop-viewport::before,
     .skills-loop-viewport::after { width: 20px; }
