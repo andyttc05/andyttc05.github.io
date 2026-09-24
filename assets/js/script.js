@@ -308,6 +308,135 @@
         closeMenu();
       }
     });
+    /* === 跨文档补 hover（第三百一十二批 2026-09-23）===
+       主人原话："导航栏我按了切换页面，页面切换了，鼠标悬浮在导航栏按钮的话，鼠标不会
+       变为点击，文字/背景没有变色提示。当鼠标微微移动，并在按钮区域的话，鼠标才会变
+       为点击、文字/背景才会变色。"
+
+       根因（实测，不是推断）：`:hover` 链和光标形状都是**浏览器内部状态**，只在真实
+       指针输入时按当前指针位置重算。跨文档跳转落地后，用户动鼠标之前新文档收不到任何
+       指针事件 —— 用 init script 挂满 mousemove/pointermove/mouseover/pointerover/
+       wheel/touchstart/scroll 监听实测：落地 3s 内 **0 条**事件；连"滚动 40px"都不
+       会让浏览器重算（Chromium 与 WebKit 同样表现）。最小复现是两页零 JS 的 <a> 互跳，
+       一模一样 ⇒ 浏览器通病，不是本站哪里写坏了。
+
+       做法（沿用 about-loop.js 那套 `.is-hover`，同类问题同一套语义）：
+       ① 本页记住指针最后位置（pointermove 只写变量，不做任何落盘）；
+       ② 真正要跳走的那一刻（pointerdown / pagehide）才写进 sessionStorage
+          —— 同源同标签页，新文档读得到；
+       ③ 新文档 DOM 就绪后按这个坐标做命中测试（自己算几何，见下方 hitTest），
+          命中的若是导航控件就挂 `.is-hover`（style.css 里与 :hover 同款），
+          并把光斑按同款 snap 到位 —— 观感 = "hover 一直都在"；
+       ④ 真指针事件一到立刻撤类，交还原生 :hover（那时浏览器已经算完了）。
+
+       ⚠️ 只住 script.js 一处（七页都引它）。写进 7 份 HTML 内联就是 7 个会漂移的副本。
+       ⚠️ 撤销只认**真指针/触摸/键盘输入**，别拿 scroll 撤：本站刷新会程序化恢复滚动
+          位置，那条 scroll 会在挂上类之后立刻把它撤掉，整条修复等于没写。nav 是 sticky
+          （滚动不会把导航从光标底下挪走），本来也不需要靠滚动撤。
+       ⚠️ 坐标是"推"出来的（新文档拿不到真指针位置）⇒ 必须设准入闸门，见 ③ 的注释。
+       ⚠️ 只管桌面导航栏里 pointer 设备能碰到的三样（目录链接 / 右侧两个圆钮 / 品牌字）。
+          汉堡按钮与抽屉不在此列：汉堡 ≥769px 是 display:none（命中测试够不着），抽屉
+          只在点击后存在，而点击不会改变文档，没有"落地即陈旧"的问题。 */
+    (function () {
+      var PTR_KEY = 'rm-ptr';   /* 跨文档传指针位置：读写都只在本段 */
+      var HOVER_SEL = '.nav-links a, .nav-icon, .nav-brand';
+      /* 触摸/无悬停设备不补：那里压根没有"光标停在按钮上"这回事，
+         且 :hover 在触摸端会粘住（style.css 里专门为此关掉了一批 hover） */
+      if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+      /* ① 记住指针最后位置 */
+      var px = null, py = null;
+      window.addEventListener('pointermove', function (e) {
+        px = e.clientX; py = e.clientY;
+      }, { passive: true });
+
+      /* ② 跳走那一刻落盘。pointerdown 覆盖"点链接"（此刻坐标 = 离开本页的坐标）；
+            pagehide 覆盖键盘回车 / 前进后退 / 地址栏 / 刷新 —— 两条都写，重复无害。 */
+      function storePt() {
+        if (px === null) return;
+        try { sessionStorage.setItem(PTR_KEY, px + ',' + py + ',' + Date.now()); } catch (e) {}
+      }
+      window.addEventListener('pointerdown', storePt, { passive: true });
+      window.addEventListener('pagehide', storePt);
+
+      /* ③ 新文档：按坐标补 hover。
+         准入闸门：只认 referrer 同源（= 从站内某页点进来，与 head 里 nav-instant 同一
+         判据）或 3s 内的新鲜值。否则用户从收藏栏/外链进站、而光标恰好停在导航栏上方时，
+         会被凭空点亮一枚链接（那种"假高亮"要等第一次动鼠标才消失，比不做还糟）。 */
+      var raw = null;
+      try { raw = sessionStorage.getItem(PTR_KEY); } catch (e) {}
+      if (!raw) return;
+      var parts = raw.split(',');
+      var x = parseFloat(parts[0]), y = parseFloat(parts[1]), t = parseFloat(parts[2]);
+      if (!isFinite(x) || !isFinite(y)) return;
+      var sameSite = false;
+      try {
+        sameSite = !!document.referrer && new URL(document.referrer).origin === location.origin;
+      } catch (e) {}
+      var fresh = isFinite(t) && (Date.now() - t) < 3000;
+      if (!sameSite && !fresh) return;
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return;
+
+      /* 命中测试：**自己算几何**，不用 elementFromPoint。
+         原因（逐帧实测）：跨文档视图过渡期间新文档整段不可命中 —— elementFromPoint
+         一律返回 <html>（新页面这时只是张**快照**盖在伪元素层上，DOM 命中测试穿不过去），
+         本站要到 ~490ms（过渡收尾）才可用；而 getBoundingClientRect 在 defer 那一刻
+         就已经是最终布局（实测链接 L427/T10/68×43，与 1.5s 后逐位相同）。
+         ⇒ 自己判"这点在不在某个导航控件的盒子里"，就能在**快照拍摄之前**挂上类：
+         快照里就是 accent，用户从第一帧看到的就是"hover 一直都在"，没有"先灰后亮"。
+         （用 elementFromPoint 的版本实测就是灰 400ms 再跳蓝，frames.js 有逐帧证据。）
+         ⚠️ 几何判据不检查遮挡；这里够用 —— 落地那一刻唯一可能盖住导航的是加载幕布，
+         而幕布只在"不是站内进入"时出现，与上面的准入闸门互斥（见 ③）。 */
+      function hitTest() {
+        var list = document.querySelectorAll(HOVER_SEL);
+        for (var i = 0; i < list.length; i++) {
+          var r = list[i].getBoundingClientRect();
+          if (r.width > 0 && r.height > 0 &&
+              x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return list[i];
+        }
+        return null;
+      }
+      var RETRY_MS = 1500;      /* 重试上限：视图过渡 450ms 的两倍余量，到点收手 */
+      var forced = null, done = false, rafId = 0, t0 = performance.now();
+      function release() {
+        done = true;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+        if (forced) { forced.classList.remove('is-hover'); forced = null; }
+        window.removeEventListener('pointermove', release, true);
+        window.removeEventListener('pointerdown', release, true);
+        window.removeEventListener('touchstart', release, true);
+        window.removeEventListener('keydown', release, true);
+      }
+      /* 真指针/触摸/键盘输入一到就收手：那一刻浏览器已经自己重算过 hover 了。
+         capture 是为了抢在本文件其它监听之前把类撤掉。 */
+      window.addEventListener('pointermove', release, true);
+      window.addEventListener('pointerdown', release, true);
+      window.addEventListener('touchstart', release, true);
+      window.addEventListener('keydown', release, true);
+
+      function attempt() {
+        rafId = 0;
+        if (done || forced) return;
+        var hit = hitTest();
+        if (hit) {
+          /* 掐掉过渡再挂类：这一下要"像本来就在 hover"，不能 0.2s 渐亮
+             （与光斑 snapTo 同一个手法：设 → 强制 reflow 落定 → 还原） */
+          var prev = hit.style.transition;
+          hit.style.transition = 'none';
+          hit.classList.add('is-hover');
+          void hit.offsetWidth;
+          hit.style.transition = prev;
+          forced = hit;
+          /* 通知滑动光斑跟上（它在本段之后才注册监听，且这里可能是 500ms 后才到，
+             光斑自己那次"加载完成兜底"早就跑过去了） */
+          try { hit.dispatchEvent(new CustomEvent('rm-hover')); } catch (e) {}
+          return;
+        }
+        /* 还没布局出来（盒子还是 0×0）→ 下一帧再试 */
+        if (performance.now() - t0 < RETRY_MS) rafId = requestAnimationFrame(attempt);
+      }
+      attempt();
+    })();
     /* === 桌面导航滑动高亮 === */
     (function () {
       var navLinks = document.querySelector('.nav-links');
@@ -340,11 +469,21 @@
         if (shown) moveTo(link);
         else { shown = true; snapTo(link); }
       }
+      /* 当前"看起来被悬停"的链接：JS 补的 .is-hover 优先于原生 :hover ——
+         跨文档落地的那一瞬 :hover 链还是空的（见第三百一十二批），
+         光斑要认补上的那个，否则链接已经变 accent 了、光斑还藏着 */
+      function hoveredLink() {
+        return navLinks.querySelector('a.is-hover') || navLinks.querySelector('a:hover');
+      }
 
       links.forEach(function (link) {
         link.addEventListener('mouseenter', function () { position(link); });
         /* 键盘 Tab 聚焦时同样驱动光斑，与鼠标体验统一 */
         link.addEventListener('focus', function () { position(link); });
+        /* 跨文档补 hover（第三百一十二批）：由上面那段补 .is-hover 时派发的信号。
+           它可能在本 IIFE 跑完之后才到（跨文档视图过渡期间命中测试不可用，实测
+           落地 ~520ms 才挂上类），所以不能只靠下面那段"加载完成兜底"去查一次。 */
+        link.addEventListener('rm-hover', function () { position(link); });
       });
       navLinks.addEventListener('mouseleave', function () {
         indicator.style.opacity = '0';
@@ -356,7 +495,7 @@
         resizeTicking = true;
         requestAnimationFrame(function () {
           resizeTicking = false;
-          var hovered = navLinks.querySelector('a:hover');
+          var hovered = hoveredLink();
           if (hovered) position(hovered);
         });
       });
@@ -367,7 +506,7 @@
         shown = true;
         snapTo(restored);
       } else {
-        var hovered = navLinks.querySelector('a:hover');
+        var hovered = hoveredLink();
         if (hovered) { shown = true; snapTo(hovered); }
       }
     })();
@@ -400,11 +539,17 @@
         if (shown) moveTo(btn);
         else { shown = true; snapTo(btn); }
       }
+      /* 与目录同款：JS 补的 .is-hover 优先于原生 :hover（见上一条 hoveredLink） */
+      function hoveredBtn() {
+        return actions.querySelector('.nav-icon.is-hover') || actions.querySelector('.nav-icon:hover');
+      }
 
       buttons.forEach(function (btn) {
         btn.addEventListener('mouseenter', function () { position(btn); });
         /* 键盘 Tab 聚焦时同样驱动光斑 */
         btn.addEventListener('focus', function () { position(btn); });
+        /* 跨文档补 hover 的信号（与目录同款，见上一条 rm-hover） */
+        btn.addEventListener('rm-hover', function () { position(btn); });
       });
       actions.addEventListener('mouseleave', function () {
         indicator.style.opacity = '0';
@@ -416,7 +561,7 @@
         resizeTicking = true;
         requestAnimationFrame(function () {
           resizeTicking = false;
-          var hovered = actions.querySelector('.nav-icon:hover');
+          var hovered = hoveredBtn();
           if (hovered) position(hovered);
         });
       });
@@ -426,7 +571,7 @@
         shown = true;
         snapTo(restored);
       } else {
-        var hovered = actions.querySelector('.nav-icon:hover');
+        var hovered = hoveredBtn();
         if (hovered) { shown = true; snapTo(hovered); }
       }
     })();
@@ -1721,43 +1866,71 @@
         var sy = window.scrollY || window.pageYOffset;
         var ps = pinScroll(), hb = heroBottomY();
         if (sy > hb - 100 && sy < hb + ps + 100) {
-          /* 常驻循环每帧已按真实 pEff 渲染；此处仅对齐一帧消除 lerp 残留（无需吸附） */
+          /* 常驻循环每帧已按真实 pEff 渲染；此处仅对齐一帧消除 lerp 残留（无需吸附）
+             第三百一十批：循环已改按需启停 ⇒ 这里必须自己上弦（原来靠常驻） */
           frameNeeded = true;
+          arm();
         }
       }
       if ('onscrollend' in window) {
         window.addEventListener('scrollend', idleAlign);
       }
-      /* 第一百五十九批：常驻单 rAF 循环 —— scroll/wheel/resize 只改 dirty 标志，
-         循环每帧 pickup 收走脏帧并跑 update。update 帧率 = 显示屏帧率（不再被
-         scroll 事件频率拖累），桌面滚轮/触摸板双平滑（wheel lerp + pEff lerp）
-         每帧跟进消拖尾，移动端原生惯性滚动每帧同步。zone 外（且无入场动画
-         待播）只清 dirty 直接返回，零渲染开销；入场动画期间 replayFrames>0
-         保证 zone 内持续每帧更新（否则停在非滚动状态时播放会冻结）。 */
+      /* 第一百五十九批（历史）：单 rAF 循环统一驱动 update，scroll/wheel/resize 只改
+         dirty 标志，update 帧率 = 显示屏帧率（不再被 scroll 事件频率拖累）。
+         ⚠️ 当时是**常驻**（每帧无条件续帧）；第三百一十批已改按需启停，见下。 */
+      /* 第三百一十批（2026-09-23 主人「网页打开一段时间后卡」）：
+         原实现 loop 里**每帧无条件 requestAnimationFrame(loop)** ⇒ 页面永不空闲。
+         实测（headless chromium 1440×900，见 ~/.workbuddy/scratch/perf-idle-2026-09-23/）：
+         renderer 累计 CPU 7 分钟 4.2s → 71.2s（严格线性 ≈17% 单核，永不归零）；
+         且 zone 内 dirty **从不消费** ⇒ 停在过渡带时 update 每帧都在跑
+         （首页顶部 19–20% 单核、RecalcStyle 一直不停）。
+
+         改成**按需启停**：只有 dirty / frameNeeded / 入场续帧时才跑，跑完自行停表，
+         由 arm() 重新上弦（scroll / resize / load / idleAlign / 入场续帧各自负责）。
+
+         ⚠️ **停表是安全的**：pEff 自第一百七十六批起 = 直接位置驱动（无 lerp 残留），
+            update 是 scrollY 的纯函数 —— 停下不会把状态停在半路。
+         ⚠️ dirty 现在**跑一次就消费**（原来是只在 zone 外清）；需要连续帧的场景
+            由 update 末尾的 replayFrames（入场时间动画）与 idleAlign 的
+            frameNeeded 各自负责，它们会 arm()。
+         ⚠️ 别把 arm() 写回 loop 开头（那就退回常驻了）。 */
+
       var dirty = true;
       var frameNeeded = false;
       var replayFrames = 0;
       var rafDt = 0;
+      var loopOn = false;
+
+      function arm() {
+        if (loopOn) return;
+        loopOn = true;
+        requestAnimationFrame(loop);
+      }
 
       function loop(now) {
-        requestAnimationFrame(loop);
+        loopOn = false;
+        var need = dirty || frameNeeded || replayFrames > 0;
+        if (replayFrames > 0) replayFrames--;
+        frameNeeded = false;
+        dirty = false;
+        if (!need) return;                     /* 没事做 → 停表，等 arm() */
         var sy = window.scrollY || window.pageYOffset;
         var vh = window.innerHeight || document.documentElement.clientHeight;
         var hb = heroBottomY();
         var ps = pinScroll();
         var zone = sy > hb - vh * 0.8 - 400 && sy < hb + ps + 400;
-        var need = dirty || frameNeeded || replayFrames > 0;
-        if (replayFrames > 0) replayFrames--;
-        frameNeeded = false;
-        if (!need) return;
-        if (!zone) { dirty = false; return; }
-        rafDt = (now - (loop.last || now)) / 1000;   /* ms → s，update 当秒用 */
+        if (!zone) return;
+        /* 停表期间可能隔了很久才被 arm()，帧间隔封顶 50ms 防 dt 尖峰 */
+        rafDt = Math.min(0.05, (now - (loop.last || now)) / 1000);   /* ms → s，update 当秒用 */
         loop.last = now;
         update();
+        /* 入场时间动画 / 收敛帧没走完 → 自己续一帧 */
+        if (replayFrames > 0 || frameNeeded) arm();
       }
 
       function onScroll() {
         dirty = true;
+        arm();
         /* 无 scrollend 的浏览器（旧 Safari/Firefox）：150ms 无 scroll 事件 → 对齐一帧 */
         if (!('onscrollend' in window)) {
           clearTimeout(idleTimer);
@@ -1807,10 +1980,12 @@
           entryStarted = false;
         }
         dirty = true;
+        arm();   /* 第三百一十批：循环按需启停 ⇒ 这里自己上弦 */
       });
 
-      /* 启动常驻循环（首帧 dirty=true 会立即渲染一帧修正刷新位置） */
-      requestAnimationFrame(loop);
+      /* 启动循环（首帧 dirty=true 会立即渲染一帧修正刷新位置）——
+         第三百一十批：改成 arm()，跑完自行停表 */
+      arm();
     })();
 
     /* 第一百三十七批（2026-08-21 主人"背景样式保持不变（若已误改请回退至原版）"）：

@@ -157,28 +157,45 @@
   /* 第一百四十九批：鼠标线强度 —— 移动后拉满，静止后随时间淡出（不再逐帧满画） */
   var mouseLineOpacity = 1;
   var mouseLineLastMoveAt = 0;
-  function step() {
+  /* 第三百一十批（2026-09-23 主人「网页打开一段时间后卡」）：帧率上限 30fps。
+     实测（headless 1440×900，~/.workbuddy/scratch/perf-idle-2026-09-23/）两个背景
+     canvas 占常驻主线程负载的 82%（首页顶部 13.7% → 去掉两者 2.5%）。
+     粒子网络每帧要做 ~N²/2 次距离判定 + 每条连线一次 beginPath/stroke/字符串拼接，
+     是本页最贵的常驻项，而粒子漂移是慢速位移 —— 60→30 视觉几乎无差。
+     ⚠️ 物理量按 dt 比例（k）缩放，**保证墙钟速度与 60fps 时一致**：
+        别只加帧率闸门而不乘 k，那样粒子会变慢一半、鼠标线淡出也要两倍时间。 */
+  var FRAME_MS = 1000 / 60;
+  var MIN_FRAME_MS = 1000 / 30;
+  var lastFrameT = 0;
+  function step(now) {
     if (paused) { rafId = null; return; }
+    var dtMs = lastFrameT ? now - lastFrameT : FRAME_MS;
+    if (lastFrameT && dtMs < MIN_FRAME_MS - 1) {
+      rafId = requestAnimationFrame(step);
+      return;
+    }
+    var k = lastFrameT ? Math.min(3, dtMs / FRAME_MS) : 1;
+    lastFrameT = now;
     ctx.clearRect(0, 0, w, h);
     var n = points.length;
     var hasMouse = mouse.x !== null && mouse.y !== null;
     /* 鼠标连线强度：移动后拉满；静止 >120ms 线性衰减到 0（连线自然淡出） */
     if (hasMouse) {
       if (Date.now() - mouseLineLastMoveAt > 120) {
-        mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05);
+        mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05 * k);
       } else {
-        mouseLineOpacity = Math.min(1, mouseLineOpacity + 0.25);
+        mouseLineOpacity = Math.min(1, mouseLineOpacity + 0.25 * k);
       }
     } else {
-      mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05);
+      mouseLineOpacity = Math.max(0, mouseLineOpacity - 0.05 * k);
     }
     var colorRgb = config.color;
     var i, j;
 
     for (i = 0; i < n; i++) {
       var p = points[i];
-      p.x += p.xa;
-      p.y += p.ya;
+      p.x += p.xa * k;
+      p.y += p.ya * k;
       p.xa *= (p.x > w || p.x < 0) ? -1 : 1;
       p.ya *= (p.y > h || p.y < 0) ? -1 : 1;
       /* 点绘制取整到像素格：消除 dpr 下浮点坐标落在物理像素间产生的闪烁抖动 */
@@ -238,6 +255,7 @@
     if (paused) return;
     paused = true;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    lastFrameT = 0;   /* 恢复时别拿暂停前的旧时间戳算 dt */
     /* 清空画面：避免暂停前最后一帧（停止在某个状态）"冻屏"残留；
        暂停时仍想看底色 = canvas 透明 = 看 html 背景，clearRect 不影响视觉 */
     if (ctx && w && h) ctx.clearRect(0, 0, w, h);
@@ -263,22 +281,52 @@
   });
   window.addEventListener('touchend', function () { mouse.x = null; mouse.y = null; pendingMouseX = pendingMouseY = null; });
 
-  /* 页面切到后台（标签切换/息屏）→ 自动暂停画布，节省移动端 CPU/电量；
-     visibilitychange 在所有现代浏览器稳定支持（iOS Safari 7+/Android Chrome 56+）。
-     注：document.hidden = true 时 rAF 自动暂停，但 step() 内还有残余的 raf 链需要主动取消 */
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) pause(); else resume();
-  });
+  /* === 运行策略：只在「真有人在看」时跑（第三百一十四批 2026-09-23）===
+     与 canvas-ribbons.js 同款口径（那边有完整说明），三个停表理由：document.hidden /
+     窗口失焦 ≥ 60s / body.dy-lb-open（灯箱全屏遮罩打开）。停表走 hold() 而不是 pause() ——
+     pause() 会 clearRect 清空画面，那等于「背景凭空消失」，比冻住更容易被看见。 */
+  var IDLE_HOLD_MS = 60000;
+  var idleOff = false, overlayOff = false, idleTimer = null;
+
+  function hold() {
+    if (paused) return;
+    paused = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    lastFrameT = 0;   /* 恢复时别拿停表前的旧时间戳算 dt（否则 k 会被 clamp 到 3 → 粒子跳一步） */
+  }
+  function syncRun() {
+    if (document.hidden || idleOff || overlayOff) hold(); else resume();
+  }
+  function armRun() {
+    clearTimeout(idleTimer);
+    idleOff = false;
+    if (!document.hasFocus()) {
+      idleTimer = setTimeout(function () { idleOff = true; syncRun(); }, IDLE_HOLD_MS);
+    }
+    syncRun();
+  }
+  /* visibilitychange 在所有现代浏览器稳定支持（iOS Safari 7+/Android Chrome 56+） */
+  document.addEventListener('visibilitychange', armRun);
+  window.addEventListener('focus', armRun);
+  window.addEventListener('blur', armRun);
+  window.addEventListener('pointermove', function () { if (idleOff) armRun(); }, { passive: true });
+  new MutationObserver(function () {
+    var on = document.body.classList.contains('dy-lb-open');
+    if (on === overlayOff) return;
+    overlayOff = on;
+    syncRun();
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   /* 用目标粒子数初始化（桌面 99，移动按视口面积等比缩），不再写死 config.count */
   syncPoints();
   setTimeout(function () { if (!paused) rafId = requestAnimationFrame(step); }, 100);
+  armRun();   /* 首帧后立刻按策略判定一次 */
 
-  /* 主题联动接口：script.js 在切换主题时调用 setColor(当前 accent rgb)
-     + 跨页滚到非装饰区时调用 pause()/resume() 节能 */
+  /* 对外接口：script.js 切主题时调 setColor。
+     resume 导出 syncRun —— 外部说「恢复」仍要过策略判定，免得踢翻 ①②③ 的停表理由。 */
   window.RainNest = {
     setColor: function (rgb) { config.color = rgb; },
     pause: pause,
-    resume: resume
+    resume: syncRun
   };
 })();

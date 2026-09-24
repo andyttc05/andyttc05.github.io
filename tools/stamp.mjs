@@ -263,8 +263,10 @@ for (const block of BLOCKS) {
 /* ④ ONE-PLACE：刷新策略只许住在一个文件里。
    `rm-pos` 是 2026-09-17 加的「刷新位置兜底」的记录键（webKit 在滚动停稳前刷新会回顶，
    实测窗口 0.4~0.8s）—— 它和 rm-top-on-load 是同一类东西：跨页面的会话状态，
-   一旦在别处生根就会和 script.js 抢同一个键，所以一并按"只许住在一处"管。 */
-const POLICY_TOKENS = ['scrollRestoration', 'rm-top-on-load', 'rm-pos', 'location.reload'];
+   一旦在别处生根就会和 script.js 抢同一个键，所以一并按"只许住在一处"管。
+   `rm-ptr` 是 2026-09-23 加的「跨文档补 hover」用的指针位置键（第三百一十二批），
+   同为跨页面会话状态，同理：多一个写者就会和新文档的命中测试抢同一个值。 */
+const POLICY_TOKENS = ['scrollRestoration', 'rm-top-on-load', 'rm-pos', 'rm-ptr', 'location.reload'];
 const POLICY_HOME = 'assets/js/script.js';
 for (const page of PAGES) {
   const src = read(page);

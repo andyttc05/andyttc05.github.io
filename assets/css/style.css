@@ -443,18 +443,27 @@
     letter-spacing: -0.2px;
     color: var(--color-muted); text-decoration: none;
     padding: 10px 16px; border-radius: 8px;
-    transition: color 0.2s ease, background 0.2s ease; white-space: nowrap;
+    transition: color 0.2s ease; white-space: nowrap;   /* background 过渡已删：没有任何状态改它 */
     line-height: 1.5;
     background: transparent;
     position: relative; z-index: 1;
   }
-  /* hover/active 同色：color 变 accent；active 额外加背景让触摸反馈跟抽屉一致 */
+  /* hover/active 同色：color 变 accent。**:active 只换色、不加深背景**
+     （2026-09-23 主人："点击时背景多了一层，和悬浮那层冲突"）。
+     原因：悬浮的底色本来就是 .nav-hover-indicator 那枚滑动光斑给的，:active 再往
+     链接自己身上加一层同 alpha 的 accent ⇒ 两枚半透明叠加（0.10+0.10 ≈ 0.19），
+     而且盒子形状对不上（链接 padding 盒 8px 圆角 vs 光斑 48px 高 / 12px 圆角），
+     按下瞬间就"多出一块"。⇒ 想让按下有反馈只能改 color（已与 hover 同款），
+     **别再把 background 写回 :active**；要按压手感请改光斑本身，别叠第二层。
+     同理，.nav-links a 上那条 background 过渡已一并删掉（没有任何状态下再改它了）。
+     `.is-hover` = JS 补的 hover（第三百一十二批：跨文档跳转落地、"光标还压在链接上"
+     但浏览器还没重算 :hover 的那一刻，见 script.js 同名段落）。与 :hover 同款，
+     且必须写在同一条规则里 —— 两边一旦分家，落地瞬间的"补 hover"就会和
+     :hover 的实际观感不一致。 */
   .nav-links a:hover,
+  .nav-links a.is-hover,
   .nav-links a:active {
     color: var(--color-accent);
-  }
-  .nav-links a:active {
-    background: rgba(var(--color-accent-rgb), 0.10);
   }
 
   .nav-brand {
@@ -482,7 +491,8 @@
     display: inline-flex;
     align-items: center;
   }
-  .nav-brand:hover { color: var(--color-accent); }
+  .nav-brand:hover,
+  .nav-brand.is-hover { color: var(--color-accent); }   /* .is-hover 见 .nav-links a 那条注释 */
 
   .nav-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin-left: auto; position: relative; }
   /* 右侧操作区滑动高亮：与目录同款单光斑方案，跟随月亮按钮平移。
@@ -721,7 +731,8 @@
     transition: color 0.2s ease;
     position: relative; z-index: 1;
   }
-  .nav-icon:hover {
+  .nav-icon:hover,
+  .nav-icon.is-hover {
     color: var(--color-accent);
   }
   /* 键盘焦点可见样式：鼠标点击不显示，Tab 键导航时清晰高亮。
@@ -4343,9 +4354,18 @@ html.nav-anim-reset *::after {
   .album-nav {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    /* 一册现在是「名字 + 按钮」两行的竖块，比中间那格数字高得多 ⇒
-       整块按重心对齐，那行数字才不会挂在小标签那一行的位置。 */
-    align-items: center;
+    /* 一册是「名字 + 按钮」两行的竖块，比中间那格数字高得多 ⇒
+       整块按重心对齐，那行数字才不会挂在小标签那一行的位置。
+       🔴 2026-09-24 从 `center` 改成 `end`（主人「上一页/下一页上方的文字显示适配不是很好」）：
+       册名一长就会折成两行，而左右**只有一边**折 —— 两个竖块于是不等高，
+       `center` 对齐下两枚按钮跟着错位。1440 桌面看不出来（名字都排得下），
+       手机与窄窗口上 19 本里有 9~11 本是错的，实测最大错位：
+         320px → 21.6px · 390px → 10.8px · 540px → 10.8px · ≥600px → 0
+       （量法：~/.workbuddy/scratch/album-mobile-2026-09-24/nav-align.js）
+       `end` 让两个竖块**底边**对齐 ⇒ 按钮永远在同一水平线上（按钮在竖块最下面），
+       名字长的那一侧往上长，各归各的。两边等高时 `end` 与 `center` 逐像素相同
+       ⇒ 桌面零变化（已用同一套探针在 900/1100/1440 复验：错位 0px、计数行偏心不变）。 */
+    align-items: end;
     gap: clamp(12px, 2vw, 24px);
     border-top: 1px solid var(--color-rule);
     padding-top: clamp(22px, 2.6vw, 32px);
@@ -4366,6 +4386,11 @@ html.nav-anim-reset *::after {
   .album-nav-side--next { grid-column: 3; align-items: flex-end; }
   .album-nav-idx {
     grid-column: 2;
+    /* 父级 2026-09-24 改成 align-items: end ⇒ 这一格会跟着沉到底边。
+       它不是「上一册/下一册」那一族（那两块的底边对齐靠的就是端对齐），
+       所以单独把自己拉回竖向居中：与两枚按钮的中心线对齐。
+       ⚠️ 别把它写进父级的 align-items —— 那两条要求是相反的。 */
+    align-self: center;
     font-family: var(--font-mono);
     font-size: 11.5px;
     letter-spacing: 0.14em;
@@ -4430,7 +4455,16 @@ html.nav-anim-reset *::after {
     .album-stats { grid-template-columns: repeat(2, 1fr); }
     .album-stat { padding-inline: clamp(8px, 2vw, 16px); }
     .album-stat:nth-child(odd) { border-left: 0; padding-left: 0; }
-    .album-stat:nth-child(n + 3) { border-top: 1px solid var(--color-rule); }
+    /* 🔴 2026-09-24 主人「照片页，手机版移除 5 个地区的显示」。
+       为什么要撤：三格摆进两列 ⇒ 第三格「5 个地区」自己单占第二行，
+       它上面那条 hairline 只画了半行，右边空一格（390 实测：条 180.1px 高、
+       1/3 是空的）。删掉它之后条变成 90px 高的一行两格，省 90px 首屏高度。
+       ⚠️ 桌面（≥861px）三格不变 —— 那里是三列、不折行。
+       ⚠️ 藏的是**这一格**（`.album-stat--regions`，类名由 photos.js 挂），
+       不是 `:nth-child(3)`：将来格数一变，序号猜法就错位。
+       ⚠️ 原来这里还有一条 `.album-stat:nth-child(n + 3) { border-top: … }`
+       （第二行的分隔线）—— 第三格被藏之后第二行永远不存在，随它一起删掉。 */
+    .album-stat--regions { display: none; }
     /* 窄屏要两列：一列 358px 宽的封面一路滚下去太长了。
        148px 下限保证 390 视口下能塞下两列（2×148 + 14 间隙 = 310 ≤ 358）。 */
     .album-wall {
@@ -4440,6 +4474,22 @@ html.nav-anim-reset *::after {
     .album-tile-name { font-size: 16.5px; margin-top: 11px; }
     .album-tile-note { font-size: 12.5px; line-height: 1.65; margin-top: 5px; }
     /* 灯箱的窄屏档（撤箭头 / 收让位）在 assets/css/lightbox.css 里，本文件不管。 */
+  }
+  /* 手机（≤480，与站内「极窄屏」同一档）：页脚那一对**册名不显示**。
+     2026-09-24 主人：「手机版上一页/上一页上方的文字显示适配不是很好，手机版是不是
+     不显示文字比较好」—— 他描述得对。量出来的事实（19 本全跑，探针 nav-align.js）：
+       · 320/360/390/430/480 上，每本左右两边的册名**行高不等**的册对 11/10/9/6/4 个
+         ⇒ 名字折成两行的那一侧把按钮推下去，最大错位 21.6px（320）/ 10.8px（480）；
+       · 册名是 16px 的标题级字号，手机上一半以上会折行 —— 折点还落在词中间
+         （「珠海横琴｜长隆海 / 洋王国」），本来就不是给这么窄的栏宽写的。
+     ⇒ 手机版只留两枚按钮 + 中间那行「n / m」，左右对称。
+     🔴 册名**没有真的丢**：`.album-nav-n` 仍在 DOM 里（只是不显示），
+        同一句话已由 photos.js 挂到按钮的 aria-label 上（「下一册：…」）⇒ 读屏照旧听得到。
+     ⚠️ 断点取 480 而不是 860：481~599 这一段两枚按钮仍会错位 10.8px，
+        但那是靠上面 `.album-nav { align-items: end }` 端对齐来治的（不用藏名字）；
+        600 以上册名一律排得下一行，什么都不用做。 */
+  @media (max-width: 480px) {
+    .album-nav-n { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     /* 只掐掉过渡，不掐掉放大本身 —— 放大是"指针在哪张"的状态反馈，

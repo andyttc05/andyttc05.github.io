@@ -143,14 +143,17 @@
     var wall = document.getElementById('albumWall');
     if (!stats || !wall) return;
 
-    /* 只留三格纯计数：起讫区间格（.album-stat--range）2026-09-21 撤掉 */
+    /* 只留三格纯计数：起讫区间格（.album-stat--range）2026-09-21 撤掉。
+       第三格「N 个地区」**手机版不显示**（2026-09-24 主人「照片页，手机版移除 5 个地区的
+       显示」）—— 藏它的规则在 style.css 的「窄屏适配」那段（含量出来的数字）。
+       给每格一个自己的修饰类，别让 CSS 去猜 :nth-child(3)：将来加一格、减一格，猜法就错位。 */
     var s = DATA.stats;
     [
-      [s.albums, '个相簿'],
-      [s.photos, '张照片'],
-      [s.regions, '个地区'],
+      [s.albums, '个相簿', 'albums'],
+      [s.photos, '张照片', 'photos'],
+      [s.regions, '个地区', 'regions'],
     ].forEach(function (row) {
-      var box = el('div', 'album-stat');
+      var box = el('div', 'album-stat album-stat--' + row[2]);
       box.appendChild(el('span', 'album-stat-v', String(row[0])));
       box.appendChild(el('span', 'album-stat-k', row[1]));
       stats.appendChild(box);
@@ -511,6 +514,12 @@
         side.appendChild(el('span', 'album-nav-n', row[0].zh));
         var link = el('a', 'album-nav-link album-nav-' + row[1]);
         link.href = 'album.html?slug=' + encodeURIComponent(row[0].slug);
+        /* 手机版把上面那行册名藏了（≤480，见 style.css 的窄屏适配）——
+           信息不能跟着一起没，所以把它挂到按钮的可访问名上：
+           读屏念「下一册：珠海横琴｜长隆海洋王国」，比光念「下一册 →」有用得多。
+           桌面版名字本来就看得见，这条只是把同一句话也说给读屏，不改任何观感。 */
+        link.setAttribute('aria-label',
+          (row[1] === 'prev' ? '上一册：' : '下一册：') + row[0].zh);
         link.appendChild(el('span', 'album-nav-k', row[2]));
         side.appendChild(link);
         nav.appendChild(side);

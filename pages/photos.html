@@ -83,7 +83,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=f636dae1dd">
+<link rel="stylesheet" href="../assets/css/style.css?v=1cd9c99544">
 </head>
 <body data-album-page="wall">
 
@@ -251,17 +251,17 @@
 
   <!-- 全屏动态背景（2026-08-20 主人"关于页背景也用主页的"）：canvas-nest 粒子 + ribbons 飘带，
        与 index.html 同款配置；script.js 主题切换会经 window.RainNest/RainRibbons.setColor 联动 -->
-  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=be01f61940"></script>
-  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=a1e350cff5"></script>
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
 
   <!-- 相簿：数据 + 渲染层。顺序不能反 —— photos.js 读的是 photos-data.js 挂在 window 上的
        RM_PHOTOS。数据写成 .js 而不是 .json，是因为本地用 file:// 打开页面时 fetch 本地
        json 会被 CORS 拦掉，挂到 window 上就没这个问题。 -->
   <script src="../assets/js/photos-data.js?v=0a825906e9" defer></script>
-  <script src="../assets/js/photos.js?v=5c119fff23" defer></script>
+  <script src="../assets/js/photos.js?v=3f34b78b25" defer></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=7cb94c80b3" defer></script>
+  <script src="../assets/js/script.js?v=0e9cb82016" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
 </body>
 </html>
