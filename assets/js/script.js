@@ -401,7 +401,22 @@
       function release() {
         done = true;
         if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
-        if (forced) { forced.classList.remove('is-hover'); forced = null; }
+        if (forced) {
+          forced.classList.remove('is-hover');
+          /* 撤类的同时必须**通知光斑重算**（2026-09-25 主人：「点一个页面按钮跳过去之后，
+             按钮的蓝色背景没消掉」）。为什么撤类不够：光斑的隐藏只挂在
+             `.nav-links` 的 mouseleave 上，而落地那一下 Blink 压根不知道指针在哪 ⇒
+             `.nav-links` **从没进过 hover 链** ⇒ 那条 mouseleave 永远不来
+             （实测 P1：光标挪到正文里 1.5s 后，光斑 opacity 仍是 1、一直亮着）。
+             为什么要等一帧再重算：这一刻只用浏览器自己的 `:hover` 当唯一真相源，
+             而 hover 链是随输入一起算的，多等一帧保证读到的是算完的值（不会把
+             "指针还在链接上"误判成"走了"而闪一下）。监听方见「桌面导航滑动高亮」段。 */
+          var el = forced;
+          forced = null;
+          requestAnimationFrame(function () {
+            try { el.dispatchEvent(new CustomEvent('rm-resync')); } catch (x) {}
+          });
+        }
         window.removeEventListener('pointermove', release, true);
         window.removeEventListener('pointerdown', release, true);
         window.removeEventListener('touchstart', release, true);
@@ -475,19 +490,39 @@
       function hoveredLink() {
         return navLinks.querySelector('a.is-hover') || navLinks.querySelector('a:hover');
       }
+      /* 光斑可见性 = 「此刻真的悬停着某枚链接吗」这一个判据的纯函数（2026-09-25 修）。
+         修之前光斑只会被 `.nav-links` 的 mouseleave 收掉，于是两条路都会漏：
+           ① 跨文档落地那一下（补 hover 段挂的 .is-hover）：撤类时鼠标移走，
+              但 Blink 那时根本不知道指针在哪 ⇒ 容器级 mouseleave 不来 ⇒ 光斑永远亮着
+              （主人原话：「跳转到那个页面后，按钮的蓝色背景没有消掉」）。
+           ② 正常悬停时把光标挪进两链接之间的 24px 空隙：容器级 mouseleave 同样不来
+              （指针还在容器里），光斑停在前一枚链接上不消。
+         ⇒ 一律走 sync()：有真悬停的链接就定位过去，没有就收。 */
+      function sync() {
+        var a = hoveredLink();
+        if (a) position(a);
+        else indicator.style.opacity = '0';
+      }
 
       links.forEach(function (link) {
         link.addEventListener('mouseenter', function () { position(link); });
+        /* 离开一枚链接：若指针没落进**另一枚链接**（进了空隙、或整条导航），就重算。
+           挪到另一枚链接时不收（让它的 mouseenter 接着管），否则平滑滑动会被打断 */
+        link.addEventListener('mouseleave', function (e) {
+          var to = e.relatedTarget;
+          if (to && to.nodeType === 1 && to.closest('.nav-links a')) return;
+          sync();
+        });
         /* 键盘 Tab 聚焦时同样驱动光斑，与鼠标体验统一 */
         link.addEventListener('focus', function () { position(link); });
         /* 跨文档补 hover（第三百一十二批）：由上面那段补 .is-hover 时派发的信号。
            它可能在本 IIFE 跑完之后才到（跨文档视图过渡期间命中测试不可用，实测
            落地 ~520ms 才挂上类），所以不能只靠下面那段"加载完成兜底"去查一次。 */
         link.addEventListener('rm-hover', function () { position(link); });
+        /* 撤类信号（见上面 release()）：那一刻起以浏览器 `:hover` 为准重算一次 */
+        link.addEventListener('rm-resync', function () { sync(); });
       });
-      navLinks.addEventListener('mouseleave', function () {
-        indicator.style.opacity = '0';
-      });
+      navLinks.addEventListener('mouseleave', function () { sync(); });
       /* 窗口尺寸变化时校正指示器位置（鼠标仍悬停在链接上时） */
       var resizeTicking = false;
       window.addEventListener('resize', function () {
@@ -543,17 +578,30 @@
       function hoveredBtn() {
         return actions.querySelector('.nav-icon.is-hover') || actions.querySelector('.nav-icon:hover');
       }
+      /* 与目录同款：光斑可见性只看「此刻真的悬停着某个圆钮吗」，见上一条 sync 的注释。
+         这条同样会被"跨文档落地后光标移走"漏掉（容器级 mouseleave 不来） */
+      function sync() {
+        var btn = hoveredBtn();
+        if (btn) position(btn);
+        else indicator.style.opacity = '0';
+      }
 
       buttons.forEach(function (btn) {
         btn.addEventListener('mouseenter', function () { position(btn); });
+        /* 离开一个圆钮：指针没进另一个圆钮就重算（收回 12px 空隙里的光斑） */
+        btn.addEventListener('mouseleave', function (e) {
+          var to = e.relatedTarget;
+          if (to && to.nodeType === 1 && to.closest('.nav-icon')) return;
+          sync();
+        });
         /* 键盘 Tab 聚焦时同样驱动光斑 */
         btn.addEventListener('focus', function () { position(btn); });
         /* 跨文档补 hover 的信号（与目录同款，见上一条 rm-hover） */
         btn.addEventListener('rm-hover', function () { position(btn); });
+        /* 撤类信号（与目录同款，见 release() / 上一条 rm-resync） */
+        btn.addEventListener('rm-resync', function () { sync(); });
       });
-      actions.addEventListener('mouseleave', function () {
-        indicator.style.opacity = '0';
-      });
+      actions.addEventListener('mouseleave', function () { sync(); });
       /* 窗口尺寸变化时校正指示器位置（鼠标仍悬停在按钮上时） */
       var resizeTicking = false;
       window.addEventListener('resize', function () {
