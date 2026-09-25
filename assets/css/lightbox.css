@@ -110,8 +110,18 @@ body.dy-lb-open { overflow: hidden; }
              + max(var(--lb-dot), var(--lb-strip-h)) + var(--lb-gap) + var(--lb-cap-h));
   /* 上下同值 ⇒ 画面中心 = 荧幕中心。它由 chrome 反算，不是手感值。 */
   --lb-edge-y: var(--lb-band);
-  --lb-w: calc(min(100vw - var(--lb-edge-x) * 2, var(--lb-max-w)) * var(--lb-fit));
-  --lb-h: calc((100vh - var(--lb-edge-y) * 2) * var(--lb-fit));
+  /* v13.2（2026-09-25，主人「手机版横屏浏览放大照片，照片和底部的预视图有重叠」）：
+     两个上界改成取**舞台所在盒子**的百分比，不再用 100vw / 100vh。
+     真机（横屏最明显）地址栏没收起时，布局视口比 100vh 矮，而底部预览带是钉在
+     `.dy-lb` 这条 fixed 盒的底边上的 ⇒ 按 100vh 算出来的画面比盒子还高，下沿直接
+     压到预览带上（横屏 4:3 走"高度定尺寸"必现；竖屏走"宽度定尺寸"，所以看不见）。
+     `100%` 解析到的是 `.dy-lb-slot`（absolute + inset:0）= 舞台 = 盒子减去上下留白，
+     与预览带同源 ⇒ 「图下缘 ↔ 带子」的净空回到**构造保证**（--lb-gap）。
+     ⚠️ 高度那条**不能再减一次 --lb-edge-y**：舞台的高度里已经扣过它了。
+     ⚠️ 反过来也别把 `100%` 改回 `100vh`：只要 100vh ≠ 盒高（真机工具栏 / 视频全屏等），
+        这条净空就没了 —— 100vh == 盒高时新旧数值逐字相同（已 A/B 实测）。 */
+  --lb-w: calc(min(100% - var(--lb-edge-x) * 2, var(--lb-max-w)) * var(--lb-fit));
+  --lb-h: calc(100% * var(--lb-fit));
   position: fixed; inset: 0; z-index: 200;
   background: rgba(10,13,18,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -519,7 +529,7 @@ body.dy-lb-open { overflow: hidden; }
    ⚠️ band 四个分量清零的**同时**必须把圆点条 display:none —— 只清分量的话，
       圆点会掉出画面外，变成一排贴在屏幕底边上的半截圆点。 */
 .dy-lb.is-immersive {
-  --lb-edge-x: 6px; --lb-fit: 1; --lb-max-w: 100vw;
+  --lb-edge-x: 6px; --lb-fit: 1; --lb-max-w: 100%;
   --lb-bar-b: 0px; --lb-bar-pad: 0px; --lb-gap: 0px;
 }
 .dy-lb.is-immersive .dy-lb-dots { display: none; }
