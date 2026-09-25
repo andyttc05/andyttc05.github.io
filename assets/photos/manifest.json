@@ -2739,8 +2739,8 @@
   },
   {
    "slug": "island-south",
-   "name_zh": "港岛南｜龙脊・数码港・赤柱",
-   "name_en": "South Island: Dragon’s Back, Cyberport, Stanley",
+   "name_zh": "港岛南",
+   "name_en": "South Island",
    "region": "香港 港岛",
    "count": 14,
    "first": "2024-01-27",
@@ -4329,7 +4329,7 @@
   },
   {
    "slug": "shenzhen-baoan",
-   "name_zh": "深圳｜宝安",
+   "name_zh": "深圳・宝安",
    "name_en": "Shenzhen: Bao’an",
    "region": "中国内地",
    "count": 11,
@@ -4527,8 +4527,8 @@
   },
   {
    "slug": "shenzhen-urban",
-   "name_zh": "深圳｜南山・罗湖・龙华・龙岗",
-   "name_en": "Shenzhen: Nanshan, Luohu, Longhua & Longgang",
+   "name_zh": "深圳・市区",
+   "name_en": "Shenzhen: City Centre",
    "region": "中国内地",
    "count": 7,
    "first": "2025-06-07",
@@ -4657,8 +4657,8 @@
   },
   {
    "slug": "hengqin",
-   "name_zh": "珠海横琴｜长隆海洋王国",
-   "name_en": "Hengqin: Chimelong Ocean Kingdom",
+   "name_zh": "珠海・横琴",
+   "name_en": "Hengqin",
    "region": "中国内地",
    "count": 6,
    "first": "2025-08-07",
