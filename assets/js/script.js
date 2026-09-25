@@ -376,6 +376,9 @@
       var fresh = isFinite(t) && (Date.now() - t) < 3000;
       if (!sameSite && !fresh) return;
       if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return;
+      /* 把它当成"本页已知的最后指针位置"起手（本页还没收到真 pointermove 时，
+         settle() 的键盘路径要有个坐标可用；后续真 pointermove 会覆盖它） */
+      px = x; py = y;
 
       /* 命中测试：**自己算几何**，不用 elementFromPoint。
          原因（逐帧实测）：跨文档视图过渡期间新文档整段不可命中 —— elementFromPoint
@@ -398,36 +401,65 @@
       }
       var RETRY_MS = 1500;      /* 重试上限：视图过渡 450ms 的两倍余量，到点收手 */
       var forced = null, done = false, rafId = 0, t0 = performance.now();
-      function release() {
+      /* 撤销补出来的 hover：撤类 + **通知光斑重算**（2026-09-25 主人：「点一个页面按钮跳过去
+         之后，按钮的蓝色背景没消掉」）。为什么撤类不够：光斑的隐藏只挂在 `.nav-links` 的
+         mouseleave 上，而落地那一下 Blink 压根不知道指针在哪 ⇒ `.nav-links` **从没进过
+         hover 链** ⇒ 那条 mouseleave 永远不来（实测 P1：光标挪到正文里 1.5s 后，
+         光斑 opacity 仍是 1、一直亮着）。
+         为什么等一帧再重算：这一刻只用浏览器自己的 `:hover` 当唯一真相源，而 hover 链是
+         随输入一起算的，多等一帧保证读到的是算完的值（不会把"指针还在链接上"误判成
+         "走了"而闪一下）。监听方见「桌面导航滑动高亮」段。
+         ⚠️ 只在**指针真的不在它身上**时才调它，判据见 settle() —— 别看见真输入就撤。 */
+      function dropForced() {
+        var el = forced;
+        forced = null;
+        if (!el) return;
+        el.classList.remove('is-hover');
+        requestAnimationFrame(function () {
+          try { el.dispatchEvent(new CustomEvent('rm-resync')); } catch (x) {}
+        });
+      }
+      function detachInput() {
+        window.removeEventListener('pointermove', settle, true);
+        window.removeEventListener('pointerdown', settle, true);
+        window.removeEventListener('touchstart', settle, true);
+        window.removeEventListener('keydown', settle, true);
+      }
+      function inBox(el, cx, cy) {
+        var r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 &&
+               cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+      }
+      /* 真指针/触摸/键盘输入一到就问一句：补出来的那枚 hover **还成不成立**？
+         🔴 判据必须是**事件自带的坐标**，绝不能拿浏览器 `:hover` 当判据
+         （2026-09-26 主人：「鼠标悬浮在导航栏按钮上，背景变色，鼠标按按钮，鼠标没有移动，
+         仍然悬着在按钮上，背景有时会消失，然后变色」）。
+         取证（真 HID，flash.js 六轮计数）：跨文档落地后浏览器会补发一批指针事件，但那批
+         **有时不带 hover 链**（`mouseover` 的 target 是文档本身、`:hover` 为空），
+         真正带链的那批实测在 +96ms / +563ms 两个时刻分别到达。旧写法（一有真输入就撤类、
+         等一帧拿 `:hover` 当判据）正好落在这个空窗里 ⇒ 光斑 200ms 淡出、+470ms 再 200ms
+         淡回；而"有没有第二批""第二批什么时候来"全看浏览器 ⇒ 主人看到的**"有时"**
+         （实测 6 轮里 2 轮闪，暗帧 38~39 帧 ≈ 650ms）。
+         ⇒ 改成：坐标还落在 `forced` 的盒子里就**什么都不做**（指针确实还在它身上），
+         落在外面才撤。键盘没有坐标，用上一次真坐标代替（按键不挪指针 ⇒ 悬停状态没变）。
+         ⚠️ 保留监听继续等下一次输入：类要留给"指针真挪走"那一下来撤，别在这里就解绑。
+         capture 是为了抢在本文件其它监听之前把类撤掉。 */
+      function settle(e) {
         done = true;
         if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
-        if (forced) {
-          forced.classList.remove('is-hover');
-          /* 撤类的同时必须**通知光斑重算**（2026-09-25 主人：「点一个页面按钮跳过去之后，
-             按钮的蓝色背景没消掉」）。为什么撤类不够：光斑的隐藏只挂在
-             `.nav-links` 的 mouseleave 上，而落地那一下 Blink 压根不知道指针在哪 ⇒
-             `.nav-links` **从没进过 hover 链** ⇒ 那条 mouseleave 永远不来
-             （实测 P1：光标挪到正文里 1.5s 后，光斑 opacity 仍是 1、一直亮着）。
-             为什么要等一帧再重算：这一刻只用浏览器自己的 `:hover` 当唯一真相源，
-             而 hover 链是随输入一起算的，多等一帧保证读到的是算完的值（不会把
-             "指针还在链接上"误判成"走了"而闪一下）。监听方见「桌面导航滑动高亮」段。 */
-          var el = forced;
-          forced = null;
-          requestAnimationFrame(function () {
-            try { el.dispatchEvent(new CustomEvent('rm-resync')); } catch (x) {}
-          });
-        }
-        window.removeEventListener('pointermove', release, true);
-        window.removeEventListener('pointerdown', release, true);
-        window.removeEventListener('touchstart', release, true);
-        window.removeEventListener('keydown', release, true);
+        if (!forced) { detachInput(); return; }
+        var c = null;
+        if (e.type !== 'keydown' && typeof e.clientX === 'number') c = [e.clientX, e.clientY];
+        else if (e.touches && e.touches[0]) c = [e.touches[0].clientX, e.touches[0].clientY];
+        else if (px !== null) c = [px, py];
+        if (c && inBox(forced, c[0], c[1])) return;
+        dropForced();
+        detachInput();
       }
-      /* 真指针/触摸/键盘输入一到就收手：那一刻浏览器已经自己重算过 hover 了。
-         capture 是为了抢在本文件其它监听之前把类撤掉。 */
-      window.addEventListener('pointermove', release, true);
-      window.addEventListener('pointerdown', release, true);
-      window.addEventListener('touchstart', release, true);
-      window.addEventListener('keydown', release, true);
+      window.addEventListener('pointermove', settle, true);
+      window.addEventListener('pointerdown', settle, true);
+      window.addEventListener('touchstart', settle, true);
+      window.addEventListener('keydown', settle, true);
 
       function attempt() {
         rafId = 0;
@@ -519,7 +551,7 @@
            它可能在本 IIFE 跑完之后才到（跨文档视图过渡期间命中测试不可用，实测
            落地 ~520ms 才挂上类），所以不能只靠下面那段"加载完成兜底"去查一次。 */
         link.addEventListener('rm-hover', function () { position(link); });
-        /* 撤类信号（见上面 release()）：那一刻起以浏览器 `:hover` 为准重算一次 */
+        /* 撤类信号（见上面 dropForced()/settle()）：那一刻起以浏览器 `:hover` 为准重算一次 */
         link.addEventListener('rm-resync', function () { sync(); });
       });
       navLinks.addEventListener('mouseleave', function () { sync(); });
@@ -598,7 +630,7 @@
         btn.addEventListener('focus', function () { position(btn); });
         /* 跨文档补 hover 的信号（与目录同款，见上一条 rm-hover） */
         btn.addEventListener('rm-hover', function () { position(btn); });
-        /* 撤类信号（与目录同款，见 release() / 上一条 rm-resync） */
+        /* 撤类信号（与目录同款，见 dropForced()/settle() / 上一条 rm-resync） */
         btn.addEventListener('rm-resync', function () { sync(); });
       });
       actions.addEventListener('mouseleave', function () { sync(); });
