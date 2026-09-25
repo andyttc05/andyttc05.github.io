@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-scroll="native">
+<!-- 滚动触感（2026-09-21 主人"网页滑动手感调回和普通页面的滑动手感一样"）：本页写
+     data-scroll="native" —— 退回浏览器原生滚动，script.js 那套自研滚轮平滑整体让位。
+     历史：09-07 曾在子页面写它，09-14 主人要"所有页面都使用首页的滑动触感"撤销过一次，
+     09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。 -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- === 本页是「单册页模板」（2026-09-25 方案 B 静态化）===
+     19 个单册页由 tools/photos-data.py 从**本文件**派生（同一份骨架 ⇒ 启动片段天然逐字节相同，
+     stamp.mjs 的 SNIPPET 检查覆盖得住），写进 pages/albums/<slug>.html。
+     本文件自己只剩一个职责：**老网址的路由器** —— `album.html?slug=xxx` 这条链接
+     在改版前是真的，不能让它 404（GitHub Pages 没有服务端跳转）。
+     标记（生成器只认这一种写法，改格式要同步 tools/photos-data.py）：
+       开口标记 = 注释起始符 + `RM-BEGIN` + 名字，收口标记同形写 `RM-END`。
+       下面这段说明本身刻意不写出完整的注释标记 —— HTML 注释不能嵌套，
+       写全了会把本段提前收口，剩下的字会掉进文档里当正文。
+     生成器只换两者**之间**的内容，标记本身留着 ⇒ 可以反复重跑（幂等）。 -->
+<meta name="theme-color" content="#f8fafc">
+<!--RM-BEGIN headmeta-->
+<meta name="description" content="香港科技大学：上课路上抬头就是海　19 张照片">
+<!--RM-END headmeta-->
+<!--RM-BEGIN title-->
+<title>香港科技大学 — rain.meow</title>
+<!--RM-END title-->
+<!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
+     ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+     ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
+        兜底）时给 <html> 加 .nav-instant，
+        全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
+        加载页只留给会话的第一次进入做品牌落地；
+     ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
+     三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
+<style>
+  html { background: #f8fafc; }
+  html.theme-dark { background: #0f172a; }
+</style>
+<script>
+  (function () {
+    var de = document.documentElement;
+    var internal = false;
+    /* ① 主判据 referrer 同源 = 从站内某页点进来。不依赖任何存储、同步可读 ——
+       实测 sessionStorage 在本页 head 里偶发取不到（12 次里 2 次抛错），
+       所以存储只当兜底，不当主判据。 */
+    try {
+      if (document.referrer) {
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        internal = a.origin === location.origin;
+      }
+    } catch (e) {}
+    /* ② 本次会话已经看过至少一页：referrer 被策略剥掉（外部 no-referrer 等）时兜底 */
+    try {
+      if (sessionStorage.getItem('rm-visited') === '1') internal = true;
+      else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
+    } catch (e) {}
+    if (internal) de.classList.add('nav-instant');
+  })();
+</script>
+<!--RM-BEGIN router--><!--RM-END router-->
+<script type="speculationrules">
+{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
+<script>
+  /* 首屏防闪烁（与首页同款）：localStorage + matchMedia，现代浏览器专属 */
+  var saved = localStorage.getItem('rainmeow-theme');
+  var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('theme-dark', dark);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+</script>
+<style>
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  .theme-dark .icon-sun { display: block; }
+  .theme-dark .icon-moon { display: none; }
+  /* 加载页关键定位（第一百四十五批）：先于 loader.css 就位 —— 首帧即全屏覆盖 + 主题底色，
+     防 loader.css 未就绪时页面内容透出；完整视觉（品牌/雨丝/进度条）在 loader.css */
+  #pageLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background: var(--color-paper, #f8fafc);
+    color: var(--color-ink, #0f172a);
+  }
+  html.theme-dark #pageLoader {
+    background: var(--color-paper, #0f172a);
+    color: var(--color-ink, #e2e8f0);
+  }
+</style>
+
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
+     替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
+     中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
+<link rel="stylesheet" href="../../assets/css/fonts.css?v=79cf2162a2">
+<link rel="icon" type="image/svg+xml" href="../../assets/icons/favicon.svg">
+<!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
+     独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
+<link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
+<link rel="stylesheet" href="../../assets/css/style.css?v=7a93c38fbd">
+<!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
+     点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
+     本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
+     连同 style.css 里的 .lb* 规则。 -->
+<link rel="stylesheet" href="../../assets/css/lightbox.css?v=e0a78167d1">
+
+<!-- === 首绘渲染闸（2026-09-25 第二轮）：把「第一次渲染机会」按住，直到对齐行真的排好 ===
+     为什么非要有它：几何是 JS 在解析期算的，而浏览器拍跨文档快照的时机 =
+     "样式表就绪后的第一个渲染机会" —— 两者在**赛跑**，而且不是稳赢。
+     实测同一份页面同一台机器（限速 100ms/500KB/s，跑 6 次）：解析器恢复的时刻在
+     3709~3753ms 之间飘，快照却稳定落在样式表就绪后 ~5ms ⇒ 有时赢、有时输；
+     **输的那次快照里是没排版的散按钮**（52 张挤成小格子），过渡结束后才重排成
+     对齐行 —— 这正是主人看到的"闪一下"。光把引擎往前挪治不了（见下面几何引擎那段）。
+     闸的判据 = `#rmRows`：几何引擎排出来的第一行，id 由照片墙后面那段调用挂上。
+     渲染机会因此必然晚于"对齐行就位" ⇒ 快照里就是最终排版。
+     加上它之后实测：52 张的册、6 张的册各 5 次，rowsAtPr 全是最终值（5/5 + 5/5）。
+     取证：~/.workbuddy/scratch/album-static-b-2026-09-25/probe-order.js
+     ⚠️ 自救这件事**已经量过**，别照抄"必须靠定时器"：把引擎的调用换成 `throw`
+        （行永远排不出来）再跑 3 次，pagereveal 落在"样式表就绪 +3.4~6ms"——
+        闸自己会松开（解析结束时释放），页面照常渲染，只是退回没排版那副样子。
+        所以下面那段定时器**不是**主保障，只是多一层网：万一将来的浏览器改了释放时机，
+        它还能把渲染放出来。别删，也别把它当"主因"去理解。
+     🔴 **位置是量出来的，别"顺手"挪**：闸与保命脚本都必须待在 head **末尾**
+        （= 四张样式表之后）。实测三种摆法：
+          · 闸 + 保命都放 </head> 之前（= 现在这样）→ 5/5 命中 ✓
+          · 闸放 </head> 之前、保命留在样式表之前      → 0/5（闸被无视）
+          · 两段都放样式表之前                        → 0/5（闸被无视）
+        后两种的差别只在"保命脚本会不会卡在 head 里等样式表" —— 也就是说，闸要生效，
+        解析器**必须被那段保命脚本按在 head 里**等样式表。结论反直觉但可复现，
+        同一份文件在同一天换了端口重测也一样，所以照抄这个摆法。
+     ⚠️ 代价（已量、已知）：解析器改在 head 里等样式表 ⇒ body（含照片墙的 <img>）
+        要等样式表就绪才开始解析。**样式表走缓存时无代价**（常态）；冷缓存首访会晚
+        一个 CSS 往返。取舍理由：冷缓存首访本来一切都冷，而"快照里排版错位"
+        是每次进册页都发生的事。
+     ⚠️ 不支持的浏览器直接忽略这枚链接 ⇒ 退回原来的赛跑，不会更糟。 -->
+<link rel="expect" id="rmExpect" href="#rmRows" blocking="render">
+<script>
+  /* 第二层网（1s）：解析结束本来就会释放闸（已实测），正常路径下 #rmRows 也早就存在 ——
+     这里什么都不做。留着是防"将来的浏览器改了释放时机"这种远期风险。
+     ⚠️ 这段**必须是样式表之后的经典内联脚本**（会卡住解析器）：它不是可有可无的
+        定时器 —— "解析器被按在 head 里等样式表"正是闸生效的前提（见上面那条实测）。 */
+  setTimeout(function () {
+    var l = document.getElementById('rmExpect');
+    if (l && !document.getElementById('rmRows') && l.parentNode) l.parentNode.removeChild(l);
+  }, 1000);
+</script>
+</head>
+<body data-album-shell="router">
+
+  <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
+       https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
+       三个圆点轨道摆动 + 整体旋转的纯 CSS 动态图形（无文字无进度条无品牌图标）。
+       样式：assets/css/loader.css；逻辑：assets/js/loader.js（第一百五十五批 2026-08-23
+       渐进式加载：不再等图片，window load + 字体就绪即放行 —— 图片不阻塞首屏渲染，
+       技能图标/游戏 logo/联系方式图全 loading=lazy 按需到位，CSS .is-loaded 淡入兜底；
+       其余决策保持：bfcache 跳过、秒开不闪、首访最短展示、慢网放宽、兜底上限不锁页面；
+       就绪同时给 <html> 加 .page-ready 并派发 pageReady 事件，
+       script.js 的 hero 入场 / 打字机 / about 标题弹出都靠它才播）。
+       noscript 兜底：JS 禁用时直接隐藏加载页，页面内容照常可见。 -->
+  <!-- ⚠️ 加载幕布是设计特色，别删：只在本次会话第一次进入时露脸（站内点击 / 刷新都不画）。
+       守卫见 tools/stamp.mjs 的 CURTAIN 那条 + README「加载幕布」一节。 -->
+  <div id="pageLoader" role="status" aria-label="页面加载中">
+    <div class="page-loader-three" aria-hidden="true">
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+      <div class="page-loader-dot"></div>
+    </div>
+  </div>
+  <noscript><style>#pageLoader{display:none}</style></noscript>
+
+  <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <a href="#albumHero" class="skip-link">跳到主要内容</a>
+
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="../../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
+      <ul class="nav-links">
+        <li class="nav-hover-indicator" aria-hidden="true"></li>
+        <li><a href="../projects.html">项目</a></li>
+        <li><a href="../posts.html">动态</a></li>
+        <li><a href="../photos.html" aria-current="page">照片</a></li>
+        <li><a href="../about.html">关于</a></li>
+      </ul>
+      <div class="nav-actions">
+        <span class="nav-actions-indicator" aria-hidden="true"></span>
+        <button class="nav-icon" id="themeToggleDesktop" aria-label="切换主题">
+          <svg class="icon-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
+        </button>
+        <a class="nav-icon" id="langToggleDesktop" href="../coming-soon.html" aria-label="语言（建设中）">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="nav-icon-label">EN</span>
+        </a>
+        <button class="hamburger" id="hamburgerBtn" aria-label="菜单" aria-controls="navMenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <nav class="nav-menu" id="navMenu" aria-label="移动端菜单" aria-hidden="true">
+    <header class="nav-menu-header">
+      <!-- 第一百零九批（2026-08-21）：从 span 改为 a —— 手机版抽屉的 rain.meow 可点击：
+           其他页 → 跳转首页；首页 → 拦截导航只关抽屉并滚回顶部 -->
+      <a class="nav-menu-brand" id="navMenuBrand" href="../../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
+      <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="nav-menu-body">
+      <ul class="nav-menu-links">
+        <li><a href="../projects.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../posts.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../photos.html" aria-current="page"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+      </ul>
+    </div>
+    <footer class="nav-menu-footer">
+      <button class="nav-menu-action" id="themeToggle" aria-label="切换主题">
+        <span class="nav-menu-action-hit">
+          <svg class="icon-moon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="themeLabelMobile">Dark</span>
+        </span>
+      </button>
+      <a class="nav-menu-action" id="langToggleMobile" href="../coming-soon.html" aria-label="语言（建设中）">
+        <span class="nav-menu-action-hit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span>EN</span>
+        </span>
+      </a>
+    </footer>
+  </nav>
+
+  <main class="about-main">
+    <!-- === 单册页（2026-09-21 主人"设计相册，相册加入图片"）===
+         2026-09-25 起**内容全部是静态的**（方案 B）：书名 / 地区 / 一句话 / 张数 /
+         上一册下一册 / 每一张照片，都由 tools/photos-data.py 在生成时写进 HTML。
+         起因是跨文档过渡那一下整页闪白：新页快照（pagereveal，实测 52~270ms）拍在
+         defer 的 photos.js 跑到之前（DCL 258~414ms）⇒ 快照里是一张空壳。
+         现在文档首绘就带内容，图片也从解析期开始下。
+
+         照片墙仍是「对齐行」：行等高、每张按真实长宽比定宽、行宽铺满容器。
+         比 CSS grid 好在横竖混排时能看到每张的真实比例，比 CSS columns 好在
+         顺序是从左到右的（相簿要按时间读）。
+         ⚠️ 几何**仍在 JS 里算**（assets/js/album-strip.js 的 rows2layout()）——
+            行高取决于容器可用宽，静态写不出来；用 CSS flex-wrap 近似实测偏离很大
+             （见 ~/.workbuddy/scratch/album-static-b-2026-09-25/strip-compare.mjs）。
+             所以那个引擎是**内联**的（解析期、零网络），钉在照片墙正后方，
+             见下面那一段。 -->
+    <header class="about-hero album-hero" id="albumHero"><!--RM-BEGIN hero-->
+      <a class="album-back" href="../photos.html">← 全部相簿</a>
+      <p class="album-eyebrow">香港 新界</p>
+      <h1 class="album-title">香港科技大学</h1>
+      <p class="about-hero-desc">上课路上抬头就是海</p>
+      <p class="album-hero-meta">19 张<span class="album-hero-meta-sep">·</span>HKUST</p>
+    <!--RM-END hero--></header>
+
+    <div class="album-strip" id="albumStrip" aria-label="照片墙"><!--RM-BEGIN strip-->
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260831-104945.webp?v=1" aria-label="放大：火鸟　2026.08.31"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260831-104945.webp?v=1" alt="火鸟" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3332" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260831-182316.webp?v=1" aria-label="放大：大学道　2026.08.31"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260831-182316.webp?v=1" alt="大学道" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260831-202407.webp?v=1" aria-label="放大：香港潮州商会荟萃廊　2026.08.31"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260831-202407.webp?v=1" alt="香港潮州商会荟萃廊" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:0.75" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260902-014007.webp?v=1" aria-label="放大：大学道　2026.09.02"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260902-014007.webp?v=1" alt="大学道" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260905-180750.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.05"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260905-180750.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260905-180955.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.05"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260905-180955.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260906-172525.webp?v=1" aria-label="放大：大学道　2026.09.06"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260906-172525.webp?v=1" alt="大学道" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260907-180953.webp?v=1" aria-label="放大：恒生银行　2026.09.07"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260907-180953.webp?v=1" alt="恒生银行" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260910-140048.webp?v=1" aria-label="放大：香港赛马会大堂　2026.09.10"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260910-140048.webp?v=1" alt="香港赛马会大堂" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3332" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-163134.webp?v=1" aria-label="放大：共振桥　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-163134.webp?v=1" alt="共振桥" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-214832.webp?v=1" aria-label="放大：大学道　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-214832.webp?v=1" alt="大学道" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-215154.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-215154.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-215201.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-215201.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-215505.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-215505.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-215628.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-215628.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260914-220104.webp?v=1" aria-label="放大：小蜜蜂幼稚园　2026.09.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260914-220104.webp?v=1" alt="小蜜蜂幼稚园" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260915-163725.webp?v=1" aria-label="放大：香港科技大学　2026.09.15"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260915-163725.webp?v=1" alt="香港科技大学" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260915-163913.webp?v=1" aria-label="放大：香港科技大学　2026.09.15"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260915-163913.webp?v=1" alt="香港科技大学" decoding="async" loading="lazy"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/hkust/20260916-120435.webp?v=1" aria-label="放大：谭仔三哥　2026.09.16"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260916-120435.webp?v=1" alt="谭仔三哥" decoding="async" loading="lazy"></button>
+    <!--RM-END strip--></div>
+
+    <!-- === 几何引擎：紧跟照片墙，定义完**就地调用**（2026-09-25 第二轮）===
+         为什么钉在这个位置：解析器撞上 body 里第一段内联经典脚本时会停下来等 head
+         的样式表（规范如此：解析器插入的脚本要等加载中的样式表），样式表就绪才恢复。
+         引擎越早跑完越好，所以它排在照片墙正后方 —— body 里第一段内联脚本的位置。
+         实测（限速 100ms / 500KB/s，直接进册页，5 次）：
+           · 留在原处（plate.js 之后，中间隔 ~90 行）→ 引擎晚快照 20~50ms  ✗
+         取证：~/.workbuddy/scratch/album-static-b-2026-09-25/probe-order.js
+         ⚠️ 别把 plate.js 挪到它前面：hydrate 要扫一整册的图，实测吃掉 20~50ms。
+         🔴 **光靠位置赢不了**：解析器恢复的时刻本身就在飘（同一份文件、同一台机器，
+            6 次实验里 3709~3753ms），而快照稳定落在样式表就绪后 ~5ms —— 抢在前面
+            纯属运气。让结果**确定**下来的是 head 末尾那枚渲染闸（`#rmRows`）；
+            位置在这里的作用是"别让闸多压几十毫秒"：引擎越早排完行，渲染机会越早放行。
+       ⚠️ 生成器把 album-strip.js **逐字节**抄进下面 `inline:` 那段（单一真相源）。
+          改源文件必须重跑 tools/photos-data.py；stamp.mjs 的 INLINE 检查比字节、
+          BOOT 检查比紧随其后的调用 + 渲染闸。 -->
+    <!--RM-BEGIN inline:assets/js/album-strip.js--><script>
+/* ===========================================================================
+   单册照片墙的「对齐行」引擎（2026-09-25，方案 B 静态化时从 photos.js 抽出来）
+
+   为什么单独一个文件、而且要**内联**进页面：
+     方案 B 把单册页的照片全铺进 HTML（图片从解析期就开始下），但「对齐行」的几何
+     算不出来 —— 行高取决于容器可用宽，而容器宽随视口变。实测（见
+     ~/.workbuddy/scratch/album-static-b-2026-09-25/strip-compare.mjs）：
+     用 CSS flex-wrap 近似，171 例里 94 例偏离 >8%、最差总高差 262px（整整一行）
+     ⇒ 纯 CSS 复现不了 rows2layout 的「跨过目标的两侧里挑误差小的那个」规则。
+     而布局若留给 defer 的 photos.js（DCL 才跑），页面会在跨文档过渡中途重排一下。
+     ⇒ 唯一的出路：几何在**解析期、零网络**算完，也就是内联。
+     ⚠️ 所以本文件是**单一真相源**：tools/photos-data.py 生成页面时把这个文件
+       逐字节抄进每个单册页（`<!--RM-BEGIN inline:assets/js/album-strip.js-->` 那段）。
+       改这里必须重跑生成器，否则线上还是旧几何 —— stamp.mjs 的 INLINE 检查会拦。
+
+   ⚠️ 内联脚本会**等 head 里的样式表**（规范如此：解析器插入的经典脚本要等
+      待加载中的样式表）—— 正好是我们要的：跑到这一行时 style.css 已就位，
+      `strip.clientWidth` 与 `--strip-gap` 都是真值，不会算出错误的行。
+
+   输入：容器里散着的 `.album-shot` 按钮（静态铺好，每个带 `style="--ar:<w/h>"`）
+   输出：每行一个 `.album-strip-row`（行等高、行内按真实比例定宽、行宽铺满容器）
+   =========================================================================== */
+(function () {
+  'use strict';
+
+  /* ---- 对齐行布局：整册一次算完（DP）----
+     输入：容器可用宽 + 一组 {w,h}（真实像素）+ 目标行高
+     输出：每行的 {items, height, fit}（height = 取整后的 DOM 高度；fit = 未取整的渲染高，定宽用）
+
+     规则：一个相簿里横竖混着，要让每张都保住真实比例、行宽又铺满容器，
+          只有"每行等高、行内按比例定宽"这一条路。
+
+     2026-09-25 换算法（原来是逐行贪心）。贪心只看得见眼前这一行 ——
+     塞到跨过目标就收行，末行剩几张它不管。实测（1440，19 册）：
+     polyu / central-wanchai / kai-tak 末行各只剩 1 张、右边空 819px，
+     disneyland 整册空洞 1445px、中间还有一行单张被夹到 472px（比邻行矮 64%）。
+     现在整册一次算完（DP，N ≤ 60 张，O(N²) 可忽略），代价函数三项相加：
+
+         10000 · ((h − target) / target)²      行高偏离目标的平方
+       +   900 · |1 − fill|                   行宽没铺满的比例（= 洞）
+       + 12000                                孤张行（整册不止一张时）
+
+     末行照旧「不拉伸」（h cap 到 target）：宁可右边留白，也别把最后两三张撑成大图。
+     结果：洞从 819px 量级降到 100px 量级，整册页高矮 350px 上下，行高反而更齐
+     （disneyland 从 229~472 收到 262~313）。
+     ⚠️ 中间试过"只搬末两行"的局部均衡：会把邻行撑到 434px，比洞还难看，已否决。
+
+     ⚠️ 本函数现在是**唯一一份**（photos.js 已改成只调 RMAlbumStrip.paint，不再自带几何）。
+        19 个单册页里内联的是**副本** ⇒ 改完必须重跑 tools/photos-data.py，
+        stamp.mjs 的 INLINE 检查会拦"源文件与内联副本不一致"。 */
+  function rows2layout(items, avail, gap, target) {
+    var minH = Math.max(96, target * 0.62);
+    var maxH = target * 1.8;
+    var ar = function (it) { return it.w / it.h || 1; };
+    var clamp = function (h) { return Math.max(minH, Math.min(maxH, h)); };
+    var N = items.length;
+    if (!N) return [];
+
+    /* 前缀和：items[a..b) 的长宽比之和 */
+    var pre = [0], i, j;
+    for (i = 0; i < N; i++) pre.push(pre[i] + ar(items[i]));
+
+    /* items[a..b) 摆成一行的代价。
+       ⚠️ 返回两个高度，别混用：
+          nat = (avail − gap·(n−1)) / Σar   —— **未夹紧**的自然高度，只给「还能不能再塞一张」判断用
+          fit = clamp(nat)，末行再 cap 到 target —— **真正渲染**的高度（未取整），行内定宽用它
+       把 nat 写成 fit 会让 `nat < minH` 这条中断永远不成立，于是 DP 会去选那些
+       「自然高低于下限、被 clamp 抬上来」的行 —— 抬上来就等于行宽超过容器
+       （实测 390 下 +68px、页面横向滚动 52px）。 */
+    var cost = function (a, b, isLast) {
+      var n = b - a, sum = pre[b] - pre[a];
+      /* 超宽全景：压到最矮也宽过整行 —— 独占一行，高度按容器宽反算（不夹紧，否则会溢出） */
+      if (n === 1 && ar(items[a]) * minH > avail) {
+        var hp = avail / ar(items[a]);
+        return { h: Math.round(hp), nat: hp, fit: hp, fill: 1,
+                 c: Math.pow((hp - target) / target, 2) * 10000 };
+      }
+      var nat = (avail - gap * (n - 1)) / sum;
+      var fit = clamp(nat);
+      if (isLast) fit = Math.min(fit, target);
+      var fill = (fit * sum + gap * (n - 1)) / avail;
+      var c = Math.pow((fit - target) / target, 2) * 10000 + 900 * Math.abs(1 - fill);
+      if (n === 1 && N > 1) c += 12000;
+      return { h: Math.round(fit), nat: nat, fit: fit, fill: fill, c: c };
+    };
+
+    /* best[j] = 前 j 张的最小总代价；from[j]/meta[j] 记回推路径 */
+    var INF = Infinity, best = [], from = [], meta = [];
+    for (i = 0; i <= N; i++) { best.push(INF); from.push(-1); meta.push(null); }
+    best[0] = 0;
+    for (j = 1; j <= N; j++) {
+      for (i = j - 1; i >= 0; i--) {
+        if (best[i] === INF) continue;
+        var n = j - i, r = cost(i, j, j === N);
+        /* nat 关于张数单调递减 ⇒ 自然高已经矮过下限就别再往前找（全景那张本来就该被压矮，例外） */
+        if (!(n === 1 && ar(items[i]) * minH > avail) && r.nat < minH) break;
+        var tot = best[i] + r.c;
+        if (tot < best[j]) { best[j] = tot; from[j] = i; meta[j] = r; }
+      }
+    }
+
+    var rows = [];
+    j = N;
+    while (j > 0) {
+      i = from[j];
+      rows.push({ items: items.slice(i, j), height: meta[j].h, fit: meta[j].fit });
+      j = i;
+    }
+    return rows.reverse();
+  }
+
+  /* 目标行高三档，与 photos.js 原来那行逐字相同 */
+  function targetFor(avail) {
+    return avail < 620 ? 168 : avail < 1000 ? 224 : 262;
+  }
+
+  /* 真实行间距（像素）。
+     🔴 别写 parseFloat(getComputedStyle(strip).getPropertyValue('--strip-gap')) ——
+     那个值在 style.css 里是 `clamp(6px, 0.7vw, 10px)`，parseFloat 直接得 NaN，
+     然后静默落进 `|| 8` 兜底。而真实渲染出来的间距是 1440→10px、1280→8.96、
+     1100→7.7、768→6px ⇒ 每行比容器宽 6px（768 下反而窄 4px），
+     照片墙右缘跟上面的标题、数据条差一条竖线（页面不横向滚动，6px 被 main 的内边距吃掉，
+     所以肉眼只会觉得"没对齐"，很难想到是间距读错）。
+     正解：挂一枚探针，让**浏览器**去解析那个 clamp —— CSS 保持唯一真相源。 */
+  function readGap(strip) {
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' +
+                          'width:var(--strip-gap);height:0';
+    strip.appendChild(probe);
+    var g = parseFloat(getComputedStyle(probe).width);
+    strip.removeChild(probe);
+    return g > 0 ? g : 8;
+  }
+
+  /* 把容器里散着的按钮排列成对齐行。幂等：可以反复调（首绘一次、resize 再调）。 */
+  function paint(strip) {
+    if (!strip) return;
+    var shots = strip.querySelectorAll('.album-shot');
+    if (!shots.length) return;
+    var avail = strip.clientWidth;
+    if (!avail) return;                       /* 还没被布局（display:none 等）→ 别把宽度钉成 0 */
+    var gap = readGap(strip);
+    var rows = rows2layout(toItems(shots), avail, gap, targetFor(avail));
+
+    var frag = document.createDocumentFragment();
+    for (var r = 0; r < rows.length; r++) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'album-strip-row';
+      var row = rows[r];
+      for (var k = 0; k < row.items.length; k++) {
+        var it = row.items[k];
+        it.el.style.height = row.height + 'px';
+        /* 宽度按**未取整**的渲染高（row.fit）算再 floor ⇒ 行内各张之和 ≤ 行宽，
+           右缘永不撑出容器（用取整后的高度算，那 0.5px 会被每张放大一次，一行能攒出 6px 溢出）。
+           高度才取整，行与行之间不会有半像素缝。 */
+        it.el.style.width = Math.floor((row.fit != null ? row.fit : row.height) * (it.w / it.h)) + 'px';
+        rowEl.appendChild(it.el);
+      }
+      frag.appendChild(rowEl);
+    }
+    /* 按钮此时都已搬进 frag，清空容器只会丢掉旧的行壳子与散落的按钮壳 */
+    strip.textContent = '';
+    strip.appendChild(frag);
+  }
+
+  /* 每枚按钮的真实长宽比写在 `style="--ar:<w/h>"`（静态铺的时候由生成器写）——
+     同时给 CSS 那条兜底当尺寸依据（引擎没跑起来时也不至于是空白）。 */
+  function toItems(shots) {
+    var items = [];
+    for (var i = 0; i < shots.length; i++) {
+      var ar = parseFloat(shots[i].style.getPropertyValue('--ar')) || 1.5;
+      items.push({ el: shots[i], w: ar, h: 1 });
+    }
+    return items;
+  }
+
+  /* gap 也挂出来：探针脚本/以后排查"右缘差一条竖线"时不用再猜间距是多少 */
+  window.RMAlbumStrip = { paint: paint, layout: rows2layout, targetFor: targetFor, gap: readGap };
+})();
+</script><!--RM-END inline:assets/js/album-strip.js-->
+    <script>
+      /* 定义完立刻调用。「内联」只等于"代码在页面里"，不等于"跑过" —— 少了这一行，
+         几何要等 defer 的 photos.js（= DCL）才落地，快照里就是没排版的散按钮。
+         排完给第一行挂 id：head 里那枚渲染闸等的就是它（见页面顶部那段）。 */
+      RMAlbumStrip.paint(document.getElementById('albumStrip'));
+      (function () {
+        var row = document.querySelector('.album-strip-row');
+        if (row) { row.id = 'rmRows'; return; }
+        /* 没排出行（不该发生）→ 立刻撤闸，宁可退回赛跑也别压着渲染 */
+        var l = document.getElementById('rmExpect');
+        if (l && l.parentNode) l.parentNode.removeChild(l);
+      })();
+    </script>
+
+    <nav class="album-nav" id="albumNav" aria-label="上一册／下一册"><!--RM-BEGIN nav-->
+      <div class="album-nav-side album-nav-side--prev"><span class="album-nav-n">港岛南</span><a class="album-nav-link album-nav-prev" href="island-south.html" aria-label="上一册：港岛南"><span class="album-nav-k">← 上一册</span></a></div>
+      <span class="album-nav-idx">11 / 19</span>
+      <div class="album-nav-side album-nav-side--next"><span class="album-nav-n">将军澳・清水湾</span><a class="album-nav-link album-nav-next" href="tseung-kwan-o.html" aria-label="下一册：将军澳・清水湾"><span class="album-nav-k">下一册 →</span></a></div>
+    <!--RM-END nav--></nav>
+  </main>
+
+  <!-- === 图片「底板 → 照片」的交接：plate.js（方案 B 的关键）===
+       图片必须在**解析期**就接上 load / error：留给 defer 的 photos.js 就等于让
+       缓存命中的图在脚本跑到之前就画完，用户看到"啪"地弹出来、淡入等于没了。
+       ⚠️ 逐字节抄进来（单一真相源）；改源文件必须重跑 tools/photos-data.py。
+       ⚠️ 它可以排在引擎后面（照片墙此时已在 DOM 里就够），但**不能**排在引擎前面
+          —— 理由见上面那段实测。 -->
+  <!--RM-BEGIN inline:assets/js/plate.js--><script>
+/* ===========================================================================
+   图片「底板 → 照片」的交接（2026-09-25，方案 B 静态化时从 photos.js 抽出来）
+
+   2026-09-21 主人「优化图片没加载出来时空图片底板的设计」：
+   图没到时格子显示的是底板（--plate-*，见 style.css 的 :root），图一到就 0.4s 淡入
+   （--img-fade），不是从底板硬切成照片。
+   2026-09-23 主人「没加载出来的照片的底片设计有点不好看」：失败的照片不再走浏览器那套
+   破图图标 + alt，改成底板 + 正中一枚细线图形（规则与色值在 style.css 的「破图兜底」段）。
+
+   为什么单独一个文件、而且要**内联**进页面：
+     方案 B 把照片直接铺进 HTML ⇒ 图片从**解析期**就开始下，比 defer 的 photos.js
+     （DCL 之后）早得多。交接若还等 photos.js，缓存命中的图会在脚本跑到之前就画完 ——
+     用户看到的是"啪"地弹出来，淡入等于没了。所以要跟布局引擎（album-strip.js）一样，
+     在解析期就把 load / error 接上。
+     ⚠️ 单一真相源：tools/photos-data.py 生成页面时把这个文件逐字节抄进
+       photos.html 与 19 个单册页（`<!--RM-BEGIN inline:...-->` 那段）。改这里必须重跑
+       生成器；stamp.mjs 的 INLINE 检查会比对内联副本与源文件是否逐字节相同。
+
+   ⚠️ 三路兜底，缺一路就会偶发"永远一块空底板"：
+       · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
+       · load   → 点亮
+       · error  → 走破图那条路（2026-09-23 起不再当成功处理）
+   ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
+     全站照片就都不出现；而现在脚本挂了顶多是硬切，照片照旧。（progressive enhancement）
+   ⚠️ 同一个 src 只淡一次：resize 重排会重新扫一遍容器，重挂 .is-pending
+     会让已经看过的照片集体闪一遍。
+   ⚠️ .is-broken 要 **img 与容器各挂一次**：底板上那枚图形是容器的 ::after
+     （img 是替换元素，挂不上伪元素）。
+   =========================================================================== */
+(function () {
+  'use strict';
+
+  var BROKEN_RETRY_MS = 1200;
+  /* 连续失败到这么多张就不再逐张重试 —— 断网或整桶挂掉时，每张各发一次重试
+     等于把失败请求翻倍，而结果一张也不会变；有一张成功就清零重新开始。 */
+  var BROKEN_OUTAGE_AT = 3;
+  var failStreak = 0;
+  var fadedOnce = Object.create(null);
+
+  function brokenMark(img, on) {
+    img.classList[on ? 'add' : 'remove']('is-broken');
+    var box = img.parentNode;
+    if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+  }
+
+  function fadeIn(img) {
+    var key = img.getAttribute('src');
+    if (key && fadedOnce[key]) return;
+    if (key) fadedOnce[key] = 1;
+    img.classList.add('is-pending');
+    var done = function () {
+      failStreak = 0;
+      brokenMark(img, false);
+      img.classList.remove('is-pending');
+      img.classList.add('is-loaded');
+    };
+    var failed = function () {
+      failStreak += 1;
+      if (!img.dataset.retried && failStreak < BROKEN_OUTAGE_AT) {
+        img.dataset.retried = '1';
+        setTimeout(function () {
+          /* ⚠️ 只往后加一个查询参数，别动 ?v= —— 那个管的是盖版本，重试要的恰恰是
+             **绕过**缓存里那次失败的记录。 */
+          img.src = img.src + (img.src.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+        }, BROKEN_RETRY_MS);
+        return;                        /* 仍压在 .is-pending 上：底板照旧，不闪 */
+      }
+      img.classList.remove('is-pending');
+      brokenMark(img, true);
+    };
+    /* complete 已为真时 load/error 可能早在本函数之前就烧过了。⚠️ 光看 complete 不够：
+       缓存里存的是一次失败时 complete 也为真 —— 要靠 naturalWidth 才分得清成败；
+       而"压根没设 src"的图（complete 为真、naturalWidth 也是 0）不算破图，仍然点亮。 */
+    if (img.complete) {
+      if (img.getAttribute('src') && !img.naturalWidth) failed(); else done();
+      return;
+    }
+    img.addEventListener('load', done);
+    img.addEventListener('error', failed);
+  }
+
+  /* 扫一遍容器里还没交接过的照片。三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）
+     共用 style.css 里那一段破图规则；这里只管把类挂上。 */
+  function hydrate(root) {
+    var imgs = (root || document).querySelectorAll('.album-tile-cover img, .album-shot img');
+    for (var i = 0; i < imgs.length; i++) fadeIn(imgs[i]);
+  }
+
+  window.RMPlate = { hydrate: hydrate, fadeIn: fadeIn };
+})();
+</script><!--RM-END inline:assets/js/plate.js-->
+  <script>
+    /* 内联只是定义，这一行才把 load / error 挂上去。 */
+    RMPlate.hydrate(document);
+  </script>
+
+  <!-- === 灯箱（全站唯一一套，引擎在 assets/js/lightbox.js）===
+       结构与行为与动态页逐字同源；本页比动态页多传两样东西给引擎：
+         · cap  = 照片说明（没填就用相簿名兜底，见 photos.js）
+         · meta = 拍摄日期（「点击照片可以显示日期」那条要求的唯一出口）
+       传了它们，引擎才会给说明行占位（--lb-cap-h）；动态页不传 ⇒ 那一行不存在。
+       说明行的排版、折行、与画面的净空全在引擎里算，**别在页面里给 .dy-lb-cap
+       写任何尺寸**。 -->
+  <div class="dy-lb" id="dyLb" role="dialog" aria-modal="true" aria-hidden="true" aria-label="照片放大">
+    <div class="dy-lb-stage" id="dyLbStage">
+      <div class="dy-lb-slot" id="dyLbSlotPrev"></div>
+      <div class="dy-lb-slot" id="dyLbSlotCur"></div>
+      <div class="dy-lb-slot" id="dyLbSlotNext"></div>
+    </div>
+    <button class="dy-lb-btn dy-lb-arrow dy-lb-prev" id="dyLbPrev" type="button" aria-label="上一张">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="dy-lb-btn dy-lb-arrow dy-lb-next" id="dyLbNext" type="button" aria-label="下一张">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <!-- 横屏观看：v13.1（2026-09-21 主人「不要右上角一颗圆钮」）起屏幕上不出现 ——
+         这颗是 sr-only，只当 aria 出口；触发 = 点照片（触屏）。别改回可见样式。 -->
+    <button class="dy-lb-btn dy-lb-rotate" id="dyLbRotate" type="button" aria-label="横屏观看" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 4v6h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="dy-lb-cap" id="dyLbCap" hidden></div>
+    <div class="dy-lb-dots" id="dyLbDots"></div>
+  </div>
+
+  <!-- nav 已解析完，立即设好主题文字 label（与首页同款，同步执行防闪） -->
+  <script>
+    var dark = document.documentElement.classList.contains('theme-dark');
+    var label = dark ? 'Light' : 'Dark';
+    var d = document.getElementById('themeLabelDesktop');
+    var m = document.getElementById('themeLabelMobile');
+    d && (d.textContent = label);
+    m && (m.textContent = label);
+  </script>
+
+  <!-- 全屏动态背景（2026-08-20 主人"关于页背景也用主页的"）：canvas-nest 粒子 + ribbons 飘带，
+       与 index.html 同款配置；script.js 主题切换会经 window.RainNest/RainRibbons.setColor 联动 -->
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../../assets/js/canvas-nest.js?v=b43ad40710"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../../assets/js/canvas-ribbons.js?v=8945086b93"></script>
+
+  <!-- 灯箱引擎（全站唯一一套，与动态页同一份）—— 本页点图放大就是它。 -->
+  <script src="../../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
+  <!-- 相簿增强层：墙的位置记忆、灯箱接线、resize 时的重排。
+       内容与几何**都不在这里**了 —— 内容在 HTML 里，几何由上面内联的
+       album-strip.js 在解析期算完；photos-data.js 也从这一页撤掉了（23KB 白等一趟，
+       DOM 自己就带着灯箱要的那份清单）。 -->
+  <script src="../../assets/js/photos.js?v=8f485346a8" defer></script>
+
+  <script src="../../assets/js/loader.js?v=7d81072196" defer></script>
+  <script src="../../assets/js/script.js?v=6c96e462db" defer></script>
+  <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
+  <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
+       排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完
+       才执行 ⇒ 解析器卡在这里，body 一个字都还没解析。跨文档过渡的新页快照拍在
+       pagereveal（= 样式表就绪那一刻的首次绘制）⇒ 快照里是一张只有 head 的空壳，
+       整页被洗白。实测（限速 100ms/500KB/s，直接进册页）：
+         段在哪 → t600/t1500/pagereveal 三处都 hero=-1、docH=900（body 没解析）
+         挪到末尾 → 三处都是 hero=5 shots=6（body 早已解析完）
+       它注册的是 load 监听，放哪儿都赶得上，本来就没有"必须靠前"的理由。
+       取证：~/.workbuddy/scratch/album-static-b-2026-09-25/probe-direct.js -->
+
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
+       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
+       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
+
+</body>
+</html>

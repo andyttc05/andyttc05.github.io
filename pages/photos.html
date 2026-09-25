@@ -83,9 +83,9 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=dc8df8b3e3">
+<link rel="stylesheet" href="../assets/css/style.css?v=7a93c38fbd">
 </head>
-<body data-album-page="wall">
+<body>
 
   <!-- 全屏加载页（第一百四十七批 2026-08-22 主人"不喜欢品牌猫 favicon 的加载页，参考
        https://github.com/bistutzyy/taozhiyy"）：taozhiyy 同款 three-body loader ——
@@ -107,23 +107,6 @@
     </div>
   </div>
   <noscript><style>#pageLoader{display:none}</style></noscript>
-  <script>
-    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
-       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
-       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
-    window.addEventListener('load', function () {
-      setTimeout(function () {
-        var loader = document.getElementById('pageLoader');
-        var html = document.documentElement;
-        if (!loader || html.classList.contains('page-ready')) return;
-        html.classList.remove('page-loading');
-        html.classList.add('page-ready');
-        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
-        loader.classList.add('is-done');
-        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
-      }, 2000);
-    });
-  </script>
 
   <!-- 页面滑动进度条：与首页同款，fixed 顶部，scaleX 由 script.js 驱动 -->
   <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
@@ -222,22 +205,154 @@
          结构借参考站（顶部数据条 + 封面网格 + 张数角标 + 点开进单册），配色字体一律走站内
          token —— 封面不套白卡、不加重投影，网格靠图片本身撑起来。
 
-         内容全部由 assets/js/photos.js 从 assets/js/photos-data.js 渲染（后者由
-         tools/photos-data.py 从 manifest.json 生成）：18 个相簿 / 261 张，数字与地名都不手写，
-         免得换了照片忘了改文案。封面是人工从每个相簿的候选里挑的（挑选记录见 photos-data.py）。
+         内容由 tools/photos-data.py 从 manifest.json 生成后**直接写进下面的 HTML**
+         （2026-09-25 方案 B 静态化之前是 assets/js/photos.js 运行时渲染）：本数、张数、
+         地名、封面都不手写，免得换了照片忘了改文案。封面是人工从每个相簿的候选里挑的
+         （挑选记录见 photos-data.py 的 COVER_RANK）。
 
          图片走 WebP 衍生档，原图（HEIC/JPG，约 579 MB）留在本地不进仓库：
              assets/photos/<slug>/<YYYYMMDD-HHMMSS>.webp         长边 1440，灯箱用
              assets/photos/_thumbs/<slug>/<YYYYMMDD-HHMMSS>.webp 长边 900，墙与宫格用
          重新生成：python3 tools/photos-derive.py -->
     <section class="about-bento" id="photos-intro" aria-label="相簿">
-      <div class="album-stats" id="albumStats"></div>
-      <div class="album-wall" id="albumWall"></div>
-      <noscript>
-        <p class="about-card-text">相簿墙靠 JavaScript 渲染，本页要开启脚本才能看到这 18 个相簿。</p>
-      </noscript>
+      <!-- 相簿墙（2026-09-25 方案 B 静态化）——
+           数据条与 19 张封面磁贴由 tools/photos-data.py 在生成时写进这两段之间。
+           起因见 pages/album.html 顶部那段说明：JS 注入的内容进不了跨文档过渡的新页快照，
+           于是进出相簿页会整页洗白。现在首绘就带内容，封面也从解析期开始下。
+           ⚠️ 生成器只换两枚标记**之间**的内容，标记本身留着 ⇒ 可以反复重跑。
+           ⚠️ 磁贴是纯 CSS grid（.album-wall 的 auto-fill），没有 JS 算的几何 ——
+              所以这一页不需要内联布局引擎，只要 plate.js 管图片交接。 -->
+      <div class="album-stats" id="albumStats"><!--RM-BEGIN stats-->
+        <div class="album-stat album-stat--albums"><span class="album-stat-v">19</span><span class="album-stat-k">个相簿</span></div>
+        <div class="album-stat album-stat--photos"><span class="album-stat-v">268</span><span class="album-stat-k">张照片</span></div>
+        <div class="album-stat album-stat--regions"><span class="album-stat-v">5</span><span class="album-stat-k">个地区</span></div>
+      <!--RM-END stats--></div>
+      <div class="album-wall" id="albumWall"><!--RM-BEGIN wall-->
+        <a class="album-tile" href="albums/shek-kip-mei.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/shek-kip-mei/20240118-125701.webp?v=1" alt="石硖尾・深水埗　公屋、旧街、茶餐厅，一条街走到底" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">52 张</span></div><h3 class="album-tile-name">石硖尾・深水埗</h3><p class="album-tile-note">公屋、旧街、茶餐厅，一条街走到底</p></a>
+        <a class="album-tile" href="albums/yaumatei-mongkok.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/yaumatei-mongkok/20240130-174604.webp?v=1" alt="油麻地・旺角　招牌比人多，抬头全是霓虹" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">15 张</span></div><h3 class="album-tile-name">油麻地・旺角</h3><p class="album-tile-note">招牌比人多，抬头全是霓虹</p></a>
+        <a class="album-tile" href="albums/tsim-sha-tsui.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tsim-sha-tsui/20240116-183423.webp?v=1" alt="尖沙咀・星光大道　海边那条道，天黑以后最好看" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">28 张</span></div><h3 class="album-tile-name">尖沙咀・星光大道</h3><p class="album-tile-note">海边那条道，天黑以后最好看</p></a>
+        <a class="album-tile" href="albums/hung-hom.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hung-hom/20260404-174038.webp?v=1" alt="红磡・何文田　学校、车站，还有那栋绕不出去的弯楼" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">9 张</span></div><h3 class="album-tile-name">红磡・何文田</h3><p class="album-tile-note">学校、车站，还有那栋绕不出去的弯楼</p></a>
+        <a class="album-tile" href="albums/polyu.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/polyu/20260919-161522.webp?v=1" alt="香港理工大学　红砖、弯楼，门口那几个大字" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">19 张</span></div><h3 class="album-tile-name">香港理工大学</h3><p class="album-tile-note">红砖、弯楼，门口那几个大字</p></a>
+        <a class="album-tile" href="albums/kai-tak.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/kai-tak/20240722-183809.webp?v=1" alt="启德・九龙湾　旧跑道上看日落，风挺大" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">8 张</span></div><h3 class="album-tile-name">启德・九龙湾</h3><p class="album-tile-note">旧跑道上看日落，风挺大</p></a>
+        <a class="album-tile" href="albums/central-wanchai.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/central-wanchai/20240119-181132.webp?v=1" alt="中环・金钟・湾仔　玻璃幕墙的反光，抬头就有一张" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">18 张</span></div><h3 class="album-tile-name">中环・金钟・湾仔</h3><p class="album-tile-note">玻璃幕墙的反光，抬头就有一张</p></a>
+        <a class="album-tile" href="albums/victoria-peak.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/victoria-peak/20260123-194943.webp?v=1" alt="太平山顶　上去一趟，维港整个摊在脚下" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">3 张</span></div><h3 class="album-tile-name">太平山顶</h3><p class="album-tile-note">上去一趟，维港整个摊在脚下</p></a>
+        <a class="album-tile" href="albums/braemar-hill.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/braemar-hill/20240725-185153.webp?v=1" alt="炮台山・金督驰马径　为了那场日落爬上去的" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">3 张</span></div><h3 class="album-tile-name">炮台山・金督驰马径</h3><p class="album-tile-note">为了那场日落爬上去的</p></a>
+        <a class="album-tile" href="albums/island-south.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/island-south/20240201-184929.webp?v=1" alt="港岛南　龙脊走一遭，赤柱歇一脚" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">14 张</span></div><h3 class="album-tile-name">港岛南</h3><p class="album-tile-note">龙脊走一遭，赤柱歇一脚</p></a>
+        <a class="album-tile" href="albums/hkust.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hkust/20260831-104945.webp?v=1" alt="香港科技大学　上课路上抬头就是海" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">19 张</span></div><h3 class="album-tile-name">香港科技大学</h3><p class="album-tile-note">上课路上抬头就是海</p></a>
+        <a class="album-tile" href="albums/tseung-kwan-o.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20240714-204131.webp?v=1" alt="将军澳・清水湾　桥、单车、海边，慢慢逛" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">13 张</span></div><h3 class="album-tile-name">将军澳・清水湾</h3><p class="album-tile-note">桥、单车、海边，慢慢逛</p></a>
+        <a class="album-tile" href="albums/tai-o.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tai-o/20240202-170211.webp?v=1" alt="大澳　棚屋挨着水，舢舨停在门口" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">5 张</span></div><h3 class="album-tile-name">大澳</h3><p class="album-tile-note">棚屋挨着水，舢舨停在门口</p></a>
+        <a class="album-tile" href="albums/disneyland.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/disneyland/20250827-205759.webp?v=1" alt="香港迪士尼乐园　一年去一趟，还是会拍城堡" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">9 张</span></div><h3 class="album-tile-name">香港迪士尼乐园</h3><p class="album-tile-note">一年去一趟，还是会拍城堡</p></a>
+        <a class="album-tile" href="albums/northwest-nt.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/northwest-nt/20240128-155353.webp?v=1" alt="元朗・天水围・上水　田、牛、湿地，香港的另一面" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">17 张</span></div><h3 class="album-tile-name">元朗・天水围・上水</h3><p class="album-tile-note">田、牛、湿地，香港的另一面</p></a>
+        <a class="album-tile" href="albums/tai-po-shatin.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tai-po-shatin/20240223-173139.webp?v=1" alt="大埔・沙田・荃湾　城门河划船，铁路边上走" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">12 张</span></div><h3 class="album-tile-name">大埔・沙田・荃湾</h3><p class="album-tile-note">城门河划船，铁路边上走</p></a>
+        <a class="album-tile" href="albums/shenzhen-baoan.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/shenzhen-baoan/20240224-201039.webp?v=1" alt="深圳・宝安　过了关先看楼，再说吃的" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">11 张</span></div><h3 class="album-tile-name">深圳・宝安</h3><p class="album-tile-note">过了关先看楼，再说吃的</p></a>
+        <a class="album-tile" href="albums/shenzhen-urban.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/shenzhen-urban/20260114-194253.webp?v=1" alt="深圳・市区　商场和夜街，逛到腿软" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">7 张</span></div><h3 class="album-tile-name">深圳・市区</h3><p class="album-tile-note">商场和夜街，逛到腿软</p></a>
+        <a class="album-tile" href="albums/hengqin.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/hengqin/20250807-164025.webp?v=1" alt="珠海・横琴　鲸鲨从头顶游过去" width="900" height="675" loading="lazy" decoding="async"><span class="album-tile-count">6 张</span></div><h3 class="album-tile-name">珠海・横琴</h3><p class="album-tile-note">鲸鲨从头顶游过去</p></a>
+      <!--RM-END wall--></div>
     </section>
   </main>
+
+  <!-- 图片「底板 → 照片」的交接：**内联**（解析期、零网络），原因见文件开头那段。
+       生成器逐字节抄进来；改 assets/js/plate.js 必须重跑 tools/photos-data.py。
+       ⚠️ 内联 = 代码在页面里，**不等于跑过**：紧跟其后的那行调用才是真正接上
+          load / error 的一步（少了它，淡入要等 defer 的 photos.js，缓存命中的图
+          早就画完了）。stamp.mjs 的 BOOT 检查会比对那一行。 -->
+  <!--RM-BEGIN inline:assets/js/plate.js--><script>
+/* ===========================================================================
+   图片「底板 → 照片」的交接（2026-09-25，方案 B 静态化时从 photos.js 抽出来）
+
+   2026-09-21 主人「优化图片没加载出来时空图片底板的设计」：
+   图没到时格子显示的是底板（--plate-*，见 style.css 的 :root），图一到就 0.4s 淡入
+   （--img-fade），不是从底板硬切成照片。
+   2026-09-23 主人「没加载出来的照片的底片设计有点不好看」：失败的照片不再走浏览器那套
+   破图图标 + alt，改成底板 + 正中一枚细线图形（规则与色值在 style.css 的「破图兜底」段）。
+
+   为什么单独一个文件、而且要**内联**进页面：
+     方案 B 把照片直接铺进 HTML ⇒ 图片从**解析期**就开始下，比 defer 的 photos.js
+     （DCL 之后）早得多。交接若还等 photos.js，缓存命中的图会在脚本跑到之前就画完 ——
+     用户看到的是"啪"地弹出来，淡入等于没了。所以要跟布局引擎（album-strip.js）一样，
+     在解析期就把 load / error 接上。
+     ⚠️ 单一真相源：tools/photos-data.py 生成页面时把这个文件逐字节抄进
+       photos.html 与 19 个单册页（`<!--RM-BEGIN inline:...-->` 那段）。改这里必须重跑
+       生成器；stamp.mjs 的 INLINE 检查会比对内联副本与源文件是否逐字节相同。
+
+   ⚠️ 三路兜底，缺一路就会偶发"永远一块空底板"：
+       · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
+       · load   → 点亮
+       · error  → 走破图那条路（2026-09-23 起不再当成功处理）
+   ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
+     全站照片就都不出现；而现在脚本挂了顶多是硬切，照片照旧。（progressive enhancement）
+   ⚠️ 同一个 src 只淡一次：resize 重排会重新扫一遍容器，重挂 .is-pending
+     会让已经看过的照片集体闪一遍。
+   ⚠️ .is-broken 要 **img 与容器各挂一次**：底板上那枚图形是容器的 ::after
+     （img 是替换元素，挂不上伪元素）。
+   =========================================================================== */
+(function () {
+  'use strict';
+
+  var BROKEN_RETRY_MS = 1200;
+  /* 连续失败到这么多张就不再逐张重试 —— 断网或整桶挂掉时，每张各发一次重试
+     等于把失败请求翻倍，而结果一张也不会变；有一张成功就清零重新开始。 */
+  var BROKEN_OUTAGE_AT = 3;
+  var failStreak = 0;
+  var fadedOnce = Object.create(null);
+
+  function brokenMark(img, on) {
+    img.classList[on ? 'add' : 'remove']('is-broken');
+    var box = img.parentNode;
+    if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+  }
+
+  function fadeIn(img) {
+    var key = img.getAttribute('src');
+    if (key && fadedOnce[key]) return;
+    if (key) fadedOnce[key] = 1;
+    img.classList.add('is-pending');
+    var done = function () {
+      failStreak = 0;
+      brokenMark(img, false);
+      img.classList.remove('is-pending');
+      img.classList.add('is-loaded');
+    };
+    var failed = function () {
+      failStreak += 1;
+      if (!img.dataset.retried && failStreak < BROKEN_OUTAGE_AT) {
+        img.dataset.retried = '1';
+        setTimeout(function () {
+          /* ⚠️ 只往后加一个查询参数，别动 ?v= —— 那个管的是盖版本，重试要的恰恰是
+             **绕过**缓存里那次失败的记录。 */
+          img.src = img.src + (img.src.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+        }, BROKEN_RETRY_MS);
+        return;                        /* 仍压在 .is-pending 上：底板照旧，不闪 */
+      }
+      img.classList.remove('is-pending');
+      brokenMark(img, true);
+    };
+    /* complete 已为真时 load/error 可能早在本函数之前就烧过了。⚠️ 光看 complete 不够：
+       缓存里存的是一次失败时 complete 也为真 —— 要靠 naturalWidth 才分得清成败；
+       而"压根没设 src"的图（complete 为真、naturalWidth 也是 0）不算破图，仍然点亮。 */
+    if (img.complete) {
+      if (img.getAttribute('src') && !img.naturalWidth) failed(); else done();
+      return;
+    }
+    img.addEventListener('load', done);
+    img.addEventListener('error', failed);
+  }
+
+  /* 扫一遍容器里还没交接过的照片。三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）
+     共用 style.css 里那一段破图规则；这里只管把类挂上。 */
+  function hydrate(root) {
+    var imgs = (root || document).querySelectorAll('.album-tile-cover img, .album-shot img');
+    for (var i = 0; i < imgs.length; i++) fadeIn(imgs[i]);
+  }
+
+  window.RMPlate = { hydrate: hydrate, fadeIn: fadeIn };
+})();
+</script><!--RM-END inline:assets/js/plate.js-->
+  <script>
+    /* 定义完立刻调用 —— 「内联」只等于"代码在页面里"，不等于"跑过"。
+       少了这一行，整墙的淡入与破图兜底都停在纸面上（要等 defer 的 photos.js）。 */
+    RMPlate.hydrate(document);
+  </script>
 
   <!-- nav 已解析完，立即设好主题文字 label（与首页同款，同步执行防闪） -->
   <script>
@@ -254,14 +369,41 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
 
-  <!-- 相簿：数据 + 渲染层。顺序不能反 —— photos.js 读的是 photos-data.js 挂在 window 上的
-       RM_PHOTOS。数据写成 .js 而不是 .json，是因为本地用 file:// 打开页面时 fetch 本地
-       json 会被 CORS 拦掉，挂到 window 上就没这个问题。 -->
-  <script src="../assets/js/photos-data.js?v=78970d3045" defer></script>
-  <script src="../assets/js/photos.js?v=647cc4a2bf" defer></script>
+  <!-- 相簿增强层：墙的位置记忆（点进某一册 / 点「← 全部相簿」回来要落回原位）。
+       内容与图片交接都不在这里 —— 内容在 HTML 里，交接由上面内联的 plate.js 在解析期做完；
+       photos-data.js 也从这一页撤掉了（23KB 白等一趟，DOM 自己带着要用的东西）。 -->
+  <script src="../assets/js/photos.js?v=8f485346a8" defer></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
   <script src="../assets/js/script.js?v=6c96e462db" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
+  <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
+       排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完
+       才执行 ⇒ 解析器卡在这里，body 一个字都还没解析。跨文档过渡的新页快照拍在
+       pagereveal（= 样式表就绪那一刻的首次绘制）⇒ 快照里是一张只有 head 的空壳，
+       整页被洗白。实测（限速 100ms/500KB/s，直接进册页）：
+         段在哪 → t600/t1500/pagereveal 三处都 hero=-1、docH=900（body 没解析）
+         挪到末尾 → 三处都是 hero=5 shots=6（body 早已解析完）
+       它注册的是 load 监听，放哪儿都赶得上，本来就没有"必须靠前"的理由。
+       取证：~/.workbuddy/scratch/album-static-b-2026-09-25/probe-direct.js -->
+
+  <script>
+    /* 第一百四十五批兜底：loader.js 未加载/异常时（defer 脚本被屏蔽、CDN 404 等），
+       load+2s 后强制解除加载页 —— 页面绝不因加载页而不可见。
+       正常路径 loader.js 已先完成，此段检查 .page-ready 幂等跳过。 */
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var loader = document.getElementById('pageLoader');
+        var html = document.documentElement;
+        if (!loader || html.classList.contains('page-ready')) return;
+        html.classList.remove('page-loading');
+        html.classList.add('page-ready');
+        try { document.dispatchEvent(new CustomEvent('pageReady')); } catch (e) {}
+        loader.classList.add('is-done');
+        setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 700);
+      }, 2000);
+    });
+  </script>
+
 </body>
 </html>

@@ -19,10 +19,10 @@
      生成器只换两者**之间**的内容，标记本身留着 ⇒ 可以反复重跑（幂等）。 -->
 <meta name="theme-color" content="#f8fafc">
 <!--RM-BEGIN headmeta-->
-<meta name="description" content="一本相簿一个地方，都是当时拍的">
+<meta name="description" content="将军澳・清水湾：桥、单车、海边，慢慢逛　13 张照片">
 <!--RM-END headmeta-->
 <!--RM-BEGIN title-->
-<title>相簿 — rain.meow</title>
+<title>将军澳・清水湾 — rain.meow</title>
 <!--RM-END title-->
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
@@ -58,20 +58,7 @@
     if (internal) de.classList.add('nav-instant');
   })();
 </script>
-<!--RM-BEGIN router-->
-<!-- 老网址兜底（2026-09-25 方案 B 静态化）：单册页从「一个文件 + ?slug=」改成
-     19 个静态页（pages/albums/<slug>.html）之后，`album.html?slug=xxx` 这条旧链接
-     还活在人家的书签与浏览记录里，不能 404。解析期（body 之前）就跳走，
-     连一帧空白页都不留给用户。location.replace ⇒ 不在历史里多留一条，返回键照旧。
-     ⚠️ 生成器会把这一整段（含本注释）从 19 个静态页里删掉 —— 它们不需要路由器。 -->
-<script>
-  (function () {
-    var m = /[?&]slug=([^&]+)/.exec(location.search);
-    var to = m ? 'albums/' + encodeURIComponent(decodeURIComponent(m[1])) + '.html' : 'photos.html';
-    location.replace(to + location.hash);
-  })();
-</script>
-<!--RM-END router-->
+<!--RM-BEGIN router--><!--RM-END router-->
 <script type="speculationrules">
 {"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
 </script>
@@ -101,23 +88,23 @@
   }
 </style>
 
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-sans-400-normal.latin.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
-<link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+<link rel="stylesheet" href="../../assets/css/fonts.css?v=79cf2162a2">
+<link rel="icon" type="image/svg+xml" href="../../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=7a93c38fbd">
+<link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
+<link rel="stylesheet" href="../../assets/css/style.css?v=7a93c38fbd">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
      连同 style.css 里的 .lb* 规则。 -->
-<link rel="stylesheet" href="../assets/css/lightbox.css?v=e0a78167d1">
+<link rel="stylesheet" href="../../assets/css/lightbox.css?v=e0a78167d1">
 
 <!-- === 首绘渲染闸（2026-09-25 第二轮）：把「第一次渲染机会」按住，直到对齐行真的排好 ===
      为什么非要有它：几何是 JS 在解析期算的，而浏览器拍跨文档快照的时机 =
@@ -190,13 +177,13 @@
 
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a href="../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
+      <a href="../../index.html" class="nav-brand" aria-label="rain.meow 主页">rain.meow</a>
       <ul class="nav-links">
         <li class="nav-hover-indicator" aria-hidden="true"></li>
-        <li><a href="projects.html">项目</a></li>
-        <li><a href="posts.html">动态</a></li>
-        <li><a href="photos.html" aria-current="page">照片</a></li>
-        <li><a href="about.html">关于</a></li>
+        <li><a href="../projects.html">项目</a></li>
+        <li><a href="../posts.html">动态</a></li>
+        <li><a href="../photos.html" aria-current="page">照片</a></li>
+        <li><a href="../about.html">关于</a></li>
       </ul>
       <div class="nav-actions">
         <span class="nav-actions-indicator" aria-hidden="true"></span>
@@ -205,7 +192,7 @@
           <svg class="icon-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <span class="nav-icon-label" id="themeLabelDesktop">Dark</span>
         </button>
-        <a class="nav-icon" id="langToggleDesktop" href="coming-soon.html" aria-label="语言（建设中）">
+        <a class="nav-icon" id="langToggleDesktop" href="../coming-soon.html" aria-label="语言（建设中）">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
           <span class="nav-icon-label">EN</span>
         </a>
@@ -220,7 +207,7 @@
     <header class="nav-menu-header">
       <!-- 第一百零九批（2026-08-21）：从 span 改为 a —— 手机版抽屉的 rain.meow 可点击：
            其他页 → 跳转首页；首页 → 拦截导航只关抽屉并滚回顶部 -->
-      <a class="nav-menu-brand" id="navMenuBrand" href="../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
+      <a class="nav-menu-brand" id="navMenuBrand" href="../../index.html" aria-label="返回首页并关闭菜单">rain.meow</a>
       <button class="nav-menu-close" id="navMenuClose" aria-label="关闭菜单">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"/>
@@ -230,10 +217,10 @@
     </header>
     <div class="nav-menu-body">
       <ul class="nav-menu-links">
-        <li><a href="projects.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="posts.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="photos.html" aria-current="page"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
-        <li><a href="about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../projects.html"><span class="label">项目</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../posts.html"><span class="label">动态</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../photos.html" aria-current="page"><span class="label">相册</span><span class="arrow">&rarr;</span></a></li>
+        <li><a href="../about.html"><span class="label">关于</span><span class="arrow">&rarr;</span></a></li>
       </ul>
     </div>
     <footer class="nav-menu-footer">
@@ -244,7 +231,7 @@
           <span id="themeLabelMobile">Dark</span>
         </span>
       </button>
-      <a class="nav-menu-action" id="langToggleMobile" href="coming-soon.html" aria-label="语言（建设中）">
+      <a class="nav-menu-action" id="langToggleMobile" href="../coming-soon.html" aria-label="语言（建设中）">
         <span class="nav-menu-action-hit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
           <span>EN</span>
@@ -269,9 +256,29 @@
              （见 ~/.workbuddy/scratch/album-static-b-2026-09-25/strip-compare.mjs）。
              所以那个引擎是**内联**的（解析期、零网络），钉在照片墙正后方，
              见下面那一段。 -->
-    <header class="about-hero album-hero" id="albumHero"><!--RM-BEGIN hero--><!--RM-END hero--></header>
+    <header class="about-hero album-hero" id="albumHero"><!--RM-BEGIN hero-->
+      <a class="album-back" href="../photos.html">← 全部相簿</a>
+      <p class="album-eyebrow">香港 新界</p>
+      <h1 class="album-title">将军澳・清水湾</h1>
+      <p class="about-hero-desc">桥、单车、海边，慢慢逛</p>
+      <p class="album-hero-meta">13 张<span class="album-hero-meta-sep">·</span>Tseung Kwan O &amp; Clear Water Bay</p>
+    <!--RM-END hero--></header>
 
-    <div class="album-strip" id="albumStrip" aria-label="照片墙"><!--RM-BEGIN strip--><!--RM-END strip--></div>
+    <div class="album-strip" id="albumStrip" aria-label="照片墙"><!--RM-BEGIN strip-->
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20240714-202032.webp?v=1" aria-label="放大：至善街　2024.07.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20240714-202032.webp?v=1" alt="至善街" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20240714-203115.webp?v=1" aria-label="放大：北桥　2024.07.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20240714-203115.webp?v=1" alt="北桥" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20240714-204131.webp?v=1" aria-label="放大：将军澳南　2024.07.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20240714-204131.webp?v=1" alt="将军澳南" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.4998" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20240714-205507.webp?v=1" aria-label="放大：Pastis Tapas　2024.07.14"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20240714-205507.webp?v=1" alt="Pastis Tapas" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-174811.webp?v=1" aria-label="放大：将军澳・清水湾　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-174811.webp?v=1" alt="将军澳・清水湾" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3336" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-175757.webp?v=1" aria-label="放大：康城路　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-175757.webp?v=1" alt="康城路" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-175945.webp?v=1" aria-label="放大：康城路　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-175945.webp?v=1" alt="康城路" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-180336.webp?v=1" aria-label="放大：康城路　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-180336.webp?v=1" alt="康城路" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-183137.webp?v=1" aria-label="放大：翠善街　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-183137.webp?v=1" alt="翠善街" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3331" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241012-191838.webp?v=1" aria-label="放大：Tesla Destination Charger　2024.10.12"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241012-191838.webp?v=1" alt="Tesla Destination Charger" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241102-221027.webp?v=1" aria-label="放大：龙虾湾郊游径　2024.11.02"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241102-221027.webp?v=1" alt="龙虾湾郊游径" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241102-233903.webp?v=1" aria-label="放大：清水湾骑术学校及教育中心　2024.11.02"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241102-233903.webp?v=1" alt="清水湾骑术学校及教育中心" decoding="async" loading="eager"></button>
+      <button class="album-shot" type="button" style="--ar:1.3333" data-view="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/tseung-kwan-o/20241102-235536.webp?v=1" aria-label="放大：龙虾湾路　2024.11.02"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/tseung-kwan-o/20241102-235536.webp?v=1" alt="龙虾湾路" decoding="async" loading="lazy"></button>
+    <!--RM-END strip--></div>
 
     <!-- === 几何引擎：紧跟照片墙，定义完**就地调用**（2026-09-25 第二轮）===
          为什么钉在这个位置：解析器撞上 body 里第一段内联经典脚本时会停下来等 head
@@ -288,7 +295,187 @@
        ⚠️ 生成器把 album-strip.js **逐字节**抄进下面 `inline:` 那段（单一真相源）。
           改源文件必须重跑 tools/photos-data.py；stamp.mjs 的 INLINE 检查比字节、
           BOOT 检查比紧随其后的调用 + 渲染闸。 -->
-    <!--RM-BEGIN inline:assets/js/album-strip.js--><!--RM-END inline:assets/js/album-strip.js-->
+    <!--RM-BEGIN inline:assets/js/album-strip.js--><script>
+/* ===========================================================================
+   单册照片墙的「对齐行」引擎（2026-09-25，方案 B 静态化时从 photos.js 抽出来）
+
+   为什么单独一个文件、而且要**内联**进页面：
+     方案 B 把单册页的照片全铺进 HTML（图片从解析期就开始下），但「对齐行」的几何
+     算不出来 —— 行高取决于容器可用宽，而容器宽随视口变。实测（见
+     ~/.workbuddy/scratch/album-static-b-2026-09-25/strip-compare.mjs）：
+     用 CSS flex-wrap 近似，171 例里 94 例偏离 >8%、最差总高差 262px（整整一行）
+     ⇒ 纯 CSS 复现不了 rows2layout 的「跨过目标的两侧里挑误差小的那个」规则。
+     而布局若留给 defer 的 photos.js（DCL 才跑），页面会在跨文档过渡中途重排一下。
+     ⇒ 唯一的出路：几何在**解析期、零网络**算完，也就是内联。
+     ⚠️ 所以本文件是**单一真相源**：tools/photos-data.py 生成页面时把这个文件
+       逐字节抄进每个单册页（`<!--RM-BEGIN inline:assets/js/album-strip.js-->` 那段）。
+       改这里必须重跑生成器，否则线上还是旧几何 —— stamp.mjs 的 INLINE 检查会拦。
+
+   ⚠️ 内联脚本会**等 head 里的样式表**（规范如此：解析器插入的经典脚本要等
+      待加载中的样式表）—— 正好是我们要的：跑到这一行时 style.css 已就位，
+      `strip.clientWidth` 与 `--strip-gap` 都是真值，不会算出错误的行。
+
+   输入：容器里散着的 `.album-shot` 按钮（静态铺好，每个带 `style="--ar:<w/h>"`）
+   输出：每行一个 `.album-strip-row`（行等高、行内按真实比例定宽、行宽铺满容器）
+   =========================================================================== */
+(function () {
+  'use strict';
+
+  /* ---- 对齐行布局：整册一次算完（DP）----
+     输入：容器可用宽 + 一组 {w,h}（真实像素）+ 目标行高
+     输出：每行的 {items, height, fit}（height = 取整后的 DOM 高度；fit = 未取整的渲染高，定宽用）
+
+     规则：一个相簿里横竖混着，要让每张都保住真实比例、行宽又铺满容器，
+          只有"每行等高、行内按比例定宽"这一条路。
+
+     2026-09-25 换算法（原来是逐行贪心）。贪心只看得见眼前这一行 ——
+     塞到跨过目标就收行，末行剩几张它不管。实测（1440，19 册）：
+     polyu / central-wanchai / kai-tak 末行各只剩 1 张、右边空 819px，
+     disneyland 整册空洞 1445px、中间还有一行单张被夹到 472px（比邻行矮 64%）。
+     现在整册一次算完（DP，N ≤ 60 张，O(N²) 可忽略），代价函数三项相加：
+
+         10000 · ((h − target) / target)²      行高偏离目标的平方
+       +   900 · |1 − fill|                   行宽没铺满的比例（= 洞）
+       + 12000                                孤张行（整册不止一张时）
+
+     末行照旧「不拉伸」（h cap 到 target）：宁可右边留白，也别把最后两三张撑成大图。
+     结果：洞从 819px 量级降到 100px 量级，整册页高矮 350px 上下，行高反而更齐
+     （disneyland 从 229~472 收到 262~313）。
+     ⚠️ 中间试过"只搬末两行"的局部均衡：会把邻行撑到 434px，比洞还难看，已否决。
+
+     ⚠️ 本函数现在是**唯一一份**（photos.js 已改成只调 RMAlbumStrip.paint，不再自带几何）。
+        19 个单册页里内联的是**副本** ⇒ 改完必须重跑 tools/photos-data.py，
+        stamp.mjs 的 INLINE 检查会拦"源文件与内联副本不一致"。 */
+  function rows2layout(items, avail, gap, target) {
+    var minH = Math.max(96, target * 0.62);
+    var maxH = target * 1.8;
+    var ar = function (it) { return it.w / it.h || 1; };
+    var clamp = function (h) { return Math.max(minH, Math.min(maxH, h)); };
+    var N = items.length;
+    if (!N) return [];
+
+    /* 前缀和：items[a..b) 的长宽比之和 */
+    var pre = [0], i, j;
+    for (i = 0; i < N; i++) pre.push(pre[i] + ar(items[i]));
+
+    /* items[a..b) 摆成一行的代价。
+       ⚠️ 返回两个高度，别混用：
+          nat = (avail − gap·(n−1)) / Σar   —— **未夹紧**的自然高度，只给「还能不能再塞一张」判断用
+          fit = clamp(nat)，末行再 cap 到 target —— **真正渲染**的高度（未取整），行内定宽用它
+       把 nat 写成 fit 会让 `nat < minH` 这条中断永远不成立，于是 DP 会去选那些
+       「自然高低于下限、被 clamp 抬上来」的行 —— 抬上来就等于行宽超过容器
+       （实测 390 下 +68px、页面横向滚动 52px）。 */
+    var cost = function (a, b, isLast) {
+      var n = b - a, sum = pre[b] - pre[a];
+      /* 超宽全景：压到最矮也宽过整行 —— 独占一行，高度按容器宽反算（不夹紧，否则会溢出） */
+      if (n === 1 && ar(items[a]) * minH > avail) {
+        var hp = avail / ar(items[a]);
+        return { h: Math.round(hp), nat: hp, fit: hp, fill: 1,
+                 c: Math.pow((hp - target) / target, 2) * 10000 };
+      }
+      var nat = (avail - gap * (n - 1)) / sum;
+      var fit = clamp(nat);
+      if (isLast) fit = Math.min(fit, target);
+      var fill = (fit * sum + gap * (n - 1)) / avail;
+      var c = Math.pow((fit - target) / target, 2) * 10000 + 900 * Math.abs(1 - fill);
+      if (n === 1 && N > 1) c += 12000;
+      return { h: Math.round(fit), nat: nat, fit: fit, fill: fill, c: c };
+    };
+
+    /* best[j] = 前 j 张的最小总代价；from[j]/meta[j] 记回推路径 */
+    var INF = Infinity, best = [], from = [], meta = [];
+    for (i = 0; i <= N; i++) { best.push(INF); from.push(-1); meta.push(null); }
+    best[0] = 0;
+    for (j = 1; j <= N; j++) {
+      for (i = j - 1; i >= 0; i--) {
+        if (best[i] === INF) continue;
+        var n = j - i, r = cost(i, j, j === N);
+        /* nat 关于张数单调递减 ⇒ 自然高已经矮过下限就别再往前找（全景那张本来就该被压矮，例外） */
+        if (!(n === 1 && ar(items[i]) * minH > avail) && r.nat < minH) break;
+        var tot = best[i] + r.c;
+        if (tot < best[j]) { best[j] = tot; from[j] = i; meta[j] = r; }
+      }
+    }
+
+    var rows = [];
+    j = N;
+    while (j > 0) {
+      i = from[j];
+      rows.push({ items: items.slice(i, j), height: meta[j].h, fit: meta[j].fit });
+      j = i;
+    }
+    return rows.reverse();
+  }
+
+  /* 目标行高三档，与 photos.js 原来那行逐字相同 */
+  function targetFor(avail) {
+    return avail < 620 ? 168 : avail < 1000 ? 224 : 262;
+  }
+
+  /* 真实行间距（像素）。
+     🔴 别写 parseFloat(getComputedStyle(strip).getPropertyValue('--strip-gap')) ——
+     那个值在 style.css 里是 `clamp(6px, 0.7vw, 10px)`，parseFloat 直接得 NaN，
+     然后静默落进 `|| 8` 兜底。而真实渲染出来的间距是 1440→10px、1280→8.96、
+     1100→7.7、768→6px ⇒ 每行比容器宽 6px（768 下反而窄 4px），
+     照片墙右缘跟上面的标题、数据条差一条竖线（页面不横向滚动，6px 被 main 的内边距吃掉，
+     所以肉眼只会觉得"没对齐"，很难想到是间距读错）。
+     正解：挂一枚探针，让**浏览器**去解析那个 clamp —— CSS 保持唯一真相源。 */
+  function readGap(strip) {
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' +
+                          'width:var(--strip-gap);height:0';
+    strip.appendChild(probe);
+    var g = parseFloat(getComputedStyle(probe).width);
+    strip.removeChild(probe);
+    return g > 0 ? g : 8;
+  }
+
+  /* 把容器里散着的按钮排列成对齐行。幂等：可以反复调（首绘一次、resize 再调）。 */
+  function paint(strip) {
+    if (!strip) return;
+    var shots = strip.querySelectorAll('.album-shot');
+    if (!shots.length) return;
+    var avail = strip.clientWidth;
+    if (!avail) return;                       /* 还没被布局（display:none 等）→ 别把宽度钉成 0 */
+    var gap = readGap(strip);
+    var rows = rows2layout(toItems(shots), avail, gap, targetFor(avail));
+
+    var frag = document.createDocumentFragment();
+    for (var r = 0; r < rows.length; r++) {
+      var rowEl = document.createElement('div');
+      rowEl.className = 'album-strip-row';
+      var row = rows[r];
+      for (var k = 0; k < row.items.length; k++) {
+        var it = row.items[k];
+        it.el.style.height = row.height + 'px';
+        /* 宽度按**未取整**的渲染高（row.fit）算再 floor ⇒ 行内各张之和 ≤ 行宽，
+           右缘永不撑出容器（用取整后的高度算，那 0.5px 会被每张放大一次，一行能攒出 6px 溢出）。
+           高度才取整，行与行之间不会有半像素缝。 */
+        it.el.style.width = Math.floor((row.fit != null ? row.fit : row.height) * (it.w / it.h)) + 'px';
+        rowEl.appendChild(it.el);
+      }
+      frag.appendChild(rowEl);
+    }
+    /* 按钮此时都已搬进 frag，清空容器只会丢掉旧的行壳子与散落的按钮壳 */
+    strip.textContent = '';
+    strip.appendChild(frag);
+  }
+
+  /* 每枚按钮的真实长宽比写在 `style="--ar:<w/h>"`（静态铺的时候由生成器写）——
+     同时给 CSS 那条兜底当尺寸依据（引擎没跑起来时也不至于是空白）。 */
+  function toItems(shots) {
+    var items = [];
+    for (var i = 0; i < shots.length; i++) {
+      var ar = parseFloat(shots[i].style.getPropertyValue('--ar')) || 1.5;
+      items.push({ el: shots[i], w: ar, h: 1 });
+    }
+    return items;
+  }
+
+  /* gap 也挂出来：探针脚本/以后排查"右缘差一条竖线"时不用再猜间距是多少 */
+  window.RMAlbumStrip = { paint: paint, layout: rows2layout, targetFor: targetFor, gap: readGap };
+})();
+</script><!--RM-END inline:assets/js/album-strip.js-->
     <script>
       /* 定义完立刻调用。「内联」只等于"代码在页面里"，不等于"跑过" —— 少了这一行，
          几何要等 defer 的 photos.js（= DCL）才落地，快照里就是没排版的散按钮。
@@ -303,7 +490,11 @@
       })();
     </script>
 
-    <nav class="album-nav" id="albumNav" aria-label="上一册／下一册"><!--RM-BEGIN nav--><!--RM-END nav--></nav>
+    <nav class="album-nav" id="albumNav" aria-label="上一册／下一册"><!--RM-BEGIN nav-->
+      <div class="album-nav-side album-nav-side--prev"><span class="album-nav-n">香港科技大学</span><a class="album-nav-link album-nav-prev" href="hkust.html" aria-label="上一册：香港科技大学"><span class="album-nav-k">← 上一册</span></a></div>
+      <span class="album-nav-idx">12 / 19</span>
+      <div class="album-nav-side album-nav-side--next"><span class="album-nav-n">大澳</span><a class="album-nav-link album-nav-next" href="tai-o.html" aria-label="下一册：大澳"><span class="album-nav-k">下一册 →</span></a></div>
+    <!--RM-END nav--></nav>
   </main>
 
   <!-- === 图片「底板 → 照片」的交接：plate.js（方案 B 的关键）===
@@ -312,7 +503,98 @@
        ⚠️ 逐字节抄进来（单一真相源）；改源文件必须重跑 tools/photos-data.py。
        ⚠️ 它可以排在引擎后面（照片墙此时已在 DOM 里就够），但**不能**排在引擎前面
           —— 理由见上面那段实测。 -->
-  <!--RM-BEGIN inline:assets/js/plate.js--><!--RM-END inline:assets/js/plate.js-->
+  <!--RM-BEGIN inline:assets/js/plate.js--><script>
+/* ===========================================================================
+   图片「底板 → 照片」的交接（2026-09-25，方案 B 静态化时从 photos.js 抽出来）
+
+   2026-09-21 主人「优化图片没加载出来时空图片底板的设计」：
+   图没到时格子显示的是底板（--plate-*，见 style.css 的 :root），图一到就 0.4s 淡入
+   （--img-fade），不是从底板硬切成照片。
+   2026-09-23 主人「没加载出来的照片的底片设计有点不好看」：失败的照片不再走浏览器那套
+   破图图标 + alt，改成底板 + 正中一枚细线图形（规则与色值在 style.css 的「破图兜底」段）。
+
+   为什么单独一个文件、而且要**内联**进页面：
+     方案 B 把照片直接铺进 HTML ⇒ 图片从**解析期**就开始下，比 defer 的 photos.js
+     （DCL 之后）早得多。交接若还等 photos.js，缓存命中的图会在脚本跑到之前就画完 ——
+     用户看到的是"啪"地弹出来，淡入等于没了。所以要跟布局引擎（album-strip.js）一样，
+     在解析期就把 load / error 接上。
+     ⚠️ 单一真相源：tools/photos-data.py 生成页面时把这个文件逐字节抄进
+       photos.html 与 19 个单册页（`<!--RM-BEGIN inline:...-->` 那段）。改这里必须重跑
+       生成器；stamp.mjs 的 INLINE 检查会比对内联副本与源文件是否逐字节相同。
+
+   ⚠️ 三路兜底，缺一路就会偶发"永远一块空底板"：
+       · complete 已为真 → 立刻点亮（缓存命中时 load 可能在本函数跑之前就烧过了）
+       · load   → 点亮
+       · error  → 走破图那条路（2026-09-23 起不再当成功处理）
+   ⚠️ 初始的"透明"必须由这里加 .is-pending —— CSS 里默认透明的话，脚本一挂
+     全站照片就都不出现；而现在脚本挂了顶多是硬切，照片照旧。（progressive enhancement）
+   ⚠️ 同一个 src 只淡一次：resize 重排会重新扫一遍容器，重挂 .is-pending
+     会让已经看过的照片集体闪一遍。
+   ⚠️ .is-broken 要 **img 与容器各挂一次**：底板上那枚图形是容器的 ::after
+     （img 是替换元素，挂不上伪元素）。
+   =========================================================================== */
+(function () {
+  'use strict';
+
+  var BROKEN_RETRY_MS = 1200;
+  /* 连续失败到这么多张就不再逐张重试 —— 断网或整桶挂掉时，每张各发一次重试
+     等于把失败请求翻倍，而结果一张也不会变；有一张成功就清零重新开始。 */
+  var BROKEN_OUTAGE_AT = 3;
+  var failStreak = 0;
+  var fadedOnce = Object.create(null);
+
+  function brokenMark(img, on) {
+    img.classList[on ? 'add' : 'remove']('is-broken');
+    var box = img.parentNode;
+    if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+  }
+
+  function fadeIn(img) {
+    var key = img.getAttribute('src');
+    if (key && fadedOnce[key]) return;
+    if (key) fadedOnce[key] = 1;
+    img.classList.add('is-pending');
+    var done = function () {
+      failStreak = 0;
+      brokenMark(img, false);
+      img.classList.remove('is-pending');
+      img.classList.add('is-loaded');
+    };
+    var failed = function () {
+      failStreak += 1;
+      if (!img.dataset.retried && failStreak < BROKEN_OUTAGE_AT) {
+        img.dataset.retried = '1';
+        setTimeout(function () {
+          /* ⚠️ 只往后加一个查询参数，别动 ?v= —— 那个管的是盖版本，重试要的恰恰是
+             **绕过**缓存里那次失败的记录。 */
+          img.src = img.src + (img.src.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+        }, BROKEN_RETRY_MS);
+        return;                        /* 仍压在 .is-pending 上：底板照旧，不闪 */
+      }
+      img.classList.remove('is-pending');
+      brokenMark(img, true);
+    };
+    /* complete 已为真时 load/error 可能早在本函数之前就烧过了。⚠️ 光看 complete 不够：
+       缓存里存的是一次失败时 complete 也为真 —— 要靠 naturalWidth 才分得清成败；
+       而"压根没设 src"的图（complete 为真、naturalWidth 也是 0）不算破图，仍然点亮。 */
+    if (img.complete) {
+      if (img.getAttribute('src') && !img.naturalWidth) failed(); else done();
+      return;
+    }
+    img.addEventListener('load', done);
+    img.addEventListener('error', failed);
+  }
+
+  /* 扫一遍容器里还没交接过的照片。三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）
+     共用 style.css 里那一段破图规则；这里只管把类挂上。 */
+  function hydrate(root) {
+    var imgs = (root || document).querySelectorAll('.album-tile-cover img, .album-shot img');
+    for (var i = 0; i < imgs.length; i++) fadeIn(imgs[i]);
+  }
+
+  window.RMPlate = { hydrate: hydrate, fadeIn: fadeIn };
+})();
+</script><!--RM-END inline:assets/js/plate.js-->
   <script>
     /* 内联只是定义，这一行才把 load / error 挂上去。 */
     RMPlate.hydrate(document);
@@ -358,19 +640,19 @@
 
   <!-- 全屏动态背景（2026-08-20 主人"关于页背景也用主页的"）：canvas-nest 粒子 + ribbons 飘带，
        与 index.html 同款配置；script.js 主题切换会经 window.RainNest/RainRibbons.setColor 联动 -->
-  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
-  <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
+  <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../../assets/js/canvas-nest.js?v=b43ad40710"></script>
+  <script id="fluttering_ribbon" defer="defer" src="../../assets/js/canvas-ribbons.js?v=8945086b93"></script>
 
   <!-- 灯箱引擎（全站唯一一套，与动态页同一份）—— 本页点图放大就是它。 -->
-  <script src="../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
+  <script src="../../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
   <!-- 相簿增强层：墙的位置记忆、灯箱接线、resize 时的重排。
        内容与几何**都不在这里**了 —— 内容在 HTML 里，几何由上面内联的
        album-strip.js 在解析期算完；photos-data.js 也从这一页撤掉了（23KB 白等一趟，
        DOM 自己就带着灯箱要的那份清单）。 -->
-  <script src="../assets/js/photos.js?v=8f485346a8" defer></script>
+  <script src="../../assets/js/photos.js?v=8f485346a8" defer></script>
 
-  <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../../assets/js/loader.js?v=7d81072196" defer></script>
+  <script src="../../assets/js/script.js?v=6c96e462db" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
        排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完

@@ -4238,6 +4238,17 @@ html.nav-anim-reset *::after {
   .album-strip {
     --strip-gap: clamp(6px, 0.7vw, 10px);
     padding-block: clamp(8px, 1.2vw, 16px) clamp(56px, 7vw, 96px);
+    /* 静态照片铺进来的那一刻 → 「对齐行」引擎跑完之间的兜底（也是引擎万一没跑起来时的
+       最终形态）：按钮按真实比例、按行自动折。引擎一跑就把按钮搬进 .album-strip-row，
+       下面那两条 `.album-strip > .album-shot` 自然失效。
+       ⚠️ font-size: 0 是为了吃掉 inline-block 之间的空白字符 —— 生成器铺的是紧凑 HTML，
+          但别指望它一个换行都不写；容器自己没有可见文字，字号归零没有副作用。 */
+    font-size: 0;
+  }
+  .album-strip > .album-shot {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 var(--strip-gap) var(--strip-gap) 0;
   }
   .album-strip-row {
     display: flex;
@@ -4250,6 +4261,11 @@ html.nav-anim-reset *::after {
     padding: 0;
     border: 0;
     margin: 0;
+    /* 静态铺出来的照片（2026-09-25 方案 B）：真实比例写在行内 `--ar` 上，真实行高由内联的
+       album-strip.js 按容器可用宽算出来、覆盖下面的 height/width（那两个只在引擎没跑起来时
+       说话）。别把 height 改成 auto —— 那样这面墙在兜底状态下会变成一堆原尺寸大图。 */
+    height: 200px;
+    aspect-ratio: var(--ar, 1.5);
     /* 破图兜底（2026-09-23）：底板上那枚图形是 `.album-shot.is-broken::after`，
        ::after 要挂在**自己**身上（原来这里没有定位，绝对定位的伪元素会一路往上
        找到最近的定位祖先 = 页面），所以必须补这一条。框内 img 是静态定位，不受影响。 */

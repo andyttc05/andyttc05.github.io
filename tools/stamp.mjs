@@ -43,8 +43,10 @@ const WRITE = process.argv.includes('--write');
 const JSON_ONLY = process.argv.includes('--json');
 const VERBOSE = process.argv.includes('--verbose');
 
-/* 五个正式页。顺序固定，报告里好对。 */
-const PAGES = [
+/* 手写的正式页。顺序固定，报告里好对。
+   ⚠️ 单册页（pages/albums/<slug>.html）**不在**这里 —— 它们是 tools/photos-data.py 从
+   pages/album.html 生成的，数量随相簿增减，所以下面按数据文件里的 slug 算出来。 */
+const FIXED_PAGES = [
   'index.html',
   'pages/about.html',
   'pages/projects.html',
@@ -71,6 +73,28 @@ const note = (check, msg) => notes.push({ check, msg });
 
 const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 const hashOf = (rel) => createHash('sha256').update(readFileSync(join(ROOT, rel))).digest('hex').slice(0, 10);
+
+/* ---------------------------------------------------------- ⓪ 页清单来源 */
+/* 单册页与相簿数据的唯一真相源 = assets/js/photos-data.js（tools/photos-data.py 生成）。
+   为什么从数据反推页清单、而不是 glob pages/albums/*.html：
+     glob 只能发现**已经存在**的页 —— 生成器没跑、或者少生成了一本，glob 会安安静静地
+     少检查一页；从数据反推则会把"这本该有页却没有"当场判红（见 ⑦ ALBUM）。
+   ⚠️ 数据文件读不出来（没生成 / 被改坏）时**不能**静默降级成空清单 —— 那等于把
+      19 个页面的守卫一起关掉。这里直接抛。 */
+const ALBUM_PAGES = (() => {
+  const src = read('assets/js/photos-data.js');
+  const json = src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1);
+  let data;
+  try {
+    data = JSON.parse(json);
+  } catch (e) {
+    throw new Error(`assets/js/photos-data.js 读不出相簿清单（${e.message}）—— 重跑 tools/photos-data.py`);
+  }
+  return data.albums.map((a) => ({ slug: a.slug, zh: a.zh, count: a.count, file: `pages/albums/${a.slug}.html` }));
+})();
+
+/* 全部要查的页：手写的 7 页 + 19 个生成的单册页。 */
+const PAGES = [...FIXED_PAGES, ...ALBUM_PAGES.map((a) => a.file)];
 
 /* 多会话并行时的例外：`--head-for=a.css,b.js` 表示这几个资源的键按 **git HEAD 里的内容**算。
    为什么需要它：键的语义是"URL 随内容变"，所以**键必须匹配将要部署的那份内容**。
@@ -104,8 +128,13 @@ const REF_RE = /(href|src)="([^"]*?)(assets\/[^"?]+\.(?:css|js))(\?v=([0-9a-f]+)
 /* posts.html 里那条「全局没数据才动态加载」的兜底路径也会带键 */
 const POSTS_FALLBACK_RE = /DY_DATA \+ \(location\.protocol === 'file:' \? '' : '\?v=[0-9a-f]+'\)/;
 
+/* 剥掉相对前缀，回到仓库根相对路径。
+   ⚠️ 必须剥**任意层**：原来只写了 `/^\.\.\//`（一次），7 个页最深只到 pages/*.html
+     所以一直没暴露；2026-09-25 加了 pages/albums/<slug>.html（深度 2）之后，
+   `../../assets/…` 会被剥成 `../assets/…` ⇒ KEY 检查把整片资源判成"引用的文件不存在"。
+   这是个潜伏已久的 bug，不是新引入的。 */
 const relOf = (prefix, assetPath) =>
-  prefix.replace(/^\.\.\//, '').replace(/^\.\//, '') + assetPath;
+  prefix.replace(/^(?:\.\.\/|\.\/)+/, '') + assetPath;
 
 /* 采一遍当前磁盘上的引用（PRESENCE 也要用，所以单独留一份） */
 function collectRefs() {
@@ -378,6 +407,132 @@ const MIN_VISIBLE_MIN = 400; /* 露脸下限：不许一闪 */
   } else {
     note('SCROLL', `<html data-scroll="${[...vals.keys()][0]}" ×${PAGES.length} 页 —— 全站同一套滚动`);
   }
+}
+
+/* -------------------------------------------------------------- ⑦ ALBUM */
+/* 相簿是**生成物**：页数、每页张数、墙上的格数，全都得跟 assets/js/photos-data.js 对得上。
+   这类漂移的形态是"加了相簿 / 换了照片，忘了重跑 tools/photos-data.py"——
+   页面照旧能开、上面六条检查全绿，只是少了一本、或者一本里少了几张照片。
+   ⚠️ 判的是**类名出现次数**，不是"文件在不在"：生成过一次之后文件一直都在。 */
+{
+  const esc = (s) => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+
+  const wall = read('pages/photos.html');
+  const tiles = (wall.match(/class="album-tile"/g) || []).length;
+  if (tiles !== ALBUM_PAGES.length) {
+    fail('ALBUM', `pages/photos.html: 墙上有 ${tiles} 格，数据里是 ${ALBUM_PAGES.length} 本 —— 重跑 tools/photos-data.py`);
+  }
+  const stats = [...wall.matchAll(/class="album-stat-v">(\d+)</g)].map((m) => Number(m[1]));
+  const want = [ALBUM_PAGES.length, ALBUM_PAGES.reduce((n, a) => n + a.count, 0)];
+  if (stats[0] !== want[0] || stats[1] !== want[1]) {
+    fail('ALBUM', `pages/photos.html: 数据条 ${stats.slice(0, 2).join(' / ')}，应为 ${want.join(' / ')}`);
+  }
+  for (const a of ALBUM_PAGES) {
+    if (!existsSync(join(ROOT, a.file))) {
+      fail('ALBUM', `${a.file} 不存在 —— 相簿页是生成的，重跑 tools/photos-data.py`);
+      continue;
+    }
+    const src = read(a.file);
+    const shots = (src.match(/class="album-shot"/g) || []).length;
+    if (shots !== a.count) fail('ALBUM', `${a.file}: 照片 ${shots} 张，数据里是 ${a.count} 张`);
+    if (!src.includes(`<h1 class="album-title">${esc(a.zh)}</h1>`)) {
+      fail('ALBUM', `${a.file}: 书名不是「${a.zh}」`);
+    }
+  }
+}
+
+/* ------------------------------------------------------------- ⑧ INLINE */
+/* 首绘要用的两段代码是**逐字节内联**进页面的（解析期、零网络）：图片交接 plate.js
+   与对齐行几何 album-strip.js（为什么必须内联，见那两个文件的头注）。
+   它们不经过 URL、没有 ?v=，所以"改了源文件忘了重跑生成器"**一点症状都没有** ——
+   源文件看起来是新的，线上跑的是旧副本。这里把副本与源文件逐字节对上。
+   ⚠️ 留空 = 这一页不需要（pages/album.html 是纯路由器，不需要首绘代码），
+      但**要求的页**留空也算失败。 */
+{
+  const NEEDED = {
+    'assets/js/plate.js': ['pages/photos.html', ...ALBUM_PAGES.map((a) => a.file)],
+    'assets/js/album-strip.js': ALBUM_PAGES.map((a) => a.file),
+  };
+  for (const [rel, pages] of Object.entries(NEEDED)) {
+    const want = '<script>\n' + read(rel) + '</script>';
+    const re = new RegExp('<!--RM-BEGIN inline:' + rel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+      '-->([\\s\\S]*?)<!--RM-END inline:');
+    for (const page of pages) {
+      if (!existsSync(join(ROOT, page))) continue;      /* ⑦ 已经报过了 */
+      const m = read(page).match(re);
+      if (!m) { fail('INLINE', `${page}: 找不到 ${rel} 的内联段（标记被删了？）`); continue; }
+      if (m[1] !== want) {
+        fail('INLINE', `${page}: ${rel} 的内联副本与源文件不一致 —— 改了源要重跑 tools/photos-data.py`);
+      }
+    }
+  }
+  note('INLINE', `首绘内联：plate.js → ${NEEDED['assets/js/plate.js'].length} 页 · ` +
+    `album-strip.js → ${NEEDED['assets/js/album-strip.js'].length} 页`);
+}
+
+/* -------------------------------------------------------------- ⑨ BOOT */
+/* 「内联」≠「执行过」。两段首绘代码定义完之后必须**就地调用**，否则几何与图片交接
+   都要等 defer 的 photos.js（= DCL），跨文档过渡的新页快照里就是：散着没排版的按钮
+   + 硬切出来的图。2026-09-25 第二轮实测（限速 100ms/500KB/s，直接进册页）：
+     漏掉调用              → 引擎晚快照 20~50ms（5/5 失败）
+     补上调用、但位置在 plate.js 之后（中间隔 ~90 行）→ 仍然晚 20~50ms（5/5 失败）
+     补上调用 + 挪到照片墙正后方                      → 快照里 rows 已是最终值（5/5 命中）
+   ⇒ 这里守两件事：① 调用在（且紧跟定义）；② 单册页里几何引擎**排在** plate.js 前面。
+   ⚠️ 别"顺手"把 plate.js 挪到引擎前面：hydrate 要扫一整册的图，实测吃掉 20~50ms，
+      足够把引擎又推到快照之后（就是上面第二行那个结果）。 */
+{
+  const BOOT = {
+    'assets/js/plate.js': ['pages/photos.html', ...ALBUM_PAGES.map((a) => a.file)],
+    'assets/js/album-strip.js': ALBUM_PAGES.map((a) => a.file),
+  };
+  const CALL = {
+    'assets/js/plate.js': 'RMPlate.hydrate(document);',
+    'assets/js/album-strip.js': "RMAlbumStrip.paint(document.getElementById('albumStrip'));",
+  };
+  for (const [rel, pages] of Object.entries(BOOT)) {
+    const end = `<!--RM-END inline:${rel}-->`;
+    for (const page of pages) {
+      if (!existsSync(join(ROOT, page))) continue;      /* ⑦ 已经报过了 */
+      const src = read(page);
+      const i = src.indexOf(end);
+      if (i < 0) continue;                              /* ⑧ 已经报过了 */
+      /* 调用要落在紧跟定义的那一小段里（中间不许再塞别的脚本） */
+      if (!src.slice(i + end.length, i + end.length + 400).includes(CALL[rel])) {
+        fail('BOOT', `${page}: ${rel} 内联段之后缺少就地调用 \`${CALL[rel]}\``);
+      }
+    }
+  }
+  for (const a of ALBUM_PAGES) {
+    if (!existsSync(join(ROOT, a.file))) continue;
+    const src = read(a.file);
+    const engine = src.indexOf('inline:assets/js/album-strip.js');
+    const plate = src.indexOf('inline:assets/js/plate.js');
+    if (engine >= 0 && plate >= 0 && engine > plate) {
+      fail('BOOT', `${a.file}: 几何引擎排在了 plate.js 后面 —— 渲染闸会多压 20~50ms（hydrate 要扫一整册图）`);
+    }
+    /* 渲染闸三件套：闸本体 / 开闸的 id / 保命撤闸。少一件都可能把渲染永久压住。 */
+    const GATE = [
+      ['<link rel="expect" id="rmExpect" href="#rmRows" blocking="render">', '闸本体'],
+      ["row.id = 'rmRows'", '开闸的 id'],
+      ["document.getElementById('rmExpect')", '保命撤闸'],
+    ];
+    for (const [needle, what] of GATE) {
+      if (!src.includes(needle)) fail('BOOT', `${a.file}: 渲染闸缺了「${what}」（${needle}）`);
+    }
+    /* 🔴 闸与保命脚本都必须在 head **末尾**（四张样式表之后）。实测三种摆法：
+         两段都在 </head> 前 → 5/5 命中；闸在末尾、保命在样式表前 → 0/5；
+         两段都在样式表前 → 0/5。即"解析器被保命脚本按在 head 里等样式表"是闸生效的
+         前提，反直觉但可复现。所以这里判：闸排在最后一张样式表之后。 */
+    const gateAt = src.indexOf('id="rmExpect"');
+    const lastLink = src.lastIndexOf('<link rel="stylesheet"');
+    if (gateAt >= 0 && lastLink >= 0 && gateAt < lastLink) {
+      fail('BOOT', `${a.file}: 渲染闸排在样式表之前 —— 实测这种摆法闸会被无视（0/5）`);
+    }
+  }
+  note('BOOT', `首绘调用：plate.hydrate → ${BOOT['assets/js/plate.js'].length} 页 · ` +
+    `RMAlbumStrip.paint → ${BOOT['assets/js/album-strip.js'].length} 页（引擎在 plate.js 之前 · 渲染闸 ${ALBUM_PAGES.length} 页）`);
 }
 
 /* ---------------------------------------------------------------- 输出 */
