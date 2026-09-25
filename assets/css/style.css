@@ -1143,14 +1143,16 @@
       background 0.25s ease,
       box-shadow 0.25s ease;
   }
-  /* hover: 背景加深一档（oklch 54.6% → 48% L）+ 微抬起 + 阴影扩散
+  /* hover: 背景加深一档（oklch 54.6% → 48% L）+ 阴影扩散（**不上浮**）
      第一百二十四批：特异性升级为 .hero.entered .hero-text > .hero-cta:hover ——
      原 .hero-cta:hover (0,2,0) 被入场规则 .hero.entered .hero-text > * (0,3,0)
      的 transform:none 压过，导致按钮上浮从未生效（computed transform 恒为 none）。
      入场完成后交互走快反馈：transition 覆盖为 0.25s（含 transform），delay 归零
-     （入场 delay 0.21s 不拖累 hover）。 */
+     （入场 delay 0.21s 不拖累 hover）。
+     第三百一十九批（2026-09-26）主人「鼠标悬浮在按钮上，取消按钮微微往上浮」：
+     删掉 translateY(-1px)，hover 只改背景与阴影，按钮的几何一动不动。
+     transition 里保留 transform —— 它现在只服务 :active 的按压缩放 scale(0.97)。 */
   .hero.entered .hero-text > .hero-cta:hover {
-    transform: translateY(-1px);
     background: #0d4cd7;
     box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 32%, transparent);
     transition:
@@ -1171,18 +1173,16 @@
      根因 = hover 上浮 translateY(-1px)：指针停在按钮底部内侧 1px 处时，
      hover 触发 → 按钮上移 1px → 指针脱离 → hover 熄灭 → 按钮回落 → 再触发 → 抖动
      （实测底部边缘 -1px 处 40 帧内 hover 切换 3 次）。
-     修法（与 chips/contact-cards 批 142 同款）：::before 静态命中区扩展
-     4px 边距 + hover 时反向位移 +4px 抵消按钮 -1px 上浮 → 命中区锚定视口不动，
-     整个过渡中指针不越界，:hover 恒定无切换。inset -4px 覆盖上浮 1px 的临界区。 */
+     修法：::before 静态命中区扩展 4px（inset -4px），命中区比视觉盒大一圈。
+     第三百一十九批（2026-09-26）：上浮已取消 ⇒ 那条反向补偿失去意义。留着它反而有害 ——
+     它把命中区往下挪 4px，会在**顶边**复刻同一个抖动（指针在按钮顶边内侧时：
+     hover 触发 → 命中区下移 → 指针脱离 → hover 熄灭 → 命中区回位 → 再触发）。
+     所以 hover 的 4px 位移与 ::before 的 transition 一并删掉，命中区全程静止。 */
   .hero-cta::before {
     content: '';
     position: absolute;
     inset: -4px;
     border-radius: inherit;
-    transition: transform 0.25s ease;
-  }
-  .hero.entered .hero-text > .hero-cta:hover::before {
-    transform: translateY(4px); /* 反向抵消按钮 -1px 上浮，命中区锚定视口 */
   }
   /* === 文字上滑+倾斜容器（taozhiyy EXPLORE 同款） === */
   .hero-cta-flip {
@@ -1241,8 +1241,9 @@
     .hero-cta-face,
     .hero-cta-arrow { transition-duration: 0.01ms !important; }
     .hero-cta:hover .hero-cta-arrow { transform: none; }
-    /* 第一百二十四批：选择器升级特异性，与 .hero.entered .hero-text > .hero-cta:hover 对齐 */
-    .hero.entered .hero-text > .hero-cta:hover { transform: none; }
+    /* 第三百一十九批（2026-09-26）：这里原本还有一条
+       `.hero.entered .hero-text > .hero-cta:hover { transform: none }`（第一百二十四批加）。
+       hover 不再改 transform 之后它是死规则，已删 —— 不再有需要压制的 hover 位移。 */
   }
   @media (max-width: 768px) {
     .hero-cta { height: 40px; padding: 0 24px; font-size: 14px; gap: 6px; }  /* 2026-09-17：13 → 14（与 meta 15 保持同样的 -1 关系） */
