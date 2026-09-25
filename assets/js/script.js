@@ -432,7 +432,7 @@
       }
       /* 真指针/触摸/键盘输入一到就问一句：补出来的那枚 hover **还成不成立**？
          🔴 判据必须是**事件自带的坐标**，绝不能拿浏览器 `:hover` 当判据
-         （2026-09-26 主人：「鼠标悬浮在导航栏按钮上，背景变色，鼠标按按钮，鼠标没有移动，
+         （2026-09-25 主人：「鼠标悬浮在导航栏按钮上，背景变色，鼠标按按钮，鼠标没有移动，
          仍然悬着在按钮上，背景有时会消失，然后变色」）。
          取证（真 HID，flash.js 六轮计数）：跨文档落地后浏览器会补发一批指针事件，但那批
          **有时不带 hover 链**（`mouseover` 的 target 是文档本身、`:hover` 为空），
@@ -513,6 +513,9 @@
         indicator.style.transition = prev;
       }
       function position(link) {
+        /* 定位 = 有活的光斑 ⇒ 取消任何排队中的"收"（hideTimer 见下面 sync() 那条注释；
+           键盘 focus 这条路径也要管：鼠标停在空隙里时 Tab 过去，不该 150ms 后又被收掉） */
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
         if (shown) moveTo(link);
         else { shown = true; snapTo(link); }
       }
@@ -529,11 +532,28 @@
               （主人原话：「跳转到那个页面后，按钮的蓝色背景没有消掉」）。
            ② 正常悬停时把光标挪进两链接之间的 24px 空隙：容器级 mouseleave 同样不来
               （指针还在容器里），光斑停在前一枚链接上不消。
-         ⇒ 一律走 sync()：有真悬停的链接就定位过去，没有就收。 */
+         ⇒ 一律走 sync()：有真悬停的链接就定位过去，没有就收。
+         🔴 但"收"要**迟一拍**（2026-09-25 同日补）：指针从一枚链接滑到另一枚，路上
+         必经两枚之间那条 24px 空隙（真鼠标扫过去一定经过，探针的两步位移也是），
+         空隙里 `hoveredLink()` 是空的 ⇒ 立刻收就会看到光斑"灭一下再亮"。
+         实测（slide.js：悬停「项目」→一跳挪到「关于」，八轮）：
+           立刻收 = 塌 6/8 轮（op 最低掉到 0.78，33ms 后回来；修前后同一台机器上
+           分别是 6/8 与 5/8 ⇒ 与上面那段 settle 无关，是本来就有的病）。
+         空隙里**停下来**仍然要收（第三百一十五批那条，主人要的是"别停在前一枚上不消"），
+         所以不是不收，是把"收"推迟 GRACE 毫秒后再确认一次 —— 只是路过就完全看不到变化。
+         GRACE 取 0.2s（= opacity 过渡时长）的 3/4：走路速度下穿过 24px 用不了 150ms。 */
+      var HIDE_GRACE_MS = 150, hideTimer = 0;
+      function hideSoon() {
+        if (hideTimer) return;
+        hideTimer = setTimeout(function () {
+          hideTimer = 0;
+          if (!hoveredLink()) indicator.style.opacity = '0';   /* 再确认一次：这 150ms 里进来了就不收 */
+        }, HIDE_GRACE_MS);
+      }
       function sync() {
         var a = hoveredLink();
         if (a) position(a);
-        else indicator.style.opacity = '0';
+        else hideSoon();
       }
 
       links.forEach(function (link) {
@@ -603,6 +623,8 @@
         indicator.style.transition = prev;
       }
       function position(btn) {
+        /* 取消排队中的"收"（与目录同款，见上一条 position 的注释） */
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; }
         if (shown) moveTo(btn);
         else { shown = true; snapTo(btn); }
       }
@@ -611,11 +633,20 @@
         return actions.querySelector('.nav-icon.is-hover') || actions.querySelector('.nav-icon:hover');
       }
       /* 与目录同款：光斑可见性只看「此刻真的悬停着某个圆钮吗」，见上一条 sync 的注释。
-         这条同样会被"跨文档落地后光标移走"漏掉（容器级 mouseleave 不来） */
+         这条同样会被"跨文档落地后光标移走"漏掉（容器级 mouseleave 不来）；
+         "收"同样迟一拍（两枚圆钮之间那条 12px 空隙，见上一条 HIDE_GRACE_MS 的注释） */
+      var HIDE_GRACE_MS = 150, hideTimer = 0;
+      function hideSoon() {
+        if (hideTimer) return;
+        hideTimer = setTimeout(function () {
+          hideTimer = 0;
+          if (!hoveredBtn()) indicator.style.opacity = '0';
+        }, HIDE_GRACE_MS);
+      }
       function sync() {
         var btn = hoveredBtn();
         if (btn) position(btn);
-        else indicator.style.opacity = '0';
+        else hideSoon();
       }
 
       buttons.forEach(function (btn) {
