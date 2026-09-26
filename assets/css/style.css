@@ -4946,6 +4946,49 @@ html.nav-anim-reset *::after {
     outline-offset: 2px;
   }
 
+  /* ═══════════ 触屏档：把「悬停扫入」换成「按住即亮」（2026-09-27）═══════════
+     主人原话：「手机版按『全部相簿』『上一页』『下一页』下滑线动画没有显示出来就跳转到
+     其他页面了，这动画是电脑版的，不是陪手机版。」
+     实测（390×844 触摸，Chromium 与 WebKit 两套引擎，逐帧采 `::after` 矩阵 + `:hover` 链）：
+       · tap **会**挂上 `:hover` 并真的启动那条 0.3s 扫入线 —— 但 click→跳转发生在 ~80ms，
+         线只扫了 1/5 就随页面走了。"看不到"是真的，不是错觉。
+       · 抬手后 `:hover` **粘住**（`querySelectorAll(':hover')` 里仍挂着这颗按钮），
+         字与线一路蓝 —— 触摸端本来就没有"光标停在它上面"这回事。
+       · `<a>` 在 iOS Safari 上**连 `:active` 都不给**（WebKit 规矩：元素或其祖先上要有
+         touchstart 监听才进激活态）⇒ 上面那两组 `:active` 在手机上等于死代码。
+     ⇒ 触摸端的语汇改成一句：**静止 = 墨字；按住 = 蓝字 + 一条瞬时就位的蓝线。**
+       「瞬时」不是图省事：tap 只有 ~80ms，0.3s 的扫入在手机上永远扫不完；
+       抬手时给 0.16s 往回收，手感和桌面的"离开"同向。
+       驱动类是 `.is-press` —— script.js「触屏按压反馈」一段在 pointerdown 挂、抬手后撤。
+     ⚠️ 整个块只在 `(hover: none)` 里 ⇒ 桌面一条都不匹配、观感零变化（同 `(hover: hover)`
+        那两处图片放大的写法）。
+     ⚠️ `:not(.is-press)` 那两条**必须有**：`:hover` 在触摸端抬手后还挂着，不显式压回去，
+        按钮就永远停在蓝字 + 满线（实测）。特指度 (0,2,0) 与 `.album-back:hover` 同档，
+        靠**源序在后**取胜 ⇒ 别把这个块挪到上面去。
+     ⚠️ 别顺手把 `border` / `background` / `border-radius` 写进来 —— "不画框"那条红线照旧。 */
+  @media (hover: none) {
+    .album-back,
+    .album-nav-link { transition: none; }
+    .album-back:not(.is-press),
+    .album-nav-link:not(.is-press) { color: var(--color-ink); }
+    /* 收起态：只有"抬手之后"用得着 —— 那一刻 transition 取的是这条（0.16s 收回），
+       而按下去的那一刻取的是下面 `.is-press` 那条（`none` = 瞬时到位）。 */
+    .album-back:not(.is-press)::after,
+    .album-nav-link:not(.is-press)::after {
+      transform: scaleX(0);
+      transform-origin: 100% 100%;
+      transition: transform 0.16s ease-out;
+    }
+    .album-back.is-press,
+    .album-nav-link.is-press { color: var(--color-accent); }
+    .album-back.is-press::after,
+    .album-nav-link.is-press::after {
+      transform: scaleX(1);
+      transform-origin: 0 100%;
+      transition: none;
+    }
+  }
+
   /* ------------------------------------------------- 灯箱（已搬去共享引擎） */
   /* 本文件里原来那 ~80 行 `.lb*` 规则（相册页自己那套简化灯箱：淡入淡出 + 左右箭头 +
      底部「说明 · 日期 · 计数」条）在 2026-09-21 整体删除 —— 主人那天要求

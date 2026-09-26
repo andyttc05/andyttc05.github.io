@@ -484,6 +484,68 @@
       }
       attempt();
     })();
+    /* === 触屏按压反馈（2026-09-27）===
+       主人原话：「手机版按『全部相簿』『上一页』『下一页』下滑线动画没有显示出来就跳转到
+       其他页面了，这动画是电脑版的，不是陪手机版。」
+
+       实测（390×844 触摸，Chromium 与 WebKit 两套引擎，逐帧采 `::after` 的矩阵）：
+       ① tap 会挂上 `:hover`、那条 0.3s 扫入线**真的启动了**，但 click→跳转发生在 ~80ms
+          ⇒ 线只扫了 1/5 页面就被带走；② 抬手后 `:hover` **粘住**（hover 链里还挂着这颗
+          按钮），字与线一路蓝；③ `<a>` 在 iOS Safari 上不给 `:active`（要在元素/祖先上挂
+          touchstart 监听才进激活态）⇒ CSS 里那两组 `:active` 在手机上等于死代码。
+
+       ⇒ 触摸端既不用 `:hover` 也不用 `:active`，改由本段挂 `.is-press`：
+         · 样式侧那条线**瞬时到位**（CSS 的 `@media (hover: none)` 块里 `transition: none`
+           —— tap 只有 ~80ms，扫不了 0.3s）；
+         · 抬手后留一段**最小可见时长**（MIN_MS）再撤。跨文档视图过渡拍旧页快照就在
+           click 后那一两帧内，于是"按下去 → 蓝字 + 蓝线亮起 → 页面切走"这一下看得见。
+
+       ⚠️ 只在 `(hover: none)` 设备上跑。桌面（hover: hover）别加：那边 `:hover` 本来就是
+          对的，多挂一个类反而会带出"抬手后还亮着"的多余状态。
+       ⚠️ 选择器只有这三颗按钮。它们是 `<a>`，在手机上既没有 `:hover` 也没有 `:active`；
+          导航栏 / hamburger / 抽屉那几颗是 `<button>`，不在此列（要扩先量一遍再动）。
+       ⚠️ 别写进 7 份 HTML 内联（同「跨文档补 hover」那条：7 个副本会漂移）。 */
+    (function () {
+      var PRESS_SEL = '.album-back, .album-nav-link';
+      var MIN_MS = 180;   /* 最小可见时长：既盖住"click → 快照"那一帧，也够眼睛看见 */
+      if (!window.matchMedia('(hover: none)').matches) return;
+
+      var held = null, t0 = 0, timer = 0;
+      function drop(el) { if (el) el.classList.remove('is-press'); }
+      /* 抬手：留够最小可见时长再撤（快 tap 也不会一闪而过） */
+      function release() {
+        if (!held) return;
+        var el = held;
+        held = null;
+        var wait = Math.max(0, MIN_MS - (performance.now() - t0));
+        clearTimeout(timer);
+        timer = setTimeout(function () { drop(el); }, wait);
+      }
+      /* 中途取消（手指滑走变成滚动 / 切后台）：用户没在点它 ⇒ 立刻收，不留亮 */
+      function cancelNow() {
+        clearTimeout(timer);
+        if (held) { drop(held); held = null; }
+      }
+      function press(el) {
+        clearTimeout(timer);
+        if (held && held !== el) drop(held);
+        held = el;
+        t0 = performance.now();
+        el.classList.add('is-press');
+      }
+      document.addEventListener('pointerdown', function (e) {
+        var n = e.target;
+        var el = n && n.closest ? n.closest(PRESS_SEL) : null;
+        if (el) press(el);
+        else if (held) release();     /* 按在别处：把上一颗撤掉（走最小可见时长那条） */
+      }, { passive: true, capture: true });
+      document.addEventListener('pointerup', release, { passive: true, capture: true });
+      document.addEventListener('pointercancel', cancelNow, { passive: true, capture: true });
+      window.addEventListener('blur', cancelNow);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') cancelNow();
+      });
+    })();
     /* === 桌面导航滑动高亮 === */
     (function () {
       var navLinks = document.querySelector('.nav-links');
