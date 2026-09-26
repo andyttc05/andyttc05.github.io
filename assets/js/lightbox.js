@@ -534,6 +534,7 @@
   var lbThumbTrack = null;
   var lbThumbK = 0;                 /* 这一组的**窗口**里放几枚（0 = 没画带子）。见 lbThumbFit */
   var lbThumbWinL = -1, lbThumbWinR = -1;   /* 上一步的**可见集**（判这一步要不要播平移） */
+  var lbThumbLast = -1;             /* 上一步的当前张索引：只用来定折回入场的**方向** */
 
   /* 三个可调数（"多于某个数就把两端的藏起来"里的**某个数**就是第一个）：
        LB_THUMB_MAX  —— 最多同时显示几枚，多出来的藏在两端。**这是宽屏的上限**；
@@ -548,6 +549,13 @@
      离当前张 d 枚的那一枚：t = (d − (half − FADE)) / FADE，夹到 [0,1]；
        t = 0 ⇒ 全亮不糊（＝改前那张的样子）；t = 1 ⇒ 透明 + 最糊。 */
   var LB_THUMB_MAX = 25, LB_THUMB_FADE = 2, LB_THUMB_BLUR = 2;
+
+  /* 折回那一步的入场位移，单位 = **齿距**（非当前张宽 0.75·h + gap 4px ≈ 23.5px）。
+     2026-09-27 · v12.6：折回照旧瞬时落位（不横扫 917px，见 lbDotsMark），但补一个短程滑入 ——
+     走的距离约等于"普通翻一张"的一步半（≈35px），所以看起来就是一次翻页；
+     为什么不是 0：位移给了**方向**（前进/后退），纯淡入会像"凭空换了一批"。
+     ⚠️ 别往大了调（≥3 齿 就接近"扫过去"的观感了，那正是 2026-09-22 被否掉的那版）。 */
+  var LB_THUMB_ENTER = 1.5;
 
   /* 窗口里放几枚：min(张数, LB_THUMB_MAX, 按容器宽算得出的枚数)，再调成**奇数**
      （奇数才有正中间那一枚，当前张才对得准）。 */
@@ -594,10 +602,10 @@
   }
 
   function lbThumbShift() {
-    if (!lbThumbTrack) return;
+    if (!lbThumbTrack) return null;
     var cw = lbDots.clientWidth, n = lbPhotos.length, tx, lo, hi;
     var on = lbThumbTrack.querySelector('.dy-lb-thumb.is-on');
-    if (!on) return;
+    if (!on) return null;
     var a = Number(on.dataset.i);
     var kids = lbThumbTrack.children;
     /* ⚠️ 对中一律用**视觉**边界（两档都是）：
@@ -625,6 +633,30 @@
     }
     tx = cw / 2 - (vleft(lo) + vleft(hi) + vwid(hi)) / 2;
     lbThumbTrack.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,0,0)';
+    return tx;                          /* 折回入场（lbThumbEnter）要拿它当终点 */
+  }
+
+  /* 折回那一步的**入场**（2026-09-27 · v12.6）：位置已经在 lbDotsMark 里瞬时落定，
+     这里补一次「从行进方向再过去 LB_THUMB_ENTER 齿 + 全透明」→「终值 + 全亮」的过渡。
+     主人原话：「从开头照片滑到尾部照片，底部预览照片没有过渡动画」——
+     早先那版是整条横扫 917px（2026-09-22 嫌"卡"），这版只走 1.5 齿 ≈ 35px，
+     和普通翻一张（23.5px）同量级 ⇒ 有过渡、又不糊。
+     ⚠️ 手法与 is-jump 同源：先 inline `transition: none` 摆入场态 → 强制 reflow 落地 →
+     清掉 inline 过渡 → 写终值，过渡就从**入场态**起跑（不是从旧位置）。
+     直接写两次 transform 而不做 reflow 的话，浏览器只看到最后那个值 ⇒ 又变回硬切。 */
+  function lbThumbEnter(tx, dir) {
+    if (!lbThumbTrack) return;
+    var hh = lbVarPx('--lb-thumb-h', 26);
+    var gap = parseFloat(getComputedStyle(lbThumbTrack).columnGap) || 4;
+    var d = (hh * 0.75 + gap) * LB_THUMB_ENTER;
+    var st = lbThumbTrack.style;
+    st.transition = 'none';
+    st.transform = 'translate3d(' + (tx + dir * d).toFixed(1) + 'px,0,0)';
+    st.opacity = '0';
+    void lbThumbTrack.offsetWidth;      /* 入场态先落地 */
+    st.transition = '';                 /* 交还给 .dy-lb-thumb-track 那两条过渡 */
+    st.transform = 'translate3d(' + tx.toFixed(1) + 'px,0,0)';
+    st.opacity = '1';
   }
 
   /* 两端那几枚的"渐隐 + 渐糊"：逐枚写 --lb-th-t（1 → 0）与 --lb-th-blur。
@@ -662,22 +694,38 @@
     }
     lbThumbGap(i);                       /* 让位：两侧各让出 0.125·h（走 transform） */
     /* 这一步要不要"跳过去"：
-       与上一步的可见集**没有交集**（首↔末折回、或跨很远的跳）⇒ 不播过渡。
+       与上一步的可见集**没有交集**（首↔末折回、或跨很远的跳）⇒ 位置不播过渡。
        预览带不像画面 —— 折回时没有空间连续性，那段 900 多像素的扫过会把整条糊成一片
        （2026-09-22 主人：「最开头滑到最尾 / 最尾滑到最开头，有点卡，动画不流畅」，
         实测 track 要走 917px，而普通翻一张只走 23px）。
        ⚠️ ramp 也得跟着 snap：折回后新那一簇的缩略图在上一步全是 is-out（opacity 0），
-          不 snap 的话它们会从"全透明"渐显上来 —— 看起来像预览带先消失再浮现。 */
+          不 snap 的话它们会从"全透明"渐显上来 —— 看起来像预览带先消失再浮现。
+       🔴 2026-09-27 · v12.6（主人：「从开头照片滑倒尾部照片，底部预览照片没有过渡动画」）：
+          "位置不播过渡"只留给**落位那一帧** —— 同一帧末尾摘掉 is-jump 之后，
+          再补一次 lbThumbEnter（短程滑入 + 淡入）。落位仍是瞬时的（不横扫），
+          但眼睛看到的是一次 300ms 的过渡，不再是硬切。
+       ⚠️ 开箱那一帧（first）不补入场：那时整条正随灯箱一起淡入，再叠一次会闪。 */
+    var first = lbThumbWinL < 0;            /* 本组第一次落位（开灯箱） */
     var w = lbThumbWin(i);
     var jump = !((w[0] <= lbThumbWinR) && (w[1] >= lbThumbWinL));
     if (jump) lbDots.classList.add('is-jump');
     lbThumbRamp(i);
-    lbThumbShift();
+    var tx = lbThumbShift();
     lbThumbWinL = w[0]; lbThumbWinR = w[1];
     if (jump) {
       void lbDots.offsetWidth;            /* 强制 reflow：让"无过渡这一版"先落地 */
       lbDots.classList.remove('is-jump'); /* 摘掉之后过渡照旧，正常翻页一点不受影响 */
+      /* 方向按**环形**一步算（不是索引差）：折回是"走一步"绕过去的，
+         |索引差| = n−1 ≠ 方向。所以照 lbWrapIdx 同一套取模取最短方向 ——
+         末张 → 首张（前进）= +1：从右边滑进来；首张 → 末张（后退）= −1：从左边。
+         与画面的进相方向（lbSwitchTo：下一张 inX = +32）口径一致。 */
+      if (!first && lbThumbLast >= 0 && tx !== null) {
+        var n = lbPhotos.length;
+        var step = ((i - lbThumbLast) % n + n) % n;
+        lbThumbEnter(tx, step <= n / 2 ? 1 : -1);
+      }
     }
+    lbThumbLast = i;
   }
 
 
@@ -1293,6 +1341,7 @@
     lbThumbTrack = null;
     lbThumbK = 0;
     lbThumbWinL = lbThumbWinR = -1;          /* 新一组：第一步永远"不播平移"（直接落位） */
+    lbThumbLast = -1;                        /* 方向基准也归零：开箱那一步不补入场 */
     lbDots.hidden = list.length <= 1;
     /* ⚠️ 顺序要紧：hidden 必须先摘掉，lbThumbFit 里的 clientWidth 才是真宽度
        （上一组只有 1 张时容器是 hidden 的、clientWidth 是 0 ⇒ 会被算成"一枚都放不下"）。 */

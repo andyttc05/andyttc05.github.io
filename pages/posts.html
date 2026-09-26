@@ -87,7 +87,7 @@
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
-<link rel="stylesheet" href="../assets/css/lightbox.css?v=e0a78167d1">
+<link rel="stylesheet" href="../assets/css/lightbox.css?v=4949e82880">
 <!-- 内容数据：必须是**阻塞式** <script src>，不要改回 JS 动态插（v11，2026-09-13）；
      而且要放在 **<head>** 里（2026-09-15 修）——
      跨文档 View Transition 的新页快照在 pagereveal 抓（实测 ≈ 文档创建后 40~90ms），
@@ -802,7 +802,7 @@
   <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
        所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
-  <script src="../assets/js/lightbox.js?v=4d7536f1ed" defer></script>
+  <script src="../assets/js/lightbox.js?v=2ee15a0ba0" defer></script>
 
   <!-- 动态页逻辑 v9：从 assets/data/posts.js 取数 → 渲染（日期分组 + 朋友圈网格）→ 折叠/灯箱/入场
        v9.5 右栏：文字月份目录（月行点击跳月）+ 单一迷你月历（点日跳当天，滚动跟随当前月）

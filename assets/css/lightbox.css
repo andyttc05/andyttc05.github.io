@@ -378,7 +378,10 @@ body.dy-lb-open { overflow: hidden; }
   display: flex; align-items: center; gap: 4px;
   height: 100%;
   will-change: transform;
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  /* ⚠️ `opacity` 也在过渡里（2026-09-27 · v12.6 加）：折回那一步的"入场淡入"要用它。
+     非折回时没人碰 track 的 opacity（恒为 1）⇒ 加这一项对普通翻页是零影响的。 */
+  transition: transform .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1);
 }
 .dy-lb-thumb {
   /* 🔴 槽位尺寸**永远不变**（0.75·h × h）。当前张"长大"是**里面那张图自己过渡**出来的 ——
@@ -428,10 +431,14 @@ body.dy-lb-open { overflow: hidden; }
 .dy-lb-thumb.is-on { opacity: var(--lb-th-t); }
 
 /* 「跳过去」那一步（引擎临时加 .is-jump，见 lbDotsMark）：
-   首↔末折回这种"可见集与上一步没有交集"的跳，**不播过渡** ——
+   首↔末折回这种"可见集与上一步没有交集"的跳，**位置**不播过渡 ——
    预览带折回时没有空间连续性，那 900 多像素的横扫只会糊成一片（2026-09-22 主人报告）。
    ⚠️ 必须在同一帧内 add → 写 transform/opacity → 强制 reflow → remove，
-      否则新那一簇会从 opacity 0 渐显上来。 */
+      否则新那一簇会从 opacity 0 渐显上来。
+   ⚠️ 2026-09-27（v12.6）：折回**不是"硬切"了** —— 位置照旧瞬时落位，但摘掉本类之后引擎会补一次
+      「短程滑入（1.5 齿）+ 整条淡入」（lbThumbEnter），所以折回看起来是"翻过去"而不是
+      "凭空换了一批"（主人原话：「从开头照片滑到尾部照片，底部预览照片没有过渡动画」）。
+      本类只管"落位那一帧"；入场那 300ms 走的是 .dy-lb-thumb-track 自己的过渡。 */
 .dy-lb-dots.is-jump .dy-lb-thumb-track,
 .dy-lb-dots.is-jump .dy-lb-thumb,
 .dy-lb-dots.is-jump .dy-lb-thumb img,
