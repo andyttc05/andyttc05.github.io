@@ -4171,31 +4171,37 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
    ⚠️ 三处判据，别改错：
    1) **只掐"点击跳转"，不掐刷新/首次进入** —— `loader.js` 用
       `performance.getEntriesByType('navigation').type !== 'reload'` 区分；
-      刷新时照旧播入场（主人 2026-09-15「登场动画怎么就没了」那条就是刷新的观感）。
-   2) 这批终态值**与上面「快照态」那批逐字相同**（那批是给快照拍的、这批是给用户看的），
-      改任一处记得两处一起改；额外多一条 `.hero-art-img` 的 `opacity: 1`
-      ——图片的淡入原来是 `.is-loaded`（0.4s），不掐掉它照样是一片半透明的白。
+      刷新时照旧播完整入场（主人 2026-09-15「登场动画怎么就没了」那条就是刷新的观感）。
+   2) **掐的是"淡入"，不是"动作"** —— 这一版（2026-09-27 第二轮）保留逐字弹跳、文字上浮、
+      底板滑入；只有"从 opacity 0 开始"那一段被去掉，因为**那一段就是白闪本身**。
+      标题字改用下面这条同曲线的 scale-only 弹跳（`rm-char-pop-scale`），
+      淡入的 `hero-char-pop` 依旧给刷新那一路用。
    3) 靠**特指度**压过 `.hero.entered …`（(0,3,0) 对 (0,3,1)）与
       `html.page-ready .hero-title-char`（同为 (0,2,1)，靠源码顺序 —— 本块在文件末尾）⇒
       **不要往中间插同级规则**，也不许改成 `!important`（那会连"减少动态效果"的降级一起吃掉）。
+   ⚠️ 卡片擦入（`.hero-art-card` 的 clip-path）**仍钉在终态**：部分擦入会漏出画布白；
+      图片（`.hero-art-img`）同理 —— 它原来靠 `.is-loaded` 做 0.4s 淡入，
+      在一片"还没有图"的大卡上那就是一片白，所以这里直接 opacity 1、不淡入。
    --------------------------------------------------------------------------- */
 html.rm-navclick .hero-title-char,
-html.rm-navclick .about-title-char { animation: none; }
-html.rm-navclick .dy-item,
-html.rm-navclick .dy-day { opacity: 1; transform: none; transition: none; }
-html.rm-navclick .hero .hero-text > *:not(.hero-cta),
-html.rm-navclick .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
-html.rm-navclick .hero .hero-art-base {
-  opacity: 1;
-  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
-  transition: none;
+html.rm-navclick .about-title-char { animation-name: rm-char-pop-scale; }
+/* 与 `hero-char-pop` 同曲线同节奏，只去掉 opacity：字始终看得见，只在尺寸上弹一下 */
+@keyframes rm-char-pop-scale {
+  0% { transform: scale(0.4); }
+  55% { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
+html.rm-navclick .dy-item,
+html.rm-navclick .dy-day { opacity: 1; }
+html.rm-navclick .hero .hero-text > *:not(.hero-cta),
+html.rm-navclick .hero .hero-text > .hero-cta { opacity: 1; }
+html.rm-navclick .hero .hero-art-base { opacity: 1; }
 html.rm-navclick .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
 html.rm-navclick .hero .hero-art-img { opacity: 1; transition: none; }
+/* 底部提示只淡不滑的观感无所谓（16px 高），这里连居中一起钉死，免得它先掉半帧再归位 */
 html.rm-navclick .hero .hero-scroll {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
-  transition: none;
 }
 
 /* 「← 全部相簿」回到墙那一次（`.album-back-instant`，由 photos.js 二号段加类）：
