@@ -4579,6 +4579,21 @@ html.nav-anim-reset *::after {
     letter-spacing: 0;
     color: var(--color-ink);
   }
+  /* === 单册页书名：滚动驱动「出场」（2026-09-27）===
+     与 `.about-title` 同一套 title-exit，但**必须在这里单独写一份**：
+     `.album-title` 是单册页独有的类，关于页那个 @supports 块的选择器列表里没有它 ——
+     实测（加这一段之前，1440×900）：album-hkust 上带滚动驱动的元素只有 `.about-hero-desc`
+     一个，`.album-title` 缺席；全站六个页面里只剩这一页的主标题一点滚动动画都没有。
+     区间 `exit 0% exit 100%` 与关于页同一个数、同一个理由：加载与驻留全程 opacity 1，
+     淡出随元素滑进导航栏遮挡区同步进行 ⇒ 首屏永远是完整书名，不会"先淡进来"。
+     ⚠️ 与上面 `.title-latin` / `.album-eyebrow` 无关：关于页那两行也不在动画名单里（保持同构）。 */
+  @supports (animation-timeline: view()) {
+    .album-title {
+      animation: title-exit linear both;
+      animation-timeline: view(block 100px);
+      animation-range: exit 0% exit 100%;
+    }
+  }
   /* 小标（地区 / 页眉那行 mono）。2026-09-25：字距 0.18em → **0.32em**。
      参考站那行小标是 `uppercase tracking-[0.45em]`，0.45em 是给大写拉丁的；
      这行是中文，0.45em 会散成「香 港 　 离 岛」、把词断开，所以收到 0.32em ——
@@ -4800,6 +4815,72 @@ html.nav-anim-reset *::after {
   .album-shot:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
+  }
+
+  /* === 相册墙封面 / 单册照片：滚动驱动「进场 + 出场」（2026-09-27）===
+     主人原话：「在相册页和相簿，加入其他页面的滑动进场/出场动画」。
+     "其他页面"那一套 = 关于页 `.about-card` / 动态页 `.dy-item`：
+     **滚进视口时上滑 48px + 从 0.96 放大 + 淡入，滚过导航栏时淡出**。
+     keyframes（`scroll-fade-opacity` / `scroll-fade-move`）是本站通用运动语言，
+     定义在关于页那一段，别在这里另写一套 —— 两处一分叉，手感就不一样了。
+
+     ⚠️ 这一块与关于页 / 动态页的四个数**逐字相同**（不"按相簿调一调"）：
+        `view(block 100px)` · `entry 0% cover 100%` · `replace + add` · `linear both`。
+     ⚠️ 换 viewport 之前先算过账（`~/.workbuddy/scratch/album-scroll-anim-2026-09-27/`，
+        1440/1280/900/768/390/320 六档 × 19 册抽样）：
+          ① 加载时首屏每一格的进度 p 都 ≥ 0.19（"全显"线是 0.07）⇒ **不会**出现
+             "进页面时封面先淡进来"；
+          ② 滚到底时所有格子 p ≥ 0.15 ⇒ 最后一行**不会**卡在半透明
+             （关于页当年踩过这条：末张卡在页面底部走不完时间轴，停在 ~60%）。
+        两个判据都是按 CSS 的时间轴公式从真实矩形算的，不是"看着还行"。
+     ⚠️ 与几何引擎（`assets/js/album-strip.js`，内联在 19 个单册页里）互不干扰：
+        它只读容器可用宽与 `--ar`，从不量 `.album-shot` 的位置，而 transform 不参与布局
+        ⇒ 单册页的「对齐行」算出来的一毫一厘都不会变。
+     ⚠️ 无 `animation-timeline: view()` 的引擎（iOS Safari ≤17 / 老 Chrome）：@supports 不成立
+        ⇒ 不播动画、元素留在基础态（opacity 1、无 transform）全显。这两条基础规则里
+        **本来就没有** opacity/transform ⇒ 这里不需要 `@supports not` 兜底块
+        （动态页那条是因为它把基础态写成了 opacity:0，本站其余页面都不是）。
+     ℹ️ 范围只到"内容列表"这两族 + 单册页书名。`.album-stats` 那一行**故意不动**：
+        它每页只有一行、又总在首屏，滚进滚出都还看得见，加了只是多一份噪声。
+
+     ✅ 验收（`~/.workbuddy/scratch/album-scroll-anim-2026-09-27/verify.js`，88 条断言全过）：
+        · 布局盒 / 文档宽 / 横向溢出：六视口 × 四页**逐字相同**；滚到底的文档高也逐字相同。
+          加载那一瞬的文档高：photos@900×1000 临时 +7px（滚到底归零、scrollY 连采 1s 不漂）
+          —— 关于页 `.about-card` 同一个机制，实测 +4px，**不是本轮新病**。
+        · 加载时"完全落在视口内"的格子 opacity 全是 1（六个视口、四页，另有关于页同款对照）。
+        · 滚到底时视口下半部分全显 ⇒ 没有"最后一行卡在半透明"（关于页当年那条老病）。
+        · 首屏像素：单册页 before/after **0 像素差**；相册页只差墙那一片（1.22%，
+          最大通道差 109）—— 元素带上 identity matrix 被提升成合成层后的重新栅格化，
+          几何（rect top 571.14 / 高 281.91）两棵树逐位相同。同一把尺子量关于页
+          开关既有动画：0.64% / 245 ⇒ 同一量级、同一来源。 */
+  @supports (animation-timeline: view()) {
+    .album-tile,
+    .album-shot {
+      animation:
+        scroll-fade-opacity linear both,
+        scroll-fade-move linear both;
+      animation-timeline: view(block 100px), view(block 100px);
+      animation-range: entry 0% cover 100%, entry 0% cover 100%;
+      animation-composition: replace, add;
+    }
+  }
+  /* 移动档：inset 100→56、位移 48→28px、scale 0.96→0.98 —— 数值照抄关于页
+     `@media (max-width: 768px)` 那条，理由与它写下的完全一样（窄屏视口矮，100px inset
+     会让淡出落在元素还在屏幕上时；大位移在窄屏上会跟相邻内容交叠）。
+     `.album-title` 那条只换 inset（title-exit 之间没有位移参数可调）。
+     ⚠️ 合并进 @supports 门控：无 view() 的引擎不播动画、内容全显。 */
+  @supports (animation-timeline: view()) {
+    @media (max-width: 768px) {
+      .album-tile,
+      .album-shot {
+        animation-timeline: view(block 56px), view(block 56px);
+        --enter-y: 28px;
+        --enter-s: 0.98;
+      }
+      .album-title {
+        animation-timeline: view(block 56px);
+      }
+    }
   }
 
   /* 末行"全部相簿 →"文字格 2026-09-21 撤掉（主人原话「也撤掉」）——
