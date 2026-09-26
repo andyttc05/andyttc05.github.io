@@ -4153,6 +4153,50 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
   transition: none;
 }
 
+/* ---------------------------------------------------------------------------
+   站内**点击**跳转：不播入场编排（`html.rm-navclick`，由 loader.js 在开闸时加）
+
+   为什么加这一条（2026-09-27 主人「切换页面时的闪屏」的第二半，也是主因）：
+   实测（`probe-domstate.js`，站内点击后 260ms 的 computed 值）——
+     hero 大图 opacity **0.15** · `.hero-art-base` **0.63** · `.hero-text > *` **0.63** ·
+     `.hero-title-char` **0.66**（scale 0.89）· `.hero-cta` / `.hero-scroll` **0**
+   也就是**整页正处在入场淡入的中途**。亮色下这就是主人看到的「整屏闪一下白」：
+   大片 hero 卡（#ebebeb 235）还在半透明，画布透上来。
+   ⇒ 根因是**幕布挡不住了**：跨文档 VT 期间"新文档 DOM 不参与合成"这条已经不成立
+     （见本文件上面那段 + `NAV-NOTES.md`「事实 B」），入场编排全程露在用户眼前。
+     入场本来就不该在**点击站内链接**时被看到（它设计上是压在幕布底下跑的），
+     所以这里把点击那一跳的入场整体落到终态：页面直接到位，只保留 450ms 的那道 crossfade。
+
+   ⚠️ 三处判据，别改错：
+   1) **只掐"点击跳转"，不掐刷新/首次进入** —— `loader.js` 用
+      `performance.getEntriesByType('navigation').type !== 'reload'` 区分；
+      刷新时照旧播入场（主人 2026-09-15「登场动画怎么就没了」那条就是刷新的观感）。
+   2) 这批终态值**与上面「快照态」那批逐字相同**（那批是给快照拍的、这批是给用户看的），
+      改任一处记得两处一起改；额外多一条 `.hero-art-img` 的 `opacity: 1`
+      ——图片的淡入原来是 `.is-loaded`（0.4s），不掐掉它照样是一片半透明的白。
+   3) 靠**特指度**压过 `.hero.entered …`（(0,3,0) 对 (0,3,1)）与
+      `html.page-ready .hero-title-char`（同为 (0,2,1)，靠源码顺序 —— 本块在文件末尾）⇒
+      **不要往中间插同级规则**，也不许改成 `!important`（那会连"减少动态效果"的降级一起吃掉）。
+   --------------------------------------------------------------------------- */
+html.rm-navclick .hero-title-char,
+html.rm-navclick .about-title-char { animation: none; }
+html.rm-navclick .dy-item,
+html.rm-navclick .dy-day { opacity: 1; transform: none; transition: none; }
+html.rm-navclick .hero .hero-text > *:not(.hero-cta),
+html.rm-navclick .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
+html.rm-navclick .hero .hero-art-base {
+  opacity: 1;
+  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
+  transition: none;
+}
+html.rm-navclick .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+html.rm-navclick .hero .hero-art-img { opacity: 1; transition: none; }
+html.rm-navclick .hero .hero-scroll {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition: none;
+}
+
 /* 「← 全部相簿」回到墙那一次（`.album-back-instant`，由 photos.js 二号段加类）：
    **不播开场动画** —— 2026-09-22 主人「点击相册，然后放回所有相册页，不触发页面开场动画」。
    这一跳的语义是"回到你离开的地方"，所以标题不弹、跨文档过渡也 skip 掉

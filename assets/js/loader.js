@@ -84,6 +84,13 @@
     function open() {
       if (opened) return;
       opened = true;
+      /* 站内「点击跳转」（**不含刷新**）：不播入场编排 —— 见 style.css 的 `html.rm-navclick` 那段。
+         为什么在这里加类：①`release()` 会派发 pageReady，而入场（script.js 的 `.entered`）
+         是 pageReady 之后才起步的 ⇒ 必须赶在它之前；
+         ②刷新照旧播入场（主人 2026-09-15「登场动画怎么就没了」那条讲的是刷新的观感），
+         所以用导航类型分流：reload 不加，back_forward 加（那是"回到你离开的地方"）。
+         ⚠️ 这行的语义是「页面不需要在用户眼前组装」，别顺手挪进冷加载那条路。 */
+      if (navType !== 'reload') html.classList.add('rm-navclick');
       /* 冻结窗：上面那批「快照态」覆盖一失效，元素会从终态**平滑过渡**回入场初始态
          （0.7s）—— 那会把真正的入场动画吃掉大半。先冻结过渡、强制 reflow 把初始态
          钉死，再解冻，动画才能从真正的初始态起步。这一步在幕布底下，看不见。 */
