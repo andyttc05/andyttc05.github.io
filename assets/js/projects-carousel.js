@@ -430,6 +430,62 @@
     var sat = st * (1 - tail * Math.exp(-(u - FOLLOW_KNEE) / tail));
     return base + (d < 0 ? -sat : sat);
   }
+  /* ── 照片同款跟手（第三百二十五批，主人「一个手势只能滑动一张，移除滑到中间反弹的
+        动画，和照片一样一次滑到底」）──────────────────────────────────────────
+     先量后改（1280 / step=441，`probe-rebound.js` + `diag-traj.js` 实测改前）：
+
+       动作            跟手最远   松手后往回走   回弹动画
+       拖 180px 松手     180px      180px        190 帧（动画回位）
+       滚 120px 停手     120px      120px        ~250ms（逐帧：106.5→99.9→…→0）
+
+     ⇒ 主人看到的"滑到中间反弹"就是这两件事：导轨先跟着手指/滚轮走到中间，停手后再
+       **动画**回到原来那一档（`startFinish` 的有限时长曲线）。灯箱当年治的是同一个病，
+     做法两条（`lightbox.js` 的 `lbDragVis` / `lbDragEnd`，v12 起，原注写得很清楚）：
+       · 跟手 = 位移 × damp **硬封顶**（灯箱 32px = 一步的 3~10%）⇒ 拖动期间画面几乎不动，
+         "中间"这个位置根本不存在；
+       · 没过阈值 ⇒ **瞬间归位、没有过渡**（原注：「主人我不喜欢反弹动画」）——
+         封顶很小，所以这一步看不出来；
+         过了阈值 ⇒ 一次连续滑到位（灯箱是 32px 出 + 32px 进；轮播是整张 step 的落位曲线）。
+     本批把这两条照搬到轮播（数值按"步距"等比换算，单位仍是 px）：
+
+       提交距离 `carCommitDist` = 一步 × 22%（灯箱 LB_COMMIT_FRAC），夹在 [46, 110]px
+       跟手封顶 `carFollowCap` = 一步 × 9%（灯箱 32px 的等比），1440 下 ≈ 40px
+       damp = 封顶 / 提交距离（与灯箱同一个定义：手正好拉到提交线时画面恰好吃满封顶）
+
+     ⇒ 一张 441px 的位移里，手指要在 **97px** 内决定走不走；走到 97px 时画面只挪了 40px，
+       松手整张滑到底。中间没有任何"停在半路再回去"的位置。
+     `?cphoto=0` 回到 324 批（1:1 跟手 + 动画回位），只用于 A/B 取证。 */
+  var PHOTO_DRAG = !/[?&]cphoto=0/.test(location.search);
+  var CAR_COMMIT_FRAC = 0.22;      /* 走完一步的 22% 即提交（灯箱同值） */
+  var CAR_COMMIT_MIN = 46;         /* 阈值下限 px（灯箱同值，防窄屏过灵） */
+  var CAR_COMMIT_MAX = 110;        /* 阈值上限 px（灯箱同值，防宽屏过钝） */
+  var CAR_FOLLOW_FRAC = 0.09;      /* 跟手封顶占一步的比例（灯箱 32px 的等比） */
+  function carCommitDist(st) {
+    return Math.max(CAR_COMMIT_MIN, Math.min(st * CAR_COMMIT_FRAC, CAR_COMMIT_MAX));
+  }
+  function carFollowCap(st) { return Math.max(12, Math.round(st * CAR_FOLLOW_FRAC)); }
+  /* 手指 / 滚轮位移 → 画面位移（阻尼 + 硬封顶，与灯箱 lbDragVis 同一句） */
+  function carFollow(d, st) {
+    var cap = carFollowCap(st);
+    var v = d * (cap / carCommitDist(st));
+    return v > cap ? cap : (v < -cap ? -cap : v);
+  }
+  /* 跟手位置（拖拽与滚轮共用）：基准 + 照片同款位移。
+     `?cphoto=0` 时回 324 批（1:1 跟手 + railClamp 的饱和夹子）。 */
+  function photoFollow(pos, base) {
+    if (!PAGE_PER_GESTURE) return pos;
+    if (!PHOTO_DRAG) return railClamp(pos, base);
+    return base + carFollow(pos - base, step());
+  }
+  /* 没过阈值 ⇒ **瞬间归位，零动画**（灯箱 lbRest 同一句）。跟手封顶只有 ~40px，
+     所以这一步是"看不出来的落定"，不是"跳一下"。 */
+  function instantReturn(target) {
+    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = null; }
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    FIN = null; lastFrameT = 0; dragVel = 0;
+    x = xTarget = target;
+    render();
+  }
   function slotAnchor() {
     /* 手势起点那一档。上一段还在落位（FIN）或还在指数逼近（raf 且未落位）时，
        取那一段的**目标** —— 起点若按"此刻的 x"算会被算成"这一段已经走了一部分"，
@@ -445,6 +501,15 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 照片同款（第三百二十五批，主人「一个手势只能滑动一张，移除滑到中间反弹的动画，
+        和照片一样一次滑到底」）────────────────────────────────────────────
+     改前实测（1280 / step=441）：拖 180px 松手 ⇒ 跟手 180px、松手后动画回位 190 帧；
+     滚 120px 停手 ⇒ 跟手 120px、~250ms 动画回位（106.5→99.9→…→0）。这两段"停在半路
+     再动画回去"就是主人说的"滑到中间反弹"。灯箱从 v12 起就不是这么做的（见它的
+     `lbDragVis` / `lbDragEnd`）：跟手 = 位移 × damp 硬封顶（32px），没过阈值就是
+     **瞬间归位、零动画**（原注：主人「我不喜欢反弹动画」），过了就是一次连续滑到位。
+     本批照搬，数值按步距等比：提交距离 = 一步 × 22%（夹 [46,110]px）、跟手封顶 =
+     一步 × 9%（≈40px）。细节在 carFollow / snapFromDrag / wheelEnd 三处。 */
   /* ── 慢滚 = 快滚（第三百二十四批，主人"慢慢滑动和快速滑动的手感应该一样吧，
         优化一下滑动的丝滑性，不要有奇怪的bug"）────────────────────────────
      先量后改：同一段累计位移（480px ≈ 1.09 张）、只改事件间隔（速度），实测（1280，step=441）
@@ -1010,7 +1075,7 @@
     var st = step();
     animateTo(Math.round(x / st) * st);
   }
-  function snapFromDrag(vel) {
+  function snapFromDrag(vel, raw) {
     /* 第二百五十五批：速度只决定目标档位，不注入位移（跟手、无滑过头回拉）。
        第二百七十六批：落位从弹簧改三次 Hermite 曲线（见文件头 276 批）。
        初速用**指针尾速 vel（px/ms → ×1000）**，不是 dragVel —— 实测：松手前
@@ -1021,6 +1086,19 @@
        → u0≈0 慢起（272 批那条不变式保住）；移动中松手 → vel 就是手指速度
        ≈ 卡片速度（跟手 1:1，稳态速度相同）→ 曲线从该速度单调减速。 */
     var st = step();
+    if (PAGE_PER_GESTURE && PHOTO_DRAG) {
+      /* 第三百二十五批（照片同款）：判据用**原始手指位移 raw**（灯箱 lbDragEnd 同款：
+         "判据用原始手指位移，不是画面位移" —— 画面被阻尼+封顶了，按它判会永远不够）。
+         过了提交线（或快甩）⇒ 目标 = 起点那一档 ± 一张，落位曲线一次滑到底；
+         没过 ⇒ **瞬间归位，零动画**（主人要治的"滑到中间反弹"就是这里的动画）。 */
+      var commit = Math.abs(raw) >= carCommitDist(st);
+      if (!commit && Math.abs(vel) >= FLICK_V) commit = true;      /* 轻甩也算换一张 */
+      if (!commit) { instantReturn(dragOriginSlot); return; }
+      var dirP = commit && Math.abs(raw) >= carCommitDist(st) ? (raw > 0 ? 1 : -1)
+                                                             : (vel > 0 ? 1 : -1);
+      startFinish(dragOriginSlot + dirP * st, vel * 1000, FIN_TMAX_DRAG);
+      return;
+    }
     var nearest = Math.round(x / st) * st;
     var dx = x - nearest, dir = 0;
     if (Math.abs(dx) >= st / 2) dir = dx > 0 ? 1 : -1;       /* 拖过半档 */
@@ -1145,7 +1223,7 @@
          第三百二十二批：「顶住不动」太死（主人"卡片滑动很不流畅"）—— 改成
          **前 0.7 张 1:1、之后渐近饱和**（railClamp）：手还在动，卡片就还在动，
          只是越来越沉；永不后退、不回弹。 */
-      dragTarget = railClamp(dragBaseX + (e.clientX - dragStartX), dragOriginSlot);
+      dragTarget = photoFollow(dragBaseX + (e.clientX - dragStartX), dragOriginSlot);
       if (!dragRaf) { dragLastT = 0; dragRaf = requestAnimationFrame(dragTick); }  /* 重起循环先清时间戳 */
     }
     velSamples.push({ t: e.timeStamp, x: e.clientX });
@@ -1259,7 +1337,7 @@
       }
       return;
     }
-    snapFromDrag(vel);
+    snapFromDrag(vel, e.clientX - dragStartX);
   }
   stage.addEventListener('pointerup', endDrag);
   stage.addEventListener('pointercancel', endDrag);
@@ -1445,6 +1523,12 @@
      全留 ⇒ 上一次滚动的余量泄漏到下一次微滚（实测 24px 蹭一下也白走一张）。
      滚轮那条按距离走，余量是合法的"账"，不受这个封顶。 */
   var W_CARRY_MAX = 0.4;
+  /* 第三百二十五批：本段**是否已经兑现过一张**。为什么必须有：323 批那道"预算用光才许
+     重开"的闸门原来读**导轨位置**（|x − 锚点| ≥ 0.8 张）—— 导轨 1:1 跟手时它就等于
+     "输入走了 0.8 张"。照片档下导轨只挪 ~40px（跟手封顶），这条读法永远不成立 ⇒
+     真机"连甩两下"的第二下再也开不出新段（套件 A25 实测 Δslot 从 2 掉到 1，是真回归）。
+     改读账本与兑现状态，与"导轨长什么样"解耦。 */
+  var wheelSegSpent = false;
   var segs = 0;             /* 本次经历了几段手势（?cdebug=1 可读，套件用） */
   /* 第三百二十四批：与拖拽的 DRAG_K 统一到 0.95（原来这里 0.92、拖拽 0.95 —— 同一件事
      两个系数，滚轮比拖拽多滞后一点；"慢慢滑和快速滑手感一样"也包括这两条输入要一致）。 */
@@ -1483,6 +1567,7 @@
          k = 0 的落位（"还不到半档，先回位"）必须原样留着，"滚一格、停一下、再滚一格"
          才攒得到第一张 —— 实测踩过：这里无条件清账 ⇒ 慢滚（间隔 ≥120ms 那种）一张都走不动。 */
       if (k !== 0) {
+        wheelSegSpent = true;   /* 第三百二十五批：本段兑现过一张（新出手重开闸门用） */
         wheelAcc -= k * st;
         if (!wheelNotchy) {
           /* 触控板：剩下的余量**封顶在 0.4 张**（321 批的自留地）——
@@ -1497,7 +1582,14 @@
       target = Math.round(x / st) * st;
       wheelBase = 0; wheelAcc = 0;
     }
-    if (Math.abs(target - x) > 0.5) startFinish(target, vIn, FIN_TMAX_WHEEL);
+    if (Math.abs(target - x) > 0.5) {
+      /* 第三百二十五批（照片同款）：这一轮**一张都没兑现**（k === 0，画面只是被跟手
+         挪开一点点）⇒ 瞬间归位，零动画 —— 与灯箱 lbDragEnd 里那句 lbRest 同义。
+         这就是主人说的"滑到中间反弹的动画"（逐帧实测：滚 120px → 106.5→99.9→…→0，
+         ~250ms 的动画回位）。过了阈值那条走下面的落位曲线 = "一次滑到底"。 */
+      if (PHOTO_DRAG && PAGE_PER_GESTURE && k === 0) instantReturn(target);
+      else startFinish(target, vIn, FIN_TMAX_WHEEL);
+    }
   }
   root.addEventListener('wheel', function (e) {
     e.preventDefault();
@@ -1523,14 +1615,22 @@
     /* 第三百二十四批：停手 ≥1s ⇒ 上一轮滚动结束，重新起账（锚点取当前档位）。 */
     if (PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) {
       wheelBase = slotAnchor();
-      wheelAcc = 0;
+      wheelAcc = 0; wheelSegSpent = false;
       segs = 0;
     }
-    /* 第三百二十四批 · 锚点自愈：键盘/点击/拖拽把导轨挪出了本段窗口（±一张）时，
-       以**当前档位**重新起账 —— 否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。 */
-    if (PAGE_PER_GESTURE && Math.abs(x - wheelBase) > st1 * 1.05) {
+    /* 第三百二十四批 · 锚点自愈：键盘/点击/拖拽把导轨挪出了本段窗口时，以**当前档位**
+       重新起账 —— 否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。
+       第三百二十五批：照片档下"本段窗口"不再是 ±一张（导轨只挪 ~40px），判据改成
+       "导轨是否在本段该在的位置附近"：该在的位置 = 锚点 + 照片同款跟手位移，
+       容差 = 跟手封顶 + 20px。⚠️ 落位曲线/跟手逼近在跑时（FIN / raf）不判：
+       那期间导轨本来就在途中，判了会把本轮的账清掉。 */
+    if (PAGE_PER_GESTURE && !PHOTO_DRAG && Math.abs(x - wheelBase) > st1 * 1.05) {
       wheelBase = slotAnchor();
       wheelAcc = 0;
+    } else if (PAGE_PER_GESTURE && PHOTO_DRAG && !FIN && !raf &&
+               Math.abs(x - (wheelBase + carFollow(wheelAcc, st1))) > carFollowCap(st1) + 20) {
+      wheelBase = slotAnchor();
+      wheelAcc = 0; wheelSegSpent = false;
     }
     var tpRes = tp.feed(d, 0, e.timeStamp);
     var tpNewAction = tpRes.cancel || tpRes.start || (tpRes.cliff && tpWasMomentum);
@@ -1539,11 +1639,23 @@
        新出手 / 长停 ⇒ 这一次输入结束，判据重新取。 */
     if (tpNewAction || PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) wheelNotchy = false;
     if (!tpRes.momentum && Math.abs(d) >= W_NOTCH_MIN && wheelGap >= W_NOTCH_GAP) wheelNotchy = true;
-    var exhausted = PAGE_PER_GESTURE && Math.abs(x - wheelBase) >= W_REARM_LEFT * st1;
+    /* 第三百二十五批：闸门改读账本 —— "本段已经兑现过一张" 或 "账上已经够 0.8 张"。
+       原来读 |x − 锚点| 是"导轨 1:1 跟手"时代的代理量，照片档下永不成立（见文件头 325 批）。 */
+    var exhausted = PAGE_PER_GESTURE &&
+      (wheelSegSpent || Math.abs(wheelAcc) >= W_REARM_LEFT * st1);
     if (PAGE_PER_GESTURE && wheeling && exhausted && tpNewAction) {
-      wheelBase = slotAnchor();
-      wheelAcc = 0; wHist.length = 0;
+      /* 第三百二十五批：新一段的基准从**账本**折算（±1 张封顶 = 324 批"一次手势一张"）。
+         ⚠️ 别再用 `slotAnchor()`（= 导轨当前所在档位）：旧版导轨 1:1 跟手时它与账本
+         等价，照片档下导轨只有 ~40px ⇒ 基准原地不动、账被整段丢掉（真机连甩两下那条
+         实测：942px ≈ 2.1 张的账直接消失，结果 2 张掉成 1 张 —— A25 抓到的真回归）。
+         基准前进的这**一张**是"上一出手的战果"，当场走一次落位曲线滑到底（照片语义：
+         每次出手各自完成一次切换）。剩下不足半档的零头按 324 批的规矩丢掉。 */
+      var lv = Math.round(wheelAcc / st1);
+      if (!wheelNotchy) { if (lv > 1) lv = 1; else if (lv < -1) lv = -1; }
+      wheelBase = wheelBase + lv * st1;
+      wheelAcc = 0; wHist.length = 0; wheelSegSpent = false;
       segs++;
+      if (PHOTO_DRAG && lv !== 0 && Math.abs(wheelBase - x) > 0.5) startFinish(wheelBase, 0, FIN_TMAX_WHEEL);
     }
     if (!wheeling) {
       wheeling = true;
@@ -1552,6 +1664,7 @@
          ⚠️ 第三百二十四批：这里**不再清 wheelAcc**（清了就回到"慢滚没反应"）——
             账本是"本次滚动"级的，只由 wheelGap ≥1s 或"新出手"来结。 */
       if (!PAGE_PER_GESTURE) { wheelBase = x; wheelAcc = 0; }
+      wheelSegSpent = false;
       wHist.length = 0;
       segs++;
     }
@@ -1564,7 +1677,10 @@
      第三百二十二批改饱和）：手势推得再猛，导轨也只走到相邻一张，停滚落 起点 / 相邻一张，
      且界外仍有响应（惯性尾巴 = 自然的滑行收起，见 railClamp）。 */
     /* 滚轮（一格一格）按距离 1:1 跟手；触控板夹在「起点 ± 一张」（第三百二十一批）。 */
-    animateTo(wheelNotchy ? wheelBase + wheelAcc : railClamp(wheelBase + wheelAcc, wheelBase), W_K);
+    /* 第三百二十五批：落位曲线在飞时不接管画面 —— 那次飞行是"这一张滑到底"，
+       用指数逼近去改目标会把它整段吃掉（401px 一步跳完）。跟手窗口只有 ~40px，
+       暂停这一小会儿看不出来。`?cphoto=0` 保持 324 批原样（反证档要逐字可比）。 */
+    if (!(PHOTO_DRAG && FIN)) animateTo(photoFollow(wheelBase + wheelAcc, wheelBase), W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
@@ -1620,6 +1736,9 @@
         animating: !!(raf || dragRaf || FIN),
         dragging: dragging, wheeling: wheeling,
         paged: PAGE_PER_GESTURE,                   /* 第三百二十一批：一次手势一张 */
+        photo: PHOTO_DRAG,                         /* 第三百二十五批：照片同款跟手 */
+        commitDist: Math.round(carCommitDist(step())),   /* 提交距离 px */
+        followCap: carFollowCap(step()),                 /* 跟手封顶 px */
         segs: segs,                                /* 第三百二十三批：已经历几段手势 */
         railQuietMs: Math.round(performance.now() - railMoveT),
       };
