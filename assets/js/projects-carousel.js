@@ -1417,12 +1417,33 @@
      取 1s 的理由：macOS 惯性尾巴最长约 1s，超过它就是"我这次滚完了"；
      而 120ms（W_IDLE）只是"这一次落位该走了"，**不能**当清账的判据（见文件头 324 批）。 */
   var W_CARRY_KEEP = 1000;
+  /* 第三百二十四批 · **慢滚 = 快滚**（主人「慢慢滑动和快速滑动的手感应该一样吧」）。
+     实测病灶（固定距离、只改事件间隔，1280 / step=441）：改前 8/16/40/80ms 间隔都走 1 张，
+     **160/250ms 间隔一张都不走** —— `wheelEnd`（120ms 静默）顺手把攒好的位移清零了。
+     改法：账本**跨落位保留**（落位走掉的整档从账上扣、余量留到下一段）。
+
+     另一半是"一次滚动走几张"。主人 2026-09-26 亲选「一次滚动只走一张」，于是按
+     **输入设备的物理语义**分开记（这两条各自内部都完全与速度无关）：
+       · 触控板 = 一次**手指接触**（探测器报新出手 / 停手 ≥1s 为界）→ 一次接触最多一张。
+         一次接触里手指拖多远都只走一张（= 主人 321 批的原话"一次只能滑动一张卡片"）。
+       · 鼠标滚轮 = **离散一格一格**的输入（灯箱实测特征：单条位移 ≥60px 且距上一条 ≥40ms，
+         而且滚轮没有惯性尾巴、没有 cliff 报信）→ **按距离走**：滚 4 格 = 一张，
+         滚 16 格 = 4 张，快滚慢滚一模一样（滚轮本来就是"滚多远走多远"的精度输入）。
+     判据取灯箱 `LB_NOTCH_MIN/GAP` 的实测结论（`lightbox.js` 那段"鼠标滚轮没有惯性尾巴、
+     也没有 cliff 报信"），⚠️ 触控板快甩每格只有 8~16ms、位移也常在 60px 以下 ⇒ 不会被误判。 */
+  var W_NOTCH_MIN = 60;     /* 单条位移多大才算"一格"（灯箱实测值） */
+  var W_NOTCH_GAP = 40;     /* 且距上一条至少这么久（灯箱实测值） */
+  var wheelNotchy = false;  /* 本轮是不是"一格一格"的滚轮输入（见文件头 324 批） */
   /* 第三百二十四批 · 余额上限（单位：张）。超过这个比例的余量在落位时**勾掉**
      （不带到下一段）。为什么必须有：一次很猛的滚动（例如 1440px ≈ 3.3 张）只会落一张，
      余下 2.3 张若全带下去，下一次微滚（哪怕只有 24px）一伸手就白拿一张 —— 那是
      "卡片无故自己走"级的怪 bug。勾到 0.4 张同时保证：**下一段至少要再给 0.1 张
      真实位移才可能换卡**（0.4 + Δ ≥ 0.5 才提交），而慢滚那种"一格一格攒"的余量
      本来就小于 0.4 张，一点不受影响。 */
+  /* 触控板那条：「兑现一张」之后余量**封顶**在这里（0.4 张）。
+     为什么必须有：不清零 ⇒ "滚一格、停一下、再滚一格"攒不出第一张（实测慢滚打回 0 张）；
+     全留 ⇒ 上一次滚动的余量泄漏到下一次微滚（实测 24px 蹭一下也白走一张）。
+     滚轮那条按距离走，余量是合法的"账"，不受这个封顶。 */
   var W_CARRY_MAX = 0.4;
   var segs = 0;             /* 本次经历了几段手势（?cdebug=1 可读，套件用） */
   /* 第三百二十四批：与拖拽的 DRAG_K 统一到 0.95（原来这里 0.92、拖拽 0.95 —— 同一件事
@@ -1454,16 +1475,23 @@
     var target;
     if (PAGE_PER_GESTURE) {
       var k = Math.round(wheelAcc / st);
-      if (k > 1) k = 1; else if (k < -1) k = -1;      /* 一次落位最多一张（不变式） */
+      /* 触控板：一次接触最多一张（321 批）；滚轮：按距离（滚几格就几张，快慢一致）。 */
+      if (!wheelNotchy) { if (k > 1) k = 1; else if (k < -1) k = -1; }
       target = wheelBase + k * st;
       wheelBase += k * st;                            /* 锚点前进已走掉的档 */
-      wheelAcc -= k * st;                             /* 余量带到下一段 */
-      /* 余额封顶（见 W_CARRY_MAX）：勾掉超过 0.4 张的部分，别让下一次微滚白拿一张。
-         ⚠️ **只在真的走掉一张（k ≠ 0）时勾** —— 每次落位都勾的话，"一格一格慢慢攒"
-         的账永远涨不过半档（实测：480px 慢滚从 1 张掉回 0 张，正是不许出现的回归）。 */
+      /* ⚠️ 只有**真的兑现了一张**（k ≠ 0）才动账：
+         k = 0 的落位（"还不到半档，先回位"）必须原样留着，"滚一格、停一下、再滚一格"
+         才攒得到第一张 —— 实测踩过：这里无条件清账 ⇒ 慢滚（间隔 ≥120ms 那种）一张都走不动。 */
       if (k !== 0) {
-        var cap = W_CARRY_MAX * st;
-        if (wheelAcc > cap) wheelAcc = cap; else if (wheelAcc < -cap) wheelAcc = -cap;
+        wheelAcc -= k * st;
+        if (!wheelNotchy) {
+          /* 触控板：剩下的余量**封顶在 0.4 张**（321 批的自留地）——
+             不清零（否则"一格一格慢慢攒"攒不出第一张），也不全留（否则上一次滚动的
+             余量会泄漏到下一次微滚：实测 24px 蹭一下也能白走一张）。 */
+          var cap = W_CARRY_MAX * st;
+          if (wheelAcc > cap) wheelAcc = cap; else if (wheelAcc < -cap) wheelAcc = -cap;
+        }
+        /* 滚轮：余量原样带走（本来就按距离走，余量是合法的"下一步的账"）。 */
       }
     } else {
       target = Math.round(x / st) * st;
@@ -1507,6 +1535,10 @@
     var tpRes = tp.feed(d, 0, e.timeStamp);
     var tpNewAction = tpRes.cancel || tpRes.start || (tpRes.cliff && tpWasMomentum);
     tpWasMomentum = tpRes.momentum;
+    /* 第三百二十四批：是不是"一格一格"的滚轮输入（灯箱实测特征，见 W_NOTCH_MIN 那段）。
+       新出手 / 长停 ⇒ 这一次输入结束，判据重新取。 */
+    if (tpNewAction || PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) wheelNotchy = false;
+    if (!tpRes.momentum && Math.abs(d) >= W_NOTCH_MIN && wheelGap >= W_NOTCH_GAP) wheelNotchy = true;
     var exhausted = PAGE_PER_GESTURE && Math.abs(x - wheelBase) >= W_REARM_LEFT * st1;
     if (PAGE_PER_GESTURE && wheeling && exhausted && tpNewAction) {
       wheelBase = slotAnchor();
@@ -1531,7 +1563,8 @@
     /* 连续跟手：不量化档位、不抖 —— 但累计位移收进「起点 ± 一张」内（第三百二十一批，
      第三百二十二批改饱和）：手势推得再猛，导轨也只走到相邻一张，停滚落 起点 / 相邻一张，
      且界外仍有响应（惯性尾巴 = 自然的滑行收起，见 railClamp）。 */
-    animateTo(railClamp(wheelBase + wheelAcc, wheelBase), W_K);
+    /* 滚轮（一格一格）按距离 1:1 跟手；触控板夹在「起点 ± 一张」（第三百二十一批）。 */
+    animateTo(wheelNotchy ? wheelBase + wheelAcc : railClamp(wheelBase + wheelAcc, wheelBase), W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
