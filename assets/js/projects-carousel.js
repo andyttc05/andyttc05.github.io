@@ -470,11 +470,19 @@
     var v = d * (cap / carCommitDist(st));
     return v > cap ? cap : (v < -cap ? -cap : v);
   }
-  /* 跟手位置（拖拽与滚轮共用）：基准 + 照片同款位移。
-     `?cphoto=0` 时回 324 批（1:1 跟手 + railClamp 的饱和夹子）。 */
-  function photoFollow(pos, base) {
+  /* 跟手位置（拖拽与滚轮共用）。**第三百二十六批分了两类输入**（主人「卡片滑动很拖泥」
+     「连续滑动不是很流畅」——325 批我把照片档的"微跟手"（封顶 9% ≈ 40px）统一套到所有输入上，
+     跟手比实测只有 41%，拖过 97px 之后**导轨一动不动**（拖 600px 也只走 40px = 7%），
+     于是"卡片不跟手"= 拖泥）：
+       · **跟手型输入**（指针拖拽、触控板连续事件）→ `railClamp`：前 0.7 张**逐帧 1:1**，
+         之后**渐近饱和**到一张（322 批那条曲线；长距离也一直在动，只是越拖越沉）。
+         跟手比 100%（前 309px）→ 拖 1200px 时导轨已到 ~1 张（不再是 40px 的墙）。
+       · **步进型输入**（鼠标滚轮：离散一格一格，没有"手指位置"这回事）→ 照片档微跟手
+         （位移 × damp、硬封顶）：一格滚动的反馈本来就是"轻推一下"，不该把导轨拉走一格。
+         `?cphoto=0` 时连它也回到 324 批的 1:1（反证档用）。 */
+  function photoFollow(pos, base, stepping) {
     if (!PAGE_PER_GESTURE) return pos;
-    if (!PHOTO_DRAG) return railClamp(pos, base);
+    if (!PHOTO_DRAG || !stepping) return railClamp(pos, base);
     return base + carFollow(pos - base, step());
   }
   /* 没过阈值 ⇒ **瞬间归位，零动画**（灯箱 lbRest 同一句）。跟手封顶只有 ~40px，
@@ -501,6 +509,18 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 跟手还给手指（第三百二十六批，主人「卡片滑动很拖泥」「卡片连续滑动不是很流畅」）
+     先量：跟手比（导轨位移 / 手指位移）—— 拖 40px→41%、97px→41%、**300px→13%、600px→7%**
+     （封顶 40px 之后再拖就不动了）。这是 325 批把照片档"微跟手"统一套到所有输入上造成的。
+     改法三条：
+       ① 跟手型输入（拖拽 / 触控板）回到 **1:1 + 渐近饱和**（322 批那条曲线）：前 0.7 张
+          逐帧 1:1，之后渐近到一张 —— 长距离也在动，且"跟手 + 落位 = 恰好一步"仍然成立
+          （拖得够远时跟手已经走了 ~1 张，松手只补最后几 px）。离散鼠标滚轮仍是微跟手。
+       ② 触控板"要不要落一张"的门槛从半档降到**提交线**（0.22 步）：它同时是"没过线瞬间
+          归位"那个瞬跳的上界（半档 220px → 提交线 97px）。
+       ③ 手势起点改用 `slotAnchor()`（在飞的落位取它**目的地**那一档）：上一张还在落位途中
+          再抓一把时，不会把基准钉回上一档、松手回退一段。
+     松手语义保持 325 批：没过线 ⇒ **瞬间归位、零动画**；过线 ⇒ **一次滑到底**。 */
   /* ── 照片同款（第三百二十五批，主人「一个手势只能滑动一张，移除滑到中间反弹的动画，
         和照片一样一次滑到底」）────────────────────────────────────────────
      改前实测（1280 / step=441）：拖 180px 松手 ⇒ 跟手 180px、松手后动画回位 190 帧；
@@ -1137,8 +1157,8 @@
   root.tabIndex = 0;
   root.addEventListener('keydown', function (e) {
     if (dragging) resetDrag();   /* 第二百六十四批：拖拽态失联时键盘先接管 */
-    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(STEP_K); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); next(STEP_K); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(STEP_K); voidWheelRound(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); next(STEP_K); voidWheelRound(); }
     lastInputT = Date.now();   /* 第二百六十六批 */
   });
 
@@ -1206,7 +1226,11 @@
       dragEngaged = true;
       stopTick();
       dragBaseX = x;
-      dragOriginSlot = originSlot(x);   /* 第三百二十一批：夹紧与落位的共同基准 */
+      /* 第三百二十六批：起点档取**在飞的落位的目的地**（`slotAnchor`），不是"此刻导轨所在的
+         最近档"。主人「连续滑动不是很流畅」：上一张还在 400px 落位途中（导轨在半路）时再抓一把，
+         按"最近档"算会把基准钉回**上一档** ⇒ 松手时卡片回退一段（并且 looks 卡在半路）。
+         `slotAnchor()` 本来就是为这件事写的（它取 FIN 的目标 / 指数逼近的目标）。 */
+      dragOriginSlot = PAGE_PER_GESTURE ? slotAnchor() : originSlot(x);
       dragTarget = x;
       dragPrevT = 0; dragPrevX = NaN;
       setDraggingClass(true);
@@ -1270,6 +1294,7 @@
   function endDrag(e) {
     if (!dragging) return;
     dragging = false;
+    voidWheelRound();   /* 第三百二十六批：拖拽 = 别的输入，滚轮那一轮的账作废 */
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = null; }
     setDraggingClass(false);
     var moved = Math.abs(e.clientX - dragStartX);
@@ -1333,6 +1358,7 @@
           /* 第二百六十三批追加（主人"点击页面的动画和自动轮播一样"）：
              点击侧卡居中改用 STEP_K —— 与键盘跳档同款 ~0.5s 优雅滑行 */
           animateTo(-j * stT, STEP_K);
+          voidWheelRound();   /* 第三百二十六批：点击居中 = 别的输入动过导轨 ⇒ 滚轮的账作废 */
         }
       }
       return;
@@ -1522,7 +1548,7 @@
      为什么必须有：不清零 ⇒ "滚一格、停一下、再滚一格"攒不出第一张（实测慢滚打回 0 张）；
      全留 ⇒ 上一次滚动的余量泄漏到下一次微滚（实测 24px 蹭一下也白走一张）。
      滚轮那条按距离走，余量是合法的"账"，不受这个封顶。 */
-  var W_CARRY_MAX = 0.4;
+  var W_CARRY_MAX = 0.6;   /* ⚠️ 单位是**提交线**不是"张"（326 批改）：0.6 × 提交线 ≈ 58px */
   /* 第三百二十五批：本段**是否已经兑现过一张**。为什么必须有：323 批那道"预算用光才许
      重开"的闸门原来读**导轨位置**（|x − 锚点| ≥ 0.8 张）—— 导轨 1:1 跟手时它就等于
      "输入走了 0.8 张"。照片档下导轨只挪 ~40px（跟手封顶），这条读法永远不成立 ⇒
@@ -1538,6 +1564,13 @@
                                用来算"手势末段实速"，作落位曲线初速（见上） */
   var W_IDLE = parseInt((location.search.match(/[?&]cwidle=(\d+)/) || [])[1], 10) || 120;
 
+  /* 第三百二十六批：**别的输入动过导轨 ⇒ 滚轮这一轮的账作废**（锚点取新档位、余量清零）。
+     键盘 / 点击居中 / 拖拽三条路各自调用它（见那三处）。 */
+  function voidWheelRound() {
+    if (!PAGE_PER_GESTURE || !PHOTO_DRAG) return;
+    wheelBase = slotAnchor();
+    wheelAcc = 0; wheelSegSpent = false;
+  }
   function wheelEnd() {
     wheelIdleTimer = null;
     if (!wheeling) return;
@@ -1561,6 +1594,12 @@
       var k = Math.round(wheelAcc / st);
       /* 触控板：一次接触最多一张（321 批）；滚轮：按距离（滚几格就几张，快慢一致）。 */
       if (!wheelNotchy) { if (k > 1) k = 1; else if (k < -1) k = -1; }
+      /* ⚠️ 第三百二十六批试过把触控板这条门槛降到**提交线**（0.22 步），**回退了** —— 结构上不行：
+         一次兑现永远推进**整档**（`wheelBase += k*st`），门槛只要小于半档，兑现后的余量就会
+         翻符号（0.5 档兑现后余 −0.5 档 = 反向过线）⇒ 连续兑现互相打架。
+         实测（`probe-speed`，固定 480px / 事件间隔 160ms）:走了 **3 张**（应为 1 张）。
+         结论：**门槛必须 ≥ 半档**。代价是"没过线瞬间归位"的幅度上界回到半档（220px）——
+         这是主人 325 批明确要的"没有回弹动画"的直接代价；要改先问（选项是"短促的 120ms 回位"）。 */
       target = wheelBase + k * st;
       wheelBase += k * st;                            /* 锚点前进已走掉的档 */
       /* ⚠️ 只有**真的兑现了一张**（k ≠ 0）才动账：
@@ -1573,7 +1612,11 @@
           /* 触控板：剩下的余量**封顶在 0.4 张**（321 批的自留地）——
              不清零（否则"一格一格慢慢攒"攒不出第一张），也不全留（否则上一次滚动的
              余量会泄漏到下一次微滚：实测 24px 蹭一下也能白走一张）。 */
-          var cap = W_CARRY_MAX * st;
+          /* 第三百二十六批：封顶**跟着提交线走**（0.6 × 提交线）而不是写死的 0.4 张。
+             提交线从半档降到 0.22 步之后，0.4 张（176px）的余量**自己一个人就过了线**
+             （176 ≥ 97）⇒ 下一段随便蹭一下（24px）也白走一张（套件 A3 实测抓到的）。
+             取 0.6 ⇒ 余量单独不够提交，再给 0.4 条线的真实位移才够。 */
+          var cap = W_CARRY_MAX * carCommitDist(st);
           if (wheelAcc > cap) wheelAcc = cap; else if (wheelAcc < -cap) wheelAcc = -cap;
         }
         /* 滚轮：余量原样带走（本来就按距离走，余量是合法的"下一步的账"）。 */
@@ -1618,20 +1661,18 @@
       wheelAcc = 0; wheelSegSpent = false;
       segs = 0;
     }
-    /* 第三百二十四批 · 锚点自愈：键盘/点击/拖拽把导轨挪出了本段窗口时，以**当前档位**
-       重新起账 —— 否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。
-       第三百二十五批：照片档下"本段窗口"不再是 ±一张（导轨只挪 ~40px），判据改成
-       "导轨是否在本段该在的位置附近"：该在的位置 = 锚点 + 照片同款跟手位移，
-       容差 = 跟手封顶 + 20px。⚠️ 落位曲线/跟手逼近在跑时（FIN / raf）不判：
-       那期间导轨本来就在途中，判了会把本轮的账清掉。 */
+    /* 第三百二十四批 · 锚点自愈（`?cphoto=0` 反证档仍用这条几何判据）：
+       键盘/点击/拖拽把导轨挪出了本段窗口（±一张）时以当前档位重新起账 ——
+       否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。 */
     if (PAGE_PER_GESTURE && !PHOTO_DRAG && Math.abs(x - wheelBase) > st1 * 1.05) {
       wheelBase = slotAnchor();
       wheelAcc = 0;
-    } else if (PAGE_PER_GESTURE && PHOTO_DRAG && !FIN && !raf &&
-               Math.abs(x - (wheelBase + carFollow(wheelAcc, st1))) > carFollowCap(st1) + 20) {
-      wheelBase = slotAnchor();
-      wheelAcc = 0; wheelSegSpent = false;
     }
+    /* ⚠️ 第三百二十六批：**几何自愈在默认档已删除**，改成"别的输入显式作废本轮的账"
+       （`voidWheelRound()`，键盘 / 点击居中 / 拖拽三处各自调用）。为什么不能靠几何推断：
+       326 把跟手还给手指（1:1 + 渐近饱和到一张）之后，"导轨离锚点一整张"既是键盘跳一档的
+       结果、也是滚轮自己跟手就能到的地方 —— 几何上再也分不开。实测（这条误判的代价）：
+       自愈在连续推流中途反复触发 ⇒ 中途清账 + 提前兑现 ⇒ 1440px 的推流走了 **3 张**（该 1 张）。 */
     var tpRes = tp.feed(d, 0, e.timeStamp);
     var tpNewAction = tpRes.cancel || tpRes.start || (tpRes.cliff && tpWasMomentum);
     tpWasMomentum = tpRes.momentum;
@@ -1680,7 +1721,7 @@
     /* 第三百二十五批：落位曲线在飞时不接管画面 —— 那次飞行是"这一张滑到底"，
        用指数逼近去改目标会把它整段吃掉（401px 一步跳完）。跟手窗口只有 ~40px，
        暂停这一小会儿看不出来。`?cphoto=0` 保持 324 批原样（反证档要逐字可比）。 */
-    if (!(PHOTO_DRAG && FIN)) animateTo(photoFollow(wheelBase + wheelAcc, wheelBase), W_K);
+    if (!(PHOTO_DRAG && FIN)) animateTo(photoFollow(wheelBase + wheelAcc, wheelBase, wheelNotchy), W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
