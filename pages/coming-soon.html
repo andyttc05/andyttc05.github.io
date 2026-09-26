@@ -9,14 +9,14 @@
 <!-- 防白闪底色（2026-09-15）：与其余四页统一 —— 外部 CSS 到达前 <html> 已是 paper 色。
      本页没有深色主题，所以只写 light 一条（其余四页还有 html.theme-dark 那条）。 -->
 <style>
-  html { background: #f8fafc; }
+  html { background: #f5f5f7; }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（本页不引 style.css 也要用），三个页面共用 -->
@@ -55,26 +55,31 @@
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
 <style>
   :root {
-    --color-ink: #0f172a;
-    --color-paper: #f8fafc;
-    --color-accent: #2563eb;
-    --color-accent-rgb: 37, 99, 235;
-    --color-rule: #cbd5e1;
-    --color-muted: #475569;
-    --color-alt: #f1f5f9;
+    /* 这一页不引 style.css，所以把 token 抄了一份（移植规范）——
+       改 style.css 那几枚记得同步这里，两份要逐字节相同。
+       ⚠️ 2026-09-26 同步：新增 --color-canvas #f5f5f7、--color-alt 降到 #ebebed
+          （画布从 #ffffff 变 #f5f5f7 的那一轮，见 style.css 的 :root）。 */
+    --color-ink: #1d1d1f;
+    --color-paper: #ffffff;
+    --color-canvas: #f5f5f7;
+    --color-accent: #0066cc;
+    --color-accent-rgb: 0, 102, 204;
+    --color-rule: #d2d2d7;
+    --color-muted: #6e6e73;
+    --color-alt: #ebebed;
   }
   /* 加载页关键定位（第一百四十五批）：首帧即全屏覆盖（loader.css 的完整视觉就位前兜底） */
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-canvas, #f5f5f7);
+    color: var(--color-ink, #1d1d1f);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 背景色只放 html（画布层），body 透明——否则不透明 body 背景会盖住全屏背景 canvas */
   html {
     height: 100%;
-    background: var(--color-paper);
+    background: var(--color-canvas);
     color: var(--color-ink);
     font-family: 'IBM Plex Serif', 'Plex Serif FB', serif;
   }

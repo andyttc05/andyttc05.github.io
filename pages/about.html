@@ -8,10 +8,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="关于时雨时猫，分享作品和生活的地方">
-<meta name="theme-color" content="#f8fafc">
+<meta name="theme-color" content="#ffffff">
 <title>关于 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
@@ -19,8 +21,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -52,7 +54,7 @@
   var saved = localStorage.getItem('rainmeow-theme');
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <style>
   .icon-sun { display: none; }
@@ -64,12 +66,12 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
@@ -78,12 +80,12 @@
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=02cbded222">
+<link rel="stylesheet" href="../assets/css/style.css?v=fc6c351e70">
 </head>
 <body>
 
@@ -388,7 +390,7 @@
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <script src="../assets/js/about-loop.js?v=cddd8bfde2" defer></script>
 </body>

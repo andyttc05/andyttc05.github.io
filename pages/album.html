@@ -17,7 +17,7 @@
        下面这段说明本身刻意不写出完整的注释标记 —— HTML 注释不能嵌套，
        写全了会把本段提前收口，剩下的字会掉进文档里当正文。
      生成器只换两者**之间**的内容，标记本身留着 ⇒ 可以反复重跑（幂等）。 -->
-<meta name="theme-color" content="#f8fafc">
+<meta name="theme-color" content="#ffffff">
 <!--RM-BEGIN headmeta-->
 <meta name="description" content="一本相簿一个地方，都是当时拍的">
 <!--RM-END headmeta-->
@@ -26,6 +26,8 @@
 <!--RM-END title-->
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
@@ -33,8 +35,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -80,7 +82,7 @@
   var saved = localStorage.getItem('rainmeow-theme');
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <style>
   .icon-sun { display: none; }
@@ -92,12 +94,12 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 
@@ -107,12 +109,12 @@
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=02cbded222">
+<link rel="stylesheet" href="../assets/css/style.css?v=fc6c351e70">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
@@ -370,7 +372,7 @@
   <script src="../assets/js/photos.js?v=8f485346a8" defer></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
        排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完

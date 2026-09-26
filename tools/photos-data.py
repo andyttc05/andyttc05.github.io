@@ -222,6 +222,78 @@ def set_region(src, name, body):
     return src[:m0.end()] + body + src[m1.start():]
 
 
+HERO_TAG = '<header class="about-hero album-hero" id="albumHero">'
+
+# ------------------------------------------------------- 展示层的拉丁字宽表
+# 单位 **em** = 「一个字占多少倍字号（font-size）」。用它把展示蓝那一行英文名
+# 反推成一个**与汉字那块逐像素等宽**的字号 —— 就是参考站那条最关键的机关
+# （实测 `桃之夭夭` 552px / `Gallery` 635px，两块几乎一样宽）。
+# ⚠️ 别改成「字数 × 平均值」估：`TAI O` 里有个窄 I 和两个空格、`HKUST` 全是宽字母，
+#    同样 5 个字符实际宽度差 35%，估出来的值等于白算。
+# ⚠️ 这张表由 `tools/display-font.py` 从**子集字体本身**量出来并打印（那边有 fontTools）。
+#    换字族 / 换字重 / 换子集源才需要重跑它并换掉这张表；**只加相簿不用动**
+#    —— 表里只有拉丁字母与标点，没有汉字。
+LATIN_W = {
+    " ": 0.227, "&": 0.740, "'": 0.325, ",": 0.325, "-": 0.370, ".": 0.325,
+    "/": 0.387, ":": 0.325, "·": 1.000, "—": 0.908, "’": 1.000,
+    "0": 0.590, "1": 0.590, "2": 0.590, "3": 0.590, "4": 0.590,
+    "5": 0.590, "6": 0.590, "7": 0.590, "8": 0.590, "9": 0.590,
+    "A": 0.641, "B": 0.681, "C": 0.656, "D": 0.714, "E": 0.615, "F": 0.585,
+    "G": 0.717, "H": 0.757, "I": 0.330, "J": 0.568, "K": 0.686, "L": 0.578,
+    "M": 0.853, "N": 0.749, "O": 0.770, "P": 0.667, "Q": 0.770, "R": 0.682,
+    "S": 0.624, "T": 0.625, "U": 0.748, "V": 0.619, "W": 0.915,
+    "Y": 0.580, "Z": 0.613,
+}
+# 2026-09-26：跟着巨字字重 900→700 重算过一遍（`tools/display-font.py` 会打印这张表）。
+# ⚠️ `X` 目前**不在子集里**（没有任何展示层字符串用到它），所以这里没有它的条目 ——
+#    真用到时会落到 `LATIN_W.get(c, 0.6)` 的默认值上，同时 `display-font.py` 的缺字自检
+#    会拒绝写入 ⇒ 重跑一次生成器即可（它会把 X 收进子集并把真值打出来）
+# ⚠️ `’` = 1.0em 不是笔误：Noto Sans SC 里的 U+2019 是**全角**引号，跟汉字一样占一格
+#    （fontsource 与 Google Fonts 两个来源量出来都是 1.0）。它只影响「炮台山・金督驰马径」
+#    这一本的英文名宽度，但少了它那一本的拉丁块会窄掉 3.6%。
+
+
+def latin_width(text):
+    """英文名的总宽（em）。渲染层会 `text-transform: uppercase`，所以先转大写再查表。
+    表里没有的字符按 0.6em 估 —— 但真出现这种情况该去重跑 tools/display-font.py：
+    子集里没有的字会掉回系统字体，字重突变。"""
+    return round(sum(LATIN_W.get(c, 0.6) for c in text.upper()), 2)
+
+
+def date_label(a):
+    """这一册的拍摄日期。单日就一个日期，跨日写成 `起 – 讫`。
+
+    ⚠️ **现在没有任何调用者**（2026-09-26 第三百二十一批把那行元信息删了），
+    留着是因为它是这条路上唯一"把 first/last 变成人读字符串"的地方 ——
+    哪天要把日期放回来（或者放进 description / 灯箱说明行），直接调它就行。
+    哪天确认永久不要了，删掉整个函数即可，它不依赖别的任何东西。"""
+    f, l = a["first"], a["last"]
+    fmt = lambda d: d.replace("-", ".")
+    return fmt(f) if f == l else f"{fmt(f)} – {fmt(l)}"
+
+
+def set_hero_metrics(src, n, latin_w):
+    """把这一册巨字的**字数**与英文名的**总宽**写到 hero 的 <header> 上
+    （`--cjk-n` 与 `--latin-w`）。
+
+    展示层的字号由这两个数算（见 style.css 的「巨字的尺寸是算出来的」那段）：
+    册名从 2 字（大澳）到 9 字（炮台山・金督驰马径）差 4.5 倍，不按字数缩的话
+    短册名像个普通标题、长册名撑出容器。英文名那一行则要求与汉字那块**等宽**，
+    所以还得知道英文名自己占几个 em。
+
+    ⚠️ **必须挂在 <header> 上，不能挂在 <h1> 上。** 两条理由：
+      ① 自定义属性会继承 —— 挂在外层一样能被子元素读到，效果等价；
+      ② `tools/stamp.mjs` 的 ALBUM 检查要求册页里**逐字存在**
+         `<h1 class="album-title">册名</h1>`（它就是在守"这一册的书名与数据一致"）。
+         往 h1 上塞属性会让那条守卫全线报红 —— 而那条守卫是对的，不该为了省事去放宽它。
+    ⚠️ 别用 data- 属性，同理：h1 的标签内容要保持原样。
+    ⚠️ `・` 在 Noto Sans SC 里是全宽（1em），与汉字一样各占一格，所以 len() 直接可用。"""
+    if src.count(HERO_TAG) != 1:
+        raise SystemExit(f"壳里没有唯一的 hero 头标签（找到 {src.count(HERO_TAG)} 个）—— pages/album.html 改过？")
+    style = f'--cjk-n:{n};--latin-w:{latin_w}'
+    return src.replace(HERO_TAG, f'{HERO_TAG[:-1]} style="{style}">')
+
+
 def inline_block(rel):
     """把 assets/js/<x>.js 逐字节包成一段 <script>（首绘要用的两段代码走这条路）"""
     path = os.path.join(ROOT, rel)
@@ -272,14 +344,19 @@ def frag_hero(a):
         f'\n      <a class="album-back" href="../photos.html">← 全部相簿</a>\n'
         f'      <p class="album-eyebrow">{esc(a["region"])}</p>\n'
         f'      <h1 class="album-title">{esc(a["zh"])}</h1>\n'
+        # 展示蓝的英文名那一行（2026-09-25 加）。参考站「巨字第二行换个颜色」那一层。
+        # ⚠️ **它是 h1 的兄弟，不是子元素**：tools/stamp.mjs 的 ALBUM 检查要求
+        #    `<h1 class="album-title">册名</h1>` 逐字存在，塞进去会让守卫全线报红。
+        #    字号由 --latin-w 反推（见 style.css 的 @supports 那段），目的是与汉字那块等宽。
+        f'      <p class="title-latin">{esc(a["en"])}</p>\n'
         f'      <p class="about-hero-desc">{esc(a["note"])}</p>\n    '
-        # ⚠️ 这里原来是第三行元信息「张数 · 英文名」（`<p class="album-hero-meta">`）。
+        # ⚠️ 这里原来是第三行元信息「张数 · 拍摄日期」（`<p class="album-hero-meta">`）。
         # 2026-09-26 第三百二十一批整条删掉 —— 主人先嫌它挤、搬到右上角看过之后，
         # 原话「还是把右上角 e.g. "15 张·2024.01.30 – 2026.07.03" 删了吧」。
         # 于是 hero 只剩五件：返回键 / 地区小标 / 巨字册名 / 拉丁名 / 一句话。
-        # ⇒ **别在这里加回来**：那等于把同一页再挤一行小字，这条路走过一次被退了。
-        # 张数与英文名没有丢：墙上封面角标是「N 张」，拉丁名是上面那行 title-latin；
-        # `<meta name="description">` 里也有。
+        # ⇒ **别在这里加回来**：加回来就是"同一页再挤一行小字"，这条路走过一次被退了。
+        # 张数与日期没有丢：`<meta name="description">` 里还在（搜索引擎与分享卡片读得到），
+        # 相簿墙的封面角标也照旧写「N 张」。
     )
 
 
@@ -363,6 +440,7 @@ def build_album_pages(albums):
                          f'\n<meta name="description" content="{esc(a["zh"])}：{esc(a["note"])}　'
                          f'{a["count"]} 张照片">\n')
         src = set_region(src, "title", f'\n<title>{esc(a["zh"])} — rain.meow</title>\n')
+        src = set_hero_metrics(src, len(a["zh"]), latin_width(a["en"]))
         src = set_region(src, "hero", frag_hero(a))
         src = set_region(src, "strip", frag_strip(a))
         src = set_region(src, "nav", frag_nav(a, i, albums))

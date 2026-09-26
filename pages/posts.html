@@ -10,10 +10,12 @@
 <meta charset="UTF-8" data-page-node-id="IFkSz2HYbvBTd68x7B3rH9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="E05y3sH8pVzxQukNpVwOfD">
 <meta name="description" content="动态，时雨时猫的记录，雨落下的每一个瞬间" data-page-node-id="cYFWgVbsctEcAITv9fXYsk">
-<meta name="theme-color" content="#f8fafc" data-page-node-id="qbPp5toAwE72xHJMYlZMwU">
+<meta name="theme-color" content="#ffffff" data-page-node-id="qbPp5toAwE72xHJMYlZMwU">
 <title>动态 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
@@ -21,8 +23,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -54,7 +56,7 @@
   var saved = localStorage.getItem('rainmeow-theme');
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <style>
   .icon-sun { display: none; }
@@ -65,23 +67,23 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="NLmhu38PNUwQKVngJenFTp">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2" data-page-node-id="dzOtL5NkPZOkuYiRP6Ge5c">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2" data-page-node-id="UFNlyLOZmCnmL9leCPVQ9X">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22）：woff2 本地化，中文走系统字体回退 -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=02cbded222" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=fc6c351e70" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
@@ -716,10 +718,21 @@
 
     <!-- === 标题区（与「关于」「项目」同款：about-hero + about-title + about-hero-desc）===
          2026-09-05 主人「移除动态页上方设计，标题和副标题参考关于和项目」——
-         删掉朋友圈式全宽封面（渐变天空 + 雨丝动画 + 叠放头像），改成站内统一标题区。 -->
-    <header class="about-hero">
-      <h1 class="about-title" aria-label="雨落笔记"><span class="about-title-char">雨</span><span class="about-title-char">落</span><span class="about-title-char hl">笔</span><span class="about-title-char hl">记</span></h1>
-      <p class="about-hero-desc">下雨、拍照、写点字，想到什么就记一笔</p>
+         删掉朋友圈式全宽封面（渐变天空 + 雨丝动画 + 叠放头像），改成站内统一标题区。
+
+         2026-09-26 主人「雨落笔记、猫窝工坊 分别这4个字不要有字变蓝色，参考照片页的那个设计」：
+         巨字里那两枚 `.hl`（末二字跳 accent 蓝 + font-weight 800）拿掉了，四个字整条墨色。
+         与照片页「旧时留影」同款 —— 那一页当初也是这么处理的：汉字整条 ink、拉丁那行
+         （这里是 `Posts`）才是唯一的彩色层，两处蓝会互相抢。⚠️ 改字面/换文案不用管这条，
+         但**别顺手把 `.hl` 加回来**：`.about-title .hl` 那条规则是留给关于页「本猫来啦」的。 -->
+    <header class="about-hero wall-hero" style="--cjk-n:4;--latin-w:3.3100">
+      <p class="hero-kicker">RECENT NOTES</p>
+      <div class="wall-hero-grid">
+        <div class="wall-hero-copy">
+          <h1 class="about-title" aria-label="雨落笔记"><span class="about-title-char">雨</span><span class="about-title-char">落</span><span class="about-title-char">笔</span><span class="about-title-char">记</span><span class="title-latin">Posts</span></h1>
+        </div>
+        <p class="about-hero-desc">下雨、拍照、写点字，想到什么就记一笔</p>
+      </div>
     </header>
 
     <div class="dy-feed">
@@ -786,7 +799,7 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
        所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
   <script src="../assets/js/lightbox.js?v=4d7536f1ed" defer></script>

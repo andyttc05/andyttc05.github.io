@@ -8,10 +8,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="回忆都收在这里，一个地方一本相簿">
-<meta name="theme-color" content="#f8fafc">
+<meta name="theme-color" content="#ffffff">
 <title>照片 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
@@ -19,8 +21,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -52,7 +54,7 @@
   var saved = localStorage.getItem('rainmeow-theme');
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <style>
   .icon-sun { display: none; }
@@ -64,12 +66,12 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2">
@@ -78,12 +80,12 @@
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=02cbded222">
+<link rel="stylesheet" href="../assets/css/style.css?v=fc6c351e70">
 </head>
 <body>
 
@@ -196,9 +198,29 @@
          教训一：内页描述别为「躲陈词」把主人想说的词换掉 —— 要否的是调子，不是词。
          教训二（2026-09-21 21:31 主人"不要使用'儿'"）：站内文案一律不写儿化音，这儿/哪儿/一会儿都算。
          本条与本页 meta description 已改「这里」；项目页描述「都堆在这儿。」同时命中儿化音，一并处理。 -->
-    <header class="about-hero">
-      <h1 class="about-title" aria-label="旧时留影"><span class="about-title-char">旧</span><span class="about-title-char">时</span><span class="about-title-char hl">留</span><span class="about-title-char hl">影</span></h1>
-      <p class="about-hero-desc">之前的回忆都记在这里</p>
+    <!-- === 标题区（2026-09-25 改成参考站 taozhiyy.top/gallery 的构图）===
+         主人「页面标题参考这个设计 https://taozhiyy.top/gallery」+ 同日「照抄参考的两行」。
+         那两行 = 小标 `Unified Gallery`（mono / 字距 0.45em / 小标蓝）
+                  + 巨字下面第二行展示蓝的 `Gallery`。
+         构图也是它的：两栏底对齐 —— 巨字在左、那段话在右。
+
+         ⚠️ 三条本地化决定：
+           ① `--cjk-n:4` / `--latin-w:4.3910`：`旧时留影` 4 个汉字（各 1em）、`GALLERY` 4.54em。
+              拉丁那行的字号由这两个数反推（见 style.css 的 .wall-hero-copy 那条），
+              让两块**块宽相等** —— 参考站实测 552 / 635，这是它最关键的一条机关。
+           ② `.hl`（后两字跳 accent 蓝）**拿掉了**：现在这一页的彩色层是那行展示蓝，
+              参考站也是「汉字整条墨色 + 拉丁整条上色」。留两个蓝会互相抢。
+              其余三页（about / projects / posts）没有拉丁行，`.hl` 保持原样。
+           ③ **不抄它的返回胶囊**（圆角 + 描边 + 毛玻璃）：站内三个导航控件的规格是
+              「无框 + 下划线」，那是有来历的规矩，不能被这一页破掉。 -->
+    <header class="about-hero wall-hero" style="--cjk-n:4;--latin-w:4.3910">
+      <p class="hero-kicker">UNIFIED GALLERY</p>
+      <div class="wall-hero-grid">
+        <div class="wall-hero-copy">
+          <h1 class="about-title" aria-label="旧时留影"><span class="about-title-char">旧</span><span class="about-title-char">时</span><span class="about-title-char">留</span><span class="about-title-char">影</span><span class="title-latin">Gallery</span></h1>
+        </div>
+        <p class="about-hero-desc">之前的回忆，一张张都记在这里</p>
+      </div>
     </header>
 
     <!-- === 相簿墙（2026-09-21 主人"设计相册，相册加入图片，你可以参考 dreamcenter.top/album"）===
@@ -375,7 +397,7 @@
   <script src="../assets/js/photos.js?v=8f485346a8" defer></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
        排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完

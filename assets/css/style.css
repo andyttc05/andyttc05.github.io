@@ -9,11 +9,19 @@
     color-scheme: light;
     /* 第六十一批：标题字体 token hex 兜底（老浏览器读不到 OKLCH 时仍有 fallback） */
     
+    /* 画布兜底（2026-09-26）：亮色 #f5f5f7 = 苹果 grouped background。
+       真正生效的定义在下面 @supports 块里，这里只是老浏览器 / 解析失败时的保险。 */
+    --color-canvas: #f5f5f7;
     /* RGBA 调用的整数三元组（canvas/JS 读）—— 兜底用 hex,
-       现代浏览器在 @supports 块内被 OKLCH 替换为精确值 */
-    --color-paper-rgb: 248, 250, 252;
-    --color-accent-rgb: 37, 99, 235;
-    --color-shadow: rgba(0, 0, 0, 0.06);
+       现代浏览器在 @supports 块内被 OKLCH 替换为精确值
+       🔴 2026-09-26：--color-paper-rgb 亮色 255,255,255 → **245,245,247**。
+       它唯一的用途是 `.nav` / 抽屉那三处 `rgba(..., 0.70)` 底板 —— 底板必须与
+       **画布**同色（合成后与画布逐位相等），画布改成 #f5f5f7 之后这里不跟着改，
+       顶部就会多出一条 +7 的浅带（实测 252 vs 245；改前两边都 255、差 0）。
+       ⚠️ 它不是"白色"的意思，是"画布色"的意思 —— 跟 --color-canvas 永远同步。 */
+    --color-paper-rgb: 245, 245, 247;
+    --color-accent-rgb: 0, 102, 204;
+    --color-shadow: rgba(0, 0, 0, 0.08);
     --color-glass-edge: rgba(255, 255, 255, 0.55);
     /* 悬停微放大（2026-09-21 统一）：相簿封面 / 单册照片 / 动态照片三处共用，
        改一处即全站一致。1.05 = 专业级"微放档"（1.1 是明显档，本站在静与活之间取微）。
@@ -38,8 +46,14 @@
        ⚠️ 内圈描边必须走 box-shadow 的 `inset`，**不能**塞进 background 的层列表 ——
        一个非法层会让整条 background 声明被整段丢弃，而且控制台一声不吭（实测踩过）。
        ⚠️ 改渐变的色标要在两种主题下各量一次「板/纸最大通道差」，别凭眼睛调。 */
-    --plate-grad: linear-gradient(152deg, #e7ecf5 0%, #eef3f9 56%, #f6f9fc 100%);
-    --plate-ring: rgba(15, 23, 42, 0.075);
+    /* 🔴 2026-09-26：整条整体下移 10 —— 画布从 #ffffff 变 #f5f5f7 之后，
+       色标不跟着降，最亮那端（#FAFAFB = 250）会**高过画布**（245），
+       空图片底板就从"压在纸下一档的凹槽"变成"右下角在发光"。
+       三个色标与改前保持**逐级相同的落差**（画布 −20 / −11 / −5 ⇒ 225 / 234 / 240）。
+       ⚠️ 改画布色就要重跑这条：`~/.workbuddy/scratch/about-canvas-r4-2026-09-26/snap.js`，
+          看 albums.shot / album.tile 那两个探针的「面-布」是否仍为负。 */
+    --plate-grad: linear-gradient(152deg, #E1E1E3 0%, #EAEAEC 56%, #F0F0F2 100%);
+    --plate-ring: rgba(29, 29, 31, 0.075);
     /* 软阴影沿用原来那条 0 1px 2px，只往后追加描边 —— 别把原阴影写丢 */
     --plate-edge: 0 1px 2px var(--color-shadow), inset 0 0 0 1px var(--plate-ring);
     /* 照片到位那一下的淡入（2026-09-21）：底板 → 照片是 0.4s 淡入，不是硬切。
@@ -81,7 +95,7 @@
        → b1 中蓝(94% / hue 250°) → b2 饱和(90% / hue 252° hue 偏紫蓝)
        hue 不等宽是为了"色彩感"而非"色阶单调"。
        第六十二批：蓝系提鲜 + 珊瑚橙 --neu-coral（年轻活力） */
-    --neu-b1-surface:      #ffffff;  /* 统一卡色：纯白（第七十二批） */
+    --neu-b1-surface:      #ffffff;  /* 苹果卡面就是纯白，压在 #F5F5F7 上 */
     /* accent hover 冷天蓝（第五十九批）：chip name / hl 从默认蓝(250°) → 天蓝(220°)，
        给纯蓝画面点一抹冷亮提气质，5-10% 占比 */
     /* 珊瑚橙活力点缀（第六十二批）：chip hover 名，主蓝+橙 = 年轻活力标准配方 */
@@ -89,19 +103,58 @@
     --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
     --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
   }
+  /* 巨字那一层的字面（2026-09-25 第三百一十六批）——
+     参考图（UNIFIED GALLERY / 桃之夭夭 / GALLERY）的巨型中文是 **Black 级**重量，
+     而这台机器上**没有任何 Black 级中文面**：Hiragino Sans GB 只到 W6、
+     STHeiti 只有 Light/Medium、PingFang SC 最重只到 Semibold。
+     拿 font-weight:900 去写只会得到浏览器**合成加粗**（机械加宽笔画，糊而不匀）——
+     实测同一串字在合成面与真 Black 面下墨量差近一倍，巨字号下肉眼一眼可分。
+     所以自托管一份真 Black 面，与站内自托管 IBM Plex 的路子一致。
+     子集 / 体量 / 重跑规则见 assets/css/fonts.css 的 display-face 块与 tools/display-font.py。
+     ⚠️ 这份字体**只覆盖展示层的那两百多个字**，别拿它排正文 ——
+        正文继续走 --font-body（中文落系统面），否则没在子集里的字会在段落中间掉回系统字体。 */
+  :root {
+    --font-display-cjk: 'Noto Sans SC Display', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  }
   :root.theme-dark {
     color-scheme: dark;
-    --color-paper-rgb: 15, 23, 42;
+    /* 🔴 2026-09-26 第三轮：暗色画布 **#000000 → #131a26（深蓝）**。
+       主人「黑夜模式全黑色不好看，黑夜模式改为深蓝配色」。纯黑的三条问题（都是公开口径）：
+         ① #000 **之上没有"更深"可分** ⇒ 层级全押在一根线上；且 #000 配任何颜色在 OLED 上
+            有晕影（halation）、快速滚动还会拖影；
+         ② 暗色的海拔要用**更亮的面**表达，影是死的（本站 `.nav.scrolled` 那条
+            `rgba(0,0,0,.45)` 压在纯黑上一个像素都不变 —— 换深蓝后它终于有东西可压）；
+         ③ 纯黑 + 近白是**最大对比**，长时间看最累；主流都取 #121212 / #0d1117 / #15202B 这一档。
+       取值：**hue 218° / 彩度 34%** —— 夹在 GitHub Primer dark（hue 216 / 彩度 28，`#0d1117`）
+       与 Twitter Dim（hue 210 / 彩度 34，`#15202B`）之间。
+       ⚠️ 刻意**不用 slate-900**：那是 hue 222 / 彩度 47，偏紫又偏饱和，在暗底上会"发紫"。
+          hue 218 读起来是"深海蓝"，不是"蓝紫"。
+       ⚠️ 画布色在**页面里还内联了一份**（26 页 head 的防白闪 `html.theme-dark{background:…}`，
+          特异度 (0,1,1) 压过 style.css 的 `html`）⇒ **改这里必须一起改那 26 处**，否则首帧闪。
+       📐 全套暗色台阶（相对画布，R 通道）：nav +18 · 卡面 +22 · 抬升面 +38 · hairline 台阶 +32。
+          依据是**现状暗色的观感**（改前：nav +20 / 卡面 +29 / 线 28），不是照搬亮色那套
+          （亮色卡−布只有 +10）—— 暗色里层级靠亮度差，差太小卡片会"塌"。 */
+    --color-canvas: #131a26;
+    /* 🔴 2026-09-26 第三轮：**28,28,30 → 45,52,64**。
+       先纠正一个常被写错的语义：这枚**不是"画布色"的三元组**（早先的注释那么写是错的），
+       它是 `.nav` 那三处 `rgba(…, .70)` **底板**（全仓就这三处，没有任何 JS 读它）。
+       @.70 压在画布 #131a26 上 = (37,44,56) ⇒ **画布 +18**，一条能辨认的深蓝栏。
+       结构上两主题是有意的差异：亮色的 nav 恰好等于画布（无缝，只靠一条线分界），
+       暗色的 nav 比画布亮一档（暗色海拔靠**面**，见 --color-canvas 那条注释）。
+       ⚠️ 想让它跟画布**无缝**：把这三个数改成画布值 `19, 26, 38` 就行，一条改动。 */
+    --color-paper-rgb: 45, 52, 64;
     --color-accent-rgb: 96, 165, 250;
     --color-shadow: rgba(0, 0, 0, 0.45);
     --color-glass-edge: rgba(255, 255, 255, 0.08);
-    /* 空图片底板走同一套（亮色的定义见上面 :root）：色标按暗底重排，极性不变 ——
-       左上最深 #141c2e（几乎贴住纸色 #0f172a）→ 右下提亮 #232f4a，于是底板从左上的
-       "融进纸里"过渡到右下"浮出来一档"（原平涂 #1a2438 与纸色通体只差 14/255，看不出方向）。
-       描边换成 7.5% 白 —— 深底上"墨色描边"是看不见的。 */
-    --plate-grad: linear-gradient(152deg, #141c2e 0%, #1b2540 56%, #232f4a 100%);
+    /* 空图片底板（第三轮：跟着深蓝画布重排）。三段 = **卡面 → 中间 → 抬升面**，
+       即"画布 +22 / +30 / +38"：底板从左上"压着卡面"过渡到右下"挨着抬升面"。
+       极性与亮色一致 —— 亮色是画布 −20/−11/−5（在纸**下**一档），暗色在画布**上**一档（海拔）。
+       ⚠️ 旧注释里那组 `#141c2e / #232f4a` 是**更早一版 slate 纸**的色标，早已不适用，别再照抄。 */
+    --plate-grad: linear-gradient(152deg, #29303C 0%, #313844 56%, #39404B 100%);
     --plate-ring: rgba(255, 255, 255, 0.075);
-    --neu-b1-surface:      #2b3552;
+    /* 暗色卡面：**画布 +22**（见 --color-canvas 那条）。旧值 #1d1d1f 是"苹果中性灰落在纯黑上"，
+       纯黑一撤它就跟画布不同源了（会显得偏暖/发灰）。现在与画布同一个 hue 218。 */
+    --neu-b1-surface:      #29303c;
     --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
     --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
   }
@@ -112,16 +165,62 @@
      全部颜色已转为等价 sRGB hex（coloraide 精确转换），两浏览器按同一
      sRGB 渲染，严格一致。@supports gate 保留（检测语法，无害）。
      注意：--color-paper-rgb / --color-accent-rgb 是给 RGBA 调用用的三元组，
-     canvas-nest.js / canvas-ribbons.js / script.js 都通过 getComputedStyle 读它们作为 rgba 参数，
-     这两枚 token 必须继续以 R,G,B 整数形式保留。 */
+     **--color-accent-rgb** 由 canvas-nest.js / canvas-ribbons.js 经 getComputedStyle 读走当 rgba 参数，
+     必须继续以 R,G,B 整数形式保留。
+     ⚠️ 2026-09-26 更正：原文还写着 canvas-nest / ribbons / script.js「都」读 --color-paper-rgb，
+        实际**没有任何 JS 读它**（全仓 grep 只命中 CSS 与注释）。它现在的唯一用途是
+        style.css 里那三处 `rgba(var(--color-paper-rgb), 0.70)` 的导航底板 ⇒
+        它其实是"**画布色**的三元组"，与 --color-canvas 同步（见 :root 顶部的说明）。 */
   @supports (color: oklch(0% 0 0)) {
     :root {
-      --color-ink:     #0f172a;   /* slate-900 */
-      --color-paper:   #f8fafc;   /* slate-50  */
-      --color-accent:  #2563eb;   /* blue-600  */
-      --color-muted:   #475569;   /* slate-600 */
-      --color-rule:    #cbd5e1;   /* slate-300 */
-      --color-alt:     #f1f5f9;   /* slate-100 */
+      /* 🔴 2026-09-25 第二轮：纸/墨/细线/底板**全数退回站内原来的蓝白**
+         （主人「设计调为蓝白色调，不要把我原本色调改了」）。
+         ⇒ 参考图只贡献**字形结构**（三级字阶 / Black 重量 / 两块巨字齐宽），
+            颜色一个都不搬；下面这六行与改动前逐字节相同。
+         ⚠️ 别再把 paper/ink/rule/alt 换暖：那样与五个壳页头部的
+            `html { background: #f8fafc }` 防白闪底色不一致，首帧会闪一下。 */
+      --color-ink:     #1d1d1f;   /* 苹果墨色 */
+      --color-paper:   #ffffff;   /* 苹果纸色：纯白 */
+      --color-accent:  #0066cc;   /* 苹果链接蓝 */
+      --color-muted:   #6e6e73;   /* 苹果次级文字 */
+      --color-rule:    #d2d2d7;   /* 苹果 hairline */
+      /* 🆕 分隔符「·」的字色（2026-09-26）。**它跟 hairline 不是一回事**：
+         线是 1px 的面，点是 11px 的字 —— 同一个 alpha 在黑底上，点的观感会先塌掉。
+         暗色把 hairline 压到 .11 之后实测「点」的峰值从 44 掉到 20（≈1.14:1，
+         比亮色同款点的 1.36:1 明显更暗）⇒ 拆出一枚专给字的 token，两枚独立调。
+         亮值**与 --color-rule 逐位相同**（#d2d2d7）⇒ 亮色零变化。 */
+      --color-sep:     #d2d2d7;
+      /* 🆕 画布（2026-09-26 主人「按你推荐的改」）—— 页面底 = 苹果 grouped background。
+         🔴 这一条把「纸 / 卡面」从**同一个白**拆成两级：
+             改前  纸 #ffffff ／ 卡面 #ffffff ⇒ 面-布差 **0**
+                   卡片的"形"100% 押在 `rgba(accent,.14)` 那条线上，
+                   而它在纸上只有 1.23:1，而且是**蓝**的。
+             改后  纸 #f5f5f7（245）／ 卡面 #ffffff（255）⇒ 面-布差 **+10 硬边**
+                   形来自**面色差本身**，不依赖影 —— 这正是 style.css:84 那行注释
+                   「苹果卡面就是纯白，压在 #F5F5F7 上」当年写下却没做的事。
+         ⚠️ 为什么不用影：网上四条主流口径没有一条是"只加影"——Apple HIG 明写暗色下
+            drop shadow 无效、系统改用**更亮的面**；白纸上的影会 wash out，主流是
+            「线 + 影」配对。面/纸分层是唯一在**两端主题都自然成立**的做法。
+         ⚠️ 连带三处必须同改，漏一处就露馅（都实测过）：
+            ① `--color-paper-rgb` → 245,245,247（否则 `.nav` 底板多一条 +7 浅带）
+            ② `--color-alt` → #ebebed（它是"画布下一档"的凹陷面，不跟着降就与画布同色）
+            ③ `--plate-grad` 亮色整体下移 10（空图片底板要保持"压在画布下一档"）
+         ⚠️ 暗色画布仍是 #000（与 --color-paper 同值）⇒ **暗色这一轮一个字没动**。 */
+      --color-canvas:  #f5f5f7;   /* 苹果 grouped background（页面底） */
+      /* 🆕 卡片描边（2026-09-26）：把卡片那一族的 hairline 从 accent 换成中性。
+         改前五处都是 `rgba(accent, .14)` —— 淡是对的，**错的是色相**：
+         「Never match the outline to the project's accent or ink color.
+          The outline is a neutral separator, not a themed element.」
+         对照组 shadcn / Tailwind v4 的 `--border`：亮 oklch(.922 0 0) ≈ #e4e4e7（1.27:1）、
+         暗 rgba(255,255,255,.10) —— 本 token 就取这两个值，宽度/权重与改前逐位相同。
+         ⚠️ 别拿"太淡"当理由加粗：改前 1.23:1、改后 1.27:1，本来就是对的量级。 */
+      --color-card-edge: #e4e4e7;
+      --color-alt:     #ebebed;   /* 苹果浅灰面（画布**下一档**的凹陷面；随 --color-canvas 同步） */
+      /* 展示蓝（巨字专用，**不是交互色**）：参考图巨字第二行是浅色那一支，
+         本站没有第二支色 —— 就地把 accent 兑白 20% 得到它，仍是同一支蓝。
+         纸上 3.47:1：过 WCAG 大字号（≥24px）的 3:1 线，**过不了正文的 4.5:1**
+         ⇒ ⚠️ 别拿它做链接 / 焦点环 / 下划线，那些继续走 --color-accent。 */
+      --color-display: color-mix(in srgb, var(--color-accent) 80%, #ffffff);
       /* 新拟态 oklch 版：第五十七批全系蓝调——面 = 蓝白(比纸底蓝一档)，
          暗影 = 蓝灰，浅底上高光隐入背景、暗影定深浅；b1/b2 两级蓝分层。
          第五十八批：暗影 alpha 0.55-0.6（light）/ 0.7-0.85（dark）收敛减重。
@@ -134,7 +233,7 @@
          第六十六批：回归 IBM Plex 系列（主人钟意主页原字体）—— head=Serif / body=Sans */
       --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
       --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
-      --hero-greet:    #3b82f6;   /* blue-500 sub-accent */
+      --hero-greet:    #0066cc;   /* 苹果链接蓝（原 blue-500） */
       /* 5 段色调 OKLCH（2026-08-19 优化）：L/C/h 三轴独立可控,
          落 18% 最沉 / 眸 54% 沉 / 笑 63% 亮 / 歌 58% 中 / 触 64% 亮 ——
          L 节奏:沉-中-亮,跨 27-63%(原 36-52% 太密);
@@ -149,20 +248,53 @@
       --glyph-reach:   #009298;   /* 触 — cyan-600   清透青蓝 */
     }
     :root.theme-dark {
-      --color-ink:     #e2e8f0;   /* slate-200 */
-      --color-paper:   #0f172a;   /* slate-900 */
-      --color-accent:  #60a5fa;   /* blue-400  */
-      --color-muted:   #94a3b8;   /* slate-400 */
-      /* --color-rule  dark 用 rgba(148,163,184,0.16) 半透明叠加，保持文字层
-         上的 hairline 细节；OKLCH 等价表达：oklch(71% 0.035 257 / 16%) */
-      --color-rule:    #94a3b829;
-      --color-alt:     #1a2438;   /* 深蓝灰 */
-      /* 新拟态 dark：surface 比 paper(slate-900) 亮一档；暗影近黑、高光微亮蓝灰。
-         第六十二批：提鲜 + 珊瑚橙 --neu-coral（年轻活力） */
-      --neu-b1-surface:      #182e45;
+      /* 暗色墨：**#f5f5f7 → #e8edf3**（同 hue 218 的 off-white）。
+         纯黑时代用苹果的 #f5f5f7 是对的；画布变蓝之后，把墨也挪到同一 hue 才不会"暖白压蓝底"。
+         ⚠️ 别用纯白 #fff：暗底上的纯白会 halation（尤其散光人群），这也是主流口径。 */
+      --color-ink:     #e8edf3;
+      --color-paper:   #131a26;   /* 暗色纸 = 深蓝画布（与 --color-canvas 同值） */
+      --color-accent:  #2997ff;   /* 苹果暗色链接蓝（实测 rgb(41,151,255)）：在 #131a26 上 5.79:1 ✓ */
+      --color-muted:   #909eb2;   /* 暗色次级文字：hue 215 的蓝灰（原 #86868b 是中性灰，配蓝底发脏）*/
+      /* 展示蓝暗值：与浅色**同一条公式**（accent 兑白 20%）—— 暗底的 accent 本身
+         已是 blue-400，兑白后 #80B6FB 压在 slate-900 上 8.9:1，深底上可以更亮。 */
+      --color-display: color-mix(in srgb, var(--color-accent) 80%, #ffffff);
+      /* 2026-09-26 第三轮：**rgba(255,255,255,.11) → rgba(172,182,195,.21)**。
+         两件事一起改了：
+           ① **带上蓝相**（172,182,195 = hue 215 的蓝灰）—— 白线压在蓝画布上是"发灰的一条"，
+              与画布不同源；带蓝相才融得进。
+           ② **改成按"合成后的台阶"定 alpha**，不再按"白度"定：目标是画布 **+32 级**，
+              与亮色那条 `#d2d2d7` 在 245 上的 **35 级**同一量级。
+              （Apple 的 Separator 亮 `#3C3C43@20%` / 暗 `@30%` ⇒ 白底约 39 级、黑底约 18 级；
+                亮线压在暗底上"显得更粗"，所以暗色本来就必须更弱 —— 本站取 32，介于两者之间。）
+         ⚠️ 这一条仍是**全站暗色 hairline 的总闸**：导航底边 + 抽屉那五条 + `.album-stats` 底边 +
+            单册页 `.album-nav` 顶边 + `.hero-art-base`/`.art-card` 描边。
+            那两个"·"分隔符已经拆出去走 `--color-sep` 了（它是**字**不是线，见下条）。
+         ⚠️ **它现在带蓝相，别再按纯白回算 alpha**：同一 alpha 下 (172,182,195) 比 (255,255,255)
+            暗得多，按白值算会得到一条过弱的线。 */
+      --color-rule:    rgba(172, 182, 195, 0.21);
+      /* 暗色「·」分隔符（`.hero-meta-sep` / `.gi-sep`）：**这是字，不是线**，
+         所以它**不跟 --color-rule 同步**，而是单独反解 alpha 让**观感与亮色那枚点相等**：
+         目标 = 亮色 `#d2d2d7` 落在 245 上的 **1.36:1** ⇒ 在 #131a26 上取 .16，
+         合成 #2b333f、实测 **1.37:1** ✅（α 是按"合成后的对比度"反解出来的，不是拍一个数）。 */
+      --color-sep:     rgba(172, 182, 195, 0.16);
+      /* 暗色画布（第三轮起是深蓝 #131a26，理由与全套台阶见顶部 :root.theme-dark 那条）。
+         ⚠️ 它在页面里**还内联了一份**（26 页 head 的防白闪），两边必须同步。 */
+      --color-canvas:  #131a26;
+      /* 暗色卡片描边：**rgba(255,255,255,.10) → rgba(172,182,195,.18)**。
+         同样两件事：带蓝相 + 改成按"压**卡面**后的台阶"定 alpha（目标卡面 +23）。
+         ⚠️ 它与 `--color-rule`（.21）数值不同不是笔误：**线压在画布上、边压在卡面上**，
+            基准面不一样，所以 alpha 必须分开定。保留两枚 token 也是这个理由：
+            换卡片观感时不该顺手改掉全站的分隔线。 */
+      --color-card-edge: rgba(172, 182, 195, 0.18);
+      /* 暗色抬升面（抽屉 / 立绘衬纸 / 空图片底板的兜底色）：#333336 → #39404b，
+         画布 +38。旧值是中性的，纯黑一撤就跟蓝画布不同源了。 */
+      --color-alt:     #39404b;
+      /* 暗色卡面 = 画布 +22（与顶部 :root.theme-dark 那份同值）。
+         ⚠️ 两处都要改：本块（@supports）在文件更后面，对现代浏览器**这块才是生效的那份**。 */
+      --neu-b1-surface:      #29303c;
       --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
       --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
-      --hero-greet:    #7dd3fc;   /* sky-300 */
+      --hero-greet:    #2997ff;   /* 苹果暗色链接蓝（原 sky-300） */
       /* 5 段 dark OKLCH（2026-08-19 同步优化）：L 提到 70-85% 区间,
          hue 维持与 light 一致,仅提亮 2-3 阶;chroma 微降避免深底刺眼 */
       --glyph-fall:    #9aa8f4;   /* 落 — indigo-300 浅紫蓝 */
@@ -266,7 +398,11 @@
   }
   /* 背景色只放在 html（画布层），body 必须透明——否则 body 的不透明背景会盖住
      全屏背景 canvas（负 z-index 绘制在 body 盒之下，只能在 body 盒外/页面下方露出） */
-  html { background: var(--color-paper); color: var(--color-ink); }
+  /* 页面底走 --color-canvas（2026-09-26）—— 不再是 --color-paper。
+     两者在暗色里同值（#000），只在亮色分家：画布 #f5f5f7 / 卡面 #ffffff。
+     ⚠️ --color-paper 仍然是"纯白材质"那个意思（skip-link 的字色、选中文字、
+        白色 tile 的底），**别把那些也改成 canvas** —— 它们要的是白，不是纸。 */
+  html { background: var(--color-canvas); color: var(--color-ink); }
   body { background: transparent; color: var(--color-ink); }
   /* 第一百六十一批（2026-08-24 主人"禁止双击放大页面"）：
      touch-action: manipulation —— 禁双击缩放（double-tap zoom）同时保留双指捏合
@@ -282,7 +418,8 @@
   ::-webkit-scrollbar { width: 0; height: 0; display: none; }
   body {
     font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
-    line-height: 1.7; font-size: 17px;
+    /* 正文行高（2026-09-25 苹果口径）：1.7 → **25px / 17px = 1.4706** */
+    line-height: 1.4705882353; font-size: 17px;
     padding: 0;
     /* OpenType kerning + standard ligatures 让 Plex 字体在屏幕渲染更接近印刷品质
        （与主页同款）：hero-time 的 letter-spacing 1.5px 是整个站 tracking 调性的签名 */
@@ -371,6 +508,49 @@
   html.theme-switching .nav {
     transition: none;
     backdrop-filter: none;
+  }
+  /* 第三百六十批（2026-09-26 主人"dark/light 切换时，主页按钮变色有延迟"）：
+     上面那条只掐了 nav 的**底板**（background / box-shadow / backdrop-filter），
+     nav 里的字与图标各自还带着 `transition: color 0.2s`（.nav-brand / .nav-links a /
+     两个 .nav-icon / 抽屉那一批）⇒ 底板与页面背景同帧瞬变、文字却 fade 200ms。
+     实测（探针逐帧采 computed color，见 scratch/theme-lag-2026-09-26）：
+       html 底色    到位 6.6ms（瞬变基准）
+       .nav-brand   到位 206.6ms   ← 反差最大，--color-ink 浅近黑 ↔ 深近白
+       .nav-icon    到位 206.6ms
+       .nav-links a 到位 173.1ms   （--color-muted 110→134，差值小，肉眼基本看不出）
+     修法：与底板同一个开关 —— .theme-switching 期间把 nav 内所有会随主题变色的元素的
+     过渡一并掐掉，同帧切换；双 rAF（~33ms）后类被移除，hover / active 的 0.2s 平滑照旧。
+     ⚠️ 维护：nav 内**新增任何带 color / background 过渡**的元素，都要补进这张表。
+        自查（数出来的 color 过渡应恰是这九条，本表已全收）：
+        `awk 'NR>=330 && NR<=900 && /transition/ {print NR": "$0}' assets/css/style.css`
+        同区里抽屉逐条错峰出场（`.nav-menu-links li` 的 opacity/transform + transition-delay）
+        与两枚光斑的滑移（transform / width / opacity）都是**位移/透明度**过渡，
+        与主题无关，别顺手删。 */
+  html.theme-switching .nav-brand,
+  html.theme-switching .nav-links a,
+  html.theme-switching .nav-icon,
+  html.theme-switching .hamburger,
+  html.theme-switching .nav-menu-brand,
+  html.theme-switching .nav-menu-close,
+  html.theme-switching .nav-menu-links a,
+  html.theme-switching .nav-menu-links a .arrow,
+  html.theme-switching .nav-menu-action-hit,
+  /* 🆕 相簿页那两颗导航按钮（2026-09-26）。上面那条维护说明写的是"nav 内"，
+     但真正的判据应该是「**任何颜色随主题变 且 带 transition 的元素**」——
+     这两颗按钮符合：它们本身换的是**字色**（#1d1d1f ↔ #f5f5f7，无 transition），
+     `::after` 那条扫入线也换 `background`（同一个 token）。
+     ⚠️ 2026-09-26 第三轮起这两颗**没有颜色过渡**（`transition: none`，线只过渡 `transform`）
+        ⇒ 下面两条严格说已是防御性的（量出来同帧，留着不亏）。
+     ⚠️ 伪元素**不会被父级的选择器覆盖**：`html.theme-switching .album-back { transition:none }`
+        管不到 `.album-back::after`。将来若给线补 `background` 过渡，必须在这里把 `::after`
+        的两条也列上，否则切主题时那条线会自己拖 0.3s。
+     实测（land.js 逐帧采 computed，以页面底色同帧为基准）：按钮底 10.1ms / 13.4ms，
+     与页面底色**完全相等** ⇒ 同帧，没有滞后。 */
+  html.theme-switching .album-back,
+  html.theme-switching .album-back::after,
+  html.theme-switching .album-nav-link,
+  html.theme-switching .album-nav-link::after {
+    transition: none;
   }
   /* 滚动后：背景保持半透明，启用毛玻璃（此时 nav 下方真有内容值得模糊）；
      用 transform 复合层 + will-change 让 GPU 把 nav 单独合成、不每帧重算 */
@@ -1057,7 +1237,10 @@
     flex-wrap: wrap; row-gap: 6px;
     margin: 0;
   }
-  .hero-meta-sep { color: var(--color-rule); }
+  /* 「·」分隔符走 --color-sep（**不是** --color-rule）：这是一枚 11px 的字，
+     暗色下 hairline 的 .11 会让它几乎看不见（实测峰值 44 → 20）。
+     两枚 token 独立调，亮色两份同值 ⇒ 亮色零变化。 */
+  .hero-meta-sep { color: var(--color-sep); }
   /* 安安问候：按时间变化（早安/午安/晚安等）。
      主人的反馈："时间后的 greet 加颜色" — 用 --hero-greet（sub-accent，
      介于 accent 与 muted 之间）让 greet 在 meta 行有视觉重音，但不破坏 v99 audit
@@ -1607,7 +1790,9 @@
     font-weight: 400;
     flex-shrink: 0;
     font-size: 0.6em;
-    color: var(--color-rule);
+    /* 与 .hero-meta-sep 同一枚 token（那行是 5 个彩字之间的「·」，
+       比 hero 那枚还小）—— 同样**不走 --color-rule**，理由见那条注释。 */
+    color: var(--color-sep);
     letter-spacing: 0;
     /* 第一百五十九批：去掉静态 transform: translateY(0.2em) —— 静态 transform
        会让 4 个分隔符常驻合成层（与 REST 期脱层思路冲突）。基线 0.2em 偏移改由
@@ -2101,13 +2286,17 @@
   .vslide[data-anim="fall"]  .vslide-visual { --in-y: -14vh; --out-y: -16vh; }
 
   .vslide[data-anim="focus"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
-  .vslide[data-anim="focus"] .vslide-glyph  { --in-s: 2.4; --in-b: 14px; --out-s: 0.82; --out-b: 6px; }
+  /* 2026-09-26：巨字的 `--in-b/--out-b`（blur）两条一并撤掉 —— 与 script.js 的 SPEC 同步。
+     根因见 script.js focus 那段注释：WebKit 把带 filter 的层光栅缓存住、按每帧变化的
+     transform 合成，filter 在场时字被画短 11px / 笔画粗 38%，filter 一撤一帧跳回。
+     本段是死代码（script.js 强制关掉 CSS scroll-driven），留着数值只会误导下一个人。 */
+  .vslide[data-anim="focus"] .vslide-glyph  { --in-s: 2.4; --out-s: 0.82; }
   .vslide[data-anim="focus"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
   .vslide[data-anim="focus"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
   .vslide[data-anim="focus"] .vslide-visual { --in-y: 12vh; --in-s: 1.3; --out-y: -10vh; --out-s: 1.05; }
 
   .vslide[data-anim="bloom"] .vslide-meta   { --in-y: -12vh; --out-y: -8vh; }
-  .vslide[data-anim="bloom"] .vslide-glyph  { --in-s: 0.3; --in-b: 8px; --out-s: 1.12; --out-b: 4px; }
+  .vslide[data-anim="bloom"] .vslide-glyph  { --in-s: 0.3; --out-s: 1.12; }
   .vslide[data-anim="bloom"] .vslide-sub    { --in-y: 12vh;  --out-y: -8vh; }
   .vslide[data-anim="bloom"] .vslide-poem   { --in-y: 12vh;  --out-y: -8vh; }
   .vslide[data-anim="bloom"] .vslide-visual { --in-y: 8vh; --in-s: 0.88; --out-y: -10vh; --out-s: 1.05; }
@@ -2141,14 +2330,10 @@
       animation: vs-in cubic-bezier(0.215, 0.61, 0.355, 1) both;
       animation-timeline: scroll(root);
     }
-    /* 触屏禁用 blur（对应 JS isTouch 恒 0）—— 离屏模糊层是移动 GPU 大户 */
-    @media (hover: none) and (pointer: coarse) {
-      .vslide[data-anim="focus"] .vslide-glyph,
-      .vslide[data-anim="bloom"] .vslide-glyph {
-        --in-b: 0px;
-        --out-b: 0px;
-      }
-    }
+    /* 触屏禁用 blur（对应 JS isTouch 恒 0）—— 离屏模糊层是移动 GPU 大户。
+       2026-09-26：SPEC 里已经没有 blur 键（focus/bloom 巨字那次一并移除，见上面那段），
+       这两条覆写成了空转 ⇒ 整块撤掉。将来若给巨字加回 blur，记得连这里一起加回：
+       测「有没有 blur」用 getComputedStyle(el).filter，不是读 var。 */
   }
 
   /* === About 页（第一批→第七批：散文 → Bento 卡片网格）
@@ -2221,11 +2406,18 @@
   .about-title {
     display: inline-block;
     /* 第九十三批：移除逐字弹出动画（主人"移除动画"）—— 静态展示 */
-    font-family: var(--font-head);
+    /* 第三百一十六批（2026-09-25）：换巨字面 + 收紧行距字距。
+       参考图量出来的三条规则里，本站能照搬的是"三级字阶的对比"与"巨字内部极紧"：
+         · line-height 1.15 → **1.06**（原图 CJK 墨高 133 对下一层步进 158 ⇒ 1.19，
+           而本站巨字下面接的是正文不是另一条巨字，所以只收不放到 1.19 那么松）
+         · letter-spacing 0.02em → **0**（原图汉字是零字距的方块排布；0.02em 是给衬线体留的）
+       ⚠️ 尺寸那条**不在这里**，见下面 @supports 里按 --cjk-n 算的那条；
+         这里保留原 clamp 是给不支持容器查询的浏览器兜底。 */
+    font-family: var(--font-display-cjk);
     font-weight: 700;
-    font-size: clamp(52px, 9vw, 96px);
-    line-height: 1.15;
-    letter-spacing: 0.02em;
+    font-size: clamp(52px, 9vw, 80px);
+    line-height: 1.09;   /* 苹果巨字实测 1.088（.album-title 也有一条，别只改一处） */
+    letter-spacing: 0;
     /* 第四十五批"重点字加颜色"：主标题整体改 ink，`.hl` 用 accent 跳出——
        之前整体 accent 是单色基调，`.hl` 没对比度；改 ink 后"本猫"的 accent 才有视觉差 */
     color: var(--color-ink);
@@ -2313,9 +2505,18 @@
      - 恢复所有其他动画（char-by-char 标题 / about-desc-rise 描述 / 滚动驱动入场出场）
      - 大卡 = 滚动驱动入场出场（view() 时间轴，replace+add 拆双动画） */
   .about-card {
-    /* 第六十五批：弃新拟态 → 现代 UI —— flat + hairline 边框 + 零重阴影 */
+    /* 第六十五批：弃新拟态 → 现代 UI —— flat + hairline 边框 + 零重阴影
+       🆕 2026-09-26（主人「按你推荐的改」）：这一族（`.about-card` / `.game-tile` /
+       `.game-logo` / `.skills-chip` / `.contact-card-icon`）的 hairline 从
+       `rgba(accent, .14)` 换成中性的 `--color-card-edge`。
+       ⚠️ 只换**色相**，线宽/权重/圆角逐位不动 —— 改前那条线本身没问题：
+          1.23:1 与 shadcn `--border` 的 1.27:1 同量级，错的是它**带色**。
+       ⚠️ 五处必须一起换，漏一处卡里就会出现"中性边框 + 蓝色小框"两套语汇。
+       ⚠️ 这一族**不要再加框/加底/加影**：卡片自己的"形"现在来自
+          **画布 #f5f5f7 ↔ 卡面 #ffffff 的 10 级面色差**（亮色实测 +10 硬边）。
+          再叠一层影是把已经成立的形说两遍。 */
     background: var(--neu-b1-surface); /* 第六十九批：所有卡片统一耐看蓝（不再分层） */
-    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border: 1px solid var(--color-card-edge);
     border-radius: 20px; /* 第五十四批：18→20 更现代柔和（配合"卡片质感"优化） */
     padding: clamp(28px, 3.2vw, 34px); /* 第一百零六批：24-32→28-34 首屏放宽（更舒展的内部呼吸） */
     min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
@@ -2365,7 +2566,7 @@
      撤销第一百二十六批给 intro/poem 加的加载入场动画（card-load-in），
      两张卡恢复继承 .about-card 的滚动驱动入场（首屏内不播，用户接受静态）；
      第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
-     hover 仅阴影扩散，边框颜色保持 base 0.14α 不变（不上浮——尊重第九十四批） */
+     hover 仅阴影扩散，边框颜色保持中性描边不变（不上浮——尊重第九十四批） */
   .about-card.about-card-intro,
   .about-card.about-card-poem {
     transition: box-shadow 0.3s ease;
@@ -2457,7 +2658,7 @@
     text-align: center;
     gap: 10px;
     background: var(--neu-b1-surface); /* 与 .about-card 同款实色卡面（第七十二批纯白不变） */
-    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border: 1px solid var(--color-card-edge);
     border-radius: 20px;
     padding: clamp(20px, 2.4vw, 30px) clamp(16px, 1.8vw, 24px);
     box-shadow: 0 6px 18px rgba(var(--color-accent-rgb), 0.05);
@@ -2529,7 +2730,7 @@
     border-radius: inherit;
     transform: rotate(var(--gt-tilt)) translateX(var(--gt-x)) translateY(var(--gt-y));
   }
-  /* hover：上浮 + 回正 + 阴影扩散（明确交互反馈；第一百三十五批：边框颜色保持 0.14α 不变） */
+  /* hover：上浮 + 回正 + 阴影扩散（明确交互反馈；第一百三十五批：边框颜色保持中性描边不变；2026-09-26 起改为 --color-card-edge） */
   .game-tile-wrap:hover .game-tile {
     transform: rotate(0deg) translateX(0) translateY(var(--gt-hover-y));
     box-shadow: 0 14px 28px rgba(var(--color-accent-rgb), 0.14);
@@ -2552,7 +2753,7 @@
     border-radius: 16px;
     /* 白底 hairline tile（与联系卡 icon / favicon 同款语汇） */
     background: var(--color-paper);
-    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border: 1px solid var(--color-card-edge);
     padding: 12px;
   }
   /* 第九十四批：logo-scroll 滚动淡入保留（hover 反馈集中在卡片本体，不与动画冲突） */
@@ -2658,7 +2859,7 @@
   /* 第一百二十九批（2026-08-21 主人"'会的本事'的卡片也加个动效"）：
      hover 反馈与 intro/poem 大卡一致 —— 阴影扩散（不上浮，尊重第九十四批）；
      第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
-     边框颜色保持 base 0.14α 不变，仅阴影扩散；卡内 chip 保留各自的上浮动效 */
+     边框颜色保持中性描边不变，仅阴影扩散；卡内 chip 保留各自的上浮动效 */
   .about-card.about-card-skills {
     transition: box-shadow 0.3s ease;
   }
@@ -2749,7 +2950,7 @@
     padding: 22px 14px; /* 第五十五批：28px 12px → 22px 14px —— 主人"loop card 太大了"，回到第五十一批验收过的"高瘦"比例；viewport padding-block 12→10 */
     width: var(--chip-w, auto); /* 每 loop 等宽：about-loop.js 测最宽 chip 写入 --chip-w */
     background: var(--color-paper); /* 第六十五批：现代 chip —— 白底 hairline */
-    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border: 1px solid var(--color-card-edge);
     border-radius: 14px;
     font-family: 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
     color: var(--color-ink);
@@ -3019,7 +3220,7 @@
     align-items: center;
     justify-content: center;
     background: var(--color-paper);
-    border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+    border: 1px solid var(--color-card-edge);
     border-radius: 14px;
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -3083,7 +3284,7 @@
   /* 卡片 hover/active：去掉透明背景方案（第一百二十二批 主人"悬停/点击变全透明不符合调性"）
      原方案 background-color rgba(accent, 0.08) 会覆盖 .about-card 的实色卡面 → 暗色主题下
      几乎全透明（露出深色页面背景）。新方案保持实色背景不变，反馈改用：
-     轻微上浮 + 阴影扩散（:active 按压微缩；第一百三十五批：边框颜色保持 0.14α 不变），
+     轻微上浮 + 阴影扩散（:active 按压微缩；第一百三十五批：边框颜色保持中性描边不变；2026-09-26 起改为 --color-card-edge），
      配合已有的箭头位移 / icon 微浮 / handle 变 accent。 */
   .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
   .contact-card:hover {
@@ -3974,43 +4175,67 @@ html.nav-anim-reset *::after {
    文字层用 hairline 与字重分级，不用圆角白卡 + 阴影那套。
 
    三块互不依赖，可以单独摘掉：
-     ① .album-stats  顶部数据条（hairline 分栏；不用参考站的渐变卡）
+     ① .album-stats  顶部数据条（一行三组、两端撑满；不用参考站的渐变卡）
      ② .album-wall   19 个封面磁贴（图片 4:3 + 张数角标 + 书名号下方的名字/一句话；
                      原第三行「年份区间」2026-09-21 撤掉）
      ③ .album-strip  单册页照片墙 —— 行高由 JS 按真实长宽比算的「对齐行」，
                      点开看大图走共享灯箱（assets/css/lightbox.css）。CSS 这里只管行容器与项的外观。
    =========================================================================== */
 
-  /* ---------------------------------------------------------------- ① 数据条 */
+  /* ---------------------------------------------------------------- ① 数据条
+     🔴 2026-09-26 第五轮改版。主人：「这部分不是很好看，没有设计感」。
+        病根是**量得出来的**：改版前是 `repeat(3, 1fr)` 的三格表格，
+        1440 下每格 389.33px，而每格的**墨只占 17~29%**
+        （`19` 墨宽 46.4px + `个相簿` 42.75px）⇒ 三个数字各自杵在一格 389px 沙漠的
+        左缘、中间靠一条 hairline 相连，读起来就是"一张空表格"。
+     现在：**不假装它是三列表格** —— 一行三组、两端撑满。
+        · `space-between`：第一组贴左边界、第三组贴右边界，中间那一大片变成
+          **有意的节奏**而不是没人用的空格；第三组的右缘与右上那段话的右边界同列。
+        · 数字 38 → **62px**（`.about-title` 是 80px）：数字从此属于展示层，
+          不再是"小字统计"。
+        · **撤掉全部竖格线**（原来每格一条 `border-left`）与顶线，只留一条底线。
+          横线一多、飘带再从背后穿过，那一带就显脏。
+     ⚠️ **别把 `space-between` 单独留在窄屏**：≤860 只剩两格（第三格被藏），
+        space-between 会把那两格推到左右两个角、中间空一大片 ——
+        窄屏那条媒体查询里已经回 `flex-start` + 固定 gap。
+     ⚠️ `align-items` 用 **flex-start 不是 flex-end**：三组等高时两者像素相同，
+        但窄屏上标签一旦折行，flex-end 会把那一组的数字一起往上抬、三个数字不再齐平。
+     ⚠️ 组与组之间**不要**再写 margin：距离由 space-between 分，margin 会把它顶偏。 */
   .album-stats {
-    display: grid;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     /* 三格纯计数。第四格原来放「2024.01 → 2026.09　第一张到最后一张」，
-       2026-09-21 主人「相册移除日期的资料」—— 区间也是日期资料，撤掉，不留第四格 */
-    grid-template-columns: repeat(3, 1fr);
-    border-top: 1px solid var(--color-rule);
+       2026-09-21 主人「相册移除日期的资料」—— 区间也是日期资料，撤掉，不留第四格。
+       这一条 gap 是"挤不下时的最小间距"，宽屏上 space-between 给的距离远大于它。 */
+    gap: clamp(20px, 3vw, 40px);
     border-bottom: 1px solid var(--color-rule);
+    padding-bottom: clamp(14px, 1.8vw, 20px);
     margin-bottom: clamp(34px, 4.4vw, 56px);
   }
+  /* 格自己没有内边距、也没有格线 —— 只有内容。
+     `min-width: 0` 留着：窄屏下「张照片」那组数字最长，防它把旁边两组挤变形。 */
   .album-stat {
-    padding: clamp(18px, 2.3vw, 26px) clamp(10px, 1.5vw, 22px);
-    border-left: 1px solid var(--color-rule);
+    padding: 0;
+    border-left: 0;
     min-width: 0;
   }
-  .album-stat:first-child { border-left: 0; padding-left: 0; }
   .album-stat-v {
     display: block;
     font-family: var(--font-head);
     font-weight: 700;
-    font-size: clamp(24px, 3.2vw, 38px);
-    line-height: 1.12;
-    letter-spacing: 0.01em;
+    font-size: clamp(34px, 5vw, 62px);
+    /* 0.96：数字是每组的第一行，行盒比字身矮一点才不把下面那行标签推远。
+       1440 实测条高 108.9px（改版前 121.9）。 */
+    line-height: 0.96;
+    letter-spacing: 0;
     color: var(--color-ink);
     font-variant-numeric: tabular-nums;
   }
   /* .album-stat--range 的字号特例随第四格一起删除（2026-09-21） */
   .album-stat-k {
     display: block;
-    margin-top: 7px;
+    margin-top: clamp(6px, 0.8vw, 10px);
     font-family: var(--font-body);
     font-size: clamp(11px, 1.05vw, 12.5px);
     letter-spacing: 0.14em;
@@ -4091,7 +4316,7 @@ html.nav-anim-reset *::after {
     border-radius: 999px;
     /* 角标压在照片上，两种主题都可能落到浅底上 —— 所以固定深底白字 + 毛玻璃，
        不跟随主题翻转（跟随的话浅色主题下白底白字） */
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(29, 29, 31, 0.6);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
     color: #ffffff;
@@ -4127,6 +4352,96 @@ html.nav-anim-reset *::after {
      删掉后最后一行右侧空 2 格（约 594px）—— 这是主人认下的效果，别自作主张填回去。 */
 
   /* --------------------------------------------------------- ③ 单册页照片墙 */
+  /* ═══════════ 巨字的尺寸是**算出来的**，不是写死的（2026-09-25 第三百一十六批）═══════════
+     参考图（754×434）量出来的结构：小标 cap 高 19px → 汉字墨高 133px → 拉丁 cap 高 106px，
+     即三级字阶的对比约 **1 : 7**；三行的左边界逐行相同（x=18/18/20）；
+     行距极紧（小标→巨字 0.34em、巨字→下一层 0.19em）；无框、无分割线、无阴影。
+
+     ⚠️ **原文那条"左右两条巨字块宽几乎相等"（汉字 552 / 拉丁 635）现在做到了**：
+        第一版说"照搬不了"，是因为只按"字号落在同一档"算 —— 而册名从 2 字（大澳）到
+        9 字（炮台山・金督驰马径）差 4.5 倍，块宽确实永远对不齐。第二轮改成先算目标块宽、
+        再按字库真字宽反推拉丁那行的字号（`--latin-w`）⇒ 19 本里 14 本严格等宽。
+
+     ⚠️ **原文是左对齐**：墙页照抄（见 `.wall-hero`）；**单册页与其余内容页保持居中**
+        （主人 2026-09-25 亲定「相册内的标题置中」）。居中的三行共用一条中轴，
+        等价的约束成立；把单册页也跟着改左会让两处裂开，别做。
+
+     ⚠️ **单位用 cqw（容器宽）不是 vw**：`.about-main` 封在 1200px，
+        用 vw 的话在 2560 的屏上字号会跟着窗口继续涨、把容器撑破。
+
+     2026-09-25 第二轮：块宽的算法从「字号 = 62cqw ÷ 字数」改成先算**目标块宽 `--blk`**、
+     再拿它反推字号 —— 因为单册页多了一行展示蓝的巨型英文名，那行也要求同一个 `--blk`
+     才能做到参考站那条「两块巨字块宽几乎相等」。
+     2026-09-25 第三轮：册页的封顶 120 → **76px**（内容页/墙页照旧 96px，见下面那条的说明）。
+
+     `--cjk-n` / `--latin-w` 由 `tools/photos-data.py` 写进 hero 的 <header> 的 style：
+       `--cjk-n`  = 这一页汉字巨字有几个字（`・` 在 Noto Sans SC 里是全宽，也算一个字）
+       `--latin-w` = 展示蓝那行英文名的总宽，单位 em —— 由字库真字宽逐字相加，不是估的
+     四个内容页的页名（本猫来啦 / 猫窝工坊 / 雨落笔记 / 旧时留影）都正好 4 字，
+     所以 `--cjk-n` 的默认值 4 就够了，它们不用写。 */
+  @supports (container-type: inline-size) {
+    .about-hero {
+      /* ⚠️ inline-size 容器会给这一块加 `contain: layout style inline-size`，
+         于是它成为里面绝对定位后代的包含块。`.about-hero` 是 .about-main 里的块级元素、
+         宽度本来就与内容无关 ⇒ 对自身宽度零影响；但**里面的绝对定位件要重新量一遍**
+         （验收里那条"全站几何快照与改前逐字相同"就是干这个的）。 */
+      container-type: inline-size;
+    }
+    /* ⚠️ 选择器**必须带 .about-hero 这一层**（(0,2,0)）—— 只写 `.about-title, .album-title`
+       是 (0,1,0)，而 `@supports` 不增加特指度：`.album-title { font-size: … }` 写在文件更后面
+       就照样赢，规则静默失效（2026-09-25 实测踩过：桌面册名仍是 52px、只有 390 那档变了，
+       因为 `.about-title` 恰好在本块之前、`.album-title` 之后）。带上这一层之后与源序无关。
+       ⚠️ 别改成"把本块挪到文件末尾" —— 那是靠顺序取胜，下一个人往中间插一条就再次悄悄失效。 */
+    /* 🔴 封顶是**分档**的，两档各有出处，别合并成一个数：
+         · 单册页 76px —— 主人 2026-09-25「样本里单册页（单栏）的大标题太大了」。
+           上一版是 120px：4 字册名在 1200 容器上是一块 480px 的方块，比页面里任何一段正文都重。
+           收到 76（≈ 参考站写死的 `md:text-7xl` = 72px）之后 19 本册名不再各算各的。
+         · 内容页 / 墙页 96px —— **就是改动前的原值**（旧规则 `clamp(52px, 9vw, 96px)` 在桌面
+           取到的就是 96），主人没抱怨过它们 ⇒ 一个像素都不动。
+         两档挂在 hero 上（不是挂在 h1 上）：`.title-latin` 是 h1 的**兄弟**，
+         挂 h1 上它读不到，会静默掉回默认值。 */
+    .about-hero.album-hero { --display-cap: 80px; }
+    .about-hero .about-title { --display-cap: 80px; }
+    /* ⚠️ 选择器**必须带 .about-hero 这一层**（(0,2,0)）—— 只写 `.about-title, .album-title`
+       是 (0,1,0)，而 `@supports` 不增加特指度：`.album-title { font-size: … }` 写在文件更后面
+       就照样赢，规则静默失效（2026-09-25 实测踩过：桌面册名仍是 52px、只有 390 那档变了，
+       因为 `.about-title` 恰好在本块之前、`.album-title` 之后）。带上这一层之后与源序无关。
+       ⚠️ 别改成"把本块挪到文件末尾" —— 那是靠顺序取胜，下一个人往中间插一条就再次悄悄失效。 */
+    .about-hero .about-title,
+    .about-hero .album-title {
+      /* 目标块宽 `--blk` = 容器宽的 62%，封顶「每字 --display-cap」：
+         · 除以字数：9 字与 2 字用同一字号时块宽差 4.5 倍，除以字数后都落在容器宽的 62%；
+         · 封顶封的是**每字**：册页 76px/字 ⇒ 1200 容器下 62cqw/9 = 79 > 76，2~9 字全部落在 76px；
+         · 下限 **28px 是照着旧值取的**（旧规则 clamp(28px, 4.4vw, 52px) 在窄屏的下限就是 28px）：
+           9 字册名在 390 下按 62% 算出来只有 24.7px，比旧值**小** —— 巨字改版不该让最长的
+           那几个册名在手机上变小。
+         ⚠️ 这条带 `.about-hero` 的选择器是 (0,2,0)，所以文件里那几条 (0,1,0) 的
+            `.about-title { font-size: … }` 媒体查询覆写**已经全部失效**（矮视口那条也一样）。
+            别去把它们改回赢 —— 尺寸现在由容器宽算，本来就是响应式的。 */
+      --blk: min(62cqw, calc(var(--cjk-n, 4) * var(--display-cap, 96px)));
+      font-size: clamp(28px, calc(var(--blk) / var(--cjk-n, 4)), var(--display-cap, 96px));
+    }
+    /* 展示蓝的英文名那一行：**拿同一个 --blk 反推字号** ⇒ 汉字那块与它那块逐像素等宽。
+       参考站最关键的机关就是"两块巨字块宽几乎相等"（实测 552 / 635），
+       它靠的是「4 个汉字对 7 个拉丁」的比例巧合、没法推广；这里改成按字库真字宽算，
+       19 本里有 14 本做到严格等宽（其余 5 本都是英文名太短，撞上下面那个 0.86 上限）。
+       ⚠️ 两个夹子各有理由，别删：
+         · 上限 `0.86 × 汉字字号`：英文名太短时（POLYU / HKUST / HENGQIN）反推出来的字号
+           会比汉字还大，巨字那一层不该被第二行抢掉；
+         · 下限 11px 是站内最小字号 —— 窄屏上宁可不等宽，也不能排成蝇头。
+       ⚠️ 特指度必须写到 (0,3,0)（`.about-hero.album-hero` 是**同一条元素上的两个类**，
+          不是后代！）：本块在 @supports 里，而 @supports 不增加特指度，多带一层才与源序无关。
+       ⚠️ 这一行**是 h1 的兄弟，不是 h1 的子元素** —— `tools/stamp.mjs` 的 ALBUM 检查要求
+          `<h1 class="album-title">册名</h1>` 逐字存在，把它塞进 h1 会让守卫全线报红。 */
+    .about-hero.album-hero .title-latin {
+      --blk: min(62cqw, calc(var(--cjk-n, 4) * var(--display-cap, 76px)));
+      font-size: clamp(
+        11px,
+        calc(var(--blk) / var(--latin-w, 8)),
+        calc(0.86 * var(--blk) / var(--cjk-n, 4))
+      );
+    }
+  }
   .album-hero { padding-block: clamp(40px, 5.5vh, 60px) clamp(18px, 2.2vw, 28px); }
   /* 「← 全部相簿」放容器左上角（2026-09-21 主人「「全部相簿」应该放在左上角」）。
      它原来是 .about-hero 的 text-align:center 顺带居中掉的 —— 一个导航控件压在居中的
@@ -4144,23 +4459,37 @@ html.nav-anim-reset *::after {
          · `padding-inline: 12px`（横向的呼吸；`min-height` 已经把纵向撑开）
      三个控件（`.album-back` / `.album-nav-link`）**共用同一条规则** —— 改尺寸只改这一处。
 
-     🔴 **不加框**（2026-09-21 晚主人看完两个候选后原话：「不加框比较好」）。
-        所以这里没有 border / 没有圆角 / 没有底 —— 也**别再加回来**：
-        一旦有框，三个按钮在页脚会跟上面的大书名抢重量，观感比现在噪。
-        代价认下：没有框，"哪块能点"只能靠**字色反馈**（见下面那组 hover 规则）与
-        名字的 `cursor: default` 区分 —— 所以那组反馈不能删。
+     🆕 **又没框了（2026-09-26 第三轮定稿）** —— 同一天三易其稿，理由换人重写，
+        别留一条自相矛盾的注释：
+          ①「鼠标没有悬浮时的按钮颜色为白色可以吗，悬浮时才变灰」
+          ②「蓝色框框真的好丑，按钮框框，文字不要有蓝色，参考苹果设计」
+          ③「参考一下别人相册页面的按钮设计哲学 https://taozhiyy.top/gallery/misaka」
+            →「摆出来对比」→ 在六支候选里选了④
+        ⇒ 现在**既无底也无框、无圆角**：静止时这颗按钮**只有字**；
+          悬停 / 聚焦 / 按下 = 一条 **2px 墨色**下划线**从左扫入**（`::after` + `scaleX 0→1`）。
+        🔴 **别再给它加框加底** —— 含"很淡的灰线""极浅的软投影""opacity 很低的药丸"。
+           主人对"框"本身的判断是否定的，**不是嫌它颜色不对**：上一版（白药丸 + 1px 灰 hairline）
+           就是照②那句做出来的，他看完仍然否了。⇒ 这一族的解是"不画框"，
+           不是"换一根更淡的框"。这条是三稿里唯一被两次独立否掉的方案，别再走回头路。
+        ⚠️ 为什么线用墨不用 accent：②那句"文字不要有蓝色"管的不只是字色。外站那套机制
+           （`::after` + `scaleX` 扫入、`transform-origin` 进出翻转）是**判断**，值得搬；
+           它用的强调色是**数值** —— 数值按本站口径取墨（`--color-ink`）⇒ 全站彻底无蓝，
+           只剩键盘焦点环那一处（见下，那不是字色）。
 
-     🆕 **但字下面有一条淡淡的下划线**（2026-09-21 23:40 主人：「← 全部相簿 / ← 上一册 /
-        下一册 → 按钮可以参考 coming-soon 页面的按钮，功能字下方加入一条淡淡的下划线」）。
-        参考对象是 `pages/coming-soon.html` 的 `.back-link a`（那边写的是
-        `border-bottom: 1px solid var(--color-rule)` + `padding-bottom: 2px`，
-        悬停时连边色一起转 accent）。
-        ⚠️ **这里不能直接照抄 border-bottom**：按钮的盒高是 `min-height: 44px`（拇指标准）、
-        字在盒里竖向居中，border 会画在 44px 的盒底、离字 15px 远，看着像一条分隔线；
-        而且它会把 `padding-inline: 12px` 那两段也画上，线比字宽 24px。
-        ⇒ 改用 `text-decoration`：线的位置由字形自己算，天然贴着字，
-          宽度天然只有字那么宽（padding 不算），三个按钮自动一致。
-        ⚠️ 它**不是框**：没有左右两边、没有底、没有圆角 —— 上面那条「不加框」依然成立。
+     📐 那条线的位置是**量出来**的，不是估的（不许凭感觉改成 6px / 10px）：
+        canvas `TextMetrics` 量 15px 字的真实墨迹：ascent 12.25 / descent 1.5 ⇒ 墨高 13.75px；
+        `min-height: 44px` + 行高 22.06 居中 ⇒ **字墨下沿距盒底 15.13px**（`.album-back` 15.07，同档）。
+        外站的字线空档约 4.5px、线高 2px ⇒ 线占 [8.6, 10.6]px ⇒ `bottom: 8.6px; height: 2px`。
+        左右端点取 `left/right: 12px`（= 本条的 `padding-inline`）⇒ 线宽 = **内容宽**
+        （`.album-nav-link` 里正好等于 `.album-nav-k` 的盒子 68.05px；`.album-back` 正好等于字宽）。
+        ⚠️ **不是 `left:0;right:0`** —— 那样会把两侧 12px 的 padding 也算进线里，线比字宽 24px。
+        复跑：`~/.workbuddy/scratch/album-nav-btn-2026-09-26/geo.js`（打真实册页量）。
+
+     🔄 2026-09-21 23:40 那条**常驻**淡下划线确实不再要（主人当时要的「功能字下方加入一条
+        淡淡的下划线」）：那条是**一直挂着**的静态线，跟"悬停才出现"的扫入线不是一回事。
+        ⇒ `text-decoration-* / text-underline-offset` 四条声明一并不再需要，线改由 `::after` 画。
+        ⚠️ 别把静态下划线加回来：两条线位置与颜色都一样、会叠在一起，而且静止态就挂一条线
+           = "这颗按钮有常驻装饰"，与上面"不画框"的口径直接打架。
 
      ⚠️ `width: fit-content` 不能省：盒子一旦铺满整行，书名右边那片空白也成了可点区域。
      ⚠️ `display: flex`（不是 inline-flex）+ 下面 `.album-back` 的 `margin-right: auto`：
@@ -4178,22 +4507,27 @@ html.nav-anim-reset *::after {
     font-family: var(--font-mono);
     font-size: 15px;
     letter-spacing: 0.06em;
+    /* 🔴 字色**任何一态**都不是 accent（2026-09-26 主人「文字不要有蓝色」）：
+       静止 / 悬停 / 聚焦 / 按下四态共用同一个 `--color-ink`，`color` 一次都不许改。
+       ⚠️ 别在悬停里去改 color —— 苹果的按钮高亮只有一句 `dims the background a bit`。
+       ⚠️ 这条**不能省**：这两个控件是 `<a>`，省了就掉回 UA 的链接默认色
+          （亮 #0000ee、暗 #9e9eff、按下 #ff0000）—— 那正是主人要删的蓝。 */
     color: var(--color-ink);
-    /* 淡淡的下划线（见上面那段说明）：线色 --color-rule = 全站 hairline 同一支，
-       悬停/聚焦/按下时与字色一起转 accent。 */
-    text-decoration-line: underline;
-    text-decoration-color: var(--color-rule);
-    text-decoration-thickness: 1px;
-    /* 空档是**量出来**的，不是估的（2026-09-21 23:46 主人「下划线离文字太近了吧，
-       coming-soon 页面的下划线离文字没有那么近」）：
-         · 初版 3px → 字墨下沿到线顶只有 **1.5px**（太贴，主人一眼看出）
-         · 参考系 coming-soon 的 `.back-link a`：12px 字下空档 **3.5px** = 0.29em
-         · 按 em 等比搬到 15px 字 = 4.4px 空档 ⇒ 需要 offset ≈ 6px
-       用 **0.4em**（=15px 字下 6px、空档 4.5px = 0.30em，与参考系 0.29em 基本一致），
-       不写 6px 是为了将来字号一动，空档按比例跟着走。
-       ⚠️ 别改小：3px / 4px / 5px 三档实测空档 1.5 / 2.5 / 3.5px，`7px` = 5.5px 偏散。 */
-    text-underline-offset: 0.4em;
-    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+    /* 静止 = 只有字：底透明、无框、无圆角、无投影。
+       ⚠️ 亮暗**同一套声明**：`--color-ink` 自己会翻，纸也自己会翻 ⇒ 这一族不再需要
+          `:root.theme-dark` 的基础覆盖块（旧的白药丸版需要，因为 `#ffffff` 不会翻）。 */
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    text-decoration-line: none;
+    /* `position: relative` 是给下面那条扫入线当定位参照的（绝对值相对**padding 盒**，
+       而 padding 盒左边缘就是 `padding-inline` 的起点 ⇒ `left:12px` 正好落在字的左边缘）。
+       ⚠️ 不许删：删了 `::after` 会往上找 `.about-hero` / `.album-nav` 当参照，
+          线就跑到整行两端去了。 */
+    position: relative;
+    /* 悬停不换任何一个"自己的"属性（线是伪元素画的）⇒ 这里不挂 transition。
+       唯一带过渡的是 `::after` 的 transform，写在它自己那条规则里。 */
+    transition: none;
   }
   /* 页顶那个只多两条：贴容器左边（父级居中要压回来）+ 它下面那道间距 */
   .album-back {
@@ -4204,19 +4538,104 @@ html.nav-anim-reset *::after {
      最长就是它；旧注释举的「深圳｜南山・罗湖・龙华・龙岗」同日已收敛成「深圳・市区」），
      所以不能沿用 about-title 的 clamp(52px,9vw,96px) —— 长名会撑出容器 */
   .album-title {
-    font-family: var(--font-head);
+    /* 第三百一十六批（2026-09-25）：同 .about-title —— 换巨字面、收紧行距字距。
+       ⚠️ 上面那条"册名长短差四倍半"的老注释依然成立，而且**现在更要紧**：
+          尺寸改由 --cjk-n 算（见 @supports 那一段），这行 clamp 只是不支持容器查询时的兜底。 */
+    font-family: var(--font-display-cjk);
     font-weight: 700;
     font-size: clamp(28px, 4.4vw, 52px);
-    line-height: 1.2;
-    letter-spacing: 0.02em;
+    line-height: 1.09;   /* 苹果巨字实测 1.088 */
+    letter-spacing: 0;
     color: var(--color-ink);
   }
+  /* 小标（地区 / 页眉那行 mono）。2026-09-25：字距 0.18em → **0.32em**。
+     参考站那行小标是 `uppercase tracking-[0.45em]`，0.45em 是给大写拉丁的；
+     这行是中文，0.45em 会散成「香 港 　 离 岛」、把词断开，所以收到 0.32em ——
+     仍然一眼是"小标"而不是正文，但「香港」「离岛」各自还是一坨。
+     ⚠️ `text-indent` 是给**居中**用的：letter-spacing 在每个字（含最后一个）后面都加空档，
+        于是居中时整行会系统性地左偏半个字距（12px × 0.32em ÷ 2 ≈ 1.9px）。 */
   .album-eyebrow {
     font-family: var(--font-mono);
     font-size: 12px;
-    letter-spacing: 0.18em;
+    /* 2026-09-25 苹果口径：0.32em → **0.08em**。苹果的小标（12px）实测字距 -0.01em~0，
+       没有宽字距这一说；0.32em 是照参考站抄的（它给大写拉丁用 0.45em）。 */
+    letter-spacing: 0.08em;
+    text-indent: 0.08em;
     color: var(--color-accent);
     margin-bottom: 10px;
+  }
+  /* 展示蓝的巨型拉丁行（单册页的英文名 / 墙页的 GALLERY）。2026-09-25 加。
+     这是参考站「巨字第二行换个颜色」那一层 —— 它一张图里 `桃之夭夭` 是墨色、
+     `Gallery` 是彩色，两行并排叠着读起来像一个方块，而不是两行字。
+     ⚠️ 颜色只能走 `--color-display`（accent 兑白 20%，纸上 3.47:1）。
+        **不许拿它做链接 / 焦点环 / 下划线** —— 那些要 4.5:1，它是巨字专用的展示色。
+     ⚠️ 字号不在这条：汉字那块与它那块要**等宽**，尺寸得跟着同一个 `--blk` 一起算，
+        见上面 @supports 的 `.about-hero.album-hero .title-latin` 与下面墙页那条。 */
+  .title-latin {
+    display: block;
+    font-family: var(--font-display-cjk);
+    font-weight: 700;
+    font-style: normal;
+    text-transform: uppercase;
+    line-height: 1.09;
+    letter-spacing: 0;
+    /* 兜底写 `var(--color-display, …)`：那枚 token 只定义在 `@supports (color: oklch)`
+       块里，老浏览器整块读不到 ⇒ 没有兜底时这条会变成"继承"，第二行就与标题同色。 */
+    color: var(--color-display, var(--color-accent));
+  }
+  /* === 墙页（photos.html）标题区 · 2026-09-25 ===
+     主人「页面标题参考这个设计 https://taozhiyy.top/gallery」。
+     参考站那两行**照抄**：小标 `Unified Gallery` + 巨字下面第二行彩色的 `Gallery`。
+     构图也照它：**两栏、底对齐** —— 巨字在左、那段话在右（它写 md:grid-cols-[1.05fr_0.95fr]）。
+     ⚠️ **2026-09-26 起这套版式挂在三页上**：墙页 + 项目页 + 动态页
+        （主人「项目、动态页的标题区域采用照片页的那个设计」）。
+        单册页与 about 页仍保持**居中**（主人亲定「相册内的标题置中」），
+        所以 `.wall-hero` 是**单独的类**、不合并进 `.about-hero` —— 别把它加进 about 页。
+     ⚠️ 也不抄它的返回胶囊（圆角+描边+毛玻璃）：站内三个导航控件是「无框 + 下划线」的规矩。 */
+  .about-hero.wall-hero { text-align: left; }
+  /* 右栏那段话**贴右边界**（2026-09-26 主人「「之前的回忆都记在这里」靠右显示」）——
+     原来它只是落在右栏里、左对齐，读起来像"悬在两栏中间"。
+     ⚠️ 只在两栏版式下贴右；≤768 叠成一栏时回左（见下面那条媒体查询），
+        否则一栏版式里会是一条孤零零贴右的短句。 */
+  .about-hero.wall-hero .about-hero-desc { text-align: right; }
+  .hero-kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;   /* 苹果小标不宽字距 */
+    color: var(--color-accent);
+  }
+  .wall-hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 32px;
+    align-items: end;
+    margin-top: 18px;
+  }
+  /* ⚠️ 这一层是**容器**（container-type: inline-size）：左栏的巨字尺寸要按**栏宽**算，
+     不能按整幅算 —— 否则 768~1100 这段视口下 62cqw 会大于栏宽、标题压出格。
+     它比 `.about-hero` 更近，所以里面的 cqw 自动改按栏宽解，不用再写第二条尺寸规则。 */
+  .wall-hero-copy { container-type: inline-size; }
+  /* 墙页那两行的块宽相等：4 个汉字 = 4em，`GALLERY` = 4.391em（字库真字宽量出来的）
+     ⇒ 拉丁 = 4 ÷ 4.391 = 0.911 倍汉字字号。
+     写成 calc 而不是 0.911，是为了将来换词只改 --latin-w 一个数。
+     ⚠️ **上限是 0.95em，别收紧到 0.86**（2026-09-26 加）：这一年起项目页与动态页也用这套。
+        上限管的是**字形大小**（第二行的字不许比标题还大），不是块宽 ——
+        `calc` 本身已经保证两块等宽（4 个汉字 = 4em，拉丁块 = 字号 × --latin-w）。
+        实测三页：GALLERY 反推 0.911em（不撞上限，两块仍严格等宽）·
+        PROJECTS 0.768em（同上）· POSTS 只有 3.31em ⇒ 反推 1.208em，撞上限压到 0.95em，
+        块宽因此缩到 0.786 倍。**这是有意的取舍**：宁可 POSTS 那块不齐，也不能让第二行压过标题。 */
+  .wall-hero-copy .title-latin {
+    font-size: clamp(0.5em, calc(1em * var(--cjk-n, 4) / var(--latin-w, 4.391)), 0.95em);
+  }
+  @media (max-width: 768px) {
+    /* 参考站在 md 断点把这两栏叠成一栏，跟着它走 */
+    .wall-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    /* 单栏版式里右栏不存在了，"贴右"失去意义 ⇒ 回左，跟标题同一条左边界 */
+    .about-hero.wall-hero .about-hero-desc { text-align: left; }
   }
   /* ══════════ 单册页题头那一行「张数 · 日期」 —— 已删除（2026-09-26 第三百二十一批）══════════
      这里原来有两块东西，现在**一起删掉**（留着就是永远匹配不到任何节点的死规则）：
@@ -4423,32 +4842,58 @@ html.nav-anim-reset *::after {
   }
   /* `.album-nav-k`（按钮里那行字）**故意没有自己的规则**：字体/字号/字距/颜色全部继承
      `.album-nav-link` 的按钮规格，这样三个按钮的字一定一样大。
-     那条淡下划线同理 —— `text-decoration` 会从 `.album-nav-link` 往下传播到这里，
-     **别在这里再声明一遍线宽/线色**，两处一写就会分叉。
+     🔴 **尤其别在这里声明 `color`**（2026-09-26）：按钮的字色在静止/悬停/按下三态是
+        **同一个** `--color-ink`，靠的正是"子元素不写 color"这条继承链。在这里写一刀 color，
+        链条就断在这儿 —— 按钮自己的 color 若将来变了，标签还挂在旧色上，字色就分叉了。
      留着这个类名是给 JS 挂、给测试选。 */
 
   /* --------------------------------- 相簿页的导航按钮：一条交互语汇
      2026-09-21 主人「按钮的设计逻辑不是很统一」（第一版）→ 当晚
-     「名字不可以点击、名字移到上面、优化按钮大小」（第二版）→
-     「不加框比较好」（第三版，去掉边框与底色）。
-     现在能点的只剩三个按钮本身，而按钮**没有框**，所以反馈全压在**字色**上：
-       静止        字 --color-ink
-       悬停/聚焦/按下  字 → --color-accent（`transition: color` 那条就是为它写的）
-       焦点环      2px accent + offset 2 —— 与 `.nav-links a` / `.hero-cta` / `.album-shot` 同一套
-     ⚠️ **这三条不能删。** 没有框、没有底，字色就是"能点/正被指着"的唯一信号；
-        删了之后三个按钮跟旁边不可点的名字长得一模一样。
-     `:active` 是给触摸设备的：那边没有 hover，按下不变色等于没有反馈。
-     站内范式：`.nav-menu-links a:hover, .nav-menu-links a:active { color: accent }`。
+     「名字不可以点击、名字移到上面、优化按钮大小」（第二版）。
+     🆕 2026-09-26 第三轮改定（前两轮是"无框 + 悬停变蓝字" → "白底药丸 + 灰悬停"，都作废）：
+       ①「鼠标没有悬浮时的按钮颜色为白色可以吗，悬浮时才变灰」
+       ②「蓝色框框真的好丑，按钮框框，文字不要有蓝色，参考苹果设计」
+       ③ 外站参考 →「摆出来对比」→ 选定④
+     ⇒ **无框族**：静止只有字；悬停 / 聚焦 / 按下 = 一条 2px 墨线从左扫入。
+     苹果口径仍然作数（查过原文，不用再搜）：`dims the background a bit` —— 高亮只压底，
+       字色与框色一律不动，也没有位移、没有放大（与第 319 批「按钮不做浮动」同向）。
+       本族只是把"压底"换成了"出线"：都是**只加一个层面的信号**，不动字、不动盒。
+     ⚠️ **字色四态完全一致**，这是主人那句"文字不要有蓝色"的落点 ——
+        量法就一条：`getComputedStyle().color` 在静止 / 悬停 / 聚焦 / 按下四处必须**一模一样**。
+     ⚠️ **线色也是墨**（`--color-ink`），不是 accent。全站只剩焦点环一处蓝。
+     ⚠️ 焦点环仍是 2px accent + offset 2，与 `.nav-links a` / `.hero-cta` / `.album-shot` 同一套。
+        键盘用户靠它、鼠标用户靠线。**这不是"字变蓝"，是焦点指示器 —— 别顺手改成灰的。**
+     ⚠️ `:active` 是给触摸设备的：那边没有 hover，按下不出线等于没有反馈（`transform` 也一样跑，
+        触摸时 `:active` 会保持到抬手）。
      ⚠️ 名字（`.album-nav-n`）**故意不在这组选择器里** —— 它不是链接，不该有任何反馈。 */
-  .album-back:hover,
-  .album-back:focus-visible,
-  .album-back:active,
-  .album-nav-link:hover,
-  .album-nav-link:focus-visible,
-  .album-nav-link:active {
-    color: var(--color-accent);
-    /* 字色变了线色不变 = 字底下挂着一根旧的灰线，看着更脏（coming-soon 那边也是两样一起转） */
-    text-decoration-color: var(--color-accent);
+
+  /* 扫入线的本体：静止 `scaleX(0)` 收在**右端**，悬停时 `scaleX(1)` 从**左**展开，
+     离开时反向收回右侧 —— 这就是外站那套"进入向左展开、离开向右收回"的进出翻转。
+     ⚠️ `transform-origin` 必须两处都写：只写展开那条，收回时会从左边缩回去（方向反了）。
+     ⚠️ 伪元素是 `position: absolute` 且无 `z-index` ⇒ 画在文字**之上**。这里不打架是因为
+        线（[8.6, 10.6]px）与字墨（[15.13, 28.88]px）在纵向完全错开；将来若把 `bottom` 调大
+        到压住字，就得给线补 `z-index: -1`（那时它会被父级背景挡住 —— 父级底是透明的，没事）。 */
+  .album-back::after,
+  .album-nav-link::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 8.6px;
+    height: 2px;
+    background: var(--color-ink);
+    transform: scaleX(0);
+    transform-origin: 100% 100%;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .album-back:hover::after,
+  .album-back:focus-visible::after,
+  .album-back:active::after,
+  .album-nav-link:hover::after,
+  .album-nav-link:focus-visible::after,
+  .album-nav-link:active::after {
+    transform: scaleX(1);
+    transform-origin: 0 100%;
   }
   .album-back:focus-visible,
   .album-nav-link:focus-visible {
@@ -4467,19 +4912,19 @@ html.nav-anim-reset *::after {
 
   /* --------------------------------------------------------------- 窄屏适配 */
   @media (max-width: 860px) {
-    .album-stats { grid-template-columns: repeat(2, 1fr); }
-    .album-stat { padding-inline: clamp(8px, 2vw, 16px); }
-    .album-stat:nth-child(odd) { border-left: 0; padding-left: 0; }
-    /* 🔴 2026-09-24 主人「照片页，手机版移除 5 个地区的显示」。
-       为什么要撤：三格摆进两列 ⇒ 第三格「5 个地区」自己单占第二行，
-       它上面那条 hairline 只画了半行，右边空一格（390 实测：条 180.1px 高、
-       1/3 是空的）。删掉它之后条变成 90px 高的一行两格，省 90px 首屏高度。
-       ⚠️ 桌面（≥861px）三格不变 —— 那里是三列、不折行。
-       ⚠️ 藏的是**这一格**（`.album-stat--regions`，类名由 photos.js 挂），
-       不是 `:nth-child(3)`：将来格数一变，序号猜法就错位。
-       ⚠️ 原来这里还有一条 `.album-stat:nth-child(n + 3) { border-top: … }`
-       （第二行的分隔线）—— 第三格被藏之后第二行永远不存在，随它一起删掉。 */
-    .album-stat--regions { display: none; }
+    /* 2026-09-26 起数据条是 flex 一行（见 ① 数据条那段）。窄屏只剩两格，
+       `space-between` 会把它们推到左右两个角 ⇒ 这里回 `flex-start` + 固定 gap。 */
+    .album-stats { justify-content: flex-start; gap: clamp(30px, 9vw, 52px); }
+    /* 🔴 2026-09-26 撤销 09-24 那条「手机版移除 5 个地区的显示」—— **它的理由已经作废**。
+       09-24 的理由是「三格摆进两列 ⇒ 第三格自己单占第二行、上面那条 hairline 只画半行」，
+       那是 `repeat(3, 1fr)` 三格表格才有的病（见 ① 数据条那段）。现在是一行 flex，
+       三格并排在手机上本来就是一行 —— 实测：
+         390：三组 40.8 + 61.2 + 58 = 160px，两个间隙 2×35.1 = 70.2 ⇒ 230 ≤ 358（余 128px）
+         320：同上 220 ≤ 288（余 68px）
+        ⇒ 手机上现在与桌面看到同样三个数。
+       ⚠️ **要再藏回去**就加回 `.album-stat--regions { display: none; }` 一行；
+       别写 `:nth-child(3)`：格数一变序号猜法就错位（`.album-stat--regions` 这个类名
+       由 photos-data.py 写进 markup）。 */
     /* 窄屏要两列：一列 358px 宽的封面一路滚下去太长了。
        148px 下限保证 390 视口下能塞下两列（2×148 + 14 间隙 = 310 ≤ 358）。 */
     .album-wall {
@@ -4524,4 +4969,9 @@ html.nav-anim-reset *::after {
     .album-tile:focus-visible .album-tile-cover img,
     .album-shot:hover img,
     .album-shot:focus-visible img { transition: none; }
+    /* 🆕 2026-09-26 导航按钮的扫入线（`.album-back` / `.album-nav-link` 的 `::after`）同理：
+       掐掉 0.3s 的扫入，**保留线本身** ⇒ 悬停时线瞬现。这不是动画，是"指针在哪一颗"的状态反馈，
+       一并不显示反而丢了信息（与上面 `.album-shot img` 那条同一个判断）。 */
+    .album-back::after,
+    .album-nav-link::after { transition: none; }
   }

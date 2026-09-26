@@ -10,10 +10,12 @@
 <meta charset="UTF-8" data-page-node-id="28SqVd7EaCAhIS1nzHozrO">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="HjJ5OZMSzpguY6V6G0EBpk">
 <meta name="description" content="本猫的项目，敲过的代码和做过的东西" data-page-node-id="Av4AWEO69stM1jQbS0NZBX">
-<meta name="theme-color" content="#f8fafc" data-page-node-id="Eh7YvcSGpDQlcVGqMBc1lW">
+<meta name="theme-color" content="#ffffff" data-page-node-id="Eh7YvcSGpDQlcVGqMBc1lW">
 <title>项目 — rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 ../assets/css/loader.css），
@@ -21,8 +23,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -54,7 +56,7 @@
   var saved = localStorage.getItem('rainmeow-theme');
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <style>
   .icon-sun { display: none; }
@@ -65,12 +67,12 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="5yFPXOykMzgELb443IiWSO">
@@ -79,12 +81,12 @@
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 ../assets/css/fonts.css -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=79cf2162a2" data-page-node-id="NBDWVuhiTlDQFf46L6NUUX">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d" data-page-node-id="NBDWVuhiTlDQFf46L6NUUX">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="lCdVug9OEenWPlazPlLmc0">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=02cbded222" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=fc6c351e70" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
@@ -196,11 +198,21 @@
   <main class="about-main projects-main" data-page-node-id="j8CySoXL42mM5QJDSIrC9g">
     <!-- === 项目页：标题区（第一百七十八批 2026-08-25 主人"设计项目页面的标题和描述，
          参考关于页面"）===
-         主标题「猫窝工坊」居中 + accent 高亮（hl 工坊），描述一句话 ——
-         与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。 -->
-    <header class="about-hero" data-page-node-id="EOy30PMWp9ByIkNM5Y35US">
-      <h1 class="about-title" aria-label="猫窝工坊" data-page-node-id="Iou4yYu55oHrMP1O2ww0sC"><span class="about-title-char" data-page-node-id="Cap8d4ZLCMcXihFYQZcWPs">猫</span><span class="about-title-char" data-page-node-id="P9BYKuEyAkqYZY6gj8FsSk">窝</span><span class="about-title-char hl" data-page-node-id="nfZZZkoIVD6veqhQk9cBHQ">工</span><span class="about-title-char hl" data-page-node-id="DAWqPoGmII8iYvdOL2rQId">坊</span></h1>
-      <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这里</p>
+         主标题「猫窝工坊」居中（四字整条墨色，不再有 accent 高亮字），描述一句话 ——
+         与关于页「本猫来啦」同款 about-title / about-hero-desc 全局样式。
+         2026-09-26 主人「雨落笔记、猫窝工坊 分别这4个字不要有字变蓝色，参考照片页的那个设计」：
+         巨字里那两枚 `.hl`（末二字 accent 蓝 + font-weight 800）拿掉了，四个字整条 ink。
+         与照片页「旧时留影」「雨落笔记」同款 —— 汉字整条墨色、拉丁那行（`Projects`）是唯一彩色层。
+         ⚠️ 别顺手把 `.hl` 加回来：这条分支当初就是"两个蓝互相抢"才撤的；
+            `.about-title .hl` 那条规则现在只服务关于页「本猫来啦」。 -->
+    <header class="about-hero wall-hero" data-page-node-id="EOy30PMWp9ByIkNM5Y35US" style="--cjk-n:4;--latin-w:5.2070">
+      <p class="hero-kicker">SELECTED WORKS</p>
+      <div class="wall-hero-grid">
+        <div class="wall-hero-copy">
+          <h1 class="about-title" aria-label="猫窝工坊" data-page-node-id="Iou4yYu55oHrMP1O2ww0sC"><span class="about-title-char" data-page-node-id="Cap8d4ZLCMcXihFYQZcWPs">猫</span><span class="about-title-char" data-page-node-id="P9BYKuEyAkqYZY6gj8FsSk">窝</span><span class="about-title-char" data-page-node-id="nfZZZkoIVD6veqhQk9cBHQ">工</span><span class="about-title-char" data-page-node-id="DAWqPoGmII8iYvdOL2rQId">坊</span><span class="title-latin">Projects</span></h1>
+        </div>
+        <p class="about-hero-desc" data-page-node-id="ceDJRTTCpCatd2iJk0hGj2">敲过的代码、做出来的东西，都堆在这里</p>
+      </div>
     </header>
 
     <!-- === 项目列表：立牌影像排（第二百七十八批 2026-09-13 主人"要不不用现在这款卡片的
@@ -257,7 +269,7 @@
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=8945086b93"></script>
 
   <script src="../assets/js/loader.js?v=7d81072196" defer></script>
-  <script src="../assets/js/script.js?v=6c96e462db" defer></script>
+  <script src="../assets/js/script.js?v=88b5187802" defer></script>
   <!-- 项目页 Skewed Carousel 引擎（第一百八十批） -->
   <script src="../assets/js/projects-carousel.js?v=7d73f28bf2" defer></script>
 </body>

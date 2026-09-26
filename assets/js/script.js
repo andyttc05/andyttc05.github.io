@@ -1270,7 +1270,17 @@
         },
         focus: {
           meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
-          glyph:  { IN: { s: 2.4, blur: 14, op: 0 }, REST: {}, OUT: { s: 0.82, blur: 6, op: 0 } },
+          /* 2026-09-26（主人「滑动时字的一部分突然显示/消失，字的动画不流畅」）：
+             巨字上**不再挂 filter:blur()**，只留 scale + opacity。
+             根因不是性能，是 WebKit 的合成方式：带 filter 的那一层光栅会被缓存住、
+             再按当前(每帧变化的) transform 合成 ⇒ filter 在场时同一个字被画得
+             **底沿短 11px、笔画粗 38%**（ink 9519 vs 6880），filter 一撤又在**一帧内跳回**
+             （底沿 +11px）。滑过时就是「一块笔画突然没了，又突然回来」。
+             只在 眸(focus)/笑(bloom) 上出现 —— 只有这两屏的巨字同时有 scale 与 blur。
+             headless 与真 GPU(headful) 逐像素相同，Chromium 无此现象。
+             触屏本来就恒 blur=0（见下方 isTouch），这次等于把桌面也对齐到触屏。
+             证据/探针：~/.workbuddy/scratch/vslide-blur-2026-09-26/ */
+          glyph:  { IN: { s: 2.4,  op: 0 }, REST: {}, OUT: { s: 0.82, op: 0 } },
           sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
           /* REST {} = 原尺寸(2026-08-18 晚):眸 1:1 方图不再驻留放大(主人嫌大);
              2026-08-18 22:00 主人定稿"全部改为 500"→ 眸 500x509,取消 focus 限宽;
@@ -1279,7 +1289,7 @@
         },
         bloom: {
           meta:   { IN: { y: -12, op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
-          glyph:  { IN: { s: 0.3, blur: 8, op: 0 }, REST: {}, OUT: { s: 1.12, blur: 4, op: 0 } },
+          glyph:  { IN: { s: 0.3,  op: 0 }, REST: {}, OUT: { s: 1.12, op: 0 } }, /* blur 同步移除，同 focus 那段注释 */
           sub:    { IN: { y: 12,  op: 0 }, REST: {}, OUT: { y: -8,  op: 0 } },
           visual: { IN: { y: 8, s: 0.88, op: 0 }, REST: {}, OUT: { y: -10, s: 1.05, op: 0 } } /* 云涌:微缩涨开 */
         },
@@ -1303,10 +1313,12 @@
 
       /* 阶段窗口(占行程比例):入场 [0, IN_END] / 驻留 [IN_END, OUT_START] / 离场 [OUT_START, 1] */
       var IN_END = 0.34, OUT_START = 0.66;
-      /* 第一百三十三批：触摸设备禁用 blur 插值 —— focus/bloom 屏巨字入场/离场带
+      /* 第一百三十三批：触摸设备禁用 blur 插值 —— 当时 focus/bloom 屏巨字入场/离场带
          filter: blur() 动画，每帧变化会创建离屏模糊层（GPU 大户），移动端滚动时
          叠加背景 canvas + 5 屏 scrub 造成卡顿。touch 端 blur 恒 0 → 写 filter:none，
-         保留 transform/opacity 位移动效（入场语义不变，只是去掉模糊）。 */
+         保留 transform/opacity 位移动效（入场语义不变，只是去掉模糊）。
+         2026-09-26：SPEC 里已没有任何 blur 键（focus/bloom 巨字那次一并移除），
+         这条 isTouch 现在是「将来有人再加 blur 时的兜底」，保留。 */
       var isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
       function easeOutCubic(t) { var u = 1 - t; return 1 - u * u * u; }
@@ -2185,7 +2197,42 @@
       (function () {
         var POS_KEY = 'rm-pos';
         var MAX_DELTA = 2;                 /* 与原生还原值的容忍差（px）：≤ 它就算"还对了" */
+
+        /* 🔴 「落定」闸（2026-09-26 第三百二十三批）：**没落定的文档一句记录都不许写。**
+           来由（探针 ~/.workbuddy/scratch/refresh-pos/double.js）：文档在首帧还没铺开时比最终矮，
+           浏览器那一次还原会被矮文档的 maxY 钳住 —— 实测首帧出现过 hkust 450、photos 696、
+           about 504 这种值，40~270ms 之后才回到目标。旧写法在 pagehide **无条件**把那一刻的
+           scrollY 标成权威值 ⇒ 在那一段里再按一次 Cmd+R（连按两下刷新，或者刷完觉得不对立刻再刷），
+           记下来的就是 0（或被钳住的值）；而权威值会把下一个文档里**原生已经还对了的位置**
+           覆盖掉、把人钉在错的地方 —— 症状正是「刷新时出现的位置不在那里」，且时有时无（看手速）。
+           现在的语义：**记录永远属于上一个真正落定的视图**。没落定的那次 pagehide 什么都不写，
+           旧记录原样留着 —— 那才是用户最后真正看到的位置。 */
+        var settled = false;
+        function markSettled() { settled = true; }
+        /* 落定判据（任一成立）：
+             ① 用户自己动过（滚轮 / 触摸 / 按鼠标 / 非 ⌘ 键）—— 说明他早就在看这一屏了；
+             ② load 之后连续两帧 scrollY 不变；
+             ③ 4s 兜底（脚本卡住、load 一直不来时，别把"记录能力"永久关掉）。
+           ⚠️ ⌘/Ctrl 组合键必须放过 —— 那是 Cmd+R 本身，拿它当"落定"正好把闸废掉。 */
+        ['wheel', 'touchstart', 'mousedown', 'pointerdown'].forEach(function (ev) {
+          window.addEventListener(ev, markSettled, { once: true, passive: true });
+        });
+        window.addEventListener('keydown', function (e) {
+          if (!e.metaKey && !e.ctrlKey) markSettled();
+        }, { once: true, passive: true });
+        window.addEventListener('load', function () {
+          var a = null;
+          (function step() {
+            var y = Math.round(window.scrollY || 0);
+            if (a === y) { markSettled(); return; }
+            a = y;
+            requestAnimationFrame(step);
+          })();
+        });
+        setTimeout(markSettled, 4000);
+
         function posStr(authoritative) {
+          if (!settled) return;            /* 没落定 ⇒ 什么都不写（理由见上面整段） */
           try {
             sessionStorage.setItem(POS_KEY,
               location.pathname + '|' + Math.round(window.scrollY || 0) + (authoritative ? '|u' : ''));
@@ -2224,7 +2271,7 @@
            非权威值：只敢在原生彻底没还上（0）时用。 */
         if (!authoritative && want === 0) return;
 
-        requestAnimationFrame(function () {
+        function correct() {
           var cur = window.scrollY || 0;
           if (Math.abs(cur - want) <= MAX_DELTA) return;  /* 原生这次还的就是这个 → 一次 scrollTo 都不发 */
           if (!authoritative && cur !== 0) return;        /* 原生给了别的非零值 → 让位，别抢 */
@@ -2232,6 +2279,31 @@
           if (max <= 0) return;                           /* 文档还没铺开：别把位置钉在 0 */
           window.scrollTo(0, Math.min(want, max));
           window.__rmFallbackRestored = want;             /* 只给夹具看：真兜底过才有值 */
+        }
+        requestAnimationFrame(correct);
+
+        /* ③ load 之后再确认一次（同一批，double.js 抓到的另一半）：
+           实测浏览器自己那一次还原**可能晚于本段**（历史条目是被"没加载完的那次"建的，
+           或是被矮文档钳住后回填）—— 那时它会把我们刚 scrollTo 的值顶掉。
+           做法照抄 photos.js 的墙（restoreWallSpot 的那条 load 兜底）：
+           load + 一帧后再核一次，⚠️ 用户一旦自己动过就立刻让位 ——
+           为了几像素把人家的滚动抢回去，比不修更烦。
+           这条只在"本来就需要兜底"的场景里跑：chromium 上原生早还对了 ⇒ 一次都不会发。 */
+        var taken = false;
+        ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (ev) {
+          window.addEventListener(ev, function () { taken = true; }, { once: true, passive: true });
+        });
+        window.addEventListener('load', function () {
+          requestAnimationFrame(function () {
+            if (taken) return;
+            var cur = window.scrollY || 0;
+            if (Math.abs(cur - want) <= MAX_DELTA) return;
+            if (!authoritative && cur !== 0) return;
+            var max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            if (max <= 0) return;
+            window.scrollTo(0, Math.min(want, max));
+            window.__rmFallbackRestored = want;
+          });
         });
       })();
 

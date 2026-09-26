@@ -9,14 +9,16 @@
 <meta charset="UTF-8" data-page-node-id="VxbBySPFF1JOtCLE5dZEQn">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" data-page-node-id="t7tWJ4xmspCLYUV1J3V9yE">
 <meta name="description" content="时雨时猫的个人编程主页，从零开始学编程的旅程记录" data-page-node-id="k1W8VUpDT1xlw3GmM1P7NF">
-<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" data-page-node-id="lGXhCNWpKuU7TTBvfelLkj">
-<meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" data-page-node-id="kjjmZtaQQgPGg6044ZlQnF">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" data-page-node-id="lGXhCNWpKuU7TTBvfelLkj">
+<meta name="theme-color" content="#131a26" media="(prefers-color-scheme: dark)" data-page-node-id="kjjmZtaQQgPGg6044ZlQnF">
 <meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="JYX8tvsYaE4SwPOuChB373">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" data-page-node-id="Wu7IVQ75T7fcE7GsNXmnmi">
 <meta name="apple-mobile-web-app-title" content="rain.meow" data-page-node-id="zQyXc0QyBLW6Sd5suhib1Y">
 <title>rain.meow</title>
 <!-- 导航观感三件套（2026-09-13 主人"参考 tblog.mmzhiku.xyz，优化加载体验与闪烁"）
      ① html 底色内联在 head：style.css 到达前也不会白闪（深色用户不再先白一下）；
+        ⚠️ 2026-09-26：亮色串 #ffffff → #f5f5f7。它必须等于 style.css 的 `--color-canvas`
+        （画布），**不是** --color-paper —— 两边不同值就会先闪一下 10 级的白。
      ② 站内导航判据：从站内某页点进来（referrer 同源，或用会话标记 rm-visited
         兜底）时给 <html> 加 .nav-instant，
         全屏加载页连第一帧都不画（display:none 见 assets/css/loader.css），
@@ -24,8 +26,8 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f8fafc; }
-  html.theme-dark { background: #0f172a; }
+  html { background: #f5f5f7; }
+  html.theme-dark { background: #131a26; }
 </style>
 <script>
   (function () {
@@ -60,7 +62,7 @@
   var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('theme-dark', dark);
   /* 同步设好 meta theme-color,避免 dark 用户首屏看到亮色地址栏闪一下 */
-  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0f172a' : '#f8fafc');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#131a26' : '#ffffff');
 </script>
 <!-- 首屏防闪烁：把图标切换规则提前到内联 style，body 渲染前就生效，
      不依赖外部 style.css（图标规则在第 367 行，CSS 没应用完时两个 SVG 会同时可见） -->
@@ -74,12 +76,12 @@
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-paper, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background: var(--color-paper, #ffffff);
+    color: var(--color-ink, #1d1d1f);
   }
   html.theme-dark #pageLoader {
-    background: var(--color-paper, #0f172a);
-    color: var(--color-ink, #e2e8f0);
+    background: var(--color-paper, #131a26);
+    color: var(--color-ink, #e8edf3);
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="rWeoEnOg1LEiItxMVjHlKX">
@@ -88,13 +90,13 @@
 <!-- 本地自托管字体（第一百四十八批 2026-08-22 主人"字体一并接入"）：
      替换 Google Fonts CDN —— woff2 本地化，latin/latin-ext 子集分段加载，
      中文走系统字体回退（与原行为一致）；@font-face 声明见 assets/css/fonts.css -->
-<link rel="stylesheet" href="assets/css/fonts.css?v=79cf2162a2" data-page-node-id="u1mEGNTdJn0X2YtUtHyMxy">
+<link rel="stylesheet" href="assets/css/fonts.css?v=86c7d1781d" data-page-node-id="u1mEGNTdJn0X2YtUtHyMxy">
 <link rel="preload" as="image" href="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/images/hero/catgirl_sailor.webp?v=7" type="image/webp" fetchpriority="high" data-page-node-id="uEbjLTn7QHsmLzJxseSVHo">
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg" data-page-node-id="k9MCJQfZqOv4G4CNI4cAgK">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="assets/css/loader.css?v=5ce8d862e9" data-page-node-id="e27DsJyyEIMwfAPlv5xHl1">
-<link rel="stylesheet" href="assets/css/style.css?v=02cbded222" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
+<link rel="stylesheet" href="assets/css/style.css?v=fc6c351e70" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
 
 </head>
 <body data-page-node-id="gjOkzZwhhcAGo2quk6epB4">
@@ -400,7 +402,7 @@
 </script>
 
 <script src="assets/js/loader.js?v=7d81072196" defer></script>
-<script src="assets/js/script.js?v=6c96e462db" defer></script>
+<script src="assets/js/script.js?v=88b5187802" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="assets/js/canvas-nest.js?v=b43ad40710"></script>
