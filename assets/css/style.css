@@ -2375,9 +2375,10 @@
      与 .about-sub-line 区别:hero-desc 在 hero 区(text-align center),sub-line 在 about-bento 内(left)。 */
   .about-hero-desc {
     font-family: var(--font-head);
-    /* 第一百零二批：描述入场/出场改为滚动驱动（title-exit，见下方 @supports 块）——
-       原 about-desc-rise 一次性加载动画移除（同元素上 fill:both 加载动画会永久压过
-       滚动驱动动画的 opacity，二者不能共存） */
+    /* 第一百零二批曾把描述改成滚动驱动（title-exit）——2026-09-27 第四轮连同那个
+       @supports 块一起撤了，`.about-hero-desc` 现在走文件末尾的 `.rm-fade`（纯淡化）。
+       ⚠️ 那条结论本身仍然有效：同元素上 fill:both 的加载动画会永久压过（过渡/动画的）
+          opacity ⇒ **别给这个元素另加一次性加载动画**。 */
     font-size: clamp(16px, 1.85vw, 20px);
     line-height: 1.65;
     color: var(--color-muted);
@@ -2487,7 +2488,9 @@
   /* === About 页（第九十四批 2026-08-21 主人"只移除大卡 hover 浮动"）===
      - 大卡 hover-lift -3px —— 删（主人指定移除）
      - 恢复所有其他动画（char-by-char 标题 / about-desc-rise 描述 / 滚动驱动入场出场）
-     - 大卡 = 滚动驱动入场出场（view() 时间轴，replace+add 拆双动画） */
+     - 大卡 = 滚动驱动入场出场（view() 时间轴，replace+add 拆双动画）
+     ⓘ 2026-09-27 第四轮：这批说的「滚动驱动 / view() 时间轴」已整体撤掉，现在只有纯淡化
+       （见文件末尾「滚动进场 / 出场：纯淡化」）。上面三行是**那一批的历史**，别当现状读。 */
   .about-card {
     /* 第六十五批：弃新拟态 → 现代 UI —— flat + hairline 边框 + 零重阴影
        🆕 2026-09-26（主人「按你推荐的改」）：这一族（`.about-card` / `.game-tile` /
@@ -2505,10 +2508,10 @@
     padding: clamp(28px, 3.2vw, 34px); /* 第一百零六批：24-32→28-34 首屏放宽（更舒展的内部呼吸） */
     min-width: 0;   /* grid item 防止 max-content 内容（logo loop track）撑破列宽 */
   }
-  /* 滚动驱动入场/出场（第九十四批恢复）+ 第一百零一批 @supports 门控：
-     view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 64px nav 遮）
-     entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁。
-     无 view() 支持的浏览器不播动画，卡片保持基础样式全显（见 .about-sub 同款注释） */
+  /* ⓘ 已撤（2026-09-27 第四轮）：原 `.about-card` 的滚动驱动规格 —— view(block 100px)
+     让视口上下各收缩 100px（淡出主体落在导航栏下方，不被 64px nav 遮）、
+     entry 0% cover 100% 跨完整入场+驻留段、opacity 用 replace 避免 add 合成 1 死锁。
+     留档只为记住当年为什么这么定；现行机制见文件末尾的 `.rm-fade`。 */
   /* （原 `.about-card` 的滚动驱动块）2026-09-27 第四轮撤掉，改走文件末尾的 `.rm-fade`。 */
   /* （原 `scroll-fade-opacity` / `scroll-fade-move` 两条通用 keyframes，以及
      `--enter-y` / `--enter-s` 两个位移缩放参数）2026-09-27 第四轮随"取消内容移动"
@@ -2599,7 +2602,8 @@
      hover 明确反馈：上浮回正 + accent 边框/阴影扩散 + 名字变色；
      点击（第一百三十八批 2026-08-22 主人"弹一点"）：JS 按压回弹 —— 按下 60ms 压扁
      scale(0.97)、松开 280ms back 缓动回弹（自带过冲）；触屏降级 CSS :active 微缩。
-     logo 保留 logo-scroll 滚动淡入。
+     logo 保留 logo-scroll 滚动淡入。（ⓘ 2026-09-27 第四轮：`logo-scroll` 已撤，
+     `.game-logo` 改走文件末尾的 `.rm-fade`。）
      第一百三十九批（2026-08-22 主人"悬浮特效没了 / 可爱杂乱好看一点"）：
      —— HTML 补上 .game-tile-wrap 包裹层（第一百三十六批改 CSS 时漏改 HTML → hover 全失效，已恢复）；
      —— "可爱杂乱"升级：三卡 rotate + 水平/垂直双向错位（新增 --gt-x），顶部彩色和纸胶带
@@ -3125,8 +3129,9 @@
     touch-action: manipulation;
     -webkit-user-drag: none;
   }
-  /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向)。
-     第一百零一批：@supports 门控 —— 无 view() 支持时联系卡保持全显（见 .about-sub 同款注释） */
+  /* ⓘ 已撤（2026-09-27 第四轮）：原联系卡的规格 —— opacity 复用 `scroll-fade-opacity`(replace)、
+     位移换成 `contact-card-move`(add,奇偶交替方向)，并用 @supports 门控（无 view() 时全显）。
+     现在它与其余受动元素共用文件末尾的 `.rm-fade`。 */
   /* （原 `.contact-card` 的滚动驱动块）2026-09-27 第四轮撤掉，改走 `.rm-fade`。 */
   /* （原「奇偶交替入场方向」：奇数卡从左、偶数卡从右各错开 ±24px）2026-09-27 第四轮
      删除 —— 进场不再有位移，`--enter-x` 的两个定义已无消费者，留着只会误导。 */
@@ -4482,7 +4487,8 @@ html.nav-anim-reset *::after {
     letter-spacing: 0;
     color: var(--color-ink);
   }
-  /* === 单册页页眉（含「← 全部相簿」）：滚动驱动「出场」（2026-09-27）===
+  /* === 单册页页眉（含「← 全部相簿」）：滚动驱动「出场」（2026-09-27 · ⓘ 同日第四轮已撤，
+     下面这段是当时为什么这么定的留档；现行机制见紧随的「（原 …）」与文件末尾 `.rm-fade`）===
      与 `.about-title` 同一套 title-exit，但**必须在这里单独写一份**：单册页的书名是
      `.album-title`、返回键是 `.album-back`，关于页那个 @supports 块的选择器列表里都没有它们 ——
      实测（加这一段之前，1440×900）：album-hkust 上带滚动驱动的元素只有 `.about-hero-desc`
