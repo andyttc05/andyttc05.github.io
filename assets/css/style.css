@@ -4236,6 +4236,57 @@ html.nav-anim-reset *::after {
     opacity: 0.5;
   }
 
+  /* ══════ 单册页题头：「张数 · 日期」搬到右上角（2026-09-26 第三百二十批）══════
+     主人：「相簿里标题部分好像有点拥挤，这句 e.g. "15 张·2024.01.30 – 2026.07.03"
+     移到右上角是不是比较好，优化一下观感体验。」—— 方向是对的，而且量出来的现状比
+     "拥挤"更具体：题头是**居中堆叠 6 件**（返回键 / 地区小标 / 巨字册名 / 拉丁名 /
+     一句话 / 张数·日期），返回键 2026-09-21 起被单独拎到容器左上角 ⇒ **它那一行右边
+     整片是空的**；同时 meta 挤在堆叠最底、离上一句只有 14px（1440 实测），
+     像一条临时贴上去的注脚。两头都别扭。
+     ⇒ 让 meta 出流、钉到 hero 右上角，与返回键共用那条 44px 的行：
+       顶栏由此成立（左"回上一级" / 右"这本是什么"），居中堆叠少一行、hero 矮约 38px。
+
+     ⚠️ `top` 必须与 hero 的上内边距**同源**：绝对定位的包含块是 .album-hero 的
+     padding box ⇒ `top: 0` 会落在上内边距里、跑到返回键上面去。所以这里把 4307 那条
+     `.album-hero { padding-block: clamp(40px, 5.5vh, 60px) … }` 的值抄成 token。
+     为什么可以放心抄：4307 写在**顶层**、且在 2906 / 3004 那几条响应式 @media **之后**
+     （同为 (0,1,0) ⇒ 按源序是它赢）⇒ **上内边距全视口同值**，实测
+     1440/1280/1100/960/860 = 49.5 / 44 / 42.24 / 46.42 / 40，逐档等于 clamp(40px,5.5vh,60px)。
+     ⇒ 绝对定位的 top 与返回键的盒顶永远同源，不必跟媒体查询打架。
+     真要改上内边距：改 4307 那条，再同步这一行的 token（留这句就是为下次提示）。
+
+     ⚠️ `.album-hero` 是不是已经能当包含块了？@supports 里那条 `container-type: inline-size`
+     会带来 contain:layout，本身就确立包含块 —— 但它在 @supports 里，不支持容器查询的
+     浏览器没有它。所以这里照旧写 `position: relative` 兜底（同一个盒子，零副作用）。
+
+     ⚠️ 窄屏退路（≤379px）：320 上「← 全部相簿」(≈108px) 与 meta 墨宽 (≈213px) 加不进
+     288px 的容器，会当场叠字。380 是**量出来**的阈值 —— 380 视口下容器 348、
+     返回键右缘 123.95、meta 墨左缘 151.36，净空 27.4px；375 只剩 22；320 是 −70。 */
+  .album-hero {
+    position: relative;
+    --album-hero-pad-top: clamp(40px, 5.5vh, 60px);
+  }
+  .album-hero .album-hero-meta {
+    position: absolute;
+    top: var(--album-hero-pad-top);
+    right: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    /* 与 `.album-back` / `.album-nav-link` 的 `min-height: 44px` 同源（拇指标准那一档）：
+       同高 + 同 top ⇒ 两者中线差实测 0.0px（1440 与 390 都量过）。 */
+    min-height: 44px;
+  }
+  @media (max-width: 379px) {
+    /* 退回"居中堆叠最底"的老样子 —— 320 上等于一字未改。 */
+    .album-hero .album-hero-meta {
+      position: static;
+      margin-top: 14px;
+      display: block;
+      min-height: 0;
+    }
+  }
+
   .album-strip {
     --strip-gap: clamp(6px, 0.7vw, 10px);
     padding-block: clamp(8px, 1.2vw, 16px) clamp(56px, 7vw, 96px);
