@@ -2393,18 +2393,9 @@
      - entry/cover 0% 起 → 加载时元素已部分透明（首屏 13-29%）；
      - exit 0% 起 → 加载/驻留全程 opacity 1，淡出随元素滑入导航栏遮挡区
        同步进行，与"标题被导航栏盖住离场"的物理一致 */
-  @supports (animation-timeline: view()) {
-    .about-title,
-    .about-hero-desc {
-      animation: title-exit linear both;
-      animation-timeline: view(block 100px);
-      animation-range: exit 0% exit 100%;
-    }
-  }
-  @keyframes title-exit {
-    0%   { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-24px); }
-  }
+  /* （原 `title-exit`：淡出 + 上浮 24px 的滚动驱动块）2026-09-27 第四轮整体撤掉，
+     换成文件末尾那一段「纯淡化」的 `.rm-fade`。这里连 keyframes 一起删干净 ——
+     留着只会让下一个人以为"标题还有一条自己的出场动画"。 */
   .about-title {
     display: inline-block;
     /* 第九十三批：移除逐字弹出动画（主人"移除动画"）—— 静态展示 */
@@ -2450,17 +2441,8 @@
      第一百零一批：@supports (animation-timeline: view()) 门控 —— 无 view() 支持的浏览器
      （iOS Safari ≤17 / 老 Chrome / 部分 WebView）里 animation 简写 duration 默认 0s +
      fill:both 会直接跳到结束态(opacity:0)，卡片/标题不可见；门控后不支持时内容自然全显 */
-  @supports (animation-timeline: view()) {
-    .about-sub,
-    .about-sub-section {
-      animation:
-        scroll-fade-opacity linear both,
-        scroll-fade-move linear both;
-      animation-timeline: view(block 100px), view(block 100px);
-      animation-range: entry 0% cover 100%, entry 0% cover 100%;
-      animation-composition: replace, add;
-    }
-  }
+  /* （原 `.about-sub` / `.about-sub-section` 的滚动驱动块）2026-09-27 第四轮撤掉，
+     改走文件末尾的 `.rm-fade`（纯淡化）。 */
   /* 副标题：置于卡片区顶部、紧贴卡片（主人要求贴近卡片位置）
      2026-08-20 主人"优化"：副标题字号略大 20-28→22-30，与卡内名字（24-33）形成梯度
      主人"不要太密集"：mb 20→24，副标题与卡片间距更松
@@ -2527,35 +2509,10 @@
      view(block 100px)：视口上下各收缩 100px → 淡出主体在导航栏下方可见（避免被 64px nav 遮）
      entry 0% cover 100%：跨完整入场+驻留段；opacity 用 replace 避免 add 合成 1 死锁。
      无 view() 支持的浏览器不播动画，卡片保持基础样式全显（见 .about-sub 同款注释） */
-  @supports (animation-timeline: view()) {
-    .about-card {
-      animation:
-        scroll-fade-opacity linear both,
-        scroll-fade-move linear both;
-      animation-timeline: view(block 100px), view(block 100px);
-      animation-range: entry 0% cover 100%, entry 0% cover 100%;
-      animation-composition: replace, add;
-    }
-  }
-  /* === 滚动驱动动画 keyframes（双动画拆分）===
-     scroll-fade-opacity 用 replace（composition）：opacity 0→1→0 标量替换基础值
-     scroll-fade-move 用 add（composition）：transform translateY(48px)+scale(0.96)→identity 叠加。
-     第一百零一批：位移/缩放参数化（--enter-y/--enter-s，桌面默认 48px/0.96），
-     移动端媒体查询覆盖为更收敛的值，减少窄屏滑动中的交叠感。
-     第一百零二批：入场窗口 20% → 7% —— 末张卡（GitHub）在页面底部永远走不完
-     时间轴 20% 处（页面已到底），实测停在 ~60% 半透明；7% 后所有视口
-     （含 768×1024 平板竖屏）底部元素都能走完入场 → 全显，且入场更快更跟手 */
-  @keyframes scroll-fade-opacity {
-    0%        { opacity: 0; }
-    7%        { opacity: 1; }
-    80%       { opacity: 1; }
-    100%      { opacity: 0; }
-  }
-  @keyframes scroll-fade-move {
-    0%        { transform: translateY(var(--enter-y, 48px)) scale(var(--enter-s, 0.96)); }
-    7%        { transform: translateY(0) scale(1); }
-    100%      { transform: translateY(0) scale(1); }
-  }
+  /* （原 `.about-card` 的滚动驱动块）2026-09-27 第四轮撤掉，改走文件末尾的 `.rm-fade`。 */
+  /* （原 `scroll-fade-opacity` / `scroll-fade-move` 两条通用 keyframes，以及
+     `--enter-y` / `--enter-s` 两个位移缩放参数）2026-09-27 第四轮随"取消内容移动"
+     一起删除 —— 全站的进场/出场现在只有 opacity，没有位移也没有缩放。 */
   .about-card-intro {
     grid-column: span 7;    /* 第四十六批：me + site 合并为自我介绍卡（左大）；第四十九批 span 6→7 因内容更多 */
     /* 第六十九批：继承 base 统一卡色（不再分层） */
@@ -2571,7 +2528,10 @@
      hover 仅阴影扩散，边框颜色保持中性描边不变（不上浮——尊重第九十四批） */
   .about-card.about-card-intro,
   .about-card.about-card-poem {
-    transition: box-shadow 0.3s ease;
+    /* ⚠️ 这条 `transition` 是**整条**覆盖用的：新加的 `opacity var(--rm-t)` 不能少 ——
+       文件末尾的 `.rm-fade` 与这里同为 (0,1,0)，靠源码顺序取胜，漏了它 hover 阴影
+       会连着淡入淡出一起失效（`--rm-t` 见文件末尾那一段）。 */
+    transition: box-shadow 0.3s ease, opacity var(--rm-t);
   }
   .about-card.about-card-intro:hover,
   .about-card.about-card-poem:hover {
@@ -2759,18 +2719,8 @@
     padding: 12px;
   }
   /* 第九十四批：logo-scroll 滚动淡入保留（hover 反馈集中在卡片本体，不与动画冲突） */
-  @supports (animation-timeline: view()) {
-    .game-logo {
-      animation: logo-scroll linear both;
-      animation-timeline: view(block 100px);
-      animation-range: entry 0% cover 60%;
-    }
-  }
-  @keyframes logo-scroll {
-    0%   { opacity: 0; transform: scale(0.92); }
-    30%  { opacity: 1; transform: scale(1); }
-    100% { opacity: 1; transform: scale(1); }
-  }
+  /* （原 `logo-scroll`：淡入 + scale 0.92→1）2026-09-27 第四轮撤掉，
+     `.game-logo` 改走文件末尾的 `.rm-fade`。 */
   /* 信息竖排：名字 ink 700 / 服务器 muted / 账号 accent 500（直接可扫读） */
   .game-tile-name {
     margin: 4px 0 0;
@@ -2863,7 +2813,7 @@
      第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
      边框颜色保持中性描边不变，仅阴影扩散；卡内 chip 保留各自的上浮动效 */
   .about-card.about-card-skills {
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease, opacity var(--rm-t);
   }
   .about-card.about-card-skills:hover {
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
@@ -3177,33 +3127,12 @@
   }
   /* 动画:opacity 复用 scroll-fade-opacity(replace);位移换成 contact-card-move(add,交替方向)。
      第一百零一批：@supports 门控 —— 无 view() 支持时联系卡保持全显（见 .about-sub 同款注释） */
-  @supports (animation-timeline: view()) {
-    .contact-card {
-      animation:
-        scroll-fade-opacity linear both,
-        contact-card-move linear both;
-      animation-timeline: view(block 100px), view(block 100px);
-      animation-range: entry 0% cover 100%, entry 0% cover 100%;
-      animation-composition: replace, add;
-    }
-  }
-  /* 奇偶交替入场方向(用 nth-of-type 只数 <a> 兄弟,首行 <p> 副标题不参与)。
-     第一百零一批：translateY/scale 参数化（--enter-y/--enter-s，桌面默认 36px/0.96），
-     移动端媒体查询覆盖为更收敛的值 + X 位移收敛（±24px → ±12px），
-     避免窄屏单列/双列下卡片越出屏幕边缘。
-     第一百零二批：入场窗口 20% → 7%（同 scroll-fade-opacity，见其注释） */
-  .contact-card:nth-of-type(odd)  { --enter-x: -24px; }
-  .contact-card:nth-of-type(even) { --enter-x:  24px; }
-  /* 第一百三十四批（2026-08-21）：contact-card-move 由 transform 改为独立属性 translate/scale ——
-     滚动驱动动画(fill both + add 合成)会永久占用 transform,导致 hover 的 transform 过渡被
-     抑制(实测悬停时 -4px 瞬移而非 0.35s 平滑上浮 = 卡顿/抽搐)。改用 translate/scale 后,
-     入场动画与 hover transform 互不冲突,上浮过渡正常平滑;支持 scroll-timeline 的浏览器
-     均支持独立变换属性,兼容无风险 */
-  @keyframes contact-card-move {
-    0%   { translate: var(--enter-x, 0) var(--enter-y, 36px); scale: var(--enter-s, 0.96); }
-    7%   { translate: 0 0; scale: 1; }
-    100% { translate: 0 0; scale: 1; }
-  }
+  /* （原 `.contact-card` 的滚动驱动块）2026-09-27 第四轮撤掉，改走 `.rm-fade`。 */
+  /* （原「奇偶交替入场方向」：奇数卡从左、偶数卡从右各错开 ±24px）2026-09-27 第四轮
+     删除 —— 进场不再有位移，`--enter-x` 的两个定义已无消费者，留着只会误导。 */
+  /* （原 `contact-card-move`：±24px 横向 + 36px 纵向位移 + scale 0.96，用独立
+     translate/scale 是为了不和 hover 的 transform 打架）2026-09-27 第四轮删除 ——
+     进场不再有位移，这条 keyframes 与它那段"为什么改用独立属性"的说明一起作废。 */
   /* 卡片头部:icon + 箭头 横向分散对齐 */
   .contact-card-head {
     display: flex;
@@ -3288,7 +3217,7 @@
      几乎全透明（露出深色页面背景）。新方案保持实色背景不变，反馈改用：
      轻微上浮 + 阴影扩散（:active 按压微缩；第一百三十五批：边框颜色保持中性描边不变；2026-09-26 起改为 --color-card-edge），
      配合已有的箭头位移 / icon 微浮 / handle 变 accent。 */
-  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
+  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, opacity var(--rm-t); }
   .contact-card:hover {
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
     transform: translateY(-4px);
@@ -3373,48 +3302,10 @@
   }
 
 
-  /* === 第一百批：移动端滚动驱动动画 inset 同步桌面（2026-08-21 主人"手机的动画优化一下,手机版驱动入场/出场动画和电脑版同步,手机版现在的动画有点挡内容"）
-     问题:view(block 100px) inset 固定 100px,手机视口矮(~667-844px)+ nav 只有 56px,
-     退场 80-100% keyframe 落在卡片还在屏幕上(实测 844:cardTop +10 开始淡出,卡片 100% 可见时半透明)
-     桌面 404px 高卡实测 cardTop -103 才开始淡出(顶已出屏)→ 手机"挡内容"
-     修复:≤768px inset 100→56px(= 移动 nav 高),退场窗口整体上移 → 卡片顶部出屏才开始淡出,与桌面同步
-     不改 keyframes/range(entry 0% cover 100% 与桌面完全一致),只换 timeline 的 inset
-     第一百零一批追加（主人再次反馈"手机版与电脑版动画不一致、滑动时动画遮挡内容"）:
-     (1) 整个移动端滚动驱动动画覆盖并入 @supports (animation-timeline: view()) ——
-         无 view() 支持的浏览器（iOS Safari ≤17 等）不播动画、内容全显，
-         消除"卡片/标题 opacity 0 不可见"的跨端不一致;
-     (2) 入场位移收敛:卡片/副标题 translateY 48→28px、scale 0.96→0.98，
-         联系卡 translateY 36→22px、X 位移 ±24px→±12px —— 窄屏上动画元素
-         与相邻内容的短暂交叠明显减小（28px < 卡间 18-22px gap 的视觉余量），
-         且不再越出屏幕边缘;桌面不受影响(keyframes 参数化,默认值不变) */
-  @supports (animation-timeline: view()) {
-    @media (max-width: 768px) {
-      .about-card,
-      .about-sub,
-      .about-sub-section,
-      .contact-card {
-        animation-timeline: view(block 56px), view(block 56px);
-        /* 入场位移收敛：48→28px / scale 0.96→0.98（联系卡下面单独更小） */
-        --enter-y: 28px;
-        --enter-s: 0.98;
-      }
-      .contact-card {
-        --enter-y: 22px;
-        --enter-s: 0.98;
-      }
-      /* X 位移收敛：±24px → ±12px，窄屏双列/单列下不越出屏幕边缘 */
-      .contact-card:nth-of-type(odd)  { --enter-x: -12px; }
-      .contact-card:nth-of-type(even) { --enter-x:  12px; }
-      /* 第一百零二批：标题/描述 title-exit 移动端 inset 同步 56px（与卡片一致） */
-      .about-title,
-      .about-hero-desc {
-        animation-timeline: view(block 56px);
-      }
-      .game-logo {
-        animation-timeline: view(block 56px);
-      }
-    }
-  }
+  /* （第一百批 / 第一百零一批 / 第一百零二批：移动端把 `view()` 的 inset 从 100px 收到
+     56px、位移 48→28px、scale 0.96→0.98 的那一整块）2026-09-27 第四轮删除 ——
+     现在"什么时候淡"只看元素顶边（见 script.js），跟视口内缩量无关，
+     窄屏与桌面用的是同一条判据，不再需要分档。 */
 
 
   /* === 项目页 · 立牌影像排（第二百七十八批 2026-09-13）===
@@ -4191,8 +4082,11 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
      点击与刷新**同一套**。要动它先问主人。
    钉住的只是**页面家当**的淡入：动态页条目（`.dy-item`/`.dy-day`）、hero 文字与底板、
    卡片擦入、hero 大图、底部提示 —— 它们才是"整屏发白"的来源。 */
-html.rm-navclick .dy-item,
-html.rm-navclick .dy-day { opacity: 1; }
+/* ⚠️ 这里原有 `html.rm-navclick .dy-item, .dy-day { opacity: 1 }` 一条，2026-09-27
+   第四轮删掉：新机制里**打开那一刻在视口里的内容本来就是实心的**（属性类只由脚本给，
+   且首帧只给"折线以下"的），所以"点击跳转看到半透明条目"这一路已经不可能发生。
+   留着反而是个陷阱 —— 它 (0,2,0) 会把 `.rm-fade.rm-out` 的 opacity:0 压回去
+   （同为 (0,2,0)，只靠源码顺序，谁挪一下都会静默坏掉）。 */
 html.rm-navclick .hero .hero-text > *:not(.hero-cta),
 html.rm-navclick .hero .hero-text > .hero-cta { opacity: 1; }
 html.rm-navclick .hero .hero-art-base { opacity: 1; }
@@ -4598,13 +4492,8 @@ html.nav-anim-reset *::after {
         只给其中两行上动画，退场时会"两块字先走、三行字还杵着"，比不做还难看。
      区间 `exit 0% exit 100%` 与关于页同一个数、同一个理由：加载与驻留全程 opacity 1，
      淡出随元素滑进导航栏遮挡区同步进行 ⇒ 首屏永远是完整页眉，不会"先淡进来"。 */
-  @supports (animation-timeline: view()) {
-    .album-hero > * {
-      animation: title-exit linear both;
-      animation-timeline: view(block 100px);
-      animation-range: exit 0% exit 100%;
-    }
-  }
+  /* （原 `.album-hero > *` 的 `title-exit` 块）2026-09-27 第四轮撤掉，
+     页眉整块改走文件末尾的 `.rm-fade`。 */
   /* 小标（地区 / 页眉那行 mono）。2026-09-25：字距 0.18em → **0.32em**。
      参考站那行小标是 `uppercase tracking-[0.45em]`，0.45em 是给大写拉丁的；
      这行是中文，0.45em 会散成「香 港 　 离 岛」、把词断开，所以收到 0.32em ——
@@ -4864,138 +4753,48 @@ html.nav-anim-reset *::after {
     outline-offset: 2px;
   }
 
-  /* === 相册墙封面 / 单册照片：滚动驱动「进场 + 出场」（2026-09-27）===
-     主人原话：「在相册页和相簿，加入其他页面的滑动进场/出场动画」。
-     "其他页面"那一套 = 关于页 `.about-card` / 动态页 `.dy-item`：
-     **滚进视口时上滑 48px + 从 0.96 放大 + 淡入，滚过导航栏时淡出**。
-     keyframes（`scroll-fade-opacity` / `scroll-fade-move`）是本站通用运动语言，
-     定义在关于页那一段，别在这里另写一套 —— 两处一分叉，手感就不一样了。
+  /* === 滚动进场 / 出场：**纯淡化**（2026-09-27 第四轮，全站除首页）===
+     主人：「取消现在以一个区域进入/进出的形式，还有取消内容移动。
+            就直接简单的把内容淡化进入/进出就行。」
 
-     ⚠️ 这一块与关于页 / 动态页的四个数**逐字相同**（不"按相簿调一调"）：
-        `view(block 100px)` · `entry 0% cover 100%` · `replace + add` · `linear both`。
-     ⚠️ 换 viewport 之前先算过账（`~/.workbuddy/scratch/album-scroll-anim-2026-09-27/`，
-        1440/1280/900/768/390/320 六档 × 19 册抽样）：
-          ① 加载时首屏每一格的进度 p 都 ≥ 0.19（"全显"线是 0.07）⇒ **不会**出现
-             "进页面时封面先淡进来"；
-          ② 滚到底时所有格子 p ≥ 0.15 ⇒ 最后一行**不会**卡在半透明
-             （关于页当年踩过这条：末张卡在页面底部走不完时间轴，停在 ~60%）。
-        两个判据都是按 CSS 的时间轴公式从真实矩形算的，不是"看着还行"。
-     ⚠️ 与几何引擎（`assets/js/album-strip.js`，内联在 19 个单册页里）互不干扰：
-        它只读容器可用宽与 `--ar`，从不量 `.album-shot` 的位置，而 transform 不参与布局
-        ⇒ 单册页的「对齐行」算出来的一毫一厘都不会变。
-     ⚠️ 无 `animation-timeline: view()` 的引擎（iOS Safari ≤17 / 老 Chrome）：@supports 不成立
-        ⇒ 不播动画、元素留在基础态（opacity 1、无 transform）全显。这两条基础规则里
-        **本来就没有** opacity/transform ⇒ 这里不需要 `@supports not` 兜底块
-        （动态页那条是因为它把基础态写成了 opacity:0，本站其余页面都不是）。
-     ℹ️ 范围只到"内容列表"这两族 + 单册页书名。（原来这里还特别声明过 `.album-stats`
-        那一行"故意不动"——2026-09-27 那条数据条被主人删掉了，这条说明随之作废。）
+     换掉了什么：此前这一族（关于页大卡/副标题、动态页条目、相簿墙封面/单册照片/页眉/
+     底栏、游戏 logo、联系卡）走 `animation-timeline: view()` —— **按元素在视口里的位置**
+     映射动画进度（`entry 0% cover 100%`），并且带 `translateY(48px) + scale(0.96)`
+     （联系卡另有 ±24px 横向位移，巨字标题有 -24px 上浮）。现在：没有 `view()`、
+     没有位移、没有缩放，**只有 opacity**。
 
-     ✅ 验收（两轮都在 `~/.workbuddy/scratch/album-scroll-anim-2026-09-27/`）。
-        第二轮主人反馈三条（“返回键与底栏没动画 / 底部有很多空白 / 第二栏照片变浅”）
-        之后的 `verify2.js`：**21 条断言全过**。
-        · **打开那一刻凡是与视口相交的格子/底栏，opacity 全是 1** —— 11 页（墙 + 10 册）×
-          9 个视口（1920×1158 → 320×667）一个例外都没有。这一条就是那两张截图的要求：
-          滚到底下半屏也必须全显（含底栏）。
-        · 折线以下的元素仍然有完整进场（40 个滚动采样点里能采到 6~7 个
-          “半透明 + 位移”的帧，单点最多 4 格）。
-        · 布局盒 / 文档宽**逐字相同**；**文档高在加载时与滚到底时都逐字相同** ——
-          底栏改成“只淡不滑”之后，连那 45px 的临时撑高都没了。
-        第一轮（`verify.js`，88 条）：六视口 × 四页的布局盒/文档宽/溢出逐字相同、滚到底下半屏全显、
-        首屏像素（单册页 0 像素差；相册页只差墙那一片 1.22%，是元素带上 identity matrix
-        被提升成合成层后的重新栅格化 —— 同一把尺子量关于页开关既有动画 0.64%/245，同量级）。
-        冒烟：`smoke.js` 九页规则数一致、零报错；`allsite.js` **27 页零 pageerror**。 */
-  @supports (animation-timeline: view()) {
-    /* 默认 = **只出场**（`scroll-hold-out`）：打开那一刻已经在视口里的格子/底栏走这条。
-       它们本来就在那儿，"进场"无从谈起；挂上进场反而停在半路 —— 轻则整行不可见
-       （版面留一条空白），重则半透明（照片发灰）。实测（本轮之前，线上）：
-         1280×800 tsim-sha-tsui 第二行 top 768（视口里 32px）opacity **0**
-         1440×900 tai-o 第二行 top 761 opacity **0.762**
-         1920×1158 hung-hom 第三行 top 990 opacity **0.877**
-       主人两张截图（"底部有很多空白"/"第二栏照片变浅了"）就是这三个状态。
-       只有"折线以下、一个像素都看不见"的那些才该有进场 —— 那些由 `script.js` 挂
-       `.is-below-fold` 换成下面那一对完整的进场 + 出场。 */
-    .album-tile,
-    .album-shot,
-    .album-nav {
-      animation: scroll-hold-out linear both;
-      animation-timeline: view(block 100px);
-      animation-range: entry 0% cover 100%;
-    }
-    /* 打开时整个在折线以下：完整的进场 + 出场，四个数与关于页 `.about-card` 逐字相同 */
-    .album-tile.is-below-fold,
-    .album-shot.is-below-fold {
-      animation:
-        scroll-fade-opacity linear both,
-        scroll-fade-move linear both;
-      animation-timeline: view(block 100px), view(block 100px);
-      animation-range: entry 0% cover 100%, entry 0% cover 100%;
-      animation-composition: replace, add;
-    }
-    /* 🔴 底栏单独一档：**只淡不滑 + 只在进场的前 10% 里淡完**。两条都有硬理由：
-       ① 为什么不给位移：它是文档最后一个元素、还带着 `--tail` 内边距（`main.about-main >
-          :last-child` 那条）—— `translateY(48px)` 把整块连同留白一起推出去，等于给页面
-          **凭空加 45px 可滚动空间**。实测 hung-hom@1920×1158：文档高 1511 → **1556**
-          （只关底栏这一条动画就回到 1511，`isolate.js` 验的），滚到底再缩回来 ⇒
-          底部"多滚 45px 再弹回"。opacity 不进可滚动溢出区 ⇒ 去掉位移后文档高恒为 1511。
-       ② 为什么把区间收到 `cover 10%`：底栏的**可用升程 = 文档末到它的顶边**，实测只有
-          **140~170px**（`--tail` 56 + 它自己的内边距，跟相簿多长无关）。用 `cover 100%`
-          （升程需求 ≈ 100 + 7%×(700+h) ≈ 175px）的话它**永远差一口气**：hung-hom@1920
-          滚到底实测 opacity **0.93** —— 一进页面就是"底栏颜色浅一点"。收到 10%（≈106px @H=1158、
-          ≈57px @H=579）就一定能淡完，而且**是看得见的淡入**（不是一帧跳出来）。
-          ⇒ 用 `scroll-fade-in-hold`（7% 就全显、之后一直 1）而不是 `scroll-fade-opacity`
-          —— 后者在区间末端是 **0**（它是给"滑到导航栏底下"用的），拿来做入场等于收尾又消失。
-       ⚠️ 两条都别改回去；改区间就要重新量"可用升程"。 */
-    .album-nav.is-below-fold {
-      animation: scroll-fade-in-hold linear both;
-      animation-timeline: view(block 100px);
-      animation-range: entry 0% cover 10%;
-    }
+     为什么换：`view()` 的进度是**连续**的 —— 元素停在折线上就永远停在中间值，
+     那正是主人前两轮两张截图里的「整行不可见（版面留一条空白）」与「照片发灰」；
+     而且它按定义**会倒放**（往上滚回去时内容又淡掉，读回头路时很别扭）。
+     现在「进 / 出」由**可见性**决定、「淡」由**时间**走完（CSS transition）：
+     任何滚动速度都一定到位，不再有"卡在半路"这一说。
+
+     🔴 三条口径，改之前先读：
+     ① **判据只看元素顶边**，代码在 `script.js` 的 `pass()`：
+        进 —— `top < 视口高 + 80`（提前约一条导航栏就开始淡入）
+        出 —— `top > -min(自身高, 视口高) × 0.25`（露出自己四分之一高度才淡出，
+              高元素不会一碰到顶边就整条淡掉）
+     ② **打开那一刻与视口相交的元素一个状态类都不挂**（基础态就是 opacity 1）——
+        这是 2026-09-27 第二轮立下的判据（"打开时不留空白 / 不发灰"），也顺带避开与
+        巨字逐字弹出（`hero-char-pop` 自带淡入）叠加：父级再淡一次就糊了。
+     ③ **状态类只有脚本会加，所以关脚本 / 老引擎里内容天然全显** ——
+        既不需要 `html.js` 类、也不需要 `@media (scripting: enabled)`，
+        26 页的 head 内联因此一个字都不用动（`stamp.mjs` 的 SNIPPET 检查也照旧）。
+
+     ⚠️ `.about-card-intro` / `-poem` / `-skills` 与 `.contact-card` 自己带 `transition`
+        （hover 的阴影 / 上浮）—— 那四条规则里必须**带上 `opacity var(--rm-t)`**：
+        本块与它们同为 (0,1,0)，靠源码顺序取胜，不带上就会把 hover 过渡整条压掉。
+     ⚠️ `--rm-t` 是"这一次淡"的时长与曲线：出场快一档、进场慢一档。用变量而不是写两条
+        `transition` 声明，是为了让上面那四个元素也能在**同一条** `transition` 里跟着换挡。 */
+  .rm-fade {
+    --rm-t: 260ms cubic-bezier(0.4, 0, 0.66, 1);
+    transition: opacity var(--rm-t);
   }
-  /* 只出场：0~80% 一直实心（= 打开时就该是实心），80~100% 与 `scroll-fade-opacity`
-     的出场段逐字相同（滑到导航栏底下时淡尽）。**没有位移** —— 已经在画面里的东西
-     不该再滑一下；位移那一半（`scroll-fade-move`）只留给折线以下的。 */
-  @keyframes scroll-hold-out {
-    0%   { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { opacity: 0; }
+  .rm-fade.rm-in {
+    --rm-t: 440ms cubic-bezier(0.22, 1, 0.36, 1);   /* 站内既有曲线（easeOutQuint） */
+    opacity: 1;
   }
-  /* 「淡进来、然后一直实心」——只给底栏。⚠️ 别拿 `scroll-fade-opacity` 顶替：
-     那个在区间末端是 0（出场用的），配上短区间会让底栏淡进来再淡出去。 */
-  @keyframes scroll-fade-in-hold {
-    0%   { opacity: 0; }
-    7%   { opacity: 1; }
-    100% { opacity: 1; }
-  }
-  /* 移动档：inset 100→56、位移 48→28px、scale 0.96→0.98 —— 数值照抄关于页
-     `@media (max-width: 768px)` 那条，理由与它写下的完全一样（窄屏视口矮，100px inset
-     会让淡出落在元素还在屏幕上时；大位移在窄屏上会跟相邻内容交叠）。
-     `.album-title` 那条只换 inset（title-exit 之间没有位移参数可调）。
-     ⚠️ 合并进 @supports 门控：无 view() 的引擎不播动画、内容全显。 */
-  @supports (animation-timeline: view()) {
-    @media (max-width: 768px) {
-      /* 只出场那档（在视口里的那些）：一条时间轴，别给第二条 —— 它的 animation
-         里只有一条（`scroll-hold-out`），多给一条会跟 animation-timeline 数量对不上。 */
-      .album-tile,
-      .album-shot,
-      .album-nav {
-        animation-timeline: view(block 56px);
-      }
-      /* 进场那档：两条时间轴（opacity + move） */
-      .album-tile.is-below-fold,
-      .album-shot.is-below-fold {
-        animation-timeline: view(block 56px), view(block 56px);
-        --enter-y: 28px;
-        --enter-s: 0.98;
-      }
-      /* 底栏（只淡不滑）：仍是一条时间轴 */
-      .album-nav.is-below-fold {
-        animation-timeline: view(block 56px);
-      }
-      .album-hero > * {
-        animation-timeline: view(block 56px);
-      }
-    }
-  }
+  .rm-fade.rm-out { opacity: 0; }
 
   /* 末行"全部相簿 →"文字格 2026-09-21 撤掉（主人原话「也撤掉」）——
      代价认下：18 本里 6 本末行只剩 1 张照片，右侧空 819px。别再加回来。 */

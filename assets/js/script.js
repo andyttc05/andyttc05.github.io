@@ -2323,38 +2323,76 @@
       }
     })();
 
-    /* === 相簿的滚动进场：只给"打开时看不见"的那些挂动画（2026-09-27 第二轮）===
-       主人：「有些相簿里因为有了这个动画，打开后底部有很多空白内容就显得很奇怪」
-             「有些相簿里打开后第二栏照片变浅了」。
-       根因：`view()` 时间轴只认**元素与视口的相对位置** —— 折线之下的元素，"正在进场"
-       与"打开那一刻停在半路"是同一种状态，纯 CSS 分不开。而那个半路状态正是他看到的：
-       整行不可见（占着版面 ⇒ 一条空白）/ 半透明（照片发灰）。CSS 里对应两档
-       （`scroll-hold-out` 与 `scroll-fade-*`），由本段决定谁挂哪一档。
+    /* === 滚动进场 / 出场：**纯淡化**（2026-09-27 第四轮，全站除首页）===
+       主人：「取消现在以一个区域进入/进出的形式，还有取消内容移动。
+              就直接简单的把内容淡化进入/进出就行。」
+       ⇒ 撤掉 `view()` 时间轴（"按视口里的一段映射进度"）、撤掉位移与缩放，
+         只留 opacity；"什么时候淡"由本段判定，"淡多久"由 style.css 的 `.rm-fade` 走。
 
-       做法：只给**打开那一刻整个在折线以下**的元素挂 `.is-below-fold`（它们一个像素都
-       看不见），那一档才是完整的"进场 + 出场"；留在视口里的走只出场那档。
+       为什么不再用 `view()`：它的进度是**连续**的 —— 元素停在折线上就永远停在中间值，
+       那正是主人前面两张截图（整行不可见 = 版面留一条空白 / 半透明 = 照片发灰）。
+       现在"进 / 出"由可见性决定、"淡"由时间走完：任何滚动速度都一定到位。
 
-       ⚠️ 三条纪律，改之前先读：
-       ① **只加不减**：加错也看不见（那些元素本来就在屏幕外），减错却会让画面里的东西
-          忽然变透明 —— 所以这里没有 remove。
-       ② 判据用**视口相对位置**（`getBoundingClientRect().top`），不是文档坐标：
-          photos.html 的「回到上次看的那一段」（photos.js 的 restoreWallSpot）在**本文件
-          之前**就已经滚过了，只有视口相对位置才等于"落地那一刻看得见什么"。
-       ③ 本文件是 defer，但**不怕晚**：标记的永远是不在画面里的元素 ⇒ 不可能闪。
-          幕布撤掉（pageReady）之后再核一次 —— 那时滚动条回来、宽度定稿；
-          同样只加不减。 */
+       🔴 判据只看**元素顶边**（`getBoundingClientRect().top`）：
+         进 —— `top < 视口高`：顶边一越过视口下沿就开始淡入（元素此时只有一丝入画，
+               淡的过程基本发生在它"从下往上冒"的那一段 —— 这就是"由淡到实"）；
+         出 —— `top > -min(自身高, 视口高) × EXIT`：露出自己四分之一高度才淡出。
+       `EXIT` 用比例而不是固定 px，是为了让高元素（动态页条目最大可到视口高）
+       不会一碰顶边就整条淡掉。
+
+       🔴 **进来那一侧没有"提前量"**（第一版写了 `top < 视口高 + 80`，被帧测抓出来撤掉）：
+       提前量会把"刚好落在视口下沿以下 80px 内"的元素在**打开那一刻**就判成已到位 ——
+       它们随后滚进画面时是全实心、一点淡都看不到（`shots4.js` 实测 album 页 opacity=1）。
+       去掉之后两件事同时成立：打开时不亮（那段元素还在屏幕外）、进来时一定有淡。
+
+       🔴 四条纪律，改之前先读：
+       ① **打开那一刻在视口里的元素一个类都不挂**（基础态就是 opacity 1）——
+          第二轮立下的判据（"打开时不留空白 / 不发灰"），也顺带避开与巨字逐字弹出
+          （`hero-char-pop` 自带淡入）叠加。所以首帧只给"整个在折线以下"的挂 `.rm-out`。
+       ② **只写 class、不写 inline style**：`.rm-out` / `.rm-in` 只有本段会给
+          ⇒ 关脚本、老引擎里内容天然全显（`style.css` 那一段的选择器就是 `.rm-fade`）。
+       ③ **先读后写**：一趟先把所有元素的 rect 读完（只触发一次布局），再统一改 class，
+          滚动用 rAF 合并 ⇒ 不做强制同步布局。开销 ≈ 元素个数次 rect 读（本站最多 45 个）。
+       ④ ⚠️ **清单在 `style.css` 那一段的注释里有对应说明**；`verify3.js` 会比对本清单
+          与页面里实际受动的类，改这里要连它一起看。
+       ⚠️ 首页（index.html）一个匹配都没有（`hero-title-char` / `.vslide-*` 不在清单里）——
+         首页的 hero 出场与 5 屏滚动编排**不动**（主人 2026-09-26「先不动首页」）。 */
+    var RM_FADE_EXIT = 0.25;   /* 出场：露出自身四分之一高度才开始淡 */
+    var RM_FADE_SEL = [
+      '.about-title', '.about-hero-desc', '.about-sub', '.about-sub-section',
+      '.about-card', '.contact-card', '.game-logo',
+      '.dy-item', '.dy-day',
+      '.album-hero > *', '.album-tile', '.album-shot', '.album-nav'
+    ].join(', ');
     (function () {
-      var els = document.querySelectorAll('.album-tile, .album-shot, .album-nav');
-      if (!els.length) return;
-      function mark() {
-        var h = window.innerHeight;
-        for (var i = 0; i < els.length; i++) {
+      var nodes = document.querySelectorAll(RM_FADE_SEL);
+      if (!nodes.length) return;
+      var els = Array.prototype.slice.call(nodes);
+      var vh = window.innerHeight, queued = false, i;
+      for (i = 0; i < els.length; i++) els[i].classList.add('rm-fade');
+
+      function pass() {
+        queued = false;
+        vh = window.innerHeight;
+        var n = els.length, top = new Array(n), hgt = new Array(n), r;
+        for (i = 0; i < n; i++) { r = els[i].getBoundingClientRect(); top[i] = r.top; hgt[i] = r.height; }
+        for (i = 0; i < n; i++) {
           var el = els[i];
-          if (el.classList.contains('is-below-fold')) continue;
-          if (el.getBoundingClientRect().top >= h) el.classList.add('is-below-fold');
+          var show = top[i] < vh && top[i] > -Math.min(hgt[i], vh) * RM_FADE_EXIT;
+          if (show) {
+            if (el.classList.contains('rm-out')) { el.classList.remove('rm-out'); el.classList.add('rm-in'); }
+          } else if (!el.classList.contains('rm-out')) {
+            el.classList.remove('rm-in'); el.classList.add('rm-out');
+          }
         }
       }
-      mark();
-      if (document.documentElement.classList.contains('page-ready')) mark();
-      else document.addEventListener('pageReady', mark, { once: true });
+      function queue() { if (queued) return; queued = true; requestAnimationFrame(pass); }
+
+      pass();                                   /* 首帧：只把折线以下的收起来 */
+      window.addEventListener('scroll', queue, { passive: true });
+      window.addEventListener('resize', queue, { passive: true });
+      window.addEventListener('load', queue, { passive: true });
+      document.addEventListener('pageReady', queue, { once: true });
+      /* 相簿页「回到上次看的那一段」、动态页点目录跳转都是程序化滚动 ——
+         一样会派发 scroll，交给上面那个监听即可，不另开钩子。 */
     })();
