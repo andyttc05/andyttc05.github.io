@@ -456,6 +456,13 @@
        松手整张滑到底。中间没有任何"停在半路再回去"的位置。
      `?cphoto=0` 回到 324 批（1:1 跟手 + 动画回位），只用于 A/B 取证。 */
   var PHOTO_DRAG = !/[?&]cphoto=0/.test(location.search);
+  /* 第三百二十九批：**软跟手**（详见文件头 329 批）—— 跟手也走落位那条 Hermite 曲线：
+     每个事件从"当前位置 + 当前实速"重定目标（`retargetFinish`），没在飞时从静止起（慢起）。
+     `?csoft=0` 回 1:1 贴手（反证档）；`?csoft=wall` = 另一条候选（滚轮/触控板那条跟手换成
+     微跟手「位移 × damp、硬封顶 40px」，卡片几乎不动；指针拖拽那条不动）。 */
+  var SOFT_RAW = (location.search.match(/[?&]csoft=([^&]*)/) || [])[1];
+  var SOFT_WALL = SOFT_RAW === 'wall';
+  var SOFT_FOLLOW = SOFT_RAW !== '0';
   var CAR_COMMIT_FRAC = 0.22;      /* 走完一步的 22% 即提交（灯箱同值） */
   var CAR_COMMIT_MIN = 46;         /* 阈值下限 px（灯箱同值，防窄屏过灵） */
   var CAR_COMMIT_MAX = 110;        /* 阈值上限 px（灯箱同值，防宽屏过钝） */
@@ -515,6 +522,56 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 软跟手（第三百二十九批，主人「有时手势连续滑动时会触发另一个滑动手感，滑动有感慢悠悠的
+        有点阻尼感，这应该是bug，但是我喜欢那个滑动手感，把这个滑动手感替换原本的那个滑动手感」）
+     先量后改（`scratch/pj-damp-2026-09-27/replay.js`：把 12 段**真机 macOS 触控板录制**原时间轴
+     喂进线上引擎，逐事件记 notchy / vis / FIN，逐帧记导轨位置）—— 一次真机「连续两划」
+     （`double-swipe-right`，103 条事件 / 1696ms / 手指累计 2707px）里**同一个手势出现了两种跟手**：
+
+       t(ms)   手指累计   导轨位移   落位在飞
+         0      −111        85         0%      ← 1:1 贴手（滞后 ≈ 手指速度 × 0.9ms ≈ 1px）
+       200      −693       432         0%      ← 过 0.7 张膝盖 ⇒ 渐近饱和
+       500     −1008       441        50%      ← 第一划结束、落位起飞（`FIN` 在飞）
+       600     −1375       476       100%      ★ 第二划的手指事件进来时 `FIN` 还在飞
+       900     −2403       820       100%        ⇒ 每个事件都走 `retargetFinish`
+      1200     −2651       882       100%          导轨 600ms 只走 406px（0.7px/ms）
+      1300+    −2707       883         0%          而手指同期走了 1276px（6px/ms）
+
+     ⇒ "另一个手感" = **跟手被落位那条曲线接管**（软跟手：慢起、缓慢追、速度连续、永不跳），
+       而不是 `animateTo(followPos, W_K=0.95)` 的贴手（滞后只有 ≈1.5px）。
+       "有时…连续滑动" 正是它的触发条件：**只有上一段的落位还在飞（300ms 窗口内）**才会发生 ——
+       单次划动前面没有在飞的落位，所以是贴手的。
+     ⚠️ 顺手排除了另外两条候选（都不成立，别照旧注释往那边改回去）：
+       · `wheelNotchy`（"一格一格滚轮"⇒ 微跟手、封顶 40px）：12 段真机录制**离线扫命中 0 处**
+         （判据要"|d| ≥ 60px 且间隔 ≥ 40ms"同时落在同一条事件上），引擎录放实测 notchy 全程 0%
+         ⇒ 不是它。真机触控板的间隔上限 ≈33~39ms、就贴在 40ms 门槛下面（别把门槛调低）。
+       · `railClamp` 的饱和（"越拖越沉"）：它本来就是长划动的**常态**，不是"有时触发另一个"。
+     改法：跟手也走落位那条曲线 —— 每个事件 `retargetFinish(followPos)`（速度取自曲线实速，
+     没在飞时从静止起 ⇒ 慢起）。落位、账本、"一次手势一张"这些规则一个字没动。
+     `?csoft=0` 回 1:1 贴手（反证档）；`?csoft=wall` = 另一条候选（微跟手，卡片几乎不动，40px 封顶）。 */
+  /* ── "连续快速划动"要一段一段认出来（第三百二十八批，主人「手势连续滑动时不是很流畅，
+        不能不断连续快速滑动卡片」）──────────────────────────────────────────────
+     先量后改（`probe-repeat.js`：一次划动 ≈ 0.9 张、真实触控板参数 18px/8ms，连做 4 次，
+     只改两次之间的输入间隔；**四条划动拼成一条时间线一次派发**，否则量出来的间隔是偏移的）：
+
+       间隔        0ms   30ms   60ms   100ms   150ms   250ms   400ms+
+       改前走几张    1      1      1       1       4       4       4   （期望 4）
+       改后走几张    1      1      4       4       4       4       4
+
+     ⇒ **失效带 = 40~120ms**：抬指再落下的静默正好落在这段，短于"手势结束"的
+       `W_IDLE = 120ms` ⇒ 第二次划动被并进上一段（`segs` 卡在 1）：账本还在累计、画面却早已
+       饱和在上一张处 ⇒ 后面几次划动**完全没有视觉响应**，最后那次落位又被 ±1 张封顶。
+       （≥150ms 的间隔本来就能工作 —— 那时 `wheelEnd` 已经把手势结束了。）
+     为什么老判据抓不到：`cliff`/`cancel` 都要求"当时正在惯性里"（324 批加的物理前提），
+     而**慢慢划一下根本没有惯性尾巴**（尾巴只有快甩才有）；`start` 要等探测器自己的计时器
+     （≥300ms）才报。⇒ 缺的是"没有尾巴时怎么认新出手"。
+     改法（`touchNew`）：**一串（≥W_TOUCH_MIN_EV 条）→ 静默 ≥W_TOUCH_GAP → 又一串**。
+     两条缺一不可：
+       · 只看静默 ⇒ **慢滚会被拆散**（"滚一下停一下"每条 24px、间隔 80~250ms）⇒
+         324 批"同距离同结果"就没了（`probe-speed` 六栏会从全 1 张变多张）。
+       · 只看"上一串够长" ⇒ 一次接触里的**长划动**会被中途拆开 ⇒ 321 批"一次手势一张"就没了。
+     ⚠️ 只数**非尾巴**事件（`tpRes.momentum` 为假）—— 尾巴是系统替手指滑的，不算手指动作。
+     `?ctouch=0` 关掉这条判据（反证档）。 */
   /* ── 慢滑不许有跳变 · 点击与手势同一条动画（第三百二十七批，主人「这在慢慢滑动的动画好
         奇怪」「我想要手势滑动和点击滑动的动画体验是一致的」）──────────────────────
      先量后改（`probe-anim.js` 逐帧，1280 / step=441）：
@@ -1606,6 +1663,15 @@
          滚 16 格 = 4 张，快滚慢滚一模一样（滚轮本来就是"滚多远走多远"的精度输入）。
      判据取灯箱 `LB_NOTCH_MIN/GAP` 的实测结论（`lightbox.js` 那段"鼠标滚轮没有惯性尾巴、
      也没有 cliff 报信"），⚠️ 触控板快甩每格只有 8~16ms、位移也常在 60px 以下 ⇒ 不会被误判。 */
+  /* 第三百二十八批：连着划动时"新出手"的静默门槛与"上一串够长"门槛（见文件头 328 批）。
+     取 60ms：真人抬指重落的间隔 ≥60ms（快甩那条另有 `cancel` 兜底），而一次接触内的
+     事件间隔只有 8~40ms ⇒ 不会把同一次划动拆开。取 4 条：一次真划动 ≥4 条事件
+     （120Hz 下 100ms 的划动就有 12 条），而"滚一下停一下"的慢滚每条自成一段（1 条）。 */
+  var W_TOUCH_GAP = 60;
+  var W_TOUCH_MIN_EV = 4;
+  var TOUCH_SPLIT = !/[?&]ctouch=0/.test(location.search);
+  var burstN = 0;           /* 本串（**非尾巴**）的事件条数 */
+  var lastRealT = -1e9;     /* 上一条**非尾巴**事件的时刻（"距上一条真事件"的静默） */
   var W_NOTCH_MIN = 60;     /* 单条位移多大才算"一格"（灯箱实测值） */
   var W_NOTCH_GAP = 40;     /* 且距上一条至少这么久（灯箱实测值） */
   var wheelNotchy = false;  /* 本轮是不是"一格一格"的滚轮输入（见文件头 324 批） */
@@ -1646,7 +1712,7 @@
   function voidWheelRound() {
     if (!PAGE_PER_GESTURE || !PHOTO_DRAG) return;
     wheelBase = slotAnchor();
-    wheelAcc = 0; wheelVis = 0; wheelSegSpent = false;
+    wheelAcc = 0; wheelVis = 0; wheelSegSpent = false; burstN = 0;
   }
   function wheelEnd() {
     wheelIdleTimer = null;
@@ -1703,8 +1769,9 @@
       wheelBase = 0; wheelAcc = 0;
     }
     /* 第三百二十七批：落位接手 ⇒ **画面账归零**（下一段跟手从这一档重新起算）。
-       不清它就会回到"账本与画面打架"（见文件头 327 批：单帧跳 150~190px）。 */
-    wheelVis = 0;
+       不清它就会回到"账本与画面打架"（见文件头 327 批：单帧跳 150~190px）。
+       第三百二十八批：这一串也到此为止（落位只会在 ≥W_IDLE 的静默后发生）。 */
+    wheelVis = 0; burstN = 0;
     if (Math.abs(target - x) > 0.5) {
       /* 这一轮一张都没兑现（k === 0）⇒ 只是把跟手挪开的那一点点**短促收回**（150ms）；
          兑现了 ⇒ 同一条曲线一次滑到底（300ms 窗口）。
@@ -1737,7 +1804,7 @@
     /* 第三百二十四批：停手 ≥1s ⇒ 上一轮滚动结束，重新起账（锚点取当前档位）。 */
     if (PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) {
       wheelBase = slotAnchor();
-      wheelAcc = 0; wheelVis = 0; wheelSegSpent = false;
+      wheelAcc = 0; wheelVis = 0; wheelSegSpent = false; burstN = 0;
       segs = 0;
     }
     /* 第三百二十四批 · 锚点自愈（`?cphoto=0` 反证档仍用这条几何判据）：
@@ -1755,9 +1822,25 @@
     var tpRes = tp.feed(d, 0, e.timeStamp);
     var tpNewAction = tpRes.cancel || tpRes.start || (tpRes.cliff && tpWasMomentum);
     tpWasMomentum = tpRes.momentum;
+    /* 第三百二十八批：**没有惯性尾巴时的"新出手"** —— 一串（够长）→ 静默 → 又一串。
+       只数非尾巴事件（尾巴是系统替手指滑的）。`realGap` 用"上一条真事件"算，
+       与顶部的 `wheelGap`（含尾巴）分开，互不干扰。 */
+    var realGap = tNow - lastRealT;
+    if (!tpRes.momentum) { lastRealT = tNow; }
+    /* ⚠️ `!wheelNotchy` 这一条是必须的：鼠标滚轮的"一格一格"**在事件流上就是一串事件**
+       （120px × 8 格 / 间隔 60ms ⇒ burstN 会涨到 4 以上），若在这里给它分段：
+       账本被中途清零 + 按距离的 `lv` 各算一次 ⇒ **多走一张**，而且分类被重置成"跟手型"
+       ⇒ 跟手从"轻推 40px"变成 1:1 拖走 355px（套件 A22 两条一起红）。
+       滚轮那条路本来就按距离走（不需要分段），这里只服务"跟手型"输入的连续划动。 */
+    if (TOUCH_SPLIT && PAGE_PER_GESTURE && !tpRes.momentum && !wheelNotchy &&
+        burstN >= W_TOUCH_MIN_EV && realGap >= W_TOUCH_GAP) {
+      tpNewAction = true;     /* 上一串划动结束、这一条是新手指出手 */
+      burstN = 0;
+    }
     /* 第三百二十四批：是不是"一格一格"的滚轮输入（灯箱实测特征，见 W_NOTCH_MIN 那段）。
        新出手 / 长停 ⇒ 这一次输入结束，判据重新取。 */
     if (tpNewAction || PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) wheelNotchy = false;
+    if (tpNewAction) burstN = 0;      /* 新出手 ⇒ 这一串从头数（第三百二十八批） */
     if (!tpRes.momentum && Math.abs(d) >= W_NOTCH_MIN && wheelGap >= W_NOTCH_GAP) wheelNotchy = true;
     /* 第三百二十五批：闸门改读账本 —— "本段已经兑现过一张" 或 "账上已经够 0.8 张"。
        原来读 |x − 锚点| 是"导轨 1:1 跟手"时代的代理量，照片档下永不成立（见文件头 325 批）。 */
@@ -1786,11 +1869,13 @@
       if (!PAGE_PER_GESTURE) { wheelBase = x; wheelAcc = 0; }
       wheelVis = 0;
       wheelSegSpent = false;
+      burstN = 0;
       wHist.length = 0;
       segs++;
     }
     wheelAcc += d;
     wheelVis += d;
+    if (!tpRes.momentum) burstN++;    /* 第三百二十八批：本串的非尾巴事件数 */
     /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
     var tNow = performance.now();
     wHist.push({ t: tNow, a: wheelAcc });
@@ -1804,8 +1889,16 @@
        325 批那种"让位"会让这期间的手指位移攒着、等飞行结束再一次性跳过去（结构性隐患，
        A34 守着"零瞬移"）。
        `?cphoto=0` / `?canim=0` 保持旧行为（反证档要逐字可比）。 */
-    var followPos = photoFollow(wheelBase + wheelVis, wheelBase, wheelNotchy);
-    if (PHOTO_DRAG && FIN && SLOT_ANIM) retargetFinish(followPos, FIN_TMAX_SLOT);
+    var followPos = photoFollow(wheelBase + wheelVis, wheelBase, wheelNotchy || SOFT_WALL);
+    /* 第三百二十九批 · 软跟手（默认）：跟手也走落位那条曲线 —— 见文件头 329 批。
+       在飞 ⇒ `retargetFinish`（速度 = 曲线当前实速，接缝连续）；没在飞 ⇒ 从静止起一条新曲线
+       （慢起 = 主人说的"慢悠悠"）。曲线自己会在 u ≥ 1 时收尾（`tick`），不必手动清。
+       ⚠️ 别退回 `animateTo(followPos, W_K)`：那是"贴手"（滞后 ≈ 手指速度 × 0.9ms），
+          主人要替换掉的正是它。`?csoft=0` 才走那条（反证档）。 */
+    if (SOFT_FOLLOW && PHOTO_DRAG && SLOT_ANIM) {
+      if (!retargetFinish(followPos, FIN_TMAX_SLOT)) startFinish(followPos, 0, FIN_TMAX_SLOT);
+    }
+    else if (PHOTO_DRAG && FIN && SLOT_ANIM) retargetFinish(followPos, FIN_TMAX_SLOT);
     else if (!(PHOTO_DRAG && FIN)) animateTo(followPos, W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
@@ -1858,12 +1951,20 @@
         finT: FIN ? FIN.T : null,                  /* 落位曲线声明时长 ms */
         finU0: FIN ? FIN.u0 : null,                /* 落位曲线初速系数（0=静止起步） */
         finV0: FIN ? FIN.v0 : lastFinV0,           /* 落位用的实测初速 px/s（调试） */
+        finD: FIN ? (FIN.to - FIN.from) : null,    /* 第三百二十九批：在飞那条曲线**自己的**位移（**不取整**：
+                                               T = 3000·ad/max(v0,250)，ad 十几 px 时 1px 就是 12ms）
+                                               （软跟手之后"第一条在飞的曲线"不一定是落位那条，
+                                                套件 A32 要照它自己的 D 核时长公式） */
         finOn: !!FIN,
         animating: !!(raf || dragRaf || FIN),
         dragging: dragging, wheeling: wheeling,
         paged: PAGE_PER_GESTURE,                   /* 第三百二十一批：一次手势一张 */
         photo: PHOTO_DRAG,                         /* 第三百二十五批：照片同款跟手 */
         anim: SLOT_ANIM,                           /* 第三百二十七批：统一落位曲线在档 */
+        burstN: burstN,                            /* 第三百二十八批：本串非尾巴事件数 */
+        notchy: wheelNotchy ? 1 : 0,               /* 本轮被当成"一格一格滚轮" ⇒ 跟手走微跟手（见 329 批） */
+        soft: SOFT_FOLLOW ? (SOFT_WALL ? 'wall' : 'soft') : 'off',   /* 第三百二十九批：跟手档 */
+        touchSplit: TOUCH_SPLIT,                   /* 第三百二十八批：连续划动分段判据在档 */
         vis: Math.round(wheelVis),                 /* 第三百二十七批：画面账（上次落位以来） */
         commitDist: Math.round(carCommitDist(step())),   /* 提交距离 px */
         followCap: carFollowCap(step()),                 /* 跟手封顶 px */
