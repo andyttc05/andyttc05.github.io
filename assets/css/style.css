@@ -4069,7 +4069,9 @@
 
    === 于是「不白闪」和「有登场动画」怎么同时成立 ===
    旧页与新页**互补交叉淡入淡出**：old 从 1 淡到 0、new 从 0 淡到 1，同 450ms 同 `ease`。
-   两端同曲线 ⇒ 默认的 `plus-lighter`（相加）在全程恒等于 1，中途不会泛白。
+   两段曲线互补（Σα ≡ 1，逐帧实测 1.000）**只是必要的一半** ——
+   🔴 2026-09-27 补上另一半（**这就是主人那句「切换页面时的闪屏」的真身**）：
+   光有互补曲线不够，**new 那层必须挂 `mix-blend-mode: plus-lighter`**，见下面那条 ⚠️。
    过渡期间新文档的 DOM 不参与合成（事实 ②），所以看的是新页**快照**；
    450ms 后真实 DOM 接手，入场编排已经在底下跑了 450ms，露出来就是"正在登场"的画面。
 
@@ -4084,12 +4086,31 @@
    ============================================================================ */
 @view-transition { navigation: auto; }
 
-::view-transition-group(root) { background: var(--color-paper); }
+/* ⚠️ 这层 backdrop **必须等于画布**（`--color-canvas`），不是 `--color-paper`。
+   为什么：两层快照是 source-over **叠放**的（不是互补相加），中途会漏出这层底，
+   最多 t(1-t) = **25%**（见下面那条 ⚠️）。亮色里 paper = #ffffff、画布 = #f5f5f7
+   ⇒ 漏出来就是「整屏泛白 15 级」；暗色里两者恰好都是 #131a26 ⇒ 漏出来是「整屏塌向底色」。
+   实测（线上逐帧，合成模型拟合）：亮色 L-posts-index 的中间帧均值 217.9 → 241.0，
+   最暗 0.1% 从 7 → **121**（正文整段被冲淡）；暗色 D-index-posts 76 → **38**。
+   ⇒ 这层底换成画布色只是"漏出来也看不见"的兜底（暗色尤其必要）；
+     真正把漏光堵住的是 new 层的 plus-lighter —— 两条一起才收干净。 */
+::view-transition-group(root) { background: var(--color-canvas); }
 
-/* ⚠️ 两段必须**同 duration、同 timing-function**。默认 `plus-lighter` 是相加：
-   曲线不互补时中途 opacity(old)+opacity(new) > 1 → 整屏泛白。 */
+/* ⚠️ 三条缺一不可，改之前先看完：
+   1) 两段必须**同 duration、同 timing-function**（曲线不互补时相加会过 1 ⇒ 整屏泛白）；
+   2) 实测**UA 给 old/new 的 `mix-blend-mode` 是 `normal`**（不是当年以为的 plus-lighter）
+      ⇒ 两层按 source-over 叠：`t·new + (1-t)²·old + t(1-t)·backdrop`
+      —— 中间帧**比两端都亮（亮色）/都暗（暗色）**，这就是"闪屏"；
+   3) ⇒ 所以**给 new 那一层补上 `plus-lighter`**：image-pair 是 `isolation: isolate` 的，
+      两层在里面相加，配合互补曲线得到 α 恰好 = 1 的合成 ⇒ backdrop 全程被盖住。
+   🔴 反证（要改这条之前先跑）：把 backdrop 涂成纯红 `rgb(255,0,0)` ——
+      不挂 plus-lighter 时过渡帧里红像素占 **99.2%**（整屏红），挂上之后 **0.3%**（无差异）。
+      量具：`~/.workbuddy/scratch/page-switch-flash-2026-09-27/`（ab2.js 红色反证 ·
+      probe-vt-live.js 逐帧读 opacity/混合 · analyze-ab.py 判分 · fit-model.py 合成模型拟合）。
+   验收数字（同一套逐帧指标，亮色 L-index-posts）：最暗 0.1% 的峰值 118.8 → **89.9**、
+   均值峰值 239.2 → **233.4**；89.9 已回到"crossfade 中点对比度减半"的正常范围。 */
 ::view-transition-old(root) { animation: nav-vt-out 450ms ease both; }
-::view-transition-new(root) { animation: nav-vt-in  450ms ease both; }
+::view-transition-new(root) { animation: nav-vt-in  450ms ease both; mix-blend-mode: plus-lighter; }
 @keyframes nav-vt-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes nav-vt-in  { from { opacity: 0; } to { opacity: 1; } }
 
