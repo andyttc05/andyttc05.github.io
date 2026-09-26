@@ -537,13 +537,14 @@
   html.theme-switching .nav-menu-action-hit,
   /* 🆕 相簿页那两颗导航按钮（2026-09-26）。上面那条维护说明写的是"nav 内"，
      但真正的判据应该是「**任何颜色随主题变 且 带 transition 的元素**」——
-     这两颗按钮符合：它们本身换的是**字色**（#1d1d1f ↔ #f5f5f7，无 transition），
-     `::after` 那条扫入线也换 `background`（同一个 token）。
-     ⚠️ 2026-09-26 第三轮起这两颗**没有颜色过渡**（`transition: none`，线只过渡 `transform`）
-        ⇒ 下面两条严格说已是防御性的（量出来同帧，留着不亏）。
+     这两颗按钮正是这一类：字色在 `--color-ink ↔ --color-accent` 之间翻（两态都随主题变），
+     `::after` 那条扫入线的 `background` 跟着同一个 accent 走。
+     ⚠️ 2026-09-27 第四轮起这一条**不再是防御性的**：字色加了 `transition: color 0.2s ease`
+        （悬停变蓝的手感，与 `.nav-links a` 同档）⇒ 没有下面这组 `transition: none`，
+        切主题那一刻按钮的字色会自己拖 0.2s 才到位。
      ⚠️ 伪元素**不会被父级的选择器覆盖**：`html.theme-switching .album-back { transition:none }`
-        管不到 `.album-back::after`。将来若给线补 `background` 过渡，必须在这里把 `::after`
-        的两条也列上，否则切主题时那条线会自己拖 0.3s。
+        管不到 `.album-back::after` —— 所以 `::after` 那两条**必须**列上（线只过渡 `transform`，
+        颜色是瞬变的，这里等于给它兜底）。
      实测（land.js 逐帧采 computed，以页面底色同帧为基准）：按钮底 10.1ms / 13.4ms，
      与页面底色**完全相等** ⇒ 同帧，没有滞后。 */
   html.theme-switching .album-back,
@@ -4466,15 +4467,23 @@ html.nav-anim-reset *::after {
           ③「参考一下别人相册页面的按钮设计哲学 https://taozhiyy.top/gallery/misaka」
             →「摆出来对比」→ 在六支候选里选了④
         ⇒ 现在**既无底也无框、无圆角**：静止时这颗按钮**只有字**；
-          悬停 / 聚焦 / 按下 = 一条 **2px 墨色**下划线**从左扫入**（`::after` + `scaleX 0→1`）。
+          悬停 / 聚焦 / 按下 = 一条 **2px 下划线**从左扫入（`::after` + `scaleX 0→1`）。
         🔴 **别再给它加框加底** —— 含"很淡的灰线""极浅的软投影""opacity 很低的药丸"。
            主人对"框"本身的判断是否定的，**不是嫌它颜色不对**：上一版（白药丸 + 1px 灰 hairline）
            就是照②那句做出来的，他看完仍然否了。⇒ 这一族的解是"不画框"，
            不是"换一根更淡的框"。这条是三稿里唯一被两次独立否掉的方案，别再走回头路。
-        ⚠️ 为什么线用墨不用 accent：②那句"文字不要有蓝色"管的不只是字色。外站那套机制
-           （`::after` + `scaleX` 扫入、`transform-origin` 进出翻转）是**判断**，值得搬；
-           它用的强调色是**数值** —— 数值按本站口径取墨（`--color-ink`）⇒ 全站彻底无蓝，
-           只剩键盘焦点环那一处（见下，那不是字色）。
+
+     🔵 **第四轮（2026-09-27）：蓝回来了 —— 但只回在"字 + 线"上，框/底仍然没有。**
+        原话：「鼠标悬浮在「全部相簿」「上一页」「下一页」，按钮和下划线变为蓝色」。
+        ⇒ 悬停 / 聚焦 / 按下的**字色与线色一起转 `--color-accent`**（亮 #0066cc / 暗 #2997ff）。
+        ⚠️ 这一轮推翻的只是 2026-09-26 ③ 那句"**文字**不要有蓝色"这条**颜色口径**；
+          ②「蓝色框框真的好丑」那条**没被推翻** —— 上面"不画框"的红线照旧。
+          ⇒ 新增 hover 样式时**只许改 `color` 与那条线的 `background`**，
+            不许顺手把 `border` / `background` / `border-radius` 加回来。
+        ⚠️ 与 2026-09-21 那版"悬停变蓝"的区别：那版是**静态下划线**改色，这版是**扫入线**改色
+          —— 机制仍是第三轮定的那套（外站参考搬的是**判断**：`::after` + `scaleX` 扫入、
+          `transform-origin` 进出翻转），只是强调色从墨换回了 accent。
+        ⚠️ 全站"只剩焦点环一处蓝"的旧说法（2026-09-26）**自此作废**，别再拿它当理由改回去。
 
      📐 那条线的位置是**量出来**的，不是估的（不许凭感觉改成 6px / 10px）：
         canvas `TextMetrics` 量 15px 字的真实墨迹：ascent 12.25 / descent 1.5 ⇒ 墨高 13.75px；
@@ -4507,11 +4516,10 @@ html.nav-anim-reset *::after {
     font-family: var(--font-mono);
     font-size: 15px;
     letter-spacing: 0.06em;
-    /* 🔴 字色**任何一态**都不是 accent（2026-09-26 主人「文字不要有蓝色」）：
-       静止 / 悬停 / 聚焦 / 按下四态共用同一个 `--color-ink`，`color` 一次都不许改。
-       ⚠️ 别在悬停里去改 color —— 苹果的按钮高亮只有一句 `dims the background a bit`。
+    /* 🔴 字色：静止 = `--color-ink`，悬停 / 聚焦 / 按下 = `--color-accent`（第四轮口径，
+       见上面「蓝回来了」那段；在这里写的是**静止态**那半边，另外三态在下面的交互语汇段）。
        ⚠️ 这条**不能省**：这两个控件是 `<a>`，省了就掉回 UA 的链接默认色
-          （亮 #0000ee、暗 #9e9eff、按下 #ff0000）—— 那正是主人要删的蓝。 */
+          （亮 #0000ee、暗 #9e9eff、按下 #ff0000）—— 那套高饱和蓝不是本站的 accent。 */
     color: var(--color-ink);
     /* 静止 = 只有字：底透明、无框、无圆角、无投影。
        ⚠️ 亮暗**同一套声明**：`--color-ink` 自己会翻，纸也自己会翻 ⇒ 这一族不再需要
@@ -4525,9 +4533,11 @@ html.nav-anim-reset *::after {
        ⚠️ 不许删：删了 `::after` 会往上找 `.about-hero` / `.album-nav` 当参照，
           线就跑到整行两端去了。 */
     position: relative;
-    /* 悬停不换任何一个"自己的"属性（线是伪元素画的）⇒ 这里不挂 transition。
-       唯一带过渡的是 `::after` 的 transform，写在它自己那条规则里。 */
-    transition: none;
+    /* 只过渡 `color` —— 与 `.nav-links a` / `.nav-brand` 同一档 `0.2s ease`（本站悬停变蓝的
+       统一手感）。扫入线自己的 `transform` 过渡写在它那条规则里，互不干扰。
+       ⚠️ 切主题时这两个控件（**连同 `::after`**）被 `html.theme-switching` 掐成
+          `transition: none` ⇒ 主题切换仍是同帧瞬变、不拖这 0.2s，见上面那段维护说明。 */
+    transition: color 0.2s ease;
   }
   /* 页顶那个只多两条：贴容器左边（父级居中要压回来）+ 它下面那道间距 */
   .album-back {
@@ -4854,18 +4864,35 @@ html.nav-anim-reset *::after {
        ①「鼠标没有悬浮时的按钮颜色为白色可以吗，悬浮时才变灰」
        ②「蓝色框框真的好丑，按钮框框，文字不要有蓝色，参考苹果设计」
        ③ 外站参考 →「摆出来对比」→ 选定④
-     ⇒ **无框族**：静止只有字；悬停 / 聚焦 / 按下 = 一条 2px 墨线从左扫入。
-     苹果口径仍然作数（查过原文，不用再搜）：`dims the background a bit` —— 高亮只压底，
-       字色与框色一律不动，也没有位移、没有放大（与第 319 批「按钮不做浮动」同向）。
-       本族只是把"压底"换成了"出线"：都是**只加一个层面的信号**，不动字、不动盒。
-     ⚠️ **字色四态完全一致**，这是主人那句"文字不要有蓝色"的落点 ——
-        量法就一条：`getComputedStyle().color` 在静止 / 悬停 / 聚焦 / 按下四处必须**一模一样**。
-     ⚠️ **线色也是墨**（`--color-ink`），不是 accent。全站只剩焦点环一处蓝。
+     ⇒ **无框族**：静止只有字；悬停 / 聚焦 / 按下 = 一条 2px 线从左扫入。
+     🔵 **2026-09-27 第四轮**（主人「鼠标悬浮在「全部相簿」「上一页」「下一页」，按钮和下划线
+        变为蓝色」）：**字色与线色一起转 accent**，框/底照旧一点不加。
+     ⇒ 一句话的语汇：**静止 = 墨字；悬停 / 聚焦 / 按下 = 蓝字 + 一条从左扫入的蓝线。**
+       盒（border / background / border-radius / box-shadow）**任何一态都不存在** ——
+       ②那条「蓝色框框真的好丑」没有被推翻，只有"文字不要有蓝色"那句颜色口径作废了。
+     ⚠️ 字色**三态一致**（hover / focus-visible / active 同一个 accent），这是上面那句"按钮变为
+        蓝色"的落点 —— 量法：`getComputedStyle().color` 在悬停 / 聚焦 / 按下三处**一模一样**、
+        且等于 `--color-accent`（亮 #0066cc / 暗 #2997ff）；静止那处必须是 `--color-ink`。
+     ⚠️ 线色与字色**共用同一个 token**（两处都是 `--color-accent`）—— 别只改一处，
+        那是"字蓝线黑"半蓝不蓝的来源。线色只有 `::after` 那条 `background` 一个真相源。
      ⚠️ 焦点环仍是 2px accent + offset 2，与 `.nav-links a` / `.hero-cta` / `.album-shot` 同一套。
         键盘用户靠它、鼠标用户靠线。**这不是"字变蓝"，是焦点指示器 —— 别顺手改成灰的。**
      ⚠️ `:active` 是给触摸设备的：那边没有 hover，按下不出线等于没有反馈（`transform` 也一样跑，
         触摸时 `:active` 会保持到抬手）。
      ⚠️ 名字（`.album-nav-n`）**故意不在这组选择器里** —— 它不是链接，不该有任何反馈。 */
+
+  /* 第四轮：悬停 / 聚焦 / 按下 → 蓝字。
+     ⚠️ 与 `::after` 那组是**两个** transform 无关的状态集合，但**成员必须逐条对齐**
+        （差一条就会出现"线扫了字没蓝"或反过来）。
+     ⚠️ 抄这组选择器时别顺手加 `background` / `border` —— 见上面"不画框"的红线。 */
+  .album-back:hover,
+  .album-back:focus-visible,
+  .album-back:active,
+  .album-nav-link:hover,
+  .album-nav-link:focus-visible,
+  .album-nav-link:active {
+    color: var(--color-accent);
+  }
 
   /* 扫入线的本体：静止 `scaleX(0)` 收在**右端**，悬停时 `scaleX(1)` 从**左**展开，
      离开时反向收回右侧 —— 这就是外站那套"进入向左展开、离开向右收回"的进出翻转。
@@ -4881,7 +4908,10 @@ html.nav-anim-reset *::after {
     right: 12px;
     bottom: 8.6px;
     height: 2px;
-    background: var(--color-ink);
+    /* 🔵 线色 = accent（2026-09-27 第四轮，原 `--color-ink`）。
+       ⚠️ 颜色只有**这一处**：线的非悬停态是 `scaleX(0)`、压根看不见 ⇒ 不必在 hover 组里
+          再写一条 `background`（那样同一个颜色就有了两个真相源，改一次得改两处）。 */
+    background: var(--color-accent);
     transform: scaleX(0);
     transform-origin: 100% 100%;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -4971,7 +5001,10 @@ html.nav-anim-reset *::after {
     .album-shot:focus-visible img { transition: none; }
     /* 🆕 2026-09-26 导航按钮的扫入线（`.album-back` / `.album-nav-link` 的 `::after`）同理：
        掐掉 0.3s 的扫入，**保留线本身** ⇒ 悬停时线瞬现。这不是动画，是"指针在哪一颗"的状态反馈，
-       一并不显示反而丢了信息（与上面 `.album-shot img` 那条同一个判断）。 */
+       一并不显示反而丢了信息（与上面 `.album-shot img` 那条同一个判断）。
+       ⚠️ 按钮自己那条 `transition: color 0.2s ease`（2026-09-27 第四轮加的）**故意不掐**：
+          它是纯颜色渐变、没有位移，与 `.nav-links a` / `.nav-brand` 同档同待遇 ——
+          那两处也没进这个块。别在这里补 `.album-back` / `.album-nav-link` 把字色变成硬切。 */
     .album-back::after,
     .album-nav-link::after { transition: none; }
   }
