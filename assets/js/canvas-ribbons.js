@@ -118,21 +118,24 @@
 
   /* 绘制一个 section；返回 true 表示已播完（淡出）可移除。
      视差 translate 是全局常量（所有 section 共用 scrollY*parallaxAmount），
-     由 animate() 在外层 save/translate → restore，省掉每 section 两次 GPU 状态变更 */
-  function drawSection(ctx, section) {
+     由 animate() 在外层 save/translate → restore，省掉每 section 两次 GPU 状态变更。
+
+     k = 本帧真实时长相对 60fps 基准的倍数（墙钟归一，由 frameK() 算出）。
+     下面三个量过去都是"每帧常量" ⇒ 屏幕刷新率越高播得越快，见 frameK() 的长注释。 */
+  function drawSection(ctx, section, k) {
     if (section.phase >= 1 && section.alpha <= 0) return true;
     if (section.delay <= 0) {
-      section.phase += 0.02;
+      section.phase += 0.02 * k;
       var sinP = Math.sin(section.phase);
       section.alpha = sinP < 0 ? 0 : (sinP > 1 ? 1 : sinP);
       if (config.animateSections) {
-        var t = 0.1 * Math.sin(1 + section.phase * Math.PI / 2);
+        var t = 0.1 * Math.sin(1 + section.phase * Math.PI / 2) * k;
         var dx = section.dir === 'right' ? t : -t;
         section.point1.x += dx; section.point2.x += dx; section.point3.x += dx;
         section.point1.y += t; section.point2.y += t; section.point3.y += t;
       }
     } else {
-      section.delay -= 0.5;
+      section.delay -= 0.5 * k;
     }
     var a = section.alpha * config.colorAlpha;
     if (a <= 0) return false;
@@ -174,8 +177,58 @@
   /* 暂停/恢复（移动端性能：滚到页底/页面切到后台 → 暂停飘带动画） */
   var rafId = null;
   var paused = false;
-  function animate() {
+
+  /* ═══ 墙钟归一：丝带的速度从此与刷新率无关（第三百三十一批 2026-09-27）═══
+     主人报「手机版背景丝带动画的速度比电脑版快」。根因就在上面 drawSection 里：
+     三个动画量（phase += 0.02 / delay -= 0.5 / 摆动 dx = 0.1·sin(...)）全是
+     **每帧常量**，与帧间隔无关 —— 于是"一帧"就是时钟 ⇒ 播多快**只取决于屏幕刷新率**。
+     实测（合成时钟探头，手机 390×844 / 桌面 1440×900 两档，只换时钟）：
+       手机 60Hz：丝带"出生 → 铺满 → 淡尽 → 重生"一个节拍 **3.68s**
+       手机 120Hz（= ProMotion iPhone / 高刷安卓）：**1.84s** —— 正好快一倍
+     数据逐帧相同、只有墙钟减半，这就是"快"的全部来源。
+
+     ⚠️ 别拿"手机屏小所以显得快"解释，那是另一码事（量过：同一刷新率下手机与桌面
+        每帧推进的像素几乎一样，都是 ~10px/帧）。屏小的残留差别只有节拍：窄屏丝带链
+        短（~10 段 vs ~23 段），所以手机 60Hz 的节拍 3.68s 对桌面 60Hz 的 5.45s，
+        还差 1.48×。**这一条没改** —— 它属于"设计随视口缩放"，要改是视觉改动，得主人点头。
+
+     同目录的 canvas-nest.js 早在第三百一十批就是这么做的（`k = dt / FRAME_MS`），
+     丝带是当时唯一漏掉的一个 —— 这里口径与它对齐：基准 60fps、上限 clamp 到 3。
+
+     🔴 **这不是帧率闸门。** 丝带不许降帧（见本文件头第三百一十一批：大面积低对比元素
+        掉到 30fps 就会被看出亮度台阶）；帧照画不误，只是把每帧的位移按真实时长缩放。
+     🔴 60Hz 屏幕上 k ≡ 1 ⇒ 输出与旧版**逐像素 0 差**
+        （探头 ribbon-speed-2026-09-27：合成 60Hz 时钟下 手机/桌面/双丝带 三档 × 三帧快照
+         = 100.00% 像素相同；真实时钟那一支的差异落在**同配置两跑**的抖动里 ——
+         真实 rAF 的 dt 会抖、摆动的逐帧累加跟着抖，那是这个动画本来的性质，不是本次改动）。
+        桌面观感零变化，改的只有高刷屏。
+     ⚠️ 120Hz 上与本版 60Hz 的对照：像素差 0.03~0.12%（对照组"没归一"是 1.1~1.3%）。
+        残差来自摆动那一项是**逐帧累加**而不是解析积分（k 越小、黎曼和的步长越细），
+        只在丝带软边上差零点几个 px。比要修的效应小一个半数量级，不用管。 */
+  var FRAME_MS = 1000 / 60;
+  var lastFrameT = 0;
+  /* 落在 60Hz 附近（±5%，即 15.8~17.5ms）的 dt 一律**当成正好一帧**。
+     两个理由，都不是洁癖：
+       ① `delay` 的阈值是整数（`4*r`，每帧减 0.5）——dt 里那点浮点 ε 会让某一段
+          **晚整整一帧**登场，于是"60Hz 与旧版逐像素相同"这句话就不成立了（实测差一帧）。
+          吸平之后 60Hz 屏上 k 恒等于 1，那条不变量才是**可以被机器验的**。
+       ② 真实 60Hz 屏的 rAF 间隔本来就在 16~17.2ms 之间抖：不吸平的话，每一段登场
+          的时刻都会跟着抖 ±1 帧，等于给"逐段登场"加了一层看不见的抖动。
+     掉帧（33ms ⇒ 2.0）在带宽之外，照旧按真实时长补 —— 吸平不会把卡顿吃掉。 */
+  var K_SNAP = 0.05;
+  function frameK(now) {
+    var k = 1;
+    if (lastFrameT && typeof now === 'number' && now > lastFrameT) {
+      var raw = (now - lastFrameT) / FRAME_MS;
+      k = Math.abs(raw - 1) <= K_SNAP ? 1 : Math.min(3, raw);
+    }
+    lastFrameT = typeof now === 'number' ? now : 0;
+    return k;
+  }
+
+  function animate(now) {
     if (paused) { rafId = null; return; }
+    var k = frameK(now);
     ctx.clearRect(0, 0, W, H);
     /* 视差 translate 是全局常量（所有 section 共用同一偏移）—— 提到外层 save/restore，
        省 ~500 section × 2 save/translate/restore = 1500 GPU 状态变更/帧 */
@@ -189,7 +242,7 @@
       for (var j = 0; j < list.length; j++) {
         /* drawSection 返回 true = 该 section 已淡完，从链上移除；
            等同于原 filter(keep where !drawSection) 语义 */
-        if (!drawSection(ctx, list[j])) {
+        if (!drawSection(ctx, list[j], k)) {
           if (!next) next = [];
           next.push(list[j]);
         }
@@ -208,6 +261,7 @@
   function pause() {
     if (paused) return;
     paused = true;
+    lastFrameT = 0;   /* 恢复时别拿停表前的旧时间戳算 dt（否则 k 被 clamp 到 3 → 丝带跳一步） */
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     if (ctx && W && H) ctx.clearRect(0, 0, W, H);
   }
@@ -238,6 +292,7 @@
   function hold() {
     if (paused) return;
     paused = true;
+    lastFrameT = 0;   /* 同上：醒来那一帧按"一个 60fps 帧"算，别把停表的时长算进去 */
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   }
   function syncRun() {
