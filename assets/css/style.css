@@ -4183,14 +4183,15 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
       图片（`.hero-art-img`）同理 —— 它原来靠 `.is-loaded` 做 0.4s 淡入，
       在一片"还没有图"的大卡上那就是一片白，所以这里直接 opacity 1、不淡入。
    --------------------------------------------------------------------------- */
-html.rm-navclick .hero-title-char,
-html.rm-navclick .about-title-char { animation-name: rm-char-pop-scale; }
-/* 与 `hero-char-pop` 同曲线同节奏，只去掉 opacity：字始终看得见，只在尺寸上弹一下 */
-@keyframes rm-char-pop-scale {
-  0% { transform: scale(0.4); }
-  55% { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
+/* ⚠️ **巨字的逐字弹出（`.hero-title-char` / `.about-title-char`）不在这批里** ——
+   2026-09-27 晚些时候改错过一次、被主人当场看出来「每页4个大字的登场动画好奇怪。
+   这不是之前的设计」：当时为了让标题也别淡入，给它换了条只走 scale 的同类曲线
+   （`rm-char-pop-scale`）。**那是错的** —— 巨字 80px，`hero-char-pop` 里那半段 opacity
+   才是"字出现"的读法；只留 scale 就变成"四个小字各自胀大"，逐字错开之后尤其怪。
+   ⇒ 巨字一律沿用 `html.page-ready …{ animation: hero-char-pop }`（含淡入、含逐字延迟），
+     点击与刷新**同一套**。要动它先问主人。
+   钉住的只是**页面家当**的淡入：动态页条目（`.dy-item`/`.dy-day`）、hero 文字与底板、
+   卡片擦入、hero 大图、底部提示 —— 它们才是"整屏发白"的来源。 */
 html.rm-navclick .dy-item,
 html.rm-navclick .dy-day { opacity: 1; }
 html.rm-navclick .hero .hero-text > *:not(.hero-cta),
