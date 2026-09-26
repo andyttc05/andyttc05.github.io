@@ -85,7 +85,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=92aa792cd1">
+<link rel="stylesheet" href="../assets/css/style.css?v=95af9e30b9">
 </head>
 <body>
 
@@ -224,7 +224,8 @@
     </header>
 
     <!-- === 相簿墙（2026-09-21 主人"设计相册，相册加入图片，你可以参考 dreamcenter.top/album"）===
-         结构借参考站（顶部数据条 + 封面网格 + 张数角标 + 点开进单册），配色字体一律走站内
+         结构借参考站（封面网格 + 张数角标 + 点开进单册；参考站顶上那条数据条本站 2026-09-27
+         已按主人要求删掉），配色字体一律走站内
          token —— 封面不套白卡、不加重投影，网格靠图片本身撑起来。
 
          内容由 tools/photos-data.py 从 manifest.json 生成后**直接写进下面的 HTML**
@@ -238,17 +239,19 @@
          重新生成：python3 tools/photos-derive.py -->
     <section class="about-bento" id="photos-intro" aria-label="相簿">
       <!-- 相簿墙（2026-09-25 方案 B 静态化）——
-           数据条与 19 张封面磁贴由 tools/photos-data.py 在生成时写进这两段之间。
+           19 张封面磁贴由 tools/photos-data.py 在生成时写进这一对标记之间。
            起因见 pages/album.html 顶部那段说明：JS 注入的内容进不了跨文档过渡的新页快照，
            于是进出相簿页会整页洗白。现在首绘就带内容，封面也从解析期开始下。
            ⚠️ 生成器只换两枚标记**之间**的内容，标记本身留着 ⇒ 可以反复重跑。
            ⚠️ 磁贴是纯 CSS grid（.album-wall 的 auto-fill），没有 JS 算的几何 ——
-              所以这一页不需要内联布局引擎，只要 plate.js 管图片交接。 -->
-      <div class="album-stats" id="albumStats"><!--RM-BEGIN stats-->
-        <div class="album-stat album-stat--albums"><span class="album-stat-v">19</span><span class="album-stat-k">个相簿</span></div>
-        <div class="album-stat album-stat--photos"><span class="album-stat-v">268</span><span class="album-stat-k">张照片</span></div>
-        <div class="album-stat album-stat--regions"><span class="album-stat-v">5</span><span class="album-stat-k">个地区</span></div>
-      <!--RM-END stats--></div>
+              所以这一页不需要内联布局引擎，只要 plate.js 管图片交接。
+           🗑️ 原来这一块上面还有一条「顶部数据条」（19 / 268 / 5 那三组数字），
+              2026-09-27 主人要求**整体删除**。连同它那对 RM 的 stats 标记、style.css 里的
+              .album-stat 四条规则、tools/photos-data.py 的 frag_stats()、tools/stamp.mjs 的
+              数据条检查一起撤掉了 —— 页面上不再有那条，也别把任何一件加回来。
+              背景：2026-09-26 主人说过它"没有设计感"，我改过四版他说"都不如现状好看"，
+              事后取证发现那一段的锅在背景飘带（canvas-ribbons）身上、不在数据条本身；
+              这次是他主动要删。 -->
       <div class="album-wall" id="albumWall"><!--RM-BEGIN wall-->
         <a class="album-tile" href="albums/shek-kip-mei.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/shek-kip-mei/20240118-125701.webp?v=1" alt="石硖尾・深水埗　公屋、旧街、茶餐厅，一条街走到底" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">52 张</span></div><h3 class="album-tile-name">石硖尾・深水埗</h3><p class="album-tile-note">公屋、旧街、茶餐厅，一条街走到底</p></a>
         <a class="album-tile" href="albums/yaumatei-mongkok.html"><div class="album-tile-cover"><img src="https://pub-4a7ebf0d83dc43fe81c6d3a51b017cfc.r2.dev/photos/_thumbs/yaumatei-mongkok/20240130-174604.webp?v=1" alt="油麻地・旺角　招牌比人多，抬头全是霓虹" width="900" height="675" loading="eager" fetchpriority="high" decoding="async"><span class="album-tile-count">15 张</span></div><h3 class="album-tile-name">油麻地・旺角</h3><p class="album-tile-note">招牌比人多，抬头全是霓虹</p></a>
@@ -394,7 +397,7 @@
   <!-- 相簿增强层：墙的位置记忆（点进某一册 / 点「← 全部相簿」回来要落回原位）。
        内容与图片交接都不在这里 —— 内容在 HTML 里，交接由上面内联的 plate.js 在解析期做完；
        photos-data.js 也从这一页撤掉了（23KB 白等一趟，DOM 自己带着要用的东西）。 -->
-  <script src="../assets/js/photos.js?v=8f485346a8" defer></script>
+  <script src="../assets/js/photos.js?v=ffacfab138" defer></script>
 
   <script src="../assets/js/loader.js?v=f33e23d040" defer></script>
   <script src="../assets/js/script.js?v=88b5187802" defer></script>

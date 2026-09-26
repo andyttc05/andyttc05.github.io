@@ -424,11 +424,11 @@ const MIN_VISIBLE_MIN = 400; /* 露脸下限：不许一闪 */
   if (tiles !== ALBUM_PAGES.length) {
     fail('ALBUM', `pages/photos.html: 墙上有 ${tiles} 格，数据里是 ${ALBUM_PAGES.length} 本 —— 重跑 tools/photos-data.py`);
   }
-  const stats = [...wall.matchAll(/class="album-stat-v">(\d+)</g)].map((m) => Number(m[1]));
-  const want = [ALBUM_PAGES.length, ALBUM_PAGES.reduce((n, a) => n + a.count, 0)];
-  if (stats[0] !== want[0] || stats[1] !== want[1]) {
-    fail('ALBUM', `pages/photos.html: 数据条 ${stats.slice(0, 2).join(' / ')}，应为 ${want.join(' / ')}`);
-  }
+  /* 🗑️ 原来这里还有一条「数据条」检查（读 `class="album-stat-v"` 的两个数、比对 本数 / 总张数），
+     2026-09-27 随元素一起删除 —— 那天主人要求把 pages/photos.html 的顶部数据条整体撤掉，
+     页面上已经不存在那两个数，留着这条只会恒报 "数据条 ，应为 19 / 268"。
+     ⚠️ "加了相簿忘了重跑生成器"这个漂移**没有失去覆盖**：上面那条「墙上有几格」查的就是同一件事
+        （墙与数据条都由 build_data() 的同一份 albums 派生）。别再把它加回来。 */
   for (const a of ALBUM_PAGES) {
     if (!existsSync(join(ROOT, a.file))) {
       fail('ALBUM', `${a.file} 不存在 —— 相簿页是生成的，重跑 tools/photos-data.py`);

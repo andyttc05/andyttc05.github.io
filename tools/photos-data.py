@@ -7,7 +7,7 @@
   ① 数据：assets/js/photos-data.js（网页不再直接引它，但它是机器可读的相簿索引 ——
      生成器自己与 stamp.mjs 的一致性守卫都读它，字段也留着给以后做筛选）。
   ② 页面（方案 B 静态化）：
-       · pages/photos.html    的相簿数据条 + 19 张封面磁贴
+       · pages/photos.html    的 19 张封面磁贴（原来还有顶部数据条，2026-09-27 删，见 frag_wall 上方）
        · pages/albums/<slug>.html  每个相簿一页（书名/元信息/每一张照片/上一册下一册）
      为什么内容必须进 HTML：跨文档 View Transition 取新页快照于 pagereveal（实测 52~270ms），
      而 defer 的 photos.js 跑到 DCL（258~414ms）⇒ 快照拍到的是空壳，整页被洗白。
@@ -397,19 +397,12 @@ def frag_nav(a, idx, albums):
             + side(next_a, "next", "下一册", "下一册 →") + "\n    ")
 
 
-def frag_stats(stats):
-    # 只留三格纯计数（起讫区间格 2026-09-21 撤掉）。第三格「N 个地区」**手机版不显示**
-    # （2026-09-24 主人「照片页，手机版移除 5 个地区的显示」）—— 藏它的规则在 style.css
-    # 的窄屏适配那段。给每格一个自己的修饰类，别让 CSS 去猜 :nth-child(3)。
-    rows = [(stats["albums"], "个相簿", "albums"),
-            (stats["photos"], "张照片", "photos"),
-            (stats["regions"], "个地区", "regions")]
-    return "".join(
-        f'\n        <div class="album-stat album-stat--{k}">'
-        f'<span class="album-stat-v">{v}</span><span class="album-stat-k">{t}</span></div>'
-        for v, t, k in rows) + "\n      "
-
-
+# 🗑️ frag_stats()（顶部数据条：N 个相簿 / N 张照片 / N 个地区）2026-09-27 主人要求**整体删除** ——
+# 函数、它在 update_wall() 里的注入、pages/photos.html 里那对 RM 的 stats 标记、
+# style.css 的 .album-stat 四条规则、tools/stamp.mjs 的数据条检查，五件一起撤掉，别再复活。
+# 背景：2026-09-26 主人说它"没有设计感"，我改过四版他回"都不如现状好看"，
+# 事后取证发现那一段的锅在背景飘带（canvas-ribbons）身上、不在数据条本身；这次是他主动要删。
+# ⚠️ data["stats"] 本身**留着**：它仍写进 assets/js/photos-data.js 当机器可读索引（张数 / 地区数）。
 def frag_wall(albums):
     out = []
     for i, a in enumerate(albums):
@@ -457,10 +450,9 @@ def build_album_pages(albums):
     return written, bad_refs
 
 
-def update_wall(albums, stats):
+def update_wall(albums):
     with open(WALL, encoding="utf-8") as fh:
         src = fh.read()
-    src = set_region(src, "stats", frag_stats(stats))
     src = set_region(src, "wall", frag_wall(albums))
     src = set_region(src, "inline:assets/js/plate.js", inline_block("assets/js/plate.js"))
     with open(WALL, "w", encoding="utf-8") as fh:
@@ -499,7 +491,7 @@ def main():
     os.makedirs(ALBUMS_DIR, exist_ok=True)
     gone = prune_stale({a["slug"] for a in albums})
     written, bad_refs = build_album_pages(albums)
-    wall_bad = update_wall(albums, data["stats"])
+    wall_bad = update_wall(albums)
 
     print(f"单册页 {len(written)} 个 → pages/albums/")
     for p in written:
