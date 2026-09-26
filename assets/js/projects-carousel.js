@@ -201,7 +201,7 @@
 
    改前为什么这么慢 —— 三道**串行**的等待，谁也不能提前：
      ① `wheeling` 要等 W_IDLE=120ms 静默才敢落位（那 120ms 是"手势结束"的判据，
-        不是"卡片到位"的判据），落位曲线本身还要最多 320ms（FIN_TMAX_WHEEL）；
+        不是"卡片到位"的判据），落位曲线本身还要最多 300ms（第三百二十七批起与手势共用 FIN_TMAX_SLOT）；
      ② `railResting()` 把"落位曲线跑完"也算进"静止"，所以装配只能等曲线收尾；
      ③ 落下来之后**没有任何调用点会重判**（wheelEnd 只改标志位、不 render），
         全靠一条 90ms 粒度的重试链兜 —— 于是又白白多等 0~90ms。
@@ -494,6 +494,12 @@
     x = xTarget = target;
     render();
   }
+  /* 第三百二十七批：**回位**（没兑现任何一张）—— 同一条 Hermite 曲线、150ms 窗口。
+     `?canim=0` 退回 325/326 批的"瞬移归位"。 */
+  function returnTo(target) {
+    if (!SLOT_ANIM) { instantReturn(target); return; }
+    startFinish(target, 0, FIN_TMAX_RETURN);
+  }
   function slotAnchor() {
     /* 手势起点那一档。上一段还在落位（FIN）或还在指数逼近（raf 且未落位）时，
        取那一段的**目标** —— 起点若按"此刻的 x"算会被算成"这一段已经走了一部分"，
@@ -509,6 +515,26 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 慢滑不许有跳变 · 点击与手势同一条动画（第三百二十七批，主人「这在慢慢滑动的动画好
+        奇怪」「我想要手势滑动和点击滑动的动画体验是一致的」）──────────────────────
+     先量后改（`probe-anim.js` 逐帧，1280 / step=441）：
+
+       · 慢滚（3 段 × 50px，段间停 200ms）实测**2 次单帧跳变 ≥100px、最大 190px**：
+         账本（`wheelAcc`）**同时**当"决策"和"画面"用 ⇒ 一段滚完 k=0 回位时画面被瞬移回
+         基准（−150px 一帧），而账本仍留着 150 ⇒ 下一个事件按账给目标 = +190px 一帧。
+         ⇒ 画面改成由**本段从上次落位以来的位移**（`wheelVis`）驱动，落位后归零。
+       · 不足半档松手 ⇒ `instantReturn` 一帧跳回（实测 120px 位移 1 帧走完）。
+         ⇒ 改成同一条 Hermite 曲线、窗口 150ms 的**短促回位**（不是 325 批那个长回弹动画）。
+       · 点击侧卡 / 键盘 = `animateTo(STEP_K=0.15)` 指数逼近：实测**682ms，末段爬行 433ms**
+         （画面在最后一档上"爬"半秒）；而手势落位 = Hermite 300ms。两者观感完全不同。
+         ⇒ 四条输入（拖拽松手 / 停滚落位 / 点击侧卡 / 键盘）共用 `startFinish` 与同一个
+           `FIN_TMAX_SLOT`；**时长只由"距离 + 释放速度"决定**，"从静止起步"那一档最慢
+           （= 300ms）⇒ 点一下与"手指停住再松手"拿到逐帧相同的曲线。
+       · 落位在飞时来了新输入：原来是"跟手整段让位"（325 批，怕指数逼近把 401px 一口吃完）
+         ⇒ 那期间的位移攒着、等飞行结束再一次性跳过去（撞不撞得上只取决于"飞行有没有在
+           输入中途结束"，所以判据 A34 守着"零瞬移"）。现在改成
+         **速度连续地重定目标**（`retargetFinish`：从当前位置 + 当前实速起一条新曲线）。
+     `?canim=0` 回到 326 批那套动画（指数逼近 + 瞬移回位），只用于 A/B 反证。 */
   /* ── 跟手还给手指（第三百二十六批，主人「卡片滑动很拖泥」「卡片连续滑动不是很流畅」）
      先量：跟手比（导轨位移 / 手指位移）—— 拖 40px→41%、97px→41%、**300px→13%、600px→7%**
      （封顶 40px 之后再拖就不动了）。这是 325 批把照片档"微跟手"统一套到所有输入上造成的。
@@ -1003,8 +1029,26 @@
        TMAX，此时 u0≈0 → smoothstep 慢起慢落。 */
   var FIN = null;              /* {t0, from, to, T(ms), u0, v0} —— 落位曲线状态 */
   var lastFinV0 = 0;           /* 最近一次落位用的实测初速 px/s（调试口用） */
-  var FIN_TMAX_WHEEL = 320;    /* 停滚落位 最长 ms（旧弹簧 ω=18 意图 ~0.35s，实测收紧） */
-  var FIN_TMAX_DRAG = 260;     /* 拖拽松手 最长 ms（旧弹簧 ω=22 意图 ~0.25s，保持更干脆） */
+  /* 第三百二十七批：曲线**当前**速度（px/s），每帧在 tick 里更新。落位在飞时来了新输入
+     要靠它做速度连续的重定目标（`retargetFinish`）；取上一帧算出的值比"按 performance.now()
+     重算 s"更准（rAF 时间戳与 now 有 ≤1 帧的偏差，会带出一处折点）。 */
+  var lastFinVel = 0;
+  /* 第三百二十七批（主人「我想要手势滑动和点击滑动的动画体验是一致的」）：
+     **所有"把导轨送到某一档"共用一条曲线与一个最长时长**。改前三个数并存：
+       拖拽松手 260ms / 停滚落位 320ms / 点击·键盘 = 指数逼近 k=0.15（实测 682ms、末段爬行 433ms）
+     —— 同一个动作换一种输入就换一种观感，这就是"不一致"。取 300ms：原来两个值的中间，
+     也在主流区间（iOS 分页动画 ≈300ms）。时长仍随距离与释放速度变化
+     （T = clamp(3D/v0, TMIN, 300)），**"从静止起步"这一档最慢 = 300ms** ——
+     于是"点一下"和"手指停住再松手"拿到逐帧相同的曲线。 */
+  var FIN_TMAX_SLOT = 300;
+  /* 没过线 / 这一轮一张都没兑现 ⇒ 只是**回位**：同一条曲线，窗口收紧到 150ms。
+     ⚠️ 不能用 325 批那种"瞬移归位"：跟手已是 1:1（326），回位幅度可达半档（220px），
+     一帧跳 220px 正是主人说的"慢慢滑动的动画好奇怪"（实测 120px 位移一帧走完）。
+     ⚠️ 也不能用整档那个 300ms：那会变成"滑出去再滑回来"（325 批主人明确不要的回弹）。 */
+  var FIN_TMAX_RETURN = 150;
+  /* `?canim=0` = 第三百二十六批及以前的动画模型（点击/键盘走 STEP_K 指数逼近、
+     没过线瞬移归位、落位在飞时跟手整段让位），只用于 A/B 反证。 */
+  var SLOT_ANIM = !/[?&]canim=0/.test(location.search);
   var FIN_TMIN = 140;          /* 最短 ms（防"高速 + 只差几 px"变成撞墙式硬停） */
   var FIN_VFLOOR = 250;        /* 初速很小时假定的速度 px/s —— 决定 u0，越小越"慢起" */
   var FIN_U0MAX = 2.8;         /* u0 上限（<3 保单调、保无过冲，见上） */
@@ -1020,6 +1064,8 @@
       }
       var s = u, s2 = s * s, om = 1 - s;
       var p = (3 * s2 - 2 * s2 * s) + f.u0 * s * om * om;   /* 三次 Hermite，见上 */
+      /* 第三百二十七批：记录当前速度（p'(s) = (1−s)[6s + u0(1−3s)]，u0 ≤ 2.8 时恒 ≥ 0） */
+      lastFinVel = (f.to - f.from) * (om * (6 * s + f.u0 * (1 - 3 * s))) / (f.T / 1000);
       x = xTarget = f.from + (f.to - f.from) * p;
       render();
       raf = requestAnimationFrame(tick);
@@ -1072,7 +1118,12 @@
      成为主卡（数组正向 01→02→03→04，x 减小），上一个 = 左侧的卡成为主卡。
      此前 stepTo 正负号反了（next 实际去了上一张），自动轮播/键盘 ←→ 一并纠正。 */
   function stepTo(dir, k) {
-    animateTo(Math.round(x / step()) * step() + dir * step(), k);
+    var st = step();
+    if (!SLOT_ANIM) { animateTo(Math.round(x / step()) * step() + dir * step(), k); return; }
+    /* 第三百二十七批：与手势落位**同一条曲线**（`startFinish` + `FIN_TMAX_SLOT`），
+       初速 0（点击/按键没有"手指速度"这回事）⇒ 与"手指停住再松手"逐帧相同。 */
+    var from = PAGE_PER_GESTURE ? slotAnchor() : Math.round(x / st) * st;
+    startFinish(from + dir * st, 0, FIN_TMAX_SLOT);
   }
   function next(k) { stepTo(-1, k); }
   function prev(k) { stepTo(1, k); }
@@ -1113,10 +1164,10 @@
          没过 ⇒ **瞬间归位，零动画**（主人要治的"滑到中间反弹"就是这里的动画）。 */
       var commit = Math.abs(raw) >= carCommitDist(st);
       if (!commit && Math.abs(vel) >= FLICK_V) commit = true;      /* 轻甩也算换一张 */
-      if (!commit) { instantReturn(dragOriginSlot); return; }
+      if (!commit) { returnTo(dragOriginSlot); return; }
       var dirP = commit && Math.abs(raw) >= carCommitDist(st) ? (raw > 0 ? 1 : -1)
                                                              : (vel > 0 ? 1 : -1);
-      startFinish(dragOriginSlot + dirP * st, vel * 1000, FIN_TMAX_DRAG);
+      startFinish(dragOriginSlot + dirP * st, vel * 1000, FIN_TMAX_SLOT);
       return;
     }
     var nearest = Math.round(x / st) * st;
@@ -1128,7 +1179,7 @@
        这两个基准在多数情况下同值，但**手势中途 x 被夹紧/被落位曲线拉走**时就分岔，
        分岔的方向是"多走一张"。`?cpages=0` 走下面那条老式子（只用于 A/B）。 */
     var target = PAGE_PER_GESTURE ? pageLanding(dragOriginSlot, x, vel) : nearest + dir * st;
-    startFinish(target, vel * 1000, FIN_TMAX_DRAG);
+    startFinish(target, vel * 1000, FIN_TMAX_SLOT);
   }
   /* startFinish：落位到 target 的有限时长曲线（第二百七十六批取代 releaseSpring）。
      v0 = 出发瞬间的速度（px/s，正负与 x 同向）：
@@ -1152,8 +1203,23 @@
     raf = requestAnimationFrame(tick);
   }
 
-  /* 键盘 ←/→（轮播聚焦时）：与点击侧卡同为"离散跳一档"，统一用舒缓系数
-     STEP_K（0.15，≈0.45~0.5s 优雅滑行） */
+  /* 第三百二十七批：落位曲线**在飞时**来了新输入 ⇒ 从当前位置 + 当前实速起一条新曲线
+     （速度连续 ⇒ 接缝看不见，且永不跳）。
+     两条老做法的代价都量过：
+       · 跟手整段让位（325 批，怕指数逼近 k=0.95 一帧吃掉 95% ⇒ 把 300ms 的滑行缩成两帧）：
+         那期间手指的位移只能攒着，等飞行结束再一次性跳过去 —— **结构性隐患**：
+         撞不撞得上只取决于"飞行有没有在输入中途结束"，所以套件用 A34 守着"零瞬移"。
+       · 直接换目标不接速度：曲线在接缝处留下折点（"顿一下"）。 */
+  function retargetFinish(target, tmax) {
+    if (!FIN) return false;
+    startFinish(target, lastFinVel, tmax);
+    return true;
+  }
+  /* 键盘 ←/→（轮播聚焦时）：与点击侧卡同为"离散跳一档"。
+     第三百二十七批：不再用舒缓系数 STEP_K 的指数逼近，改走**与手势落位同一条曲线**
+     （见文件头 327 批：指数逼近实测 682ms、末段爬行 433ms，与手势的 300ms 观感完全不同）。
+     基准取 `slotAnchor()`（在飞的落位取它的目的地）—— 连按时每一次都从"上一段的目的地"
+     再走一档，方向不会反转（第二百一十二批那条不变式）。 */
   root.tabIndex = 0;
   root.addEventListener('keydown', function (e) {
     if (dragging) resetDrag();   /* 第二百六十四批：拖拽态失联时键盘先接管 */
@@ -1356,8 +1422,13 @@
           window.open(pj.link, '_blank', 'noopener');
         } else {
           /* 第二百六十三批追加（主人"点击页面的动画和自动轮播一样"）：
-             点击侧卡居中改用 STEP_K —— 与键盘跳档同款 ~0.5s 优雅滑行 */
-          animateTo(-j * stT, STEP_K);
+             点击侧卡居中改用 STEP_K —— 与键盘跳档同款 ~0.5s 优雅滑行。
+             第三百二十七批：再改成**与手势落位同一条 Hermite 曲线**（`FIN_TMAX_SLOT`）——
+             原来这条走的是 `animateTo(…, STEP_K)` 的指数逼近（实测 682ms、末段爬行 433ms），
+             与手势落位的 300ms 观感完全不同（主人「手势滑动和点击滑动的动画体验要一致」）。
+             `?canim=0` 退回指数逼近（反证档）。 */
+          if (SLOT_ANIM) startFinish(-j * stT, 0, FIN_TMAX_SLOT);
+          else animateTo(-j * stT, STEP_K);
           voidWheelRound();   /* 第三百二十六批：点击居中 = 别的输入动过导轨 ⇒ 滚轮的账作废 */
         }
       }
@@ -1560,6 +1631,12 @@
      两个系数，滚轮比拖拽多滞后一点；"慢慢滑和快速滑手感一样"也包括这两条输入要一致）。 */
   var W_K = 0.95;
   var wheeling = false, wheelBase = 0, wheelAcc = 0, wheelIdleTimer = null;
+  /* 第三百二十七批：**画面账**（`wheelVis` = 本段从上次落位以来的位移）与**决策账**
+     （`wheelAcc` = 本轮滚动的累计量，跨落位保留）分开记。
+     为什么必须分开：画面若按决策账算，k=0 的回位把画面送回基准之后，账本还留着那一段，
+     下一个事件就会让画面**一帧跳回来**（实测 190px/帧）。分开之后：落位一发生画面账归零，
+     "慢慢滚、停一下、再滚一下"仍然靠决策账累加（慢滚照样能攒够半档 = 324 批的要求）。 */
+  var wheelVis = 0;
   var wHist = [];           /* 第二百七十六批：最近 ~140ms 的 {t, 累计位移} ——
                                用来算"手势末段实速"，作落位曲线初速（见上） */
   var W_IDLE = parseInt((location.search.match(/[?&]cwidle=(\d+)/) || [])[1], 10) || 120;
@@ -1569,7 +1646,7 @@
   function voidWheelRound() {
     if (!PAGE_PER_GESTURE || !PHOTO_DRAG) return;
     wheelBase = slotAnchor();
-    wheelAcc = 0; wheelSegSpent = false;
+    wheelAcc = 0; wheelVis = 0; wheelSegSpent = false;
   }
   function wheelEnd() {
     wheelIdleTimer = null;
@@ -1625,13 +1702,15 @@
       target = Math.round(x / st) * st;
       wheelBase = 0; wheelAcc = 0;
     }
+    /* 第三百二十七批：落位接手 ⇒ **画面账归零**（下一段跟手从这一档重新起算）。
+       不清它就会回到"账本与画面打架"（见文件头 327 批：单帧跳 150~190px）。 */
+    wheelVis = 0;
     if (Math.abs(target - x) > 0.5) {
-      /* 第三百二十五批（照片同款）：这一轮**一张都没兑现**（k === 0，画面只是被跟手
-         挪开一点点）⇒ 瞬间归位，零动画 —— 与灯箱 lbDragEnd 里那句 lbRest 同义。
-         这就是主人说的"滑到中间反弹的动画"（逐帧实测：滚 120px → 106.5→99.9→…→0，
-         ~250ms 的动画回位）。过了阈值那条走下面的落位曲线 = "一次滑到底"。 */
-      if (PHOTO_DRAG && PAGE_PER_GESTURE && k === 0) instantReturn(target);
-      else startFinish(target, vIn, FIN_TMAX_WHEEL);
+      /* 这一轮一张都没兑现（k === 0）⇒ 只是把跟手挪开的那一点点**短促收回**（150ms）；
+         兑现了 ⇒ 同一条曲线一次滑到底（300ms 窗口）。
+         `?canim=0` 分别退回 325 批的瞬移 / 326 批的 vIn 曲线。 */
+      if (PAGE_PER_GESTURE && k === 0 && SLOT_ANIM) returnTo(target);
+      else startFinish(target, vIn, FIN_TMAX_SLOT);
     }
   }
   root.addEventListener('wheel', function (e) {
@@ -1658,7 +1737,7 @@
     /* 第三百二十四批：停手 ≥1s ⇒ 上一轮滚动结束，重新起账（锚点取当前档位）。 */
     if (PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) {
       wheelBase = slotAnchor();
-      wheelAcc = 0; wheelSegSpent = false;
+      wheelAcc = 0; wheelVis = 0; wheelSegSpent = false;
       segs = 0;
     }
     /* 第三百二十四批 · 锚点自愈（`?cphoto=0` 反证档仍用这条几何判据）：
@@ -1666,7 +1745,7 @@
        否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。 */
     if (PAGE_PER_GESTURE && !PHOTO_DRAG && Math.abs(x - wheelBase) > st1 * 1.05) {
       wheelBase = slotAnchor();
-      wheelAcc = 0;
+      wheelAcc = 0; wheelVis = 0;
     }
     /* ⚠️ 第三百二十六批：**几何自愈在默认档已删除**，改成"别的输入显式作废本轮的账"
        （`voidWheelRound()`，键盘 / 点击居中 / 拖拽三处各自调用）。为什么不能靠几何推断：
@@ -1694,9 +1773,9 @@
       var lv = Math.round(wheelAcc / st1);
       if (!wheelNotchy) { if (lv > 1) lv = 1; else if (lv < -1) lv = -1; }
       wheelBase = wheelBase + lv * st1;
-      wheelAcc = 0; wHist.length = 0; wheelSegSpent = false;
+      wheelAcc = 0; wheelVis = 0; wHist.length = 0; wheelSegSpent = false;
       segs++;
-      if (PHOTO_DRAG && lv !== 0 && Math.abs(wheelBase - x) > 0.5) startFinish(wheelBase, 0, FIN_TMAX_WHEEL);
+      if (PHOTO_DRAG && lv !== 0 && Math.abs(wheelBase - x) > 0.5) startFinish(wheelBase, 0, FIN_TMAX_SLOT);
     }
     if (!wheeling) {
       wheeling = true;
@@ -1705,11 +1784,13 @@
          ⚠️ 第三百二十四批：这里**不再清 wheelAcc**（清了就回到"慢滚没反应"）——
             账本是"本次滚动"级的，只由 wheelGap ≥1s 或"新出手"来结。 */
       if (!PAGE_PER_GESTURE) { wheelBase = x; wheelAcc = 0; }
+      wheelVis = 0;
       wheelSegSpent = false;
       wHist.length = 0;
       segs++;
     }
     wheelAcc += d;
+    wheelVis += d;
     /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
     var tNow = performance.now();
     wHist.push({ t: tNow, a: wheelAcc });
@@ -1718,10 +1799,14 @@
      第三百二十二批改饱和）：手势推得再猛，导轨也只走到相邻一张，停滚落 起点 / 相邻一张，
      且界外仍有响应（惯性尾巴 = 自然的滑行收起，见 railClamp）。 */
     /* 滚轮（一格一格）按距离 1:1 跟手；触控板夹在「起点 ± 一张」（第三百二十一批）。 */
-    /* 第三百二十五批：落位曲线在飞时不接管画面 —— 那次飞行是"这一张滑到底"，
-       用指数逼近去改目标会把它整段吃掉（401px 一步跳完）。跟手窗口只有 ~40px，
-       暂停这一小会儿看不出来。`?cphoto=0` 保持 324 批原样（反证档要逐字可比）。 */
-    if (!(PHOTO_DRAG && FIN)) animateTo(photoFollow(wheelBase + wheelAcc, wheelBase, wheelNotchy), W_K);
+    /* 第三百二十七批：跟手目标按**画面账**（wheelVis）算，不按决策账 —— 见 wheelVis 那段。
+       落位在飞时**不再整段让位**，而是速度连续地重定目标（`retargetFinish`）：
+       325 批那种"让位"会让这期间的手指位移攒着、等飞行结束再一次性跳过去（结构性隐患，
+       A34 守着"零瞬移"）。
+       `?cphoto=0` / `?canim=0` 保持旧行为（反证档要逐字可比）。 */
+    var followPos = photoFollow(wheelBase + wheelVis, wheelBase, wheelNotchy);
+    if (PHOTO_DRAG && FIN && SLOT_ANIM) retargetFinish(followPos, FIN_TMAX_SLOT);
+    else if (!(PHOTO_DRAG && FIN)) animateTo(followPos, W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
@@ -1778,6 +1863,8 @@
         dragging: dragging, wheeling: wheeling,
         paged: PAGE_PER_GESTURE,                   /* 第三百二十一批：一次手势一张 */
         photo: PHOTO_DRAG,                         /* 第三百二十五批：照片同款跟手 */
+        anim: SLOT_ANIM,                           /* 第三百二十七批：统一落位曲线在档 */
+        vis: Math.round(wheelVis),                 /* 第三百二十七批：画面账（上次落位以来） */
         commitDist: Math.round(carCommitDist(step())),   /* 提交距离 px */
         followCap: carFollowCap(step()),                 /* 跟手封顶 px */
         segs: segs,                                /* 第三百二十三批：已经历几段手势 */
