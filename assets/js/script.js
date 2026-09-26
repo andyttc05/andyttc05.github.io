@@ -2322,3 +2322,39 @@
         });
       }
     })();
+
+    /* === 相簿的滚动进场：只给"打开时看不见"的那些挂动画（2026-09-27 第二轮）===
+       主人：「有些相簿里因为有了这个动画，打开后底部有很多空白内容就显得很奇怪」
+             「有些相簿里打开后第二栏照片变浅了」。
+       根因：`view()` 时间轴只认**元素与视口的相对位置** —— 折线之下的元素，"正在进场"
+       与"打开那一刻停在半路"是同一种状态，纯 CSS 分不开。而那个半路状态正是他看到的：
+       整行不可见（占着版面 ⇒ 一条空白）/ 半透明（照片发灰）。CSS 里对应两档
+       （`scroll-hold-out` 与 `scroll-fade-*`），由本段决定谁挂哪一档。
+
+       做法：只给**打开那一刻整个在折线以下**的元素挂 `.is-below-fold`（它们一个像素都
+       看不见），那一档才是完整的"进场 + 出场"；留在视口里的走只出场那档。
+
+       ⚠️ 三条纪律，改之前先读：
+       ① **只加不减**：加错也看不见（那些元素本来就在屏幕外），减错却会让画面里的东西
+          忽然变透明 —— 所以这里没有 remove。
+       ② 判据用**视口相对位置**（`getBoundingClientRect().top`），不是文档坐标：
+          photos.html 的「回到上次看的那一段」（photos.js 的 restoreWallSpot）在**本文件
+          之前**就已经滚过了，只有视口相对位置才等于"落地那一刻看得见什么"。
+       ③ 本文件是 defer，但**不怕晚**：标记的永远是不在画面里的元素 ⇒ 不可能闪。
+          幕布撤掉（pageReady）之后再核一次 —— 那时滚动条回来、宽度定稿；
+          同样只加不减。 */
+    (function () {
+      var els = document.querySelectorAll('.album-tile, .album-shot, .album-nav');
+      if (!els.length) return;
+      function mark() {
+        var h = window.innerHeight;
+        for (var i = 0; i < els.length; i++) {
+          var el = els[i];
+          if (el.classList.contains('is-below-fold')) continue;
+          if (el.getBoundingClientRect().top >= h) el.classList.add('is-below-fold');
+        }
+      }
+      mark();
+      if (document.documentElement.classList.contains('page-ready')) mark();
+      else document.addEventListener('pageReady', mark, { once: true });
+    })();

@@ -4582,16 +4582,18 @@ html.nav-anim-reset *::after {
     letter-spacing: 0;
     color: var(--color-ink);
   }
-  /* === 单册页书名：滚动驱动「出场」（2026-09-27）===
-     与 `.about-title` 同一套 title-exit，但**必须在这里单独写一份**：
-     `.album-title` 是单册页独有的类，关于页那个 @supports 块的选择器列表里没有它 ——
+  /* === 单册页页眉（含「← 全部相簿」）：滚动驱动「出场」（2026-09-27）===
+     与 `.about-title` 同一套 title-exit，但**必须在这里单独写一份**：单册页的书名是
+     `.album-title`、返回键是 `.album-back`，关于页那个 @supports 块的选择器列表里都没有它们 ——
      实测（加这一段之前，1440×900）：album-hkust 上带滚动驱动的元素只有 `.about-hero-desc`
-     一个，`.album-title` 缺席；全站六个页面里只剩这一页的主标题一点滚动动画都没有。
+     一个，整块页眉一点滚动动画都没有。
+     ⚠️ 第一版只挂了书名，主人当天追问「相簿里『← 全部相簿』…怎么没有动画」⇒ 改成
+        **整块页眉当一个单元**（`> *` = 返回键 / 地区小标 / 书名 / 拉丁行 / 那句话）：
+        只给其中两行上动画，退场时会"两块字先走、三行字还杵着"，比不做还难看。
      区间 `exit 0% exit 100%` 与关于页同一个数、同一个理由：加载与驻留全程 opacity 1，
-     淡出随元素滑进导航栏遮挡区同步进行 ⇒ 首屏永远是完整书名，不会"先淡进来"。
-     ⚠️ 与上面 `.title-latin` / `.album-eyebrow` 无关：关于页那两行也不在动画名单里（保持同构）。 */
+     淡出随元素滑进导航栏遮挡区同步进行 ⇒ 首屏永远是完整页眉，不会"先淡进来"。 */
   @supports (animation-timeline: view()) {
-    .album-title {
+    .album-hero > * {
       animation: title-exit linear both;
       animation-timeline: view(block 100px);
       animation-range: exit 0% exit 100%;
@@ -4882,19 +4884,40 @@ html.nav-anim-reset *::after {
      ℹ️ 范围只到"内容列表"这两族 + 单册页书名。（原来这里还特别声明过 `.album-stats`
         那一行"故意不动"——2026-09-27 那条数据条被主人删掉了，这条说明随之作废。）
 
-     ✅ 验收（`~/.workbuddy/scratch/album-scroll-anim-2026-09-27/verify.js`，88 条断言全过）：
-        · 布局盒 / 文档宽 / 横向溢出：六视口 × 四页**逐字相同**；滚到底的文档高也逐字相同。
-          加载那一瞬的文档高：photos@900×1000 临时 +7px（滚到底归零、scrollY 连采 1s 不漂）
-          —— 关于页 `.about-card` 同一个机制，实测 +4px，**不是本轮新病**。
-        · 加载时"完全落在视口内"的格子 opacity 全是 1（六个视口、四页，另有关于页同款对照）。
-        · 滚到底时视口下半部分全显 ⇒ 没有"最后一行卡在半透明"（关于页当年那条老病）。
-        · 首屏像素：单册页 before/after **0 像素差**；相册页只差墙那一片（1.22%，
-          最大通道差 109）—— 元素带上 identity matrix 被提升成合成层后的重新栅格化，
-          几何（rect top 571.14 / 高 281.91）两棵树逐位相同。同一把尺子量关于页
-          开关既有动画：0.64% / 245 ⇒ 同一量级、同一来源。 */
+     ✅ 验收（两轮都在 `~/.workbuddy/scratch/album-scroll-anim-2026-09-27/`）。
+        第二轮主人反馈三条（“返回键与底栏没动画 / 底部有很多空白 / 第二栏照片变浅”）
+        之后的 `verify2.js`：**21 条断言全过**。
+        · **打开那一刻凡是与视口相交的格子/底栏，opacity 全是 1** —— 11 页（墙 + 10 册）×
+          9 个视口（1920×1158 → 320×667）一个例外都没有。这一条就是那两张截图的要求：
+          滚到底下半屏也必须全显（含底栏）。
+        · 折线以下的元素仍然有完整进场（40 个滚动采样点里能采到 6~7 个
+          “半透明 + 位移”的帧，单点最多 4 格）。
+        · 布局盒 / 文档宽**逐字相同**；**文档高在加载时与滚到底时都逐字相同** ——
+          底栏改成“只淡不滑”之后，连那 45px 的临时撑高都没了。
+        第一轮（`verify.js`，88 条）：六视口 × 四页的布局盒/文档宽/溢出逐字相同、滚到底下半屏全显、
+        首屏像素（单册页 0 像素差；相册页只差墙那一片 1.22%，是元素带上 identity matrix
+        被提升成合成层后的重新栅格化 —— 同一把尺子量关于页开关既有动画 0.64%/245，同量级）。
+        冒烟：`smoke.js` 九页规则数一致、零报错；`allsite.js` **27 页零 pageerror**。 */
   @supports (animation-timeline: view()) {
+    /* 默认 = **只出场**（`scroll-hold-out`）：打开那一刻已经在视口里的格子/底栏走这条。
+       它们本来就在那儿，"进场"无从谈起；挂上进场反而停在半路 —— 轻则整行不可见
+       （版面留一条空白），重则半透明（照片发灰）。实测（本轮之前，线上）：
+         1280×800 tsim-sha-tsui 第二行 top 768（视口里 32px）opacity **0**
+         1440×900 tai-o 第二行 top 761 opacity **0.762**
+         1920×1158 hung-hom 第三行 top 990 opacity **0.877**
+       主人两张截图（"底部有很多空白"/"第二栏照片变浅了"）就是这三个状态。
+       只有"折线以下、一个像素都看不见"的那些才该有进场 —— 那些由 `script.js` 挂
+       `.is-below-fold` 换成下面那一对完整的进场 + 出场。 */
     .album-tile,
-    .album-shot {
+    .album-shot,
+    .album-nav {
+      animation: scroll-hold-out linear both;
+      animation-timeline: view(block 100px);
+      animation-range: entry 0% cover 100%;
+    }
+    /* 打开时整个在折线以下：完整的进场 + 出场，四个数与关于页 `.about-card` 逐字相同 */
+    .album-tile.is-below-fold,
+    .album-shot.is-below-fold {
       animation:
         scroll-fade-opacity linear both,
         scroll-fade-move linear both;
@@ -4902,6 +4925,40 @@ html.nav-anim-reset *::after {
       animation-range: entry 0% cover 100%, entry 0% cover 100%;
       animation-composition: replace, add;
     }
+    /* 🔴 底栏单独一档：**只淡不滑 + 只在进场的前 10% 里淡完**。两条都有硬理由：
+       ① 为什么不给位移：它是文档最后一个元素、还带着 `--tail` 内边距（`main.about-main >
+          :last-child` 那条）—— `translateY(48px)` 把整块连同留白一起推出去，等于给页面
+          **凭空加 45px 可滚动空间**。实测 hung-hom@1920×1158：文档高 1511 → **1556**
+          （只关底栏这一条动画就回到 1511，`isolate.js` 验的），滚到底再缩回来 ⇒
+          底部"多滚 45px 再弹回"。opacity 不进可滚动溢出区 ⇒ 去掉位移后文档高恒为 1511。
+       ② 为什么把区间收到 `cover 10%`：底栏的**可用升程 = 文档末到它的顶边**，实测只有
+          **140~170px**（`--tail` 56 + 它自己的内边距，跟相簿多长无关）。用 `cover 100%`
+          （升程需求 ≈ 100 + 7%×(700+h) ≈ 175px）的话它**永远差一口气**：hung-hom@1920
+          滚到底实测 opacity **0.93** —— 一进页面就是"底栏颜色浅一点"。收到 10%（≈106px @H=1158、
+          ≈57px @H=579）就一定能淡完，而且**是看得见的淡入**（不是一帧跳出来）。
+          ⇒ 用 `scroll-fade-in-hold`（7% 就全显、之后一直 1）而不是 `scroll-fade-opacity`
+          —— 后者在区间末端是 **0**（它是给"滑到导航栏底下"用的），拿来做入场等于收尾又消失。
+       ⚠️ 两条都别改回去；改区间就要重新量"可用升程"。 */
+    .album-nav.is-below-fold {
+      animation: scroll-fade-in-hold linear both;
+      animation-timeline: view(block 100px);
+      animation-range: entry 0% cover 10%;
+    }
+  }
+  /* 只出场：0~80% 一直实心（= 打开时就该是实心），80~100% 与 `scroll-fade-opacity`
+     的出场段逐字相同（滑到导航栏底下时淡尽）。**没有位移** —— 已经在画面里的东西
+     不该再滑一下；位移那一半（`scroll-fade-move`）只留给折线以下的。 */
+  @keyframes scroll-hold-out {
+    0%   { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  /* 「淡进来、然后一直实心」——只给底栏。⚠️ 别拿 `scroll-fade-opacity` 顶替：
+     那个在区间末端是 0（出场用的），配上短区间会让底栏淡进来再淡出去。 */
+  @keyframes scroll-fade-in-hold {
+    0%   { opacity: 0; }
+    7%   { opacity: 1; }
+    100% { opacity: 1; }
   }
   /* 移动档：inset 100→56、位移 48→28px、scale 0.96→0.98 —— 数值照抄关于页
      `@media (max-width: 768px)` 那条，理由与它写下的完全一样（窄屏视口矮，100px inset
@@ -4910,13 +4967,25 @@ html.nav-anim-reset *::after {
      ⚠️ 合并进 @supports 门控：无 view() 的引擎不播动画、内容全显。 */
   @supports (animation-timeline: view()) {
     @media (max-width: 768px) {
+      /* 只出场那档（在视口里的那些）：一条时间轴，别给第二条 —— 它的 animation
+         里只有一条（`scroll-hold-out`），多给一条会跟 animation-timeline 数量对不上。 */
       .album-tile,
-      .album-shot {
+      .album-shot,
+      .album-nav {
+        animation-timeline: view(block 56px);
+      }
+      /* 进场那档：两条时间轴（opacity + move） */
+      .album-tile.is-below-fold,
+      .album-shot.is-below-fold {
         animation-timeline: view(block 56px), view(block 56px);
         --enter-y: 28px;
         --enter-s: 0.98;
       }
-      .album-title {
+      /* 底栏（只淡不滑）：仍是一条时间轴 */
+      .album-nav.is-below-fold {
+        animation-timeline: view(block 56px);
+      }
+      .album-hero > * {
         animation-timeline: view(block 56px);
       }
     }
