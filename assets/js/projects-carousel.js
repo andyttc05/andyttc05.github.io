@@ -445,6 +445,43 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 连续滑动 / 装配延迟（第三百二十三批，主人"滑动后动画有延迟，还有连续滑动不是很流畅"）──
+     两句话同一个根：本引擎判断"这一次手势结束了没有"用的是**输入静默多久**，
+     而 macOS 触控板的惯性尾巴在手指抬起后还要送 ~1s 的事件（8~16ms 一条）。
+     于是 321/322 批装上"一张"的夹子之后冒出两个新毛病（探针实测，1280，step=441）：
+
+       · 连甩两下（间隔 <1.4s）→ 合计只走 **1 张**（第二下完全没反应）。
+         因为 wheeling 还是 true（尾巴没走完）⇒ 第二下被并进同一段，而这一段的
+         "一张"预算早就用光了。自由跟手档同一操作走 3 张 —— 主人实测的感受就是
+         "连续滑动不流畅"。
+       · 装配（卡片入场那一串）要等"距最后一条事件 ≥50ms"才敢起跑 ⇒ 等的是尾巴，
+         不是卡片。321 批实测：卡片停住之后还要 **667ms** 才起跑。
+
+     改法两条：
+       ① **移植灯箱的触控板手势探测器**（`lightbox.js` 的 `lbTpNew`，原样搬来，一个常数
+          没改）来判"这是新的一次出手还是一条衰减中的惯性尾巴" —— 它本来就为这件事写的：
+          尾巴 = 连续 5 个速度取样点的逐轴比值都落在 [0.6, 0.96]（平滑衰减）；
+          新出手 = 平滑衰减 4 拍后单拍掉到一半以下（cliff，手指**轻轻**落下）
+                   或惯性中位移突然翻倍（cancel，手指**砸**下来）。
+          **真机录制验过**（12 段 macOS 触控板录制，`scratch/lb-v12/tp-fixtures/`，
+          离线回放脚本 `scratch/pj-onecard-2026-09-26/tp-sim.js`）：
+            · `double-swipe-right.json`（真实"连甩两下"）→ 探测器报 2 段，第二段起于
+              535ms 的 cliff / 543ms 的 cancel —— 正是主人这条投诉的场景；
+            · 其余 11 段单动作录制 → 全部只报 1 段（**零误报**；有几段在尾巴末尾报 cliff，
+              那已经越过 W_REARM_LEFT 闸门，重开也只影响最后几条事件的记账）。
+          ⚠️ 不自己发明"幅度抬头"式判据 —— 灯箱 v12.1/v12.3 两次都栽在它上面
+            （手在一次接触里本来就会变速 → 同一次拖动被算成两张）。
+          ⚠️ 重开还要过 **W_REARM_LEFT** 闸门（本段"一张"至少用掉 0.8 张）：
+            预算没用光时一律不出新段 —— 否则"蹭两下、各自不足半档"会从"合起来一张"
+            退化成"两次都落回原卡"。
+          ⚠️ **故意不按"导轨停了多久"重开**：尾巴把导轨顶到 0.95 张后会安静下来，
+            那时若重开，剩下的尾巴（~115px）会带着新预算再推 0.26 张，落位时**倒回来**
+            一段（主人明确不喜欢回弹）。只有"手指又落下来"才算新出手。
+       ② 装配起跑判据里的"手停了"由 lastWheelT（输入）改成 railMoveT（导轨）——
+          它本来就是 286 批真正想表达的"这张主角到位了"。一次手势最多只翻一次主角，
+          所以"飞行中误播"在结构上已经没有土壤。
+     ⚠️ 尾巴本身仍然照常驱动导轨（那是"慢慢收起"的来源），这里改的只是**记账**：
+       谁算新的一笔、谁不算。 */
 
   var n = PROJECTS.length;
   var slots = [];           /* 活动槽位 {j, el} */
@@ -598,8 +635,9 @@
      ENTER_NEAR  —— "差不多到位"的判据（单位：档）。0.2 档 ≈ 落位曲线剩余 ~100ms。 */
   var ENTER_QUIET = 50;
   var ENTER_NEAR = 0.2;
-  /* 最近一次滚轮事件时刻（performance.now() 钟，与 rAF 同源）。-1e9 = "从来没有过"，
-     于是首屏那次 render() 不会被静默判据挡住。 */
+  /* 最近一次滚轮事件时刻（performance.now() 钟，与 rAF 同源）。-1e9 = "从来没有过"。
+     ⚠️ 第三百二十三批起**只作调试/其它判据用**：装配那条静默闸门已改看 railMoveT，
+     原因见文件头 323 批（等输入静默 = 等惯性尾巴，实测迟到 667ms）。 */
   var lastWheelT = -1e9;
   /* 第二百八十六批：装配起跑。三条缺一不可 —— 手停了 / 目的地已定 / 离目的地 ≤0.2 档。
      **它包含老的 railResting()**（导轨真的不动了 ⇒ dest 已到位 ⇒ |dest−x|=0），
@@ -609,9 +647,22 @@
      ~100ms 正是要重叠进去的那一段。 */
   function railCanEnter() {
     if (dragging) return false;                                  /* 手指还按着 */
-    if (performance.now() - lastWheelT < ENTER_QUIET) return false;   /* 还在滚 */
     var st = step();
-    var dest = FIN ? FIN.to : xTarget;      /* 落位曲线的终点 / 指数逼近的目标 */
+    /* 第三百二十三批：一次一张档**不再等"安静"**，只看"目的地已定 + 差不多到位"。
+       两条历史口径都被量出毛病：
+         · 等**输入**安静（286 批原版）：惯性尾巴把它推到 ~1s 之后 ⇒ 卡片停住后
+           还要 634ms 才起跑（321 批实测），正是主人说的"滑动后动画有延迟"。
+         · 等**导轨**安静（本批中途试过）：落位曲线本身就被算成"还在动" ⇒ 拖拽松手
+           要等落位跑完才起跑（实测 +315ms），丢掉 286 批刻意要的那 100ms 重叠。
+       而"≤0.2 档"这一条天生就等于"落位曲线的最后 ~100ms"（286 批原文），
+       所以在一次一张档只留它 —— 而且"一次手势最多翻一次主角"让"飞行中误播"
+       在结构上不可能（不会出现 2026-09-17 那种"快速滑动连续播放"）。
+       自由跟手档仍用 286 批那套（那一档导轨一次能穿过好几张，静默闸门还有用）。 */
+    if (!PAGE_PER_GESTURE && performance.now() - lastWheelT < ENTER_QUIET) return false;
+    /* 目的地：一次一张档里落位必然落在**最近的那一档**（|rail − 锚点| ≤ 一张，
+       而锚点本身是档位）⇒ 中途也算得出来；自由档沿用 286 批那两个来源。 */
+    var dest = PAGE_PER_GESTURE ? (FIN ? FIN.to : Math.round(x / st) * st)
+                                : (FIN ? FIN.to : xTarget);
     if (Math.abs(dest - Math.round(dest / st) * st) > 1) return false;  /* 目的地不在档位上 */
     return Math.abs(dest - x) <= ENTER_NEAR * st;
   }
@@ -665,7 +716,14 @@
     flushEnter(true);
   }
 
+  /* 第三百二十三批：导轨"最后一次还在动"的时刻（render 每帧跑，比任何输入事件都更贴近
+     肉眼看到的"卡片停了没有"）。阈值 0.5px 与流畅度探针同一口径。 */
+  var railMoveT = -1e9, railPrevX = NaN;
   function render() {
+    if (!isFinite(railPrevX) || Math.abs(x - railPrevX) >= 0.5) {
+      railMoveT = performance.now();
+      railPrevX = x;
+    }
     var st = step();
     var jmin = Math.ceil((-RENDER_RANGE * st - x) / st);
     var jmax = Math.floor((RENDER_RANGE * st - x) / st);
@@ -1220,6 +1278,108 @@
        =下一个；第二百三十三批主人指定的传统滚动方向，不改）。
      - e.stopPropagation()：轮播区滚轮不再冒泡到 script.js 的整页平滑滚动器 ——
        此前光标停在轮播上时页面同时在滚，两套滚动叠加 = "和其他方向手感不一样"。 */
+  /* ── 触控板手势探测器（第三百二十三批：从 lightbox.js 的 lbTpNew 原样移植）────────
+     为什么搬它过来：本引擎判断"手势结束没有"原本只看"输入静默多久"，而 macOS 触控板的
+     惯性尾巴在手指抬起后还要送 ~1s 事件 ⇒ 第二下快甩被并进同一段（"一张"预算已用光 ⇒
+     整下没反应）。要分开这两件事，必须看**事件流的形状**，而灯箱那份实现是唯一拿
+     真机录制做过回归的（12 段 macOS 录制 + 21/21 判据命中，见其文件头 v12.3 三段落）。
+     移植时只改了两处：命名前缀（LB_TP_ → TP_）与"不接零位移的 Windows 专用事件"
+     （本站没有那条路径，negZero 分支照抄保留，macOS 上永不触发）。
+     输出：res.momentum = 这条属于惯性尾巴；res.start/cancel/cliff = 新一轮出手。
+     ⚠️ 馈入用的是**轮播自己的位移口径** d = −deltaX − deltaY（与下面累计的是同一个量），
+        纵轴恒 0 —— 与灯箱"只有单轴有位移"的场景等价（比值 0 算通过）。 */
+  var TP_MERGE = 2, TP_ANALYZE = 5, TP_ACC_MIN = 0.6, TP_ACC_MAX = 0.96;
+  var TP_SMOOTH = 4, TP_CLIFF = 0.5, TP_CANCEL_JUMP = 2, TP_CANCEL_MIN = 2;
+  var TP_END_FLOOR = 300;
+  function tpNew() {
+    var started = false, momentum = false, lastAbs = 0, willEndMs = TP_END_FLOOR;
+    var toMerge = [], points = [], vel = [0, 0], accs = [], startPub = false, negZero = false;
+    var timer = null, ratioRun = 0;
+    var res = { start: false, momentum: false, cancel: false, cliff: false };
+    function reset() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      started = false; momentum = false; lastAbs = 0; willEndMs = TP_END_FLOOR;
+      toMerge = []; points = []; vel = [0, 0]; accs = []; startPub = false; negZero = false;
+      ratioRun = 0;
+    }
+    function start() { reset(); started = true; }
+    function end() { started = false; momentum = false; }
+    function arm() { if (timer) clearTimeout(timer); timer = setTimeout(end, willEndMs); }
+    function rateInRange(f) { return f === 0 ? true : (f >= TP_ACC_MIN && f <= TP_ACC_MAX); }
+    function detect() {
+      if (accs.length < TP_ANALYZE) return;
+      if (negZero) {
+        negZero = false;
+        if (Math.abs(vel[0]) >= 0.2 || Math.abs(vel[1]) >= 0.2) momentum = true;
+      }
+      var recent = accs.slice(-TP_ANALYZE), ok = true, i, k;
+      for (i = 0; i < recent.length && ok; i++) {
+        for (k = 0; k < recent[i].length; k++) if (!rateInRange(recent[i][k])) { ok = false; break; }
+      }
+      if (ok) momentum = true;
+      accs = recent;
+    }
+    function setWillEnd(dt) {
+      var nt = Math.ceil(dt / 10) * 10 * 1.2;
+      if (!momentum) nt = Math.max(100, nt * 2);
+      willEndMs = Math.min(1000, Math.round(Math.max(nt, TP_END_FLOOR)));
+    }
+    function merge() {
+      if (toMerge.length === TP_MERGE) {
+        var d = [0, 0], t = 0, j;
+        for (j = 0; j < toMerge.length; j++) { d[0] += toMerge[j][0]; d[1] += toMerge[j][1]; t += toMerge[j][2]; }
+        t /= TP_MERGE;
+        var prevPoint = points[0];
+        points[0] = [d, t];
+        if (prevPoint) {
+          var dt = t - prevPoint[1];
+          if (dt > 0) {
+            var v = [d[0] / dt, d[1] / dt];
+            accs.push([v[0] / (vel[0] || 1), v[1] / (vel[1] || 1)]);
+            vel = v;
+            setWillEnd(dt);
+          }
+        }
+        toMerge = [];
+        if (!momentum) detect();
+      } else if (!startPub && toMerge.length) {
+        var l = toMerge[toMerge.length - 1];
+        vel = [l[0] / willEndMs, l[1] / willEndMs];
+      }
+    }
+    return {
+      reset: reset,
+      feed: function (dx, dy, t) {
+        var dmax = Math.max(Math.abs(dx), Math.abs(dy));
+        res.start = false; res.cancel = false; res.cliff = false;
+        if (!started) { start(); res.start = true; }
+        else if (momentum && dmax > Math.max(TP_CANCEL_MIN, lastAbs * TP_CANCEL_JUMP)) {
+          end(); res.cancel = true; start(); res.start = true;
+        }
+        if (dmax === 0 && typeof Object.is === 'function' && Object.is(dx, -0)) {
+          negZero = true;
+          res.momentum = momentum;
+          return res;
+        }
+        if (lastAbs > 0) {
+          var r = dmax / lastAbs;
+          if (r <= TP_CLIFF && ratioRun >= TP_SMOOTH) { ratioRun = 0; res.cliff = true; }
+          else if (r >= 0.7 && r <= 1.0) ratioRun++;
+          else ratioRun = 0;
+        }
+        lastAbs = dmax;
+        toMerge.push([dx, dy, t]);
+        merge();
+        res.momentum = momentum;
+        startPub = true;
+        arm();
+        return res;
+      }
+    };
+  }
+  var tp = tpNew();
+  var W_REARM_LEFT = 0.8;   /* 本段"一张"用掉这么多才允许重开一段（闸门，见文件头 323 批） */
+  var segs = 0;             /* 本次经历了几段手势（?cdebug=1 可读，套件用） */
   var W_K = 0.92;           /* 跟手逼近系数（同拖拽手感，略紧于 0.9 减滞后） */
   var wheeling = false, wheelBase = 0, wheelAcc = 0, wheelIdleTimer = null;
   var wHist = [];           /* 第二百七十六批：最近 ~140ms 的 {t, 累计位移} ——
@@ -1263,12 +1423,24 @@
     var d = -e.deltaX - e.deltaY;
     if (e.deltaMode === 1) d *= 20;          /* line → px */
     else if (e.deltaMode === 2) d *= step(); /* page → px */
+    /* 第三百二十三批：探测器说"这是新的一次出手"（手指又落下来了）**且**本段"一张"已经
+       用掉 ≥0.8 张 ⇒ 重开一段，新出手拿到自己的预算（见文件头 323 批）。
+       为什么两条都要：只看探测器 ⇒ "蹭两下各自不足半档"会被拆成两段（各自落回原卡，
+       从"合起来一张"退化）；只看"预算用光" ⇒ 尾巴自己就能重开（落位会倒回一段）。 */
+    var tpRes = tp.feed(d, 0, e.timeStamp);
+    var exhausted = PAGE_PER_GESTURE && Math.abs(x - wheelBase) >= W_REARM_LEFT * step();
+    if (PAGE_PER_GESTURE && wheeling && exhausted && (tpRes.cancel || tpRes.cliff || tpRes.start)) {
+      wheelBase = slotAnchor();
+      wheelAcc = 0; wHist.length = 0;
+      segs++;
+    }
     if (!wheeling) {
       wheeling = true;
       /* 第三百二十一批：手势起点取**档位**（上一段还在落位就取那一段的目标槽）。
          `?cpages=0` 退回"取此刻的 x"（那时夹紧是恒等函数，行为与 275 批逐字相同）。 */
       wheelBase = PAGE_PER_GESTURE ? slotAnchor() : x;
       wheelAcc = 0; wHist.length = 0;
+      segs = 1;
     }
     wheelAcc += d;
     /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
@@ -1334,6 +1506,8 @@
         animating: !!(raf || dragRaf || FIN),
         dragging: dragging, wheeling: wheeling,
         paged: PAGE_PER_GESTURE,                   /* 第三百二十一批：一次手势一张 */
+        segs: segs,                                /* 第三百二十三批：已经历几段手势 */
+        railQuietMs: Math.round(performance.now() - railMoveT),
       };
     };
     /* 第二百八十一批：自动轮播移除后保留的**空壳**，只为验收套件不红 ——
