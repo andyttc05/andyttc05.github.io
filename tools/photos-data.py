@@ -272,12 +272,14 @@ def frag_hero(a):
         f'\n      <a class="album-back" href="../photos.html">← 全部相簿</a>\n'
         f'      <p class="album-eyebrow">{esc(a["region"])}</p>\n'
         f'      <h1 class="album-title">{esc(a["zh"])}</h1>\n'
-        f'      <p class="about-hero-desc">{esc(a["note"])}</p>\n'
-        # 元信息一行说完：张数 · 英文名。原来用 <br> 硬断成两行（「28 张」独自一行、
-        # 英文名再一行），和上面的 desc 只隔 14px、下面又空一截 —— 三行 12.5px 小字叠在
-        # 标题下，读起来像三条互不相干的注脚（2026-09-21 主人「UI 设计得不是很好看」）。
-        f'      <p class="album-hero-meta">{a["count"]} 张'
-        f'<span class="album-hero-meta-sep">·</span>{esc(a["en"])}</p>\n    '
+        f'      <p class="about-hero-desc">{esc(a["note"])}</p>\n    '
+        # ⚠️ 这里原来是第三行元信息「张数 · 英文名」（`<p class="album-hero-meta">`）。
+        # 2026-09-26 第三百二十一批整条删掉 —— 主人先嫌它挤、搬到右上角看过之后，
+        # 原话「还是把右上角 e.g. "15 张·2024.01.30 – 2026.07.03" 删了吧」。
+        # 于是 hero 只剩五件：返回键 / 地区小标 / 巨字册名 / 拉丁名 / 一句话。
+        # ⇒ **别在这里加回来**：那等于把同一页再挤一行小字，这条路走过一次被退了。
+        # 张数与英文名没有丢：墙上封面角标是「N 张」，拉丁名是上面那行 title-latin；
+        # `<meta name="description">` 里也有。
     )
 
 
