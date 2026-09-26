@@ -445,6 +445,33 @@
     return base + k * st;
   }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
+  /* ── 慢滚 = 快滚（第三百二十四批，主人"慢慢滑动和快速滑动的手感应该一样吧，
+        优化一下滑动的丝滑性，不要有奇怪的bug"）────────────────────────────
+     先量后改：同一段累计位移（480px ≈ 1.09 张）、只改事件间隔（速度），实测（1280，step=441）
+
+       间隔      8ms   16ms   40ms   80ms   160ms   250ms
+       走几张     1      1      1      1      **0**   **0**
+       （一格 120px 滚 4 格：60/120ms → 1 张；160/250/400ms → **0 张**）
+
+     病根：`wheelEnd`（静默 120ms 就认为"手停了"）**把已攒的位移清零**。间隔一旦超过
+     120ms，账本归零 ⇒ "慢慢滚一格、停一下、再滚一格"永远攒不够半档 ⇒ 卡片一步不动。
+     也就是说：**同样滚了 480px，快滚走一张、慢滚一张都不走** —— 主人说的"手感不一样"。
+     （对照：拖拽通道同一距离、时长 120ms→2400ms 五种速度，结果逐项相同
+       —— 松手时都在 −375px、落位都 −67px、都走 1 张。所以问题只在滚轮这条。）
+
+     改法：**认账，不清账**。落位时把"已经走掉的整档"从账上扣掉、锚点同步前进，
+     不足半档的余量**带到下一段**（`wheelAcc` 与 `wheelBase` 跨落位保持）：
+       · 慢滚：滚一格（120px，不足半档）→ 只回位、账留着；再滚一格 → 攒够半档 → 走一张。
+       · 快滚：一次攒够 → 落位走一张、其余记账。
+       ⇒ 同距离同结果，与速度无关。
+     清账只在两种情况：①停手 ≥W_CARRY_KEEP(1s)（上一轮滚动结束）；
+     ②探测器报"新出手"（手指又落下来了，见 323 批）—— 那是真的新一段。
+     ⚠️ 锚点自愈：键盘/点击/拖拽可能把导轨挪出本段窗口（±一张），此时以**当前档位**
+        重新起账 —— 绝不允许把导轨拽回旧锚点（那是"卡片无故跳回去"级的 bug）。
+     ⚠️ 落位仍然只走**相邻一张**（k 夹在 ±1）：一次落位一张这条不变式没动，
+        多出来的位移只是记账（下一次落位继续扣），不会一次扫过好几张。
+     跟手系数与拖拽统一：滚轮这条路原来是 W_K=0.92、拖拽是 DRAG_K=0.95 —— 同一件事
+     两个系数，滚轮比拖拽多滞后一点。统一到 0.95（"一样的手感"也包括这两条输入）。 */
   /* ── 连续滑动 / 装配延迟（第三百二十三批，主人"滑动后动画有延迟，还有连续滑动不是很流畅"）──
      两句话同一个根：本引擎判断"这一次手势结束了没有"用的是**输入静默多久**，
      而 macOS 触控板的惯性尾巴在手指抬起后还要送 ~1s 的事件（8~16ms 一条）。
@@ -1378,9 +1405,29 @@
     };
   }
   var tp = tpNew();
+  /* 第三百二十四批：上一条事件时是否已在惯性尾巴里。cliff（"手指轻轻落下"）的物理语义
+     是"手指落下来**压住正在滑行的内容**"—— 它预设了当时确实在惯性里；连续接触里的
+     方向拐角也会做出"平滑衰减后突然掉一半"的形状，但那时 momentum 是 false。
+     实测：真机录制 `double-swipe-right` 第二段起于 cliff/cancel（那时 momentum=true）；
+     `square-move-trackpad`（连续画方块、零惯性）在旧口径下被判成 **7 段**，加上这道前提
+     就回到 1 段。⚠️ 别把 cliff 整个丢掉（323 批的"第二下快甩"就是靠它认出来的）。 */
+  var tpWasMomentum = false;
   var W_REARM_LEFT = 0.8;   /* 本段"一张"用掉这么多才允许重开一段（闸门，见文件头 323 批） */
+  /* 第三百二十四批：停手超过这么久 ⇒ 上一轮滚动结束，账本（锚点 + 余量）清掉。
+     取 1s 的理由：macOS 惯性尾巴最长约 1s，超过它就是"我这次滚完了"；
+     而 120ms（W_IDLE）只是"这一次落位该走了"，**不能**当清账的判据（见文件头 324 批）。 */
+  var W_CARRY_KEEP = 1000;
+  /* 第三百二十四批 · 余额上限（单位：张）。超过这个比例的余量在落位时**勾掉**
+     （不带到下一段）。为什么必须有：一次很猛的滚动（例如 1440px ≈ 3.3 张）只会落一张，
+     余下 2.3 张若全带下去，下一次微滚（哪怕只有 24px）一伸手就白拿一张 —— 那是
+     "卡片无故自己走"级的怪 bug。勾到 0.4 张同时保证：**下一段至少要再给 0.1 张
+     真实位移才可能换卡**（0.4 + Δ ≥ 0.5 才提交），而慢滚那种"一格一格攒"的余量
+     本来就小于 0.4 张，一点不受影响。 */
+  var W_CARRY_MAX = 0.4;
   var segs = 0;             /* 本次经历了几段手势（?cdebug=1 可读，套件用） */
-  var W_K = 0.92;           /* 跟手逼近系数（同拖拽手感，略紧于 0.9 减滞后） */
+  /* 第三百二十四批：与拖拽的 DRAG_K 统一到 0.95（原来这里 0.92、拖拽 0.95 —— 同一件事
+     两个系数，滚轮比拖拽多滞后一点；"慢慢滑和快速滑手感一样"也包括这两条输入要一致）。 */
+  var W_K = 0.95;
   var wheeling = false, wheelBase = 0, wheelAcc = 0, wheelIdleTimer = null;
   var wHist = [];           /* 第二百七十六批：最近 ~140ms 的 {t, 累计位移} ——
                                用来算"手势末段实速"，作落位曲线初速（见上） */
@@ -1397,16 +1444,31 @@
       if (dtH > 0.02) vIn = (h1.a - h0.a) / dtH;
     }
     wHist.length = 0;
-    /* 落位目标（第三百二十一批）= 起点 / 相邻一张（pageLanding）。基准量用 wheelAcc
-       而不是此刻的 x —— x 是导轨（指数逼近，永远慢一拍），而"这一次手势推了多远"
-       才是落位该看的量，何况它已经被夹在 ±1 张内。
-       `?cpages=0` 回到 275 批那条"离当前位置最近的一档"。
+    /* 落位目标（第三百二十一批）= 起点 / 相邻一张；第三百二十四批改成**认账**：
+       走掉的整档从账上扣、锚点同步前进，不足半档的余量留到下一段（见文件头 324 批）。
+       基准量用 wheelAcc 而不是此刻的 x —— x 是导轨（指数逼近，永远慢一拍），
+       而"这一次手势推了多远"才是落位该看的量。
+       `?cpages=0` 回到 275 批那条"离当前位置最近的一档"（自由档无锚点，照旧清账）。
        第二百七十六批：曲线从 vIn 起、时长按 3D/vIn 定 —— 速度连续。 */
     var st = step();
-    var target = PAGE_PER_GESTURE
-      ? pageLanding(wheelBase, wheelBase + wheelAcc, 0)
-      : Math.round(x / st) * st;
-    wheelBase = 0; wheelAcc = 0;
+    var target;
+    if (PAGE_PER_GESTURE) {
+      var k = Math.round(wheelAcc / st);
+      if (k > 1) k = 1; else if (k < -1) k = -1;      /* 一次落位最多一张（不变式） */
+      target = wheelBase + k * st;
+      wheelBase += k * st;                            /* 锚点前进已走掉的档 */
+      wheelAcc -= k * st;                             /* 余量带到下一段 */
+      /* 余额封顶（见 W_CARRY_MAX）：勾掉超过 0.4 张的部分，别让下一次微滚白拿一张。
+         ⚠️ **只在真的走掉一张（k ≠ 0）时勾** —— 每次落位都勾的话，"一格一格慢慢攒"
+         的账永远涨不过半档（实测：480px 慢滚从 1 张掉回 0 张，正是不许出现的回归）。 */
+      if (k !== 0) {
+        var cap = W_CARRY_MAX * st;
+        if (wheelAcc > cap) wheelAcc = cap; else if (wheelAcc < -cap) wheelAcc = -cap;
+      }
+    } else {
+      target = Math.round(x / st) * st;
+      wheelBase = 0; wheelAcc = 0;
+    }
     if (Math.abs(target - x) > 0.5) startFinish(target, vIn, FIN_TMAX_WHEEL);
   }
   root.addEventListener('wheel', function (e) {
@@ -1416,7 +1478,9 @@
        强制复位后接管；这正是此前"连续滑动突然卡住"的主因 */
     resetDrag();
     lastInputT = Date.now();   /* 第二百六十六批：滚轮后紧跟的点击也计入交互簇 */
-    lastWheelT = performance.now();   /* 第二百八十六批：起跑判据的"手停了"用这个时刻 */
+    var tNow = performance.now();
+    var wheelGap = tNow - lastWheelT;   /* 与上一条事件的距离（第三百二十四批要用） */
+    lastWheelT = tNow;                  /* 第二百八十六批：起跑判据的"手停了"用这个时刻 */
     /* 第二百七十一批：deltaMode 归一化 —— Safari 物理滚轮常报 line 模式
        （deltaY≈1-3 行），原样累加几乎不动；page 模式 ×step。触控板恒为
        pixel 模式（deltaMode=0）不受影响。 */
@@ -1427,9 +1491,24 @@
        用掉 ≥0.8 张 ⇒ 重开一段，新出手拿到自己的预算（见文件头 323 批）。
        为什么两条都要：只看探测器 ⇒ "蹭两下各自不足半档"会被拆成两段（各自落回原卡，
        从"合起来一张"退化）；只看"预算用光" ⇒ 尾巴自己就能重开（落位会倒回一段）。 */
+    var st1 = step();
+    /* 第三百二十四批：停手 ≥1s ⇒ 上一轮滚动结束，重新起账（锚点取当前档位）。 */
+    if (PAGE_PER_GESTURE && wheelGap >= W_CARRY_KEEP) {
+      wheelBase = slotAnchor();
+      wheelAcc = 0;
+      segs = 0;
+    }
+    /* 第三百二十四批 · 锚点自愈：键盘/点击/拖拽把导轨挪出了本段窗口（±一张）时，
+       以**当前档位**重新起账 —— 否则下一次滚轮会把导轨拽回旧锚点（卡片无故跳回去）。 */
+    if (PAGE_PER_GESTURE && Math.abs(x - wheelBase) > st1 * 1.05) {
+      wheelBase = slotAnchor();
+      wheelAcc = 0;
+    }
     var tpRes = tp.feed(d, 0, e.timeStamp);
-    var exhausted = PAGE_PER_GESTURE && Math.abs(x - wheelBase) >= W_REARM_LEFT * step();
-    if (PAGE_PER_GESTURE && wheeling && exhausted && (tpRes.cancel || tpRes.cliff || tpRes.start)) {
+    var tpNewAction = tpRes.cancel || tpRes.start || (tpRes.cliff && tpWasMomentum);
+    tpWasMomentum = tpRes.momentum;
+    var exhausted = PAGE_PER_GESTURE && Math.abs(x - wheelBase) >= W_REARM_LEFT * st1;
+    if (PAGE_PER_GESTURE && wheeling && exhausted && tpNewAction) {
       wheelBase = slotAnchor();
       wheelAcc = 0; wHist.length = 0;
       segs++;
@@ -1437,10 +1516,12 @@
     if (!wheeling) {
       wheeling = true;
       /* 第三百二十一批：手势起点取**档位**（上一段还在落位就取那一段的目标槽）。
-         `?cpages=0` 退回"取此刻的 x"（那时夹紧是恒等函数，行为与 275 批逐字相同）。 */
-      wheelBase = PAGE_PER_GESTURE ? slotAnchor() : x;
-      wheelAcc = 0; wHist.length = 0;
-      segs = 1;
+         `?cpages=0` 退回"取此刻的 x"（那时夹紧是恒等函数，行为与 275 批逐字相同）。
+         ⚠️ 第三百二十四批：这里**不再清 wheelAcc**（清了就回到"慢滚没反应"）——
+            账本是"本次滚动"级的，只由 wheelGap ≥1s 或"新出手"来结。 */
+      if (!PAGE_PER_GESTURE) { wheelBase = x; wheelAcc = 0; }
+      wHist.length = 0;
+      segs++;
     }
     wheelAcc += d;
     /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
