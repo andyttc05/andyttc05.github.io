@@ -4092,9 +4092,13 @@ html.nav-instant:not(.page-ready) .hero .hero-scroll {
    且首帧只给"折线以下"的），所以"点击跳转看到半透明条目"这一路已经不可能发生。
    留着反而是个陷阱 —— 它 (0,2,0) 会把 `.rm-fade.rm-out` 的 opacity:0 压回去
    （同为 (0,2,0)，只靠源码顺序，谁挪一下都会静默坏掉）。 */
-html.rm-navclick .hero .hero-text > *:not(.hero-cta),
-html.rm-navclick .hero .hero-text > .hero-cta { opacity: 1; }
-html.rm-navclick .hero .hero-art-base { opacity: 1; }
+html.rm-navclick .hero .hero-art-base {
+  opacity: 1;
+  /* ⚠️ 位移也一起钉（同一天同一处"奇怪移动"）：`.hero.entered .hero-art-base` 会让这块大板
+     再上浮 24px，而它此刻是全实心的（上一行钉着 opacity）⇒ 那 24px 是这批里最大的一处。
+     终态值必须与 `.hero.entered .hero-art-base`（第 1466 行）**逐字相同**，改那边要一起改。 */
+  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
+}
 html.rm-navclick .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
 html.rm-navclick .hero .hero-art-img { opacity: 1; transition: none; }
 /* 底部提示只淡不滑的观感无所谓（16px 高），这里连居中一起钉死，免得它先掉半帧再归位 */
