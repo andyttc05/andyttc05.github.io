@@ -136,6 +136,11 @@
    真机探针实测同一个 1440px 触控板手势 = 5 张（正是 273 批要治的现象）。
    参数覆盖：?cdebug=1（暴露 window.__car() / window.__carAuto()）、
             ?cwidle=<ms>（改停滚判定窗口，默认 120ms —— 调小 = 落位更早接上）
+   ⚠️ 第三百二十一批 2026-09-26 收回去了：主人「项目页面的卡片我想要一次只能滑动一张
+      卡片……参考浏览照片滑动时的逻辑」—— 上面那句"已知代价：一个手势 = 5 张"
+      正是他这次要治的现象。本批把 PAGE_PER_GESTURE / railClamp / slotAnchor /
+      pageLanding 装回来（跟手改**硬夹**，不再用 273 批的 0.15 阻尼），
+      跟手方式与验收见文件头 321 批。**别再拿这段去"修回自由跟手"，要改先问。**
 
 
    第二百七十八批 2026-09-13（主人"要不不用现在这款卡片的设计了，换成这网页帆布展示
@@ -224,7 +229,31 @@
    （pj-stick → scale 1、pj-char → opacity 1、pj-unveil → clip 全开、pj-swing → rotate 0），
    所以留着播完看不见任何跳变。回池（出渲染范围）时仍然立即摘干净，池里不留装扮。
    重试链 90ms 定时器 → 逐帧 rAF：50ms 的静默阈值比 90ms 细，粗粒度会把省下的时间还回去。
-*/
+
+
+   第三百二十一批 2026-09-26（主人"项目页面的卡片我想要一次只能滑动一张卡片，
+      一次只能滑动一张卡片的逻辑可以参考浏览照片滑动时的逻辑"）：
+   **一次手势 = 一张卡**装回来（275 批撤过一轮，见 275 批那段末尾的 ⚠️）。
+
+   参考就在站内：assets/js/lightbox.js 那条规则的原话是"**目标索引在手势【开始】时就锁成
+   ±1，松手只决定方向、不决定距离**"（同族：Embla `skipSnaps:false`、Swiper 非 freeMode、
+   CSS `scroll-snap-stop: always`、PhotoSwipe 的 indexDiff 硬 ±1、iOS `isPagingEnabled`）。
+   本批把**规则**照抄、**跟手方式不照抄**：灯箱的跟手是"阻尼 + 32px 硬封顶"
+   （`LB_DRAG_DAMP` / `LB_DRAG_CAP`，它的舞台上任何时刻只有一张图、没有轨道可看），
+   这里选的是"**1:1 跟手、拖过一张就夹住**"（= iOS 翻页 / `scroll-snap-stop: always`）。
+   三个跟手候选（1:1 硬夹 / 灯箱式微跟手 / 只夹落点）都摆给主人看过，选的是第一个 ——
+   **别再按灯箱的 damp+cap 去"统一手感"**，那会把拖动变成"拖 300px 画面走 30px"。
+
+   落地（三处输入全走同一条规则，键盘 ←→ 与点侧卡本来就是 ±1 档，未动）：
+     · 指针拖拽：跟手位置夹在「起点那一档 ± 一张」内（硬夹，无阻尼、无回弹）；
+       落位以**手势起点那一档**为基准（不是"离当前位置最近"）—— 基准钉在起点，
+       拖 2.5 张也只落相邻一张。轻甩（≥FLICK_V）仍能换一张，判据与 242 批一致。
+     · 滚轮 / 触控板：手势起点取**档位**（上一段还在落位就取那一段的目标槽），
+       累计位移硬夹 ±1 张；停滚落位同样以手势起点为基准。
+     · 连续手势各算一段：手势结束把基准交还给落位目标 ⇒ 连甩两下 = 两张。
+   参数覆盖：`?cpages=0` 关掉夹紧（回到 275 批的自由跟手），**只用于 A/B 取证**；
+            `?cdebug=1` 的 window.__car() 多一枚 `paged` 布尔。
+   验收：~/.workbuddy/scratch/pj-onecard-2026-09-26/onecard.js（含 ?cpages=0 反证）。 */
 (function () {
   var root = document.getElementById('projectScenes');
   if (!root) return;
@@ -319,8 +348,43 @@
     el.style.rotate = w.r + 'deg';
   }
 
-  /* 第二百七十五批：夹紧（railClamp / slotAnchor / pageLanding）连同 ?cpages=0
-     一并撤掉 —— 导轨现在自由跟手，一次手势能滑几张就几张（见文件头 275 批）。 */
+  /* ── 一次手势 = 一张（第三百二十一批，规则与推导见文件头 321 批）─────────────
+     三个小函数就是这条规则的全部：
+       originSlot(v)                 把任意位置折算成它所在的那一档
+       railClamp(pos, base)          跟手位置夹在「base ± 一张」内（硬夹：到顶就不动，
+                                     松手也不回弹 —— 与灯箱同一个取舍，见 lightbox.js 的
+                                     "别再把它当成手感更好加回来"那段）
+       pageLanding(base, pos, vel)   落位目标 = base + k·一张，|k| ≤ 1
+     base 一律是**手势起点那一档**，不是"离当前位置最近的一档" —— 基准一漂，
+     拖 2.5 张就会落 2~3 张（275 批就是这样）。
+     `?cpages=0` 关掉夹紧（回 275 批的自由跟手），只用于 A/B 取证。 */
+  var PAGE_PER_GESTURE = !/[?&]cpages=0/.test(location.search);
+  var FLICK_V = 0.6;        /* 轻甩判据 px/ms（第二百四十二批起，拖拽落位沿用） */
+  function originSlot(v) {
+    var st = step();
+    return Math.round(v / st) * st;
+  }
+  function railClamp(pos, base) {
+    if (!PAGE_PER_GESTURE) return pos;
+    var st = step();
+    if (pos < base - st) return base - st;
+    if (pos > base + st) return base + st;
+    return pos;
+  }
+  function slotAnchor() {
+    /* 手势起点那一档。上一段还在落位（FIN）或还在指数逼近（raf 且未落位）时，
+       取那一段的**目标** —— 起点若按"此刻的 x"算会被算成"这一段已经走了一部分"，
+       连甩第二下就走不动（Swiper 的 thresholdTime 那族补丁栽在这里）。 */
+    var v = FIN ? FIN.to : (raf ? xTarget : x);
+    return originSlot(v);
+  }
+  function pageLanding(base, pos, vel) {
+    var st = step();
+    var k = Math.round((pos - base) / st);
+    if (k > 1) k = 1; else if (k < -1) k = -1;
+    if (k === 0 && Math.abs(vel) >= FLICK_V) k = vel > 0 ? 1 : -1;   /* 轻甩也算换一张 */
+    return base + k * st;
+  }
   var CAR_DEBUG = /[?&]cdebug=1/.test(location.search);
 
   var n = PROJECTS.length;
@@ -362,6 +426,7 @@
   var OPEN_IDLE_GATE = 800;   /* 距上次交互 ≥800ms 才视为刻意点主卡（允许 window.open）；
                                  慢滑 0.5s 结束后追点同一张卡（间隔 350~800ms）会被此闸拦住 */
   var dragging = false, dragStartX = 0, dragBaseX = 0;
+  var dragOriginSlot = 0;    /* 第三百二十一批：本手势起点那一档（跟手夹紧与落位的共同基准） */
   var dragEngaged = false;   /* 第二百三十一批：拖动是否真正开始（位移 >8px） */
   var dragTarget = 0, dragRaf = null;   /* 拖动目标 + rAF 平滑循环（第二百五十九批恢复） */
   var dragLastT = 0;          /* 第二百六十八批：拖动循环帧率无关化 —— rAF 时间戳折算 60Hz */
@@ -794,7 +859,9 @@
      —— 松手后不再"减速滑行一段再吸附"，而是直接 easeOutQuart 落定到目标档位。
      美团模式：拖到哪松手就停在哪张卡，无过冲、无回弹、无惯性感。
      第二百七十五批：落位基准回到"离**当前位置**最近的一档" —— 夹紧撤掉后，
-     一次手势能滑几张就滑几张（拖 2.5 张 → 落 2 或 3 张）。 */
+     一次手势能滑几张就滑几张（拖 2.5 张 → 落 2 或 3 张）。
+     第三百二十一批：基准改回**手势起点那一档**（pageLanding）—— 一次手势只走一张，
+     见文件头 321 批。 */
   function snapToSlot() {
     var st = step();
     animateTo(Math.round(x / st) * st);
@@ -813,8 +880,13 @@
     var nearest = Math.round(x / st) * st;
     var dx = x - nearest, dir = 0;
     if (Math.abs(dx) >= st / 2) dir = dx > 0 ? 1 : -1;       /* 拖过半档 */
-    else if (Math.abs(vel) >= 0.6) dir = vel > 0 ? 1 : -1;   /* 轻甩 */
-    startFinish(nearest + dir * st, vel * 1000, FIN_TMAX_DRAG);
+    else if (Math.abs(vel) >= FLICK_V) dir = vel > 0 ? 1 : -1;   /* 轻甩 */
+    /* 第三百二十一批：落位以**手势起点那一档**为基准（pageLanding）⇒ 一次手势只走一张。
+       ⚠️ 基准不许改成"离当前位置最近"（275 批那条）：跟手被夹在起点 ±1 张之后，
+       这两个基准在多数情况下同值，但**手势中途 x 被夹紧/被落位曲线拉走**时就分岔，
+       分岔的方向是"多走一张"。`?cpages=0` 走下面那条老式子（只用于 A/B）。 */
+    var target = PAGE_PER_GESTURE ? pageLanding(dragOriginSlot, x, vel) : nearest + dir * st;
+    startFinish(target, vel * 1000, FIN_TMAX_DRAG);
   }
   /* startFinish：落位到 target 的有限时长曲线（第二百七十六批取代 releaseSpring）。
      v0 = 出发瞬间的速度（px/s，正负与 x 同向）：
@@ -912,6 +984,7 @@
       dragEngaged = true;
       stopTick();
       dragBaseX = x;
+      dragOriginSlot = originSlot(x);   /* 第三百二十一批：夹紧与落位的共同基准 */
       dragTarget = x;
       dragPrevT = 0; dragPrevX = NaN;
       setDraggingClass(true);
@@ -922,8 +995,12 @@
          恢复拖动完全跟手：pointermove 只更新目标位置，dragTick rAF 每帧 0.95 逼近
          —— 流畅跟手不卡；咔哒/落定交给松手（snapFromDrag 0.6）。
          第二百七十五批：位移不再夹紧（273 批的 ±1 张与 0.15 越界阻尼一并撤）——
-         拖多远跟多远，一次手势能滑几张就几张。 */
-      dragTarget = dragBaseX + (e.clientX - dragStartX);
+         拖多远跟多远，一次手势能滑几张就几张。
+         第三百二十一批：夹子装回来（主人"一次只能滑动一张卡片"）—— 跟手仍 1:1，
+         但位置夹在「起点那一档 ± 一张」内：拖过一张就顶住不动。**硬夹**，
+         不加 273 批那 0.15 的越界阻尼（那是"拖到头有弹性"的手感，主人没要；
+         与灯箱"硬封顶、松手也不回弹"同一个取舍）。 */
+      dragTarget = railClamp(dragBaseX + (e.clientX - dragStartX), dragOriginSlot);
       if (!dragRaf) { dragLastT = 0; dragRaf = requestAnimationFrame(dragTick); }  /* 重起循环先清时间戳 */
     }
     velSamples.push({ t: e.timeStamp, x: e.clientX });
@@ -1065,11 +1142,14 @@
     });
   }
 
-  /* 滚轮 / 触控板滚动（第二百七十五批撤掉夹紧 → 第二百七十六批修落位曲线）——
-     - 连续跟手：目标 = 手势起点 + 累计位移（不量化成档位、不夹紧），animateTo(…, W_K)
-       每帧逼近，与横向拖拽同款手感；滑动全程卡片持续倾斜/缩放，skew 动效全程可见
+  /* 滚轮 / 触控板滚动（第二百七十五批撤掉夹紧 → 第二百七十六批修落位曲线 →
+     第三百二十一批把夹子装回来）——
+     - 连续跟手：目标 = 手势起点 + 累计位移，animateTo(…, W_K) 每帧逼近，
+       与横向拖拽同款手感；滑动全程卡片持续倾斜/缩放，skew 动效全程可见
        （此前棘轮期间 x 冻结在档位、跳档才动 = "经过卡片没动画"）。
-     - 停滚 120ms 无事件 → `startFinish(最近一档, 手势末段实速)` 有限时长曲线落位
+       第三百二十一批：累计位移夹在「起点 ± 一张」内（与拖拽同一把夹子）——
+       触控板甩得再猛，导轨也只走到相邻一张（275 批实测那是 5 张）。
+     - 停滚 120ms 无事件 → `startFinish(起点或相邻一张, 手势末段实速)` 有限时长曲线落位
        （第二百七十六批；取代 ω=18 弹簧 —— 那条指数尾巴实测 133ms 爬行 = "卡顿"）。
        曲线初速取**手势末段实速**（最近 ~140ms 事件位移／时间）：一梭子滚轮推完
        带着速度走 → 曲线从该速度单调减速（不"咔"一下）；触控板惯性尾巴已经
@@ -1095,12 +1175,17 @@
       if (dtH > 0.02) vIn = (h1.a - h0.a) / dtH;
     }
     wHist.length = 0;
-    wheelBase = 0; wheelAcc = 0;
-    /* 落位 = 离**当前位置**最近的一档（第二百七十五批；夹紧没了，一次手势滑几张
-       就落几张）。第二百七十六批：曲线从 vIn 起、时长按 3D/vIn 定 —— 速度连续。 */
+    /* 落位目标（第三百二十一批）= 起点 / 相邻一张（pageLanding）。基准量用 wheelAcc
+       而不是此刻的 x —— x 是导轨（指数逼近，永远慢一拍），而"这一次手势推了多远"
+       才是落位该看的量，何况它已经被夹在 ±1 张内。
+       `?cpages=0` 回到 275 批那条"离当前位置最近的一档"。
+       第二百七十六批：曲线从 vIn 起、时长按 3D/vIn 定 —— 速度连续。 */
     var st = step();
-    var nearest = Math.round(x / st) * st;
-    if (Math.abs(nearest - x) > 0.5) startFinish(nearest, vIn, FIN_TMAX_WHEEL);
+    var target = PAGE_PER_GESTURE
+      ? pageLanding(wheelBase, wheelBase + wheelAcc, 0)
+      : Math.round(x / st) * st;
+    wheelBase = 0; wheelAcc = 0;
+    if (Math.abs(target - x) > 0.5) startFinish(target, vIn, FIN_TMAX_WHEEL);
   }
   root.addEventListener('wheel', function (e) {
     e.preventDefault();
@@ -1116,14 +1201,21 @@
     var d = -e.deltaX - e.deltaY;
     if (e.deltaMode === 1) d *= 20;          /* line → px */
     else if (e.deltaMode === 2) d *= step(); /* page → px */
-    if (!wheeling) { wheeling = true; wheelBase = x; wheelAcc = 0; wHist.length = 0; }
+    if (!wheeling) {
+      wheeling = true;
+      /* 第三百二十一批：手势起点取**档位**（上一段还在落位就取那一段的目标槽）。
+         `?cpages=0` 退回"取此刻的 x"（那时夹紧是恒等函数，行为与 275 批逐字相同）。 */
+      wheelBase = PAGE_PER_GESTURE ? slotAnchor() : x;
+      wheelAcc = 0; wHist.length = 0;
+    }
     wheelAcc += d;
     /* 第二百七十六批：手势末段实速采样（≤140ms 窗口，见 wheelEnd） */
     var tNow = performance.now();
     wHist.push({ t: tNow, a: wheelAcc });
     while (wHist.length > 2 && tNow - wHist[0].t > 140) wHist.shift();
-    /* 自由跟手：不量化档位、不夹紧 —— 累计位移到哪导轨就到哪（第二百七十五批） */
-    animateTo(wheelBase + wheelAcc, W_K);
+    /* 连续跟手：不量化档位、不抖 —— 但累计位移夹在「起点 ± 一张」内（第三百二十一批）：
+       手势推得再猛，导轨也只走到相邻一张，停滚落 起点 / 相邻一张。 */
+    animateTo(railClamp(wheelBase + wheelAcc, wheelBase), W_K);
     if (wheelIdleTimer) clearTimeout(wheelIdleTimer);
     wheelIdleTimer = setTimeout(wheelEnd, W_IDLE);
   }, { passive: false });
@@ -1177,7 +1269,8 @@
         finV0: FIN ? FIN.v0 : lastFinV0,           /* 落位用的实测初速 px/s（调试） */
         finOn: !!FIN,
         animating: !!(raf || dragRaf || FIN),
-        dragging: dragging, wheeling: wheeling
+        dragging: dragging, wheeling: wheeling,
+        paged: PAGE_PER_GESTURE,                   /* 第三百二十一批：一次手势一张 */
       };
     };
     /* 第二百八十一批：自动轮播移除后保留的**空壳**，只为验收套件不红 ——
