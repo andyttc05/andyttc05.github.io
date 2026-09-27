@@ -5099,6 +5099,23 @@ html.nav-anim-reset *::after {
     outline-offset: 2px;
   }
 
+  /* ══════ 例外：动态页那颗按钮的线**常驻**（2026-09-27 主人）══════
+     原话：「分不清展开全文/展开按钮和动态正文，展开全文按钮下划线改为常驻，
+     鼠标悬浮时按钮文字变色。」
+     ⇒ 这一颗**故意偏离**共享规格的"静止无装饰"：它夹在正文流里、字色又跟正文一样，
+       不挂线就跟上一段连成一片，读不出是个控件。相簿那两颗按钮不适用这条
+       —— 它们独立成行、周围有页眉/页脚的分隔，且主人 2026-09-21 明确要过"不画线"。
+     ⚠️ 只改**线的静止态**，别的都不动：静止 = 墨字 + accent 线；悬停/聚焦/按下 = 字转
+        accent（共享规格里那三态本来就写着，这里不用重复）。上面 `.dy-expand:hover::after`
+        等三条因此成了空操作 —— 留着是为了让那组成员保持逐条对齐，别删。
+     ⚠️ 线宽/位置不动（`bottom: 8.6px`、`height: 2px`、左右取内容宽）—— 那是量出来的，
+        与"要不要常驻"是两件事。
+     ⚠️ 源序：必须排在上面那条共享 `::after` 之后（同 (0,1,0)，靠后取胜）。 */
+  .dy-expand::after {
+    transform: scaleX(1);
+    transform-origin: 0 100%;
+  }
+
   /* ═══════════ 触屏档：把「悬停扫入」换成「按住即亮」（2026-09-27）═══════════
      主人原话：「手机版按『全部相簿』『上一页』『下一页』下滑线动画没有显示出来就跳转到
      其他页面了，这动画是电脑版的，不是陪手机版。」
@@ -5127,10 +5144,11 @@ html.nav-anim-reset *::after {
     .album-nav-link:not(.is-press),
     .dy-expand:not(.is-press) { color: var(--color-ink); }
     /* 收起态：只有"抬手之后"用得着 —— 那一刻 transition 取的是这条（0.16s 收回），
-       而按下去的那一刻取的是下面 `.is-press` 那条（`none` = 瞬时到位）。 */
+       而按下去的那一刻取的是下面 `.is-press` 那条（`none` = 瞬时到位）。
+       ⚠️ `.dy-expand` **不在这一组**：它的线是**常驻**的（见上面那条例外），
+          触摸端也一直挂着 —— 所以它只在下面单独压一条"恒 scaleX(1)"。 */
     .album-back:not(.is-press)::after,
-    .album-nav-link:not(.is-press)::after,
-    .dy-expand:not(.is-press)::after {
+    .album-nav-link:not(.is-press)::after {
       transform: scaleX(0);
       transform-origin: 100% 100%;
       transition: transform 0.16s ease-out;
@@ -5139,8 +5157,13 @@ html.nav-anim-reset *::after {
     .album-nav-link.is-press,
     .dy-expand.is-press { color: var(--color-accent); }
     .album-back.is-press::after,
-    .album-nav-link.is-press::after,
-    .dy-expand.is-press::after {
+    .album-nav-link.is-press::after {
+      transform: scaleX(1);
+      transform-origin: 0 100%;
+      transition: none;
+    }
+    /* 常驻线在触摸端也常驻（特指度要压得过上面那条 `.dy-expand:not(.is-press)::after`） */
+    .dy-expand::after {
       transform: scaleX(1);
       transform-origin: 0 100%;
       transition: none;
