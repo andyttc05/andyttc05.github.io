@@ -4394,20 +4394,31 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
-   刷新（`.nav-reload`）：**开场动画照播，但从"已经看得见的位置"起步**
+   刷新（`.nav-reload`）：**家具从"已经看得见的位置"轻落；巨字照常从不可见逐字弹出**
 
    主人在同一句里要两件事：「你怎么又把首页的开场动画给移除了」+「屏闪问题仍在」。
    而刷新没有跨文档过渡 ⇒ 新页首帧只能是"入场初始态"（全透明）⇒ 从正在看的完整页切过去
    就是"内容先消失再长回来"（就是要治的闪）；"拿加载页盖住"又被读成"强制有个加载动画"。
-   ⇒ 两全的写法只有一个：**让入场的起点仍然可见**（全程没有任何东西消失 ⇒ 不可能闪）。
-   🔴 但"可见的起点"只能用**整体位移**，不能带**逐字缩放**：
-      上一版让四字各自 scale 0.88 → 1.06 → 1 错峰弹回，实测**单个字绘制宽 78.9 → 96.6 → 89.6px**
-      （放大 22%、整行 347.7 → 361.9 → 358.4）—— 字本来就已经看得见，没有"进场"来解释这个缩放，
-      人眼读到的就是"标题在抽动/呼吸"。主人 2026-09-28：「在首页刷新时你怎么又把首页的开场动画
-      好奇怪」。⇒ 巨字在刷新时**不做任何动画**（停在终态）。
-   所以刷新看得见的动作只剩一条：**整块 hero 文字轻轻上浮 8px**（`--reload-settle`），
-   节奏仍是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。嫌不够明显 ⇒ 调大 `--reload-settle`；
-   想彻底静默 ⇒ 设成 `0px`（＝"刷新什么都不播"，`c44114ad` 那版）。
+   ⇒ 两全的写法只有一个：**让家具的起点仍然可见**（家具全程不消失 ⇒ 不可能整屏发白）。
+
+   🔴 巨字例外（2026-09-28 主人「在首页刷新页面，首页的登场动画有问题；在其他页面切换到首页
+      就正常」）：巨字**必须和"到达"（点击 / 冷加载）一样、从不可见逐字弹出**
+      （`hero-char-pop`：scale 0.4 + opacity 0 → 1.15 → 1），否则四字一动不动、整段开场
+      就只剩家具那 8px ⇒ 主人读作"登场动画没播 / 有问题"。这里已经把"可见起点"的两种写法
+      都退过一遍：
+        · 停在终态（`f8cadedb`）：四字不动 ⇒ 「登场动画有问题」（就是本轮）；
+        · 已经可见再缩放（`c8696e7e` 的 `hero-char-pop-soft` scale 0.88→1.06→1）：实测单字
+          绘制宽 78.9 → 96.6 → 89.6px（放大 22%），字本来就在眼前、没有"进场"解释缩放 ⇒
+          主人读作「字在抽动/呼吸」（2026-09-28 第十五轮）。
+      而"从不可见弹出来"天生有"到达"的解释，且巨字在"到达"那一跳此前也一直是不可见的
+      （宽守卫 `html.nav-instant:not(.page-ready) .hero-title-char{opacity:0}` —— 跨文档快照里
+      标题就是空的、点进来才逐字弹出），所以刷新照抄这一套，观感与点击完全一致。
+      ⚠️ 因此下面**不再有巨字的 pinned 规则**：它由宽守卫（page-ready 前 opacity 0）+ 
+         `html.page-ready .hero-title-char{animation:hero-char-pop…}`（含淡入 + 逐字延迟）接管。
+         这也回到本文件上面 rm-navclick 那段写的约定：「巨字…点击与刷新**同一套**」。
+
+   家具那几层仍从"已经看得见的位置"起步：**整块 hero 文字轻轻上浮 8px**（`--reload-settle`），
+   节奏仍是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。嫌不够明显 ⇒ 调大 `--reload-settle`。
    ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。 */
 html.nav-reload { --reload-settle: 8px; }
 /* ⚠️ 这三条的作用域是 `.hero:not(.entered)`（不是 `:not(.page-ready)`），两个都是必需的：
@@ -4431,18 +4442,11 @@ html.nav-reload .hero .hero-art-card {
 }
 html.nav-reload .hero .hero-art-img { opacity: 1; }
 html.nav-reload .hero:not(.entered) .hero-scroll { opacity: 1; transform: translateX(-50%) translateY(var(--reload-settle)); }
-/* 巨字：刷新时**停在终态、不做任何动画**（原因见上）。
-   ⚠️ 特指度必须 ≥ (0,4,1)（本条 = html + .nav-reload/.hero/.hero-text/.hero-title-char）：
-      它要压过 `html.page-ready .hero-title-char{animation:hero-char-pop…}`（(0,2,1)），
-      否则 page-ready 一到，四字会被 `hero-char-pop` 的前置帧（scale 0.4 / opacity 0）抓走 = 闪；
-      `opacity: 1` 同时压过宽守卫 `html.nav-instant:not(.page-ready) .hero-title-char`（(0,3,1)）。
-   ⚠️ 本条必须留在文件末尾（同特指度靠源码顺序赢），别往中间挪。 */
-html.nav-reload .hero .hero-text .hero-title-char,
-html.nav-reload .hero .hero-text .about-title-char,
-html.nav-reload .about-main .about-title-char { opacity: 1; animation: none; transform: scale(1); }
-   ⚠️ 这里用 `scale(1)` 而不是 `none`：终态（弹出动画 fill both 停在最后一帧）的 computed
-      就是 `matrix(1,0,0,1,0,0)`，而渐变文字带不带 transform 会走不同的光栅化/合成路径 ——
-      写成 `none` 会让"刷新后"与"点进来"的标题在亚像素上不完全一致。逐字对齐才是零回归。
+/* 🗑️ 巨字这里原有三条 pinned 规则（`html.nav-reload … .hero-title-char / .about-title-char
+   { opacity: 1; animation: none; transform: scale(1) }`，`f8cadedb` 那版）—— 2026-09-28 已删。
+   它把刷新时的四字钉死在终态 ⇒ 主人「在首页刷新页面，首页的登场动画有问题」。
+   刷新现在和"到达"共用 `html.page-ready .hero-title-char{animation:hero-char-pop}`，
+   由宽守卫保证 page-ready 之前不可见。别再把它钉回来。 */
 
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
