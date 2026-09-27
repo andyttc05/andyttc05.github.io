@@ -4222,23 +4222,33 @@
    3) hero 那几条是**照抄 .entered 的终态值**：`.hero-scroll` 要保留 translateX(-50%)
       居中、`.hero-art-base` 要保留 rotate + --base-y 外露量 —— 改终态时一起改。
    --------------------------------------------------------------------------- */
-html.nav-instant:not(.page-ready) .hero-title-char,
-html.nav-instant:not(.page-ready) .about-title-char { animation: none; }
-html.nav-instant:not(.page-ready) .dy-item,
-html.nav-instant:not(.page-ready) .dy-day { opacity: 1; transform: none; transition: none; }
-html.nav-instant:not(.page-ready) .hero .hero-text > *:not(.hero-cta),
-html.nav-instant:not(.page-ready) .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
-html.nav-instant:not(.page-ready) .hero .hero-art-base {
+html.nav-instant.nav-vt:not(.page-ready) .hero-title-char,
+html.nav-instant.nav-vt:not(.page-ready) .about-title-char { animation: none; }
+html.nav-instant.nav-vt:not(.page-ready) .dy-item,
+html.nav-instant.nav-vt:not(.page-ready) .dy-day { opacity: 1; transform: none; transition: none; }
+html.nav-instant.nav-vt:not(.page-ready) .hero .hero-text > *:not(.hero-cta),
+html.nav-instant.nav-vt:not(.page-ready) .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
+html.nav-instant.nav-vt:not(.page-ready) .hero .hero-art-base {
   opacity: 1;
   transform: rotate(-2deg) translate(-3.3%, var(--base-y));
   transition: none;
 }
-html.nav-instant:not(.page-ready) .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
-html.nav-instant:not(.page-ready) .hero .hero-scroll {
+html.nav-instant.nav-vt:not(.page-ready) .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+html.nav-instant.nav-vt:not(.page-ready) .hero .hero-scroll {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
   transition: none;
 }
+
+/* 刷新那一跳（`.nav-instant` 但**没有** `.nav-vt`）：没有快照可拍 ⇒ 一个钉子都不留，
+   首屏必须直接画成**入场初始态**。少这一条时首屏会先画一帧"完整页"
+   （巨字的基础态是静态可见，见第 1195 行 `animation: none`），下一帧再回退重播
+   ⇒ 主人 2026-09-27「主页刷新时闪了一下」。
+   ⚠️ 只需要补**巨字**这一条：文字层 / 立绘 / CTA / 底部提示的基础态本来就是不可见，
+   只有巨字为了「关脚本全显」把基础态写成"静态可见"。
+   ⚠️ 卡住的兜底：万一 page-ready 一直不来，HTML 里 load+2s 那段会补上它（每页都有）。 */
+html.nav-instant:not(.nav-vt):not(.page-ready) .hero-title-char,
+html.nav-instant:not(.nav-vt):not(.page-ready) .about-title-char { opacity: 0; }
 
 /* ---------------------------------------------------------------------------
    站内**点击**跳转：不播入场编排（`html.rm-navclick`，由 loader.js 在开闸时加）

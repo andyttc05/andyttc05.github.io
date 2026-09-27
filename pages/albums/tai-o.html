@@ -67,7 +67,16 @@
       if (sessionStorage.getItem('rm-visited') === '1') internal = true;
       else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
     } catch (e) {}
-    if (internal) de.classList.add('nav-instant');
+    /* ③ 跨文档过渡会「拍快照」的那一跳才需要把入场载体钉在终态（快照得拍到完整页）。
+       刷新**没有**过渡 ⇒ 钉了只会让首屏先画一帧完整页、下一帧又回退到入场初始态重播
+       —— 主人 2026-09-27「主页刷新时闪了一下 / 好奇怪」。所以钉子改由 `.nav-vt` 控制，刷新不给。
+       ⚠️ `.nav-instant` 本身不能省：loader.css 靠它连第一帧都不画加载页。 */
+    var navType = '';
+    try { var ne = performance.getEntriesByType('navigation')[0]; navType = ne ? ne.type : ''; } catch (e) {}
+    if (internal) {
+      de.classList.add('nav-instant');
+      if (navType !== 'reload') de.classList.add('nav-vt');
+    }
     /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
        loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档
        +4~23ms 都有），事件先到就永远收不到 ⇒ 只好退回 setTimeout(open, 350) 兜底；那 350ms 里
@@ -123,7 +132,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../../assets/css/style.css?v=e2dbc077ba">
+<link rel="stylesheet" href="../../assets/css/style.css?v=25cdecb0db">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
@@ -667,7 +676,7 @@
        DOM 自己就带着灯箱要的那份清单）。 -->
   <script src="../../assets/js/photos.js?v=ffacfab138" defer></script>
 
-  <script src="../../assets/js/loader.js?v=113d4143dc" defer></script>
+  <script src="../../assets/js/loader.js?v=e21ce9cd02" defer></script>
   <script src="../../assets/js/script.js?v=7fbb02056f" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个

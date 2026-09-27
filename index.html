@@ -58,7 +58,16 @@
       if (sessionStorage.getItem('rm-visited') === '1') internal = true;
       else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
     } catch (e) {}
-    if (internal) de.classList.add('nav-instant');
+    /* ③ 跨文档过渡会「拍快照」的那一跳才需要把入场载体钉在终态（快照得拍到完整页）。
+       刷新**没有**过渡 ⇒ 钉了只会让首屏先画一帧完整页、下一帧又回退到入场初始态重播
+       —— 主人 2026-09-27「主页刷新时闪了一下 / 好奇怪」。所以钉子改由 `.nav-vt` 控制，刷新不给。
+       ⚠️ `.nav-instant` 本身不能省：loader.css 靠它连第一帧都不画加载页。 */
+    var navType = '';
+    try { var ne = performance.getEntriesByType('navigation')[0]; navType = ne ? ne.type : ''; } catch (e) {}
+    if (internal) {
+      de.classList.add('nav-instant');
+      if (navType !== 'reload') de.classList.add('nav-vt');
+    }
     /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
        loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档
        +4~23ms 都有），事件先到就永远收不到 ⇒ 只好退回 setTimeout(open, 350) 兜底；那 350ms 里
@@ -118,7 +127,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="assets/css/loader.css?v=5ce8d862e9" data-page-node-id="e27DsJyyEIMwfAPlv5xHl1">
-<link rel="stylesheet" href="assets/css/style.css?v=e2dbc077ba" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
+<link rel="stylesheet" href="assets/css/style.css?v=25cdecb0db" data-page-node-id="Fk7KytlheM1QPckyKnQA0a">
 
 </head>
 <body data-page-node-id="gjOkzZwhhcAGo2quk6epB4">
@@ -423,7 +432,7 @@
   m && (m.textContent = label);
 </script>
 
-<script src="assets/js/loader.js?v=113d4143dc" defer></script>
+<script src="assets/js/loader.js?v=e21ce9cd02" defer></script>
 <script src="assets/js/script.js?v=7fbb02056f" defer></script>
 <!-- 几何粒子点线网络背景（源自 bistutzyy.github.io 的 canvas-nest 效果）。
      不写 color 属性 → 自动用主题 accent 色；切换主题时由 script.js 联动更新 -->
