@@ -76,6 +76,13 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
+      /* 刷新：不重播入场（家具 + 巨字首帧即终态，见 style.css 的 .nav-reload 那段）。
+         刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
+         切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
+         100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
+         「同一页再看一次」，不该重演组装。
+         ⚠️ 只掐刷新这一条：`.nav-vt`（快照态）与冷加载那条路一个字不动。 */
+      else de.classList.add('nav-reload');
     }
     /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
        loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档
@@ -133,7 +140,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../../assets/css/style.css?v=2690364fb4">
+<link rel="stylesheet" href="../../assets/css/style.css?v=564d49c018">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
@@ -706,7 +713,7 @@
   <script src="../../assets/js/photos.js?v=c8990d046f" defer></script>
 
   <script src="../../assets/js/loader.js?v=e21ce9cd02" defer></script>
-  <script src="../../assets/js/script.js?v=7fbb02056f" defer></script>
+  <script src="../../assets/js/script.js?v=b6a6e7d36e" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
        排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完

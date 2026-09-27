@@ -851,6 +851,15 @@
         var PAUSE_BEFORE = 800;  // 删完到下一句停顿
         var li = 0, ci = 0, deleting = false;
 
+        /* 刷新（`.nav-reload`）：首帧就把第一句整句画出来 ——
+           否则那句会先在你眼前清空、再逐字长回来，也是一下闪（2026-09-27）。
+           状态接成"刚打完"：下一次 tick 把 ci 推到 len 后进 PAUSE_AFTER 停顿，
+           之后照常删 → 下一句。循环本身一个字没动。 */
+        if (document.documentElement.classList.contains('nav-reload')) {
+          typeEl.textContent = LINES[0];
+          ci = LINES[0].length - 1;
+        }
+
         function tick() {
           var line = LINES[li];
           if (!deleting) {

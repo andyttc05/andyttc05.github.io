@@ -66,6 +66,13 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
+      /* 刷新：不重播入场（家具 + 巨字首帧即终态，见 style.css 的 .nav-reload 那段）。
+         刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
+         切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
+         100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
+         「同一页再看一次」，不该重演组装。
+         ⚠️ 只掐刷新这一条：`.nav-vt`（快照态）与冷加载那条路一个字不动。 */
+      else de.classList.add('nav-reload');
     }
     /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
        loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档

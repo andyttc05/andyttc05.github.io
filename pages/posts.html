@@ -64,6 +64,13 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
+      /* 刷新：不重播入场（家具 + 巨字首帧即终态，见 style.css 的 .nav-reload 那段）。
+         刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
+         切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
+         100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
+         「同一页再看一次」，不该重演组装。
+         ⚠️ 只掐刷新这一条：`.nav-vt`（快照态）与冷加载那条路一个字不动。 */
+      else de.classList.add('nav-reload');
     }
     /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
        loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档
@@ -115,7 +122,7 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=2690364fb4" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=564d49c018" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
@@ -766,7 +773,7 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=7ab9498a51"></script>
   <script src="../assets/js/loader.js?v=e21ce9cd02" defer></script>
-  <script src="../assets/js/script.js?v=7fbb02056f" defer></script>
+  <script src="../assets/js/script.js?v=b6a6e7d36e" defer></script>
   <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
        所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
   <script src="../assets/js/lightbox.js?v=2ee15a0ba0" defer></script>

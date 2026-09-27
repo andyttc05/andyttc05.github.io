@@ -4394,6 +4394,38 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
+   刷新（`.nav-reload`，由 head 在 navType==='reload' 时加）：**不重播入场**
+
+   主人 2026-09-27「safari 上页面刷新还是有闪烁」。根因：刷新没有跨文档过渡，
+   而新页首帧是"入场初始态"（家具全透明、巨字 animation 的前置帧压到 0），
+   于是从「你正在看的完整页」直切到「一张空页」，再花 ~600ms 长回来。
+   实测（线上·WebKit·30fps 录像）：内容消失 100~170ms → 重建 ~570ms，亮暗两档都一样。
+
+   入场的第 0 帧必然清空内容 ⇒「刷新不闪」与「刷新重播入场」不可兼得。
+   这里选前者：**刷新 = 页面本来就是这个样子**（入场留给"到达"：冷加载 / 站内点击）。
+   代价：刷新时巨字不再逐字弹出、家具不再淡入（都改成首帧即终态）。
+   ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。
+   ⚠️ 巨字那两条必须**留在文件末尾**（与 `html.page-ready .hero-title-char` 同特指度，
+      靠源码顺序赢），别往中间挪。 */
+html.nav-reload .hero .hero-text > *,
+html.nav-reload .hero .hero-art-base,
+html.nav-reload .hero .hero-art-card,
+html.nav-reload .hero .hero-art-img,
+html.nav-reload .hero .hero-scroll { opacity: 1; transform: none; }
+/* 上面那条把 transform 归零只对了 `.hero-text > *`（它终态就是 none）；
+   立绘底座与底部提示的终态各自带位移，必须逐字给回来（与 .rm-navclick 那批同值）。 */
+html.nav-reload .hero .hero-art-base { transform: rotate(-2deg) translate(-3.3%, var(--base-y)); }
+html.nav-reload .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+html.nav-reload .hero .hero-scroll { transform: translateX(-50%) translateY(0); }
+/* 巨字也要首帧就可见：上面 `.nav-instant:not(.page-ready)` 那道宽守卫（第 8 轮）会把
+   字先藏到 page-ready（实测 +24ms 藏、+53ms 才露 = 一两帧）—— 刷新时那四个字本来
+   就在你眼前，藏一两帧就是"闪一下"。所以这里连 opacity 一起给回来，并且特指度写到
+   和守卫同级（(0,3,1)）靠源码顺序赢：`.hero .hero-text` 这一层是必需的，别省。 */
+html.nav-reload .hero .hero-text .hero-title-char,
+html.nav-reload .hero .hero-text .about-title-char,
+html.nav-reload .about-main .about-title-char { opacity: 1; animation: none; }
+
+/* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
 
    为什么需要：上面那批覆盖一失效，`.hero-text > *` 会从覆盖给的 opacity:1
