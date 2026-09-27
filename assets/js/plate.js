@@ -41,10 +41,10 @@
     img.classList[on ? 'add' : 'remove']('is-broken');
     var box = img.parentNode;
     if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
-    /* 堆叠封面（2026-09-27，style.css「封面照片堆叠」段）：手机上那两层卡是
-       `display: contents` ⇒ 没有盒子、伪元素画不出来。这时候把类改挂到舞台上 ——
-       **两个宿主有且只有一个画得出那枚图形**，所以这里按"当前有没有盒子"同步，
-       而不是两边都挂（都挂的话桌面档会出现两枚叠在一起、颜色变深）。 */
+    /* 堆叠封面（2026-09-27，style.css「封面照片堆叠」段）：img 的父节点就是那张卡
+       （.album-card），而手机上它是 `display: contents` ⇒ 没有盒子、伪元素画不出来。
+       这时候把类改挂到舞台上 —— **两个宿主有且只有一个画得出那枚图形**，所以这里按
+       "当前有没有盒子"同步，而不是两边都挂（都挂的话桌面档会出现两枚叠在一起、颜色变深）。 */
     var stage = img.closest ? img.closest('.album-tile-cover') : null;
     if (stage && stage.classList) {
       var noBox = !box || (window.getComputedStyle && getComputedStyle(box).display === 'contents');

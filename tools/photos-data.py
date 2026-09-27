@@ -422,20 +422,50 @@ def stack_picks(a):
     return picks
 
 
+def _jitter(seed_text, salt):
+    """确定性伪随机数（FNV-1a + 一次雪崩混合），落在 [-1, 1]。
+    为什么不用 random：十九格的"随手一放"必须**每次生成都一样** ——
+    否则重跑一次生成器，全站的抖动全部重洗，diff 里几十个大块全是噪声。
+    ⚠️ 末尾那次雪崩不能省：裸的 FNV-1a 里"最后几个字节的差别"几乎只落在低位，
+        直接取中间 16 位的话 `slug#r0`/`#r1`/`#r2` 会算出几乎一样的数
+        （实测 -0.7918 / -0.7917 / -0.7920 ⇒ 三张卡的手抖一模一样，等于没抖）。"""
+    h = 2166136261
+    for ch in f"{salt}#{seed_text}":        # 变化的部分放前面，多走几轮
+        h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+    h ^= h >> 13
+    h = (h * 2654435761) & 0xFFFFFFFF
+    h ^= h >> 16
+    return (h & 0xFFFF) / 65535.0 * 2 - 1
+
+
+def card_jitter(slug, depth):
+    """一张卡的"手抖"：角度 ±0.9°、横 ±1.4px、竖 ±1.2px（竖的最紧，见 style.css 那段算术）。
+    幅度再大就不是"随意摆放"而是"歪了"（而且竖向会咬到书名、横向会顶到邻格 ——
+    style.css 那段注释里有算术）。三张各自独立抖，所以十九格没有两格是一模一样。"""
+    def one(salt, amp):
+        v = round(_jitter(slug, salt) * amp, 2)
+        return 0.0 if v == 0 else v          # 免得写出 "-0.0"
+    return one(f"r{depth}", 0.9), one(f"x{depth}", 1.4), one(f"y{depth}", 1.2)
+
+
 def frag_wall(albums):
     """墙上每一格 = 一叠照片（2026-09-27 第三百三十四批）。
 
-    三层结构（为什么这么分，见 style.css 那段）：
-      .album-tile-cover[data-stack]  舞台（几何 + 扇形变量）
-        .album-card[data-depth="N"]  外层：拖拽用的 transform
-          .album-card-face           内层：堆叠用的 transform（角度 / 缩放 / 原点）
-            img                      照片
+    两层结构（为什么这么分，见 style.css 那段）：
+      .album-tile-cover[data-stack]  舞台（时间参数）
+        .album-card[data-depth="N"]  卡（底板 / 圆角 / 裁剪 / 扇形 transform / 手抖变量）
+          img                        照片
+     张数角标写在**正面那张卡里面**（2026-09-27 第三百三十五批）—— 正面那张现在是歪的，
+     角标留在舞台上就会"卡歪了字不歪"，像贴歪的标签。
 
     🔴 两个"必须"：
-      · **data-depth 写死在 HTML 里**，不许等脚本写 —— photos.js 是 defer（DCL 258~414ms），
-        而跨文档过渡的快照拍在 pagereveal（52~270ms）⇒ 等脚本就会"先叠平、过渡完再散开"。
+      · **data-depth 与手抖变量都写死在 HTML 里**，不许等脚本写 —— photos.js 是 defer
+        （跑在 DCL 258~414ms），而跨文档过渡的快照拍在 pagereveal（52~270ms）⇒
+        等脚本就会"先叠平、过渡完再散开"（主人骂过的那句「内容先奇怪地动一下」）。
       · **背后那两张不写 src，只写 data-src** —— 一张都不预取，指针进格才取（photos.js 的
-        warm()）。19 格 × 2 张 900px 缩图 = 3.2MB，随页取等于把墙面从 1.5MB 抬到 4.7MB。"""
+        warmStack()）。19 格 × 2 张 900px 缩图 = 3.2MB，随页取等于把墙面从 1.5MB 抬到 4.7MB。
+     （2026-09-27 第三百三十五批：主人「只保留堆叠的视觉效果，移除可以翻开卡片的功能」⇒
+       拖拽整段撤掉，卡由两层并成一层。）"""
     out = []
     for i, a in enumerate(albums):
         eager = i < WALL_EAGER                  # 前几格是首屏，照旧吃 eager + fetchpriority
@@ -451,13 +481,14 @@ def frag_wall(albums):
             else:
                 img = (f'<img data-src="{esc(thumb_url(a["slug"], base))}" alt=""'
                        f' width="900" height="675" loading="lazy" decoding="async">')
-            cards.append(f'<div class="album-card" data-depth="{depth}">'
-                         f'<div class="album-card-face">{img}</div></div>')
+            jr, jx, jy = card_jitter(a["slug"], depth)
+            style = f' style="--j:{jr}deg;--jx:{jx}px;--jy:{jy}px"'
+            badge = f'<span class="album-tile-count">{a["count"]} 张</span>' if depth == 0 else ""
+            cards.append(f'<div class="album-card" data-depth="{depth}"{style}>{img}{badge}</div>')
         out.append(
             f'\n        <a class="album-tile" href="albums/{a["slug"]}.html">'
             f'<div class="album-tile-cover" data-stack>'
             + "".join(cards) +
-            f'<span class="album-tile-count">{a["count"]} 张</span>'
             f'</div><h3 class="album-tile-name">{esc(a["zh"])}</h3>'
             f'<p class="album-tile-note">{esc(a["note"])}</p></a>'
         )
