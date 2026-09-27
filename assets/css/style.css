@@ -2017,7 +2017,21 @@
     position: relative;
     width: 100%;
     height: 100%;
-    padding: clamp(48px, 7vh, 72px) clamp(16px, 4vw, 48px) 6vh; /* 顶部加大,给 .vslide-meta 绝对定位让位 */
+    /* 2026-09-27 第三百三十四批：内容盒与导航栏 / hero 同宽（主人「主页内容需要对齐导航栏的
+       max-width」）。原 padding-inline 是 clamp(16px,4vw,48px)：5 个全屏页比导航宽出一圈 ——
+       1440 下文字左缘 48 / 导航内容缘 136（差 88）、1920 下 48 / 376（差 328）、1280 下差 8，
+       也就是「屏幕越宽越明显」。现在 = max-width 1200 + 左右各 16px，与 .nav-inner / .hero /
+       .about-main 逐字同一套；实测 1440 内容盒 136→1304、1920 376→1544，与导航内容盒逐像素相同。
+       ⚠️ 容器一收，5 屏的巨字 / 引子 / 诗 / 立绘 / 左上角序号全部跟着收 —— 这是有意的：
+         「页面的 max-width = 导航栏的 max-width」是站里既定的那条规矩（第二百八十四批起）。
+       ⚠️ 窄于 1200 时 max-width 不生效、导航也退化成「满宽 − 16」⇒ 两边仍然一致。
+       ⚠️ ≤768 的单列档写的是 `padding:` 简写、排在后面，那一档的 16~28px 内边距照旧（本次不动）。
+       ⚠️ `data-pos="cb"` 那两条 sub/poem 的 max-width 兜底公式里还留着旧的 clamp(16px,4vw,48px)：
+         它只是「右列别撞到居中立绘」的安全上限，实测 32ch 先咬住、公式不生效（1440 下 326 < 398），
+         所以本轮不动它 —— 要重标就一起改 .vslide[data-pos="cb"] 那两条。 */
+    max-width: 1200px; margin-inline: auto;
+    padding-block: clamp(48px, 7vh, 72px) 6vh; /* 顶部加大,给 .vslide-meta 绝对定位让位 */
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto 1fr auto;
