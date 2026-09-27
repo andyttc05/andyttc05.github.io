@@ -41,6 +41,15 @@
     img.classList[on ? 'add' : 'remove']('is-broken');
     var box = img.parentNode;
     if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+    /* 堆叠封面（2026-09-27，style.css「封面照片堆叠」段）：手机上那两层卡是
+       `display: contents` ⇒ 没有盒子、伪元素画不出来。这时候把类改挂到舞台上 ——
+       **两个宿主有且只有一个画得出那枚图形**，所以这里按"当前有没有盒子"同步，
+       而不是两边都挂（都挂的话桌面档会出现两枚叠在一起、颜色变深）。 */
+    var stage = img.closest ? img.closest('.album-tile-cover') : null;
+    if (stage && stage.classList) {
+      var noBox = !box || (window.getComputedStyle && getComputedStyle(box).display === 'contents');
+      stage.classList[on && noBox ? 'add' : 'remove']('is-broken');
+    }
   }
 
   function fadeIn(img) {
@@ -80,10 +89,17 @@
   }
 
   /* 扫一遍容器里还没交接过的照片。三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）
-     共用 style.css 里那一段破图规则；这里只管把类挂上。 */
+     共用 style.css 里那一段破图规则；这里只管把类挂上。
+     ⚠️ 没写 src 的（墙上那叠里"还没取图"的两张，挂在 data-src 上）**跳过**：
+        它们本来就不该参与"底板→照片"这次交接，而 fadeIn 会把它们当"成功"记一笔
+        （fadeIn 里的 failStreak 会清零）—— 那会让整段断网时的重试节奏整体错位
+        （2026-09-27 实测：断网时该亮破图图形的那几格被多推后 2 格）。 */
   function hydrate(root) {
     var imgs = (root || document).querySelectorAll('.album-tile-cover img, .album-shot img');
-    for (var i = 0; i < imgs.length; i++) fadeIn(imgs[i]);
+    for (var i = 0; i < imgs.length; i++) {
+      if (!imgs[i].getAttribute('src')) continue;
+      fadeIn(imgs[i]);
+    }
   }
 
   window.RMPlate = { hydrate: hydrate, fadeIn: fadeIn };

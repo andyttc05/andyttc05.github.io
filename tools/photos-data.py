@@ -403,17 +403,60 @@ def frag_nav(a, idx, albums):
 # 背景：2026-09-26 主人说它"没有设计感"，我改过四版他回"都不如现状好看"，
 # 事后取证发现那一段的锅在背景飘带（canvas-ribbons）身上、不在数据条本身；这次是他主动要删。
 # ⚠️ data["stats"] 本身**留着**：它仍写进 assets/js/photos-data.js 当机器可读索引（张数 / 地区数）。
+def stack_picks(a):
+    """一格叠几张、叠哪几张（2026-09-27 第三百三十四批「封面照片堆叠」）。
+
+    正面那张 = 主人自己挑的封面（COVER_RANK），后面两张取册内**紧挨着封面**的前后两张 ——
+    那几张往往是同一个时刻前后几分钟拍的，叠起来最像"一叠同一个地方的相纸"。
+    19 本里最少的一册也有 3 张，所以永远取得到三张；真取不到就少叠几张（结构上不假设 3）。
+    ⚠️ 顺序就是 DOM 顺序的一部分（最后一张 = 最上面那张），换顺序会同时换掉谁在最前面。"""
+    bases = [p[0] for p in a["photos"]]
+    ci = bases.index(a["cover"]) if a["cover"] in bases else 0
+    picks = [a["cover"]]
+    for step in (1, -1, 2, -2):
+        if len(picks) >= 3:
+            break
+        b = bases[(ci + step) % len(bases)]
+        if b not in picks:
+            picks.append(b)
+    return picks
+
+
 def frag_wall(albums):
+    """墙上每一格 = 一叠照片（2026-09-27 第三百三十四批）。
+
+    三层结构（为什么这么分，见 style.css 那段）：
+      .album-tile-cover[data-stack]  舞台（几何 + 扇形变量）
+        .album-card[data-depth="N"]  外层：拖拽用的 transform
+          .album-card-face           内层：堆叠用的 transform（角度 / 缩放 / 原点）
+            img                      照片
+
+    🔴 两个"必须"：
+      · **data-depth 写死在 HTML 里**，不许等脚本写 —— photos.js 是 defer（DCL 258~414ms），
+        而跨文档过渡的快照拍在 pagereveal（52~270ms）⇒ 等脚本就会"先叠平、过渡完再散开"。
+      · **背后那两张不写 src，只写 data-src** —— 一张都不预取，指针进格才取（photos.js 的
+        warm()）。19 格 × 2 张 900px 缩图 = 3.2MB，随页取等于把墙面从 1.5MB 抬到 4.7MB。"""
     out = []
     for i, a in enumerate(albums):
-        eager = i < WALL_EAGER
+        eager = i < WALL_EAGER                  # 前几格是首屏，照旧吃 eager + fetchpriority
         fp = ' fetchpriority="high"' if eager else ""
+        picks = stack_picks(a)
+        cards = []
+        for d, base in enumerate(picks[::-1]):  # 反过来写：最后一张在最上面
+            depth = len(picks) - 1 - d
+            if depth == 0:
+                img = (f'<img src="{esc(thumb_url(a["slug"], base))}"'
+                       f' alt="{esc(a["zh"])}　{esc(a["note"])}" width="900" height="675"'
+                       f' loading="{"eager" if eager else "lazy"}"{fp} decoding="async">')
+            else:
+                img = (f'<img data-src="{esc(thumb_url(a["slug"], base))}" alt=""'
+                       f' width="900" height="675" loading="lazy" decoding="async">')
+            cards.append(f'<div class="album-card" data-depth="{depth}">'
+                         f'<div class="album-card-face">{img}</div></div>')
         out.append(
             f'\n        <a class="album-tile" href="albums/{a["slug"]}.html">'
-            f'<div class="album-tile-cover">'
-            f'<img src="{esc(thumb_url(a["slug"], a["cover"]))}"'
-            f' alt="{esc(a["zh"])}　{esc(a["note"])}" width="900" height="675"'
-            f' loading="{"eager" if eager else "lazy"}"{fp} decoding="async">'
+            f'<div class="album-tile-cover" data-stack>'
+            + "".join(cards) +
             f'<span class="album-tile-count">{a["count"]} 张</span>'
             f'</div><h3 class="album-tile-name">{esc(a["zh"])}</h3>'
             f'<p class="album-tile-note">{esc(a["note"])}</p></a>'

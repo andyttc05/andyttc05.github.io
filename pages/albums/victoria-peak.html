@@ -132,7 +132,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../../assets/css/style.css?v=f4d39d3e37">
+<link rel="stylesheet" href="../../assets/css/style.css?v=1d177c7ffe">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
@@ -570,6 +570,15 @@
     img.classList[on ? 'add' : 'remove']('is-broken');
     var box = img.parentNode;
     if (box && box.classList) box.classList[on ? 'add' : 'remove']('is-broken');
+    /* 堆叠封面（2026-09-27，style.css「封面照片堆叠」段）：手机上那两层卡是
+       `display: contents` ⇒ 没有盒子、伪元素画不出来。这时候把类改挂到舞台上 ——
+       **两个宿主有且只有一个画得出那枚图形**，所以这里按"当前有没有盒子"同步，
+       而不是两边都挂（都挂的话桌面档会出现两枚叠在一起、颜色变深）。 */
+    var stage = img.closest ? img.closest('.album-tile-cover') : null;
+    if (stage && stage.classList) {
+      var noBox = !box || (window.getComputedStyle && getComputedStyle(box).display === 'contents');
+      stage.classList[on && noBox ? 'add' : 'remove']('is-broken');
+    }
   }
 
   function fadeIn(img) {
@@ -609,10 +618,17 @@
   }
 
   /* 扫一遍容器里还没交接过的照片。三个消费点（相簿封面 / 单册照片墙 / 动态页照片格）
-     共用 style.css 里那一段破图规则；这里只管把类挂上。 */
+     共用 style.css 里那一段破图规则；这里只管把类挂上。
+     ⚠️ 没写 src 的（墙上那叠里"还没取图"的两张，挂在 data-src 上）**跳过**：
+        它们本来就不该参与"底板→照片"这次交接，而 fadeIn 会把它们当"成功"记一笔
+        （fadeIn 里的 failStreak 会清零）—— 那会让整段断网时的重试节奏整体错位
+        （2026-09-27 实测：断网时该亮破图图形的那几格被多推后 2 格）。 */
   function hydrate(root) {
     var imgs = (root || document).querySelectorAll('.album-tile-cover img, .album-shot img');
-    for (var i = 0; i < imgs.length; i++) fadeIn(imgs[i]);
+    for (var i = 0; i < imgs.length; i++) {
+      if (!imgs[i].getAttribute('src')) continue;
+      fadeIn(imgs[i]);
+    }
   }
 
   window.RMPlate = { hydrate: hydrate, fadeIn: fadeIn };
@@ -672,7 +688,7 @@
        内容与几何**都不在这里**了 —— 内容在 HTML 里，几何由上面内联的
        album-strip.js 在解析期算完；photos-data.js 也从这一页撤掉了（23KB 白等一趟，
        DOM 自己就带着灯箱要的那份清单）。 -->
-  <script src="../../assets/js/photos.js?v=ffacfab138" defer></script>
+  <script src="../../assets/js/photos.js?v=7c945d50f3" defer></script>
 
   <script src="../../assets/js/loader.js?v=e21ce9cd02" defer></script>
   <script src="../../assets/js/script.js?v=7fbb02056f" defer></script>

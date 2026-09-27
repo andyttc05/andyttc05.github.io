@@ -1791,23 +1791,8 @@
     .hero-layer-2 { margin-top: 3svh; }
     .hero-layer-3 { margin-top: 3.4svh; }
     .hero-cta { margin-top: 3svh; }
-    /* 🔴 2026-09-27（第七轮后续）：这里原来是**一律** `min(78vw, 30svh)`，实测**收过头**。
-       逐档二分扫出"还能把提示条留在首屏的最大立绘宽度"，它是随视口高 **近似线性** 的
-       （375/390 宽：640→186px、667→212、700→245、740→281、**760 以上根本不用封顶**）——
-       一律 30svh 等于让 760~840 的窗口白小 20%、740 的窗口白小 30%（主人：「手机版被暗改了」）。
-       现在直接按这条线写比例上限：`95svh − 430px`（比实测上限每档低 8~9px）。
-       它的斜率**自带**"矮窗收得多、高窗不封顶"：760 高时算出 292 ≥ 78vw ⇒ 自动退场、逐项不变。
-       ⚠️ `max(24svh, …)` 是极矮窗口的地板（375×560 这类），免得出一个巴掌大的立绘；
-          那几档提示条本来也塞不下，不再为它牺牲立绘。
-       ⚠️ 限的是 `width`（卡片 aspect-ratio 5/4 跟着走），不是把卡片压扁。
-       量具：`scratch/open-anim-jank-2026-09-27/fit-sweep.js`（二分扫上限）·`art-fit.js`（单点） */
-    .hero-art { width: min(78vw, max(24svh, calc(95svh - 430px))); }
+    .hero-art { width: min(78vw, 30svh); }
     .hero-scroll { margin-top: 2.7svh; }
-  }
-  /* 窄屏再加一条：360 宽那摞字折行更多、整列更高 ⇒ 上限整体下移一档
-     （实测 640→141px、700→196、740→237、780→273）。同样留余量。 */
-  @media (max-width: 365px) and (max-height: 840px) {
-    .hero-art { width: min(78vw, max(21svh, calc(93svh - 470px))); }
   }
   /* 触摸/无悬停设备：去掉 :hover 引起的"上浮 -6px + 放大 1.02"。
      移动端 tap 后 :hover 会粘住，导致卡片卡在放大态不回去——"图片动画异常"的根因（2026-08-17 修） */
@@ -4521,6 +4506,106 @@ html.nav-anim-reset *::after {
     line-height: 1.72;
     color: var(--color-muted);
   }
+  /* ═══════════════ 封面「照片堆叠」（2026-09-27 第三百三十四批）═══════════════
+     主人贴了 React Bits 的 <Stack />（叠着的卡片，拖动换到后面）问
+     「我喜欢这种照片堆叠的效果。你可以把这效果应用在照片页相簿的封面里吗」。
+     本站没有 React、没有构建、也不为这个效果引 `motion` 那种运行时 ⇒ 三处等价换算：
+       · motion 的 spring（stiffness 260 / damping 20，欠阻尼、会过一点点）
+         → `transition` + `cubic-bezier(.34,1.32,.64,1)`（进与出同一条）
+       · useTransform(x,[-100,100],[-60,60]) 的 3D 倾斜 → 一次 pointermove 手算
+       · React 的 state 重排（sendToBack）→ 改 `data-depth`，动画仍归 CSS
+     行为在 assets/js/photos.js 的三号段；这里只管样子。
+
+     三层（抄参考实现的分工，这是它不打架的关键）：
+       舞台 .album-tile-cover[data-stack]  几何 + 扇形变量 + 拖动时才开的透视
+         .album-card                       外层：**拖拽**的 transform（跟手 / 回弹）
+           .album-card-face                内层：**堆叠**的 transform（角度 / 缩放 / 原点）
+             img                           照片本体（样式照旧走 .album-tile-cover img）
+
+     🔴 角度是**算出来的**，不是调的：绕右下角转 θ、再缩到 s 的卡，露在右缘的宽度
+        ≈ sinθ × s × 卡高。三列布局里列间距只有 28.8px、卡高 278 ⇒
+        6.2°/0.90 露 24px（安全，实测与邻格还差 8.4px）；10°/0.86 露 37px（**压到邻格**）。
+        ⇒ 这一站只做得了"紧堆"，做不了参考示例那种散开的扇形。八个视口的实测（最紧的一档
+        1280 还差 5.1px）见 ~/.workbuddy/scratch/photos-stack-2026-09-27/probe.json。
+     🔴 底板 / 圆角 / 裁剪从 .album-tile-cover **下放到 .album-card-face**（扇形会被舞台裁掉）。 */
+  .album-tile-cover[data-stack] {
+    overflow: visible;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    /* 扇形几何：0 号 = 最上面那张（正面），数字越大越靠后 */
+    --fan-1: 3deg;   --fan-s1: 0.955;
+    --fan-2: 6.2deg; --fan-s2: 0.90;
+    --fan-3: 9.2deg; --fan-s3: 0.845;
+  }
+  /* 拖动中才开透视 —— 常开等于让每个封面都进 3D 渲染上下文（无谓的清晰度风险） */
+  .album-tile-cover[data-stack].is-dragging { perspective: 600px; }
+
+  .album-card {
+    position: absolute;
+    inset: 0;
+    transform: translate3d(0, 0, 0);
+    transition: transform var(--fan-dur, 0.42s) var(--fan-ease, cubic-bezier(0.34, 1.32, 0.64, 1));
+    will-change: transform;
+    -webkit-user-drag: none;
+  }
+  .album-card.is-dragging { transition: none; z-index: 10; }
+
+  .album-card-face {
+    width: 100%;
+    height: 100%;
+    border-radius: clamp(14px, 1.25vw, 18px);
+    overflow: hidden;
+    /* 底板三件套（原来在 .album-tile-cover 上）逐字搬过来 */
+    background-color: var(--color-alt);
+    background-image: var(--plate-grad);
+    box-shadow: var(--plate-edge);
+    transform-origin: 90% 90%;
+    transition: transform var(--fan-dur, 0.42s) var(--fan-ease, cubic-bezier(0.34, 1.32, 0.64, 1));
+    will-change: transform;
+  }
+  .album-card[data-depth="0"] .album-card-face { transform: rotate(0deg) scale(1); }
+  .album-card[data-depth="1"] .album-card-face { transform: rotate(var(--fan-1)) scale(var(--fan-s1)); }
+  .album-card[data-depth="2"] .album-card-face { transform: rotate(var(--fan-2)) scale(var(--fan-s2)); }
+  .album-card[data-depth="3"] .album-card-face { transform: rotate(var(--fan-3)) scale(var(--fan-s3)); }
+  /* 背后那张还没取回图时只露一条边 —— 去掉底板渐变，免得那条边像"破图"。
+     底色（--color-alt）留着：一条干净的同色边比渐变边更像"一叠相纸"。 */
+  .album-card[data-depth="1"] .album-card-face,
+  .album-card[data-depth="2"] .album-card-face,
+  .album-card[data-depth="3"] .album-card-face { background-image: none; }
+
+  /* 窄一点的桌面档把角度收一点（那里列间距只有 16~22px，按比例仍是安全的） */
+  @media (min-width: 861px) and (max-width: 1180px) {
+    .album-tile-cover[data-stack] { --fan-2: 4.4deg; --fan-3: 6.6deg; }
+  }
+
+  /* 🔴 ≤860：**不参与堆叠**。背后那张不显示、正面那张的盒树也恢复成"没有堆叠结构之前"。
+     两个理由都不是审美：
+       ① 手机上卡面只有 173px，6° 扇出的边比卡本身还显眼，而列间距只剩 12.9px；
+       ② 触摸没有 hover ⇒"指针进格才取图"永远不触发，背后两张要么永远空着、
+          要么随页下载 3.2MB 却没人看。
+     ⚠️ 为什么不是只写 display:none：多出来的两层包装盒会让 Chromium 对封面那张图换一条
+        光栅化路径，390px 实测 8752 个像素与改造前不同（最大差 216，**不是布局差** ——
+        getBoundingClientRect 到小数点后 4 位都一样）。`display: contents` 让这两层
+        根本不生成盒子 ⇒ 差分归零（实测 0 像素）。
+     ⚠️ 代价：face 没有盒子 ⇒ 破图那枚图形（挂在 img.parentNode 的 ::after）挂不上，
+        plate.js 的 brokenMark() 会在这种情况下把类补挂到舞台上（那条路仍走本文件
+        「破图兜底」段里 `.album-tile-cover.is-broken::after` 这条老选择器）。 */
+  @media (max-width: 860px) {
+    .album-card:not([data-depth="0"]) { display: none; }
+    .album-card[data-depth="0"],
+    .album-card[data-depth="0"] .album-card-face { display: contents; }
+    .album-tile-cover[data-stack] {
+      overflow: hidden;
+      border-radius: clamp(14px, 1.25vw, 18px);
+      background-color: var(--color-alt);
+      background-image: var(--plate-grad);
+      box-shadow: var(--plate-edge);
+    }
+  }
+  /* ⚠️ 拖动中是**内联** transform（photos.js 写的），这里给不出更细的规则 ——
+     松开时清掉内联值即回到上面那条 data-depth 的角度，回弹由 transition 演。 */
+
   /* 封面下原来还有一行等宽日期区间（.album-tile-span，如「2024.01 – 2026.06」）。
      2026-09-21 主人「相册移除日期的资料，点击照片可以显示日期」——
      墙上、单册页标题下都不留日期，日期只在灯箱里按张给（见 photos.js 的 stamp()） */

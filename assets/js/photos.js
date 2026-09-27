@@ -13,8 +13,9 @@
    详见 pages/album.html 顶部、assets/js/album-strip.js 顶部，与
    ~/.workbuddy/scratch/photo-flash-2026-09-25/report-photo-flash.html。
 
-   于是本文件现在只剩三件**必须在文档之后做**的事：
+   于是本文件现在只剩四件**必须在文档之后做**的事：
      · 墙的位置记忆（离开墙 / 点「← 全部相簿」回到原位）—— 见一号段
+     · 墙封面那叠照片的拖拽与按需取图（2026-09-27 第三百三十四批）—— 见三号段
      · 单册页的灯箱接线与 resize 重排
      · 顺手兜住"内联引擎没跑起来"（例如元素当时宽度为 0）时的补排
 
@@ -175,11 +176,145 @@
     });
   }
 
+  /* =========================================================================
+     三、墙上的「照片堆叠」（2026-09-27 第三百三十四批）
+
+     一层封面变成一叠三张（.album-card[data-depth]，结构见 style.css 那段），
+     参考实现是 React Bits 的 <Stack />，这里只做它那三件事的等价换算：
+       · 拖过阈值 → sendToBack（React 的 state 重排 → 改 data-depth，动画仍归 CSS）
+       · 拖动时跟手 + 按位移给 3D 倾斜（useTransform(x,[-100,100],[-60,60]) → 手算）
+       · 背后两张图按需取（参考实现一次性全画出来，本站 19 格 × 2 张 = 3.2MB，取不起）
+
+     🔴 本段**不写任何静态几何**：角度/缩放是 CSS 变量、每张卡初始的 data-depth 由生成器
+        写死在 HTML 里。本文件是 defer（DCL 258~414ms），跨文档过渡的快照拍在
+        pagereveal（52~270ms）—— 几何若等这里，快照里就是"叠平"，过渡完再散开。
+     ⚠️ 拖拽只给精细指针：触摸上会和页面滚动抢手势，而那一档本来就 `display: contents`
+        不参与堆叠（CSS ≤860）。
+     ⚠️ 已知取舍：宽屏触摸设备（iPad）没有 hover ⇒ 那一档只看得见两条相纸边、看不见后面的照片。
+        想让它也出图，得给"无 hover 且 ≥861"再挂一条"进视口就取"，本批没做（主人要的是电脑版）。 */
+  var STACK_SEL = '.album-tile-cover[data-stack]';
+  var FINE = window.matchMedia('(hover: hover) and (pointer: fine)');
+  var REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var SEND_PX = 90;        /* 拖过这么多像素算"换到后面"（参考实现是 180~200，那是 208px 的方卡） */
+  var TAP_SLOP = 5;        /* 小于这个位移仍当点击 */
+  var CLICK_GRACE = 700;   /* 刚拖完这么久内的 click 一律吃掉 */
+
+  function eachStack(fn) {
+    var list = document.querySelectorAll(STACK_SEL);
+    for (var i = 0; i < list.length; i++) fn(list[i]);
+  }
+
+  /* 把当前的先后顺序写成 data-depth（0 = 最上面那张） */
+  function paintStack(stage) {
+    var order = stage.__order || [];
+    for (var i = 0; i < order.length; i++) order[i].setAttribute('data-depth', String(i));
+  }
+
+  function sendToBack(stage, card) {
+    var o = stage.__order;
+    if (!o) return;
+    var i = o.indexOf(card);
+    if (i < 0) return;
+    o.splice(i, 1);
+    o.push(card);
+    paintStack(stage);
+  }
+
+  /* 背后那两张：挂在 data-src 上，第一次真的要看时才取。
+     ⚠️ 取之前必须摘掉 plate.js 在解析期挂的 .is-loaded —— 两个类同时在
+        （.is-loaded 写在 .is-pending 之后）会让图硬弹出来，那 0.4s 淡入就没了。 */
+  function warmStack(stage) {
+    var lazy = stage.querySelectorAll('img[data-src]');
+    if (!lazy.length) return;
+    for (var i = 0; i < lazy.length; i++) {
+      var im = lazy[i], src = im.getAttribute('data-src');
+      im.removeAttribute('data-src');
+      im.classList.remove('is-loaded');
+      im.setAttribute('src', src);
+      if (window.RMPlate) window.RMPlate.fadeIn(im);
+    }
+  }
+
+  function wireStack(stage) {
+    var cards = stage.querySelectorAll('.album-card');
+    if (cards.length < 2) return;
+
+    /* DOM 顺序 = 从后往前画（最后一张在最上面）；__order 反过来存，0 号是正面那张 */
+    var arr = [];
+    for (var i = cards.length - 1; i >= 0; i--) arr.push(cards[i]);
+    stage.__order = arr;
+    paintStack(stage);                       /* 幂等：正常情况下与生成器写的一致 */
+
+    /* 取图的三路：指针进格（桌面）、键盘落到格子上、以及按下（精细指针才算，
+       触摸设备按下即导航，白取两张没意义）。 */
+    if (stage.querySelector('img[data-src]')) {
+      var warm = function () { warmStack(stage); };
+      ['pointerenter', 'focusin'].forEach(function (ev) {
+        stage.addEventListener(ev, warm, { once: true, passive: true });
+      });
+      stage.addEventListener('pointerdown', function () { if (FINE.matches) warm(); }, { once: true, passive: true });
+    }
+
+    /* ---- 拖拽（只给精细指针）---- */
+    var d = null;
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || !FINE.matches || REDUCE.matches) return;
+      var card = e.target && e.target.closest ? e.target.closest('.album-card') : null;
+      if (!card) return;
+      d = { card: card, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false };
+      card.classList.add('is-dragging');
+      stage.classList.add('is-dragging');
+      if (card.setPointerCapture) { try { card.setPointerCapture(e.pointerId); } catch (err) {} }
+    });
+
+    /* 整格包在 <a> 里 ⇒ 浏览器会从链接上**起一次原生拖拽**，和这一套打架。
+       手指还按在卡上时把它掐掉。 */
+    stage.addEventListener('dragstart', function (e) {
+      if (d) e.preventDefault();
+    });
+
+    stage.addEventListener('pointermove', function (e) {
+      if (!d || e.pointerId !== d.id) return;
+      var dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+      if (!d.moved && Math.abs(dx) + Math.abs(dy) < TAP_SLOP) return;
+      d.moved = true;
+      /* 参考实现：rotateX 由 y 映射到 ±60°、rotateY 由 x 映射到 ±60°（正负相反）。
+         只写 transform，不读布局 —— 一次 pointermove 一行样式，不会掉帧。 */
+      var rx = Math.max(-60, Math.min(60, -dy * 0.6));
+      var ry = Math.max(-60, Math.min(60, dx * 0.6));
+      d.card.style.transform = 'translate3d(' + dx + 'px,' + dy + 'px,0) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
+    }, { passive: true });
+
+    function endDrag(e) {
+      if (!d || e.pointerId !== d.id) return;
+      var cur = d, dx = e.clientX - cur.x0, dy = e.clientY - cur.y0;
+      d = null;
+      cur.card.classList.remove('is-dragging');
+      stage.classList.remove('is-dragging');
+      cur.card.style.transform = '';         /* 交回 CSS：回弹，或归到新的深度 */
+      if (cur.moved) {
+        stage.__draggedAt = (window.performance || Date).now();
+        if (Math.abs(dx) > SEND_PX || Math.abs(dy) > SEND_PX) sendToBack(stage, cur.card);
+      }
+    }
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+
+    /* 刚拖过的那一下不许当点击 —— 否则"想换一张"变成了"进相册" */
+    stage.addEventListener('click', function (e) {
+      if ((window.performance || Date).now() - (stage.__draggedAt || -1e9) < CLICK_GRACE) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  }
+
   /* 墙这边**没有** resize 监听：版面由 CSS 的 auto-fill 自己响应视口。
      单册页那条在 wireDetail 里，管的是对齐行重排，别跟它搞混。 */
   if (wall) {
     rememberWallSpot(wall);
     restoreWallSpot();
+    eachStack(wireStack);
   } else {
     wireDetail(strip);
     wireBackLink();
