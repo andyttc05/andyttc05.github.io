@@ -4351,63 +4351,51 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
-   刷新（`.nav-reload`）：**只有巨字"逐字上浮"**，其余一切首帧即终态
+   刷新（`.nav-reload`）：**首帧即终态，巨字与"到达"共用同一套逐字弹出**
 
-   刷新没有跨文档过渡 ⇒ 新页首帧只能是页面自己的第一帧。所以只要入场起点"看不见"，
-   从正在看的完整页切过去就必然读到"内容先消失、再长回来"（`c44114a` 那版整屏发白）。
-   ⇒ 铁律：**`.nav-reload` 下任何东西的首帧都不许比终态暗一档**（不许 opacity 从 0 起、
-      不许被守卫藏住）；真要有动作，只能用**位移**表达。
+   第十九轮（2026-09-28）主人：「从其他页切换到主页，动画正常，但在主页 command+R /
+   点击 rain.meow 刷新页面，"时雨时猫"登场动画好奇怪，修复一下。」
+   「正常」的那一跳（点击进主页 / 冷加载）＝ 巨字 `hero-char-pop` 逐字弹出（与墙页标题同款）；
+   刷新那一跳却是第十七轮给 `.nav-reload` 定的「四字原地逐字上浮 10px」。两者观感差得很远 ——
+   逐字 rect 实测（1440×900，Chromium）：
+     · 冷加载 / 点击：四字从 `opacity 0 + scale 0.4` 弹起 —— 读作"字来了"；
+     · 刷新（本轮撤掉的那版）：**四字首帧就整行可见**，只是整行压低 10px，随后 1 号字先抬
+       10px、2 号再抬…… 错峰 0.1/0.25/0.4/0.55s × 0.55s ×
+       `cubic-bezier(0.34,1.56,0.64,1)`（过冲 ~1px），全程 ~1.15s。
+   一行**已经能读**的字先后抽高、再各自回弹一下 —— 它读起来不是"入场"，是"标题在抖"。
 
-   🔴 巨字这条是 2026-09-28 第十七轮定下的，前面已经退过三种写法，别再回头：
-     · 停在终态（`f8cadedb`）：四字一动不动 ⇒ 主人「你怎么又把首页的开场动画给移除了」；
-     · 已经可见再缩放（`c8696e7e` 的 scale 0.88→1.06→1）：实测单字绘制宽呼吸 22%，
-       字本来就在眼前、没有"进场"能解释缩放 ⇒ 主人「像在抽动/呼吸」；
-     · 从不可见逐字弹出（`bd9dda2`，即上一版）：刷新时**巨字整块消失、再一字一字长回来**
-       （CDP 屏幕流实测：标题区墨量 0→138ms 恒为 0.0%，154ms 才 1.4%，到 ~600ms 才满）。
-       它在"到达"那一跳好看是因为有 450ms 交叉淡化盖着，刷新没有那层遮盖 ⇒
-       主人「首页的登场动画有点奇怪」。
-     · 第十七轮：**四字始终可见（opacity 全程 1）、只做逐字上浮**（`hero-char-lift`，起点低
-       `--reload-lift`=10px；错峰仍走下面 `:nth-child(n)` 的 animation-delay）。实测刷新全程
-       墨量最低 28.2%（改前 0.0%）、无低谷、无缩放呼吸。
-       ⚠️ 嫌不够明显就调 `--reload-lift`，别去动 opacity / scale（那两条都退过）。
+   ⇒ 修法：撤掉刷新那条专用写法，让巨字在**所有**入口走同一套 `hero-char-pop`。
+     刷新与"到达"的唯一区别只剩"到达"那 450ms 跨文档交叉淡化（刷新没有）：
+       `html.nav-instant:not(.page-ready) .hero-title-char{opacity:0}`（上面那条宽守卫，
+       点击与刷新都在内）→ 开闸后 `html.page-ready .hero-title-char{animation:hero-char-pop}`
+       （第 1263 行，与 `.about-title-char` 同一套曲线与错峰延迟）。
+     这正是主人第十八轮那句「"时雨时猫"的登场动画和其他页面标题的登场动画一致」的字面要求。
 
-   第十八轮（2026-09-28）：**家具那套"轻落入位 8px"（`--reload-settle`）整条撤销** ——
-   hero 的入场编排已经删干净（见上面那段墓碑），墙页刷新时也没有"整块版面上浮"这回事，
-   主页照做才算「和其他页面一致」。⇒ 刷新这一跳全站都只剩"巨字逐字上浮"一个动作。
+   🔴 退过的五种写法都别再回头（前四条详见 2026-09-28 第十五~十八轮）：
+     · 停在终态（`f8cadedb`）＝「你怎么又把首页的开场动画给移除了」；
+     · 可见起点缩放 0.88→1.06→1（`c8696e7e` 的 `hero-char-pop-soft`）＝「像在抽动/呼吸」；
+     · 从不可见弹出 + hero 家具 `opacity:0` 编排（`bd9dda2`）＝整块版面先空掉再长回来；
+     · 可见起点逐字上浮 10px（`54c3dc4`，**本轮撤掉的就是它**）＝「登场动画好奇怪」；
+     · 全屏幕布盖住刷新（`95b9639e`）＝「为什么每次刷新都有加载动画」。
+     ⚠️ 再动刷新这一跳之前先读这五条：它们已经把"隐藏 / 缩放 / 位移 / 遮盖"四种手段试完了。
+
+   ⚠️ 铁律仍在（`c44114a` 的教训）：**除了巨字的弹出，`.nav-reload` 下任何东西的首帧都不许
+      比终态暗一档**（不许 opacity 从 0 起、不许被守卫藏住）。hero 家具 / 立绘 / CTA 自第十八轮
+      起首帧即终态，本轮只碰巨字，不含它们。
    ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。 */
-html.nav-reload { --reload-lift: 10px; }
 /* ⚠️ 这里单独留下的只有 `.hero-art-img`：它不是入场，是"图片还没到"的兜底
    （`opacity: 0` → `.is-loaded` 才 1，0.5s 淡入）。刷新这一跳没有遮盖 ⇒ 宁可让图直接
    实心，也不能让卡片先空着（已缓存图其实会在 script.js 跑起来那一刻立刻加 `.is-loaded`，
    但那已经晚于首帧了，实测能看见淡入）。 */
 html.nav-reload .hero .hero-art-img { opacity: 1; }
-/* 巨字：刷新时**逐字上浮进位置**（opacity 全程 1 ⇒ 不出现"洞"；不缩放 ⇒ 不抽动）。
-   ⚠️ 这里不与"到达"共用 `hero-char-pop` —— 那一套的 0% 帧是 scale 0.4 + opacity 0，压在
-      **静态页**上只看到四个字先整块消失、再从小长大（就是本轮要治的"奇怪"）。
-   ⚠️ 钉子的作用域是 `:not(.page-ready)`（不是 `.nav-reload` 全时段）：开闸后由
-      `animation-fill-mode: both` 接住 0% 帧（延迟期间也吃 backwards fill），两者逐字同值
-      （`translateY(var(--reload-lift))`）⇒ 开闸那一帧不跳。写成全时段也能跑，但万一将来
-      有谁再给巨字加一条 `animation: none`（如 `.album-back-instant`），全时段钉子会把标题
-      **永久压在低 10px 处**；`:not(.page-ready)` 的失败方向是"停在正确位置"，安全。
-   ⚠️ page-ready 那条**只写长写名**（animation-name/duration/…），绝不写 `animation:` 简写 ——
-      简写会把 animation-delay 重置成 0s 并压过下面 `:nth-child(n)` 的错峰延迟（(0,6,1) > (0,3,1)）。 */
-@keyframes hero-char-lift {
-  0%   { transform: translateY(var(--reload-lift)); }
-  100% { transform: translateY(0); }
-}
-html.nav-reload:not(.page-ready) .hero .hero-text .hero-title-char,
-html.nav-reload:not(.page-ready) .about-main .about-title-char {
-  opacity: 1;
-  animation-name: none;
-  transform: translateY(var(--reload-lift));
-}
-html.nav-reload.page-ready .hero .hero-text .hero-title-char,
-html.nav-reload.page-ready .about-main .about-title-char {
-  animation-name: hero-char-lift;
-  animation-duration: 0.55s;
-  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation-fill-mode: both;
-}
+/* 🗑️ 随上面那段一起撤掉的三样（别再复活）：
+     · `html.nav-reload { --reload-lift: 10px; }`
+     · `@keyframes hero-char-lift {...}`
+     · `html.nav-reload:not(.page-ready)/.page-ready` 下的 `.hero-title-char` + `.about-title-char`
+       两组"钉子 + 上浮"规则
+   它们只服务"刷新时巨字原地逐字上浮"，而那条已按主人要求删掉 ⇒ `.nav-reload` 现在
+   只剩 `.hero-art-img` 一条。删掉之后，墙页刷新时标题的入场也一并回到与"到达"同一套。 */
+
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
 

@@ -96,12 +96,40 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* 2026-09-28 第十九轮：品牌字（`.nav-brand` / `.nav-menu-brand` 的 rain.meow）多挂一条
+   **内联兜底源**（见下面的 `src:` 第二条）。
+
+   起因：主人「本地网页和云端网页的 rain.meow 字体怎么不一样，修复一下」。查下来两边**资源
+   逐字节相同**（woff2 的 sha256 一致、fonts.css/style.css 逐字节一致、同一台机器同一引擎截出的
+   导航条 PNG 逐字节相同）—— 差的是**能不能取到那个文件**：
+
+   · head 里四条 `<link rel=preload as=font crossorigin>` 在 `http(s):` 下同源、一切正常；
+   · 但**以 `file://` 打开本站**（双击 HTML / 部分应用内预览）时，`crossorigin` 预载成了
+     "origin null" 的 CORS 请求 → WebKit/Safari 拒绝，而且**失败会记在这条 URL 上**：随后
+     @font-face 去取同一个 URL 时复用那份失败 ⇒ 这一支面**整个取不到**，rain.meow 掉到后面的
+     `'Plex Serif FB'`（= `local('Georgia')`）：云端正体 vs 本地 Georgia，字宽 163.7 / 189.5，
+     一眼就看得出。实测（WebKit，`file://`，1440×900，`pages/__fonttest*.html` 那条 A/B）：
+       · 页面**不放** preload → 163.67（真面取到）
+       · 页面**放上**那四条 preload → 189.52（面取不到，掉 Georgia）
+     （Chromium 不受影响：它的预载失败不污染 @font-face，`file://` 也照样取得到，所以只在 Safari 露头。）
+
+   修法：补一条 `data:` 源 —— `src` 列表**按序回退**，先试文件，取不到才用内联那份。用子集而不是
+   整份 16 KB 的理由：这支面在站内**只有品牌字在用**（`--font-head` 的 italic 700），兜底只需覆盖
+   "rain.meow" 这 9 个字形。子集取自 Google Fonts 的 `text=` 接口（与 tools/display-font.py 同一
+   路子，官方子集）：**1472 B = 1964 B(base64)**。实测（Chromium + WebKit，`.nav-brand` 同款
+   34px / italic 700 / letter-spacing -0.5px）：整面与子集渲染的 rain.meow **逐像素相同**
+   （0 个不同像素；文本宽 163.672 / 163.664 两两相等）。
+   ⚠️ 品牌字串若哪天不叫 "rain.meow"，要按新串重取子集；漏取不会报错，只是坏环境下掉回 Georgia。
+   ⚠️ 子集只覆盖这 9 个字形 ⇒ `--font-head` 下的**其他拉丁文字**在坏环境里仍会掉到回退面（可接受，
+      主人反馈的只有品牌字这一处）。 */
+
 @font-face {
   font-family: 'IBM Plex Serif';
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url('../fonts/ibm-plex-serif-700-italic.latin.woff2') format('woff2');
+  src: url('../fonts/ibm-plex-serif-700-italic.latin.woff2') format('woff2'),
+       url('data:font/woff2;base64,d09GMgABAAAAAAXAAA4AAAAACkQAAAVtAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbgXwcLgZgAGwREAqIeIckCxgAATYCJAMsBCAFg14HIBtjCFEU84FMI2Xh/P3ggc9N3w+Bsp/WqXhm6lgnrnANE7eTmGdLJ341Pe0v5FUphivJL/AI/M8x06058nmJTvVv/RcRFJlXLXqcadF8gEcHNFC+W8yrzg5CCm4vFiOAeCq3hqCaEgAfbpdUogGuNu26+PENnT1lHOWPGzxtggX9T2WPkTd2+JQJeC+ynVdHmxO9GEEV7sDCSxz+8mJVrO6rq6oYyPZoVT8P6z6xXjT7oQ9KQd2b1Hel//561VX1D7f6h8RdCMpEoCCNRrM9uHChUyvuAr0a3gO8EnW/h7iyOVWoIp0FQlm67CahhbSzuOs0Swurz3Q+3U5IDKCZaASax+ty6x7S7orASKBSRo/u2KqrKUpiMlMX/z+DvkAUmIi1XKDFa6fRbEbYEV0aH6AAhk74qakk40LDpBqDGc5oJjKFmSl1vVLGP6jeq1dqu9qiNqp1ao1a4aTv+iGBCy+SZNxKkcTQOBAzYkkgpin9RwOyLk8ONvKmhMNfIHS9fGrJBF9yu6oZyWZWshGX4BliuGXAeiaijuM8cYzYvZJGyAiXDTX0H7orreMHNojo1szMjHUXz94MxZ44TmHu1h3Ssv2bbCLrA9YzEXUcx4hdO3WYyLGHtn/TNiKHjZgTanjIfmj3OXHnwlYRPSCtfYfsgHX8gK1oX1k6ZP85F+25sXNEfOvuSuu8iGZufDDe35wbM/uuFVFp3bVtv1/eTpWlQ/70o1cu3DFil+iedT7fzLYpK+rN7cEO+hip/nxrKPaktOPs3CiiR6T10LTtbeuIHK6ZV9FTIrZtG8Ij4Vzeun27pHXaeipjl13jWNVsmDJs9DXCxq1wmOwrwzKQlXXrA5N/3Lfprhk/Kr5i00/LPrHEaF6nd8dKHxi8Bdzl7LrNhaRk33XSGvpYJGxzeCWpari+OyHIRSeWS8/gKG2wdE9yOpLXh1NE2kbQLSl24buIiKkdp+cYg68gx2nYonGy8XXRES62iEu0sBeqqc7k40j/kCDqiSd7sMl85pO3sRYyCUxQsBm15OFVf3ZK9TUnmwUb26NuTjOoouHRD69loHWUtlF0ev1GNvk0h1eSqoarqJkwsYQqFsZNL1PAIiJ2ssIi8vfQ0/nL2DDIULjZ2eSUnOVSmcwEChqDa2XJ3Oxs/IoucimMpgIFjTHzTq/vykoMrgj5nrYSkk1RorLxKKwIxd6OElF/qcgc7mbHzOGVpKrh+t9IArpoePTda+np/GVsGGQo3BxsfMoucilWe1zsHyWi/kOROUJvnnsyEgz7TGYc3ifsKNyjAnfnZ/j4RvpoS+TahicYWQqmjkTOD4X8eafX12UlR1eE3CydteTeijMveL1j4fXnZjjfFS6qbHG6VSqH0YwjqBH8Lojc+nhLg2pGc1gYjRfSDJpp3Jq4JYJfSEJcqBsuGeBEIz7NRy+TpCl+krdALaLuQarKeKn8AQy6X8kU7MW7yK3jNjv+wJ0P98r+nfv3HO/HUwHrARUGih4n9/q/c/8G8H46+6sn+E4aZBIE4QoA6gg8yH3gQ6xBBssAFjQIWFAxEEQeAAvGAjoI61hRSAPpQIKSXrVnjfijhwzhfZcZp4DfG+G/CRHgRVAhCuzwRoiBIcwKPejUYZbQTQZDhB6qUUeTqD4Co5jGNCbRiOpUZypDmcJoJjGNMqox1TuOaj3kV0ZSne60owsdaUVXejCO4cyiN8Pxd4+gKq2YyDiG0ZFpDOaJ0Qwl+AucXDWRCZjUohr1zI0mTJtAN2dNkBsZG8NKNk5iCIdDU01r5Z3EbIYjmwlSxxo7o2kECM0UqK2GSUvGMY52oXHqg3c4Ux3mz2A4w6g2Mh1M/QB1j2asAQA=') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 

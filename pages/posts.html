@@ -85,14 +85,16 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
-      /* 刷新：不重播「到达」那套入场，只让巨字**逐字上浮**到位（见 style.css 的 .nav-reload 段）——
-         首帧即终态、只有巨字偏低 10px 且 opacity 全程 1（任何东西的首帧都不许比终态暗）。
-         hero 其余部分（文字 / 立绘 / CTA）自 2026-09-28 第十八轮起**首帧即终态**，
-         所以这一跳唯一会动的就是标题，主页与墙页刷新时同一套观感。
-         刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
-         切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
-         100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
-         「同一页再看一次」，不该重演组装。
+      /* 刷新：不重播「到达」那套**家具**入场，巨字则与"到达"共用同一套逐字弹出。
+         第十九轮（2026-09-28）主人：「从其他页切换到主页，动画正常，但在主页 command+R /
+         点击 rain.meow 刷新页面，"时雨时猫"登场动画好奇怪」⇒ 撤掉刷新专用的"巨字原地
+         逐字上浮 10px"，巨字回到 `hero-char-pop`（下面那条宽守卫 + style.css 的 .nav-reload 段）。
+         ⚠️ 刷新**没有**「到达」那 450ms 交叉淡化 ⇒ 首帧就是"标题还没弹出"的一页，随后
+            0.1~0.7s 里逐字长齐 —— 这正是主人点名的"正常"那一套；别再给刷新加遮盖 / 可见
+            起点 / 缩放（style.css 里列了五种退过的写法，改前先读）。
+         ⚠️ 家具（文字 / 立绘 / CTA）另论：自第十八轮起**首帧即终态**，不许 opacity 从 0 起 ——
+            否则就是主人 2026-09-27 说的「页面刷新还是有闪烁」（实测空页 100~170ms + 重建
+            ~600ms：把正在看的完整页切成空页再长回来）。所以这一跳唯一会变的就是标题。
          ⚠️ 只掐刷新这一条：`.nav-vt`（快照态）与冷加载那条路一个字不动。 */
       else de.classList.add('nav-reload');
     }
@@ -138,15 +140,15 @@
   }
 </style>
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-400-normal.latin.woff2" data-page-node-id="NLmhu38PNUwQKVngJenFTp">
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-700-italic.latin.woff2" data-page-node-id="KOmulYCPzwQdT2kjo5SpWr">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-serif-700-italic.latin.woff2" data-page-node-id="j16w5KpSKApMianNqt0f7t">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-sans-400-normal.latin.woff2" data-page-node-id="dzOtL5NkPZOkuYiRP6Ge5c">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../assets/fonts/ibm-plex-mono-400-normal.latin.woff2" data-page-node-id="UFNlyLOZmCnmL9leCPVQ9X">
 <!-- 本地自托管字体（第一百四十八批 2026-08-22）：woff2 本地化，中文走系统字体回退 -->
-<link rel="stylesheet" href="../assets/css/fonts.css?v=86c7d1781d" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
+<link rel="stylesheet" href="../assets/css/fonts.css?v=1aa8a077dd" data-page-node-id="VLJXUTiVYBNuunTAbZizGF">
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=feefafbb36" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=864ffe14cd" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
