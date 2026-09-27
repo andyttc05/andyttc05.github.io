@@ -4399,16 +4399,16 @@ html.album-back-instant.page-ready .hero-title-char { animation: none; }
    主人在同一句里要两件事：「你怎么又把首页的开场动画给移除了」+「屏闪问题仍在」。
    而刷新没有跨文档过渡 ⇒ 新页首帧只能是"入场初始态"（全透明）⇒ 从正在看的完整页切过去
    就是"内容先消失再长回来"（就是要治的闪）；"拿加载页盖住"又被读成"强制有个加载动画"。
-   ⇒ 两全的写法只有一个：**让入场的起点仍然可见**。
-     · 家具只"偏高 8px"、巨字只"小一号（0.88）" —— 全程没有任何东西消失，所以不可能闪；
-     · 归位走的是**原版的节奏**：家具仍走 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay，
-       巨字用 `hero-char-pop-soft`（同一条弹性曲线 cubic-bezier(.34,1.56,.64,1)、同一套 delay）
-       ⇒ 四个字照样逐个弹出、整块文字照样上浮，只是起点不透明。
-   代价：起点的位移/缩放幅度 = "切换那一帧跳多少"。想跳得更小 ⇒ 把 `--reload-settle` 调小、
-   把下面 `scale(0.88)` 往 1 靠；想更接近原版 ⇒ 往反方向调，**但永远别到 0**（那就是闪）。
-   ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。
-   ⚠️ 巨字那两条必须**留在文件末尾**（与宽守卫 `html.nav-instant:not(.page-ready)` 同特指度
-      (0,3,1)，靠源码顺序赢），别往中间挪。 */
+   ⇒ 两全的写法只有一个：**让入场的起点仍然可见**（全程没有任何东西消失 ⇒ 不可能闪）。
+   🔴 但"可见的起点"只能用**整体位移**，不能带**逐字缩放**：
+      上一版让四字各自 scale 0.88 → 1.06 → 1 错峰弹回，实测**单个字绘制宽 78.9 → 96.6 → 89.6px**
+      （放大 22%、整行 347.7 → 361.9 → 358.4）—— 字本来就已经看得见，没有"进场"来解释这个缩放，
+      人眼读到的就是"标题在抽动/呼吸"。主人 2026-09-28：「在首页刷新时你怎么又把首页的开场动画
+      好奇怪」。⇒ 巨字在刷新时**不做任何动画**（停在终态）。
+   所以刷新看得见的动作只剩一条：**整块 hero 文字轻轻上浮 8px**（`--reload-settle`），
+   节奏仍是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。嫌不够明显 ⇒ 调大 `--reload-settle`；
+   想彻底静默 ⇒ 设成 `0px`（＝"刷新什么都不播"，`c44114ad` 那版）。
+   ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。 */
 html.nav-reload { --reload-settle: 8px; }
 /* ⚠️ 这三条的作用域是 `.hero:not(.entered)`（不是 `:not(.page-ready)`），两个都是必需的：
    · 不带任何作用域 ⇒ 特指度 (0,3,1) 压过 `.hero.entered …` 的 `transform: none` (0,3,0)，
@@ -4431,19 +4431,18 @@ html.nav-reload .hero .hero-art-card {
 }
 html.nav-reload .hero .hero-art-img { opacity: 1; }
 html.nav-reload .hero:not(.entered) .hero-scroll { opacity: 1; transform: translateX(-50%) translateY(var(--reload-settle)); }
-/* 巨字：首帧就可见（**别让宽守卫把它压到 0** —— 藏一两帧就是"闪一下"），只是小一号；
-   page-ready 后按原节奏弹回原位（动画名换掉，delay 仍由 `html.page-ready ...:nth-child(n)` 那一批给）。 */
-html.nav-reload:not(.page-ready) .hero .hero-text .hero-title-char,
-html.nav-reload:not(.page-ready) .hero .hero-text .about-title-char,
-html.nav-reload:not(.page-ready) .about-main .about-title-char { opacity: 1; animation: none; transform: scale(0.88); }
-@keyframes hero-char-pop-soft {
-  0%   { transform: scale(0.88); opacity: 1; }
-  55%  { transform: scale(1.06); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-html.nav-reload.page-ready .hero .hero-text .hero-title-char,
-html.nav-reload.page-ready .hero .hero-text .about-title-char,
-html.nav-reload.page-ready .about-main .about-title-char { animation-name: hero-char-pop-soft; }
+/* 巨字：刷新时**停在终态、不做任何动画**（原因见上）。
+   ⚠️ 特指度必须 ≥ (0,4,1)（本条 = html + .nav-reload/.hero/.hero-text/.hero-title-char）：
+      它要压过 `html.page-ready .hero-title-char{animation:hero-char-pop…}`（(0,2,1)），
+      否则 page-ready 一到，四字会被 `hero-char-pop` 的前置帧（scale 0.4 / opacity 0）抓走 = 闪；
+      `opacity: 1` 同时压过宽守卫 `html.nav-instant:not(.page-ready) .hero-title-char`（(0,3,1)）。
+   ⚠️ 本条必须留在文件末尾（同特指度靠源码顺序赢），别往中间挪。 */
+html.nav-reload .hero .hero-text .hero-title-char,
+html.nav-reload .hero .hero-text .about-title-char,
+html.nav-reload .about-main .about-title-char { opacity: 1; animation: none; transform: scale(1); }
+   ⚠️ 这里用 `scale(1)` 而不是 `none`：终态（弹出动画 fill both 停在最后一帧）的 computed
+      就是 `matrix(1,0,0,1,0,0)`，而渐变文字带不带 transform 会走不同的光栅化/合成路径 ——
+      写成 `none` 会让"刷新后"与"点进来"的标题在亚像素上不完全一致。逐字对齐才是零回归。
 
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
