@@ -63,6 +63,11 @@
        ⚠️ `.nav-instant` 本身不能省：loader.css 靠它连第一帧都不画加载页。 */
     var navType = '';
     try { var ne = performance.getEntriesByType('navigation')[0]; navType = ne ? ne.type : ''; } catch (e) {}
+    /* 刷新一律按"站内"处理，不看 referrer / sessionStorage —— 刷新不可能是"外来首次访问"。
+       严格隐私（referrer 被剥 + sessionStorage 不可用）下原先会判成外来 ⇒ 走冷加载那条路：
+       入场重播（新页首帧是空页）+ 幕布可能上来把入场开头吃掉 ——
+       主人 2026-09-27「还是 safari 有问题 / 主页刷新登场动画会被吞」。 */
+    if (navType === 'reload') internal = true;
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
