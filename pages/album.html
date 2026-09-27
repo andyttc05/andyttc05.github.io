@@ -97,8 +97,10 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
-      /* 刷新：不重播「到达」那套入场，只让整块版面“轻落入位”（见 style.css 的 .nav-reload 段）——
-         家具首帧即终态（只偏高 8px）、巨字首帧**可见**（只偏低 10px）逐字上浮。
+      /* 刷新：不重播「到达」那套入场，只让巨字**逐字上浮**到位（见 style.css 的 .nav-reload 段）——
+         首帧即终态、只有巨字偏低 10px 且 opacity 全程 1（任何东西的首帧都不许比终态暗）。
+         hero 其余部分（文字 / 立绘 / CTA）自 2026-09-28 第十八轮起**首帧即终态**，
+         所以这一跳唯一会动的就是标题，主页与墙页刷新时同一套观感。
          刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
          切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
          100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
@@ -175,7 +177,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=ebd6415cf7">
+<link rel="stylesheet" href="../assets/css/style.css?v=feefafbb36">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，

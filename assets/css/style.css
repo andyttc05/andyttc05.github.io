@@ -1094,10 +1094,12 @@
     .nav-menu-links a .arrow { font-size: 16px; }
   }
 
-  /* === Hero 区：二次元风格 · 左内容 + 右立绘 · 电影感转场 ===
+  /* === Hero 区：二次元风格 · 左内容 + 右立绘 ===
      结构：.hero(网格) > .hero-text(左) + .hero-art(右)
      背景动效由全屏 canvas 提供（canvas-nest 粒子网络 + canvas-ribbons 几何飘带）
-     入场动画由 JS 在页面就绪时给 .hero 加 .entered 触发（错峰过渡） */
+     🔴 第十八轮（2026-09-28）删掉了「电影感入场转场」：hero **首帧即终态**，
+        登场只剩「时雨时猫」逐字弹出（与墙页标题同款）。`.entered` 还在但只管交互，
+        来龙去脉见下面那两段墓碑（`.hero-text > *` 那块 + `.nav-reload` 块）。 */
   .hero {
     position: relative;
     max-width: 1200px; margin: 0 auto;
@@ -1144,11 +1146,12 @@
      单独一条 keyframes 而不是复用 `hero-scroll-exit`：它的 transform 里带着自己的居中补偿
      `translateX(-50%)`（left:50% 的绝对定位），被 replace 成纯 translateY 会当场左移半个身位。
 
-     ⚠️ fill 只能 `forwards`，**不许改成 `both`**：`.hero-scroll` 的入场写在它自己身上
-     （opacity 0 + 下移 24px → `.entered` 淡入上浮、0.45s 错峰）。`both` 会让动画在 range
-     之前就套上 0% 关键帧（opacity 1 / ty 0）⇒ 入场那 0.7s 整段被吃掉，它一开页就杵在那儿。
-     `forwards` 只在滚过 range 之后保留终态、range 之前不写值，入场照旧（实测：从 .page-ready
-     起每 40ms 采一次 op，改前/改后同档 —— 两边都是 0.45s 前恒 0，之后 12 档爬到 1）。
+     ⚠️ fill 只能 `forwards`，**不许改成 `both`**。第十八轮之后理由换了（原来是"不许吃掉
+     `.hero-scroll` 的入场"）：现在这条 keyframes 的 0% 帧是 `translateX(-50%) translateY(0)`，
+     而 ≤768px 的元素基础态是 `transform: none` —— `both` 会在 range 之前就套上 0% 帧，
+     手机上提示条从"居中"跳到"左移半个身位"（正是下面 ⚠️ 那条老账），滚动一开始就抖一下。
+     `forwards` 只在滚过 range 之后保留终态、range 之前不写值，两端都不受影响
+     （桌面 0% 帧与基础态同值 ⇒ 进 range 那帧也不跳）。
 
      ⚠️ 这条 keyframes 里的 `translateX(-50%)` 是**照抄移动端的现状**，不是"设计如此"：
      ≤768px 时它本来就够不着自己的 `transform: none` —— `.hero.entered .hero-scroll`
@@ -1406,13 +1409,11 @@
     letter-spacing: 0.5px;
     text-decoration: none;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 24%, transparent);
-    /* 第一百二十四批：hero-cta 独立管理入场 + 交互 transition ——
-       从 .hero-text > * 通用入场规则中排除（见入场转场区块），
-       这里自带入场初始态（opacity 0 / translateY 14px，.entered 时恢复） */
-    opacity: 0;
-    transform: translateY(14px);
+    /* 第十八轮（2026-09-28）：入场已删 ⇒ 按钮首帧即终态（opacity 1 / 无位移），
+       不再自带初始态。留下的 transition 只服务交互：transform（:active 的按压缩放
+       scale(0.97)，键盘触发时走这条；鼠标悬停时下面那条 hover 规则会把它换 0.25s）、
+       background / box-shadow（hover 加深）。这条 transform 的时长**是原值**，别改。 */
     transition:
-      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
       transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
       background 0.25s ease,
       box-shadow 0.25s ease;
@@ -1540,21 +1541,12 @@
        桌面端 ~540px 宽卡片时实际 ≈ 18×20px（原值），移动端 78vw 卡片时
        自动缩到 ~9-11px，外露比例两端完全一致（2026-08-17 修） */
     --base-y: 4.5%; /* 常驻纵向外露量；矮视口媒体查询覆盖（1206/1210 行） */
-    transform: rotate(-2deg) translate(-3.3%, calc(var(--base-y) + 24px));
+    /* 常驻位置（第十八轮：入场的"再下移 24px + 透明"已删 ⇒ 这里就是首帧值）。
+       第一百二十八批（2026-08-21 主人"照片底衬加入登场动画"）加过的那条上浮，
+       随 hero 入场一起撤销 —— 理由见上面那段墓碑。衬底照旧常驻静态不动。 */
+    transform: rotate(-2deg) translate(-3.3%, var(--base-y));
     z-index: 0;
     pointer-events: none;
-    /* 入场（第一百二十八批 2026-08-21 主人"照片底衬加入登场动画"）：
-       初始再下移 24px + 透明，.entered 时淡入上浮回常驻位（先于照片 clip-path 擦入）；
-       衬底常驻静态不动（主人要求），只保留入场 opacity + transform 过渡 */
-    opacity: 0;
-    transition:
-      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-    transition-delay: 0.05s;
-  }
-  .hero.entered .hero-art-base {
-    opacity: 1;
-    transform: rotate(-2deg) translate(-3.3%, var(--base-y));
   }
   .hero-art-card {
     position: relative;
@@ -1583,10 +1575,14 @@
        图片上双击不会放大页面（与按压动画冲突，2026-08-17 修）。
        页面滚动不受影响（pan 保留） */
     touch-action: manipulation;
-    /* 入场 clip-path 过渡 + hover 过渡（transform 无 delay，clip-path 保留 0.1s） */
-    transition:
-      clip-path 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s,
-      transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+    /* clip-path 现在是个**静态满幅矩形**（第十八轮：斜切擦入已删，见上面那段墓碑）。
+       为什么保留它而不是删掉：① 它本来就是"终态该有的样子"（这一步以前由
+       `.hero.entered` 那条给）—— 留着，首帧/终态/线上现状三处的光栅化路径才一致
+       （本仓有过"带不带某个属性走不同绘制路径、观感差一档"的先例）；
+       ② 下面那批快照钉子已经撤掉，这个值就是全站唯一的一份。
+       transition 只剩 hover 的那条 transform（0.4s），clip-path 那条已随入场删除。 */
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0s;
   }
   /* hover：照片上浮 -6px + 微放大 1.02，衬底固定不动（主人要求衬底常驻静态），保持微歪不变 */
   .hero-art:hover .hero-art-card {
@@ -1617,43 +1613,37 @@
      mousedown 压扁 → mouseup 曲线回弹（back 缓动自带过冲）。
      --lift/--scale 变量由 hover 提供，动画读取同一套值保持一致 */
 
-  /* === 电影感入场转场（.entered 触发） ===
-     文字错峰渐入 + 立绘斜切擦入，全部 GPU 合成。
-     第一百二十四批：:not(.hero-cta) 排除按钮 —— 原 .hero-text > * 的
-     transform:none（(0,3,0)）压过 .hero-cta:hover/.active 的 transform，
-     导致按钮 hover 上浮/按压从未生效；hero-cta 入场由它自己的规则管理
-     （见 .hero-cta 定义 + 下方 .hero.entered .hero-text > .hero-cta 恢复规则） */
-  .hero-text > *:not(.hero-cta) {
-    opacity: 0;
-    transform: translateY(14px);
-    transition:
-      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .hero.entered .hero-text > *:not(.hero-cta) { opacity: 1; transform: none; }
-  /* hero-cta 独立入场恢复（初始态在 .hero-cta 定义里） */
-  .hero.entered .hero-text > .hero-cta { opacity: 1; transform: none; }
-  .hero.entered .hero-text > *:nth-child(1) { transition-delay: 0.05s; }
-  .hero.entered .hero-text > *:nth-child(2) { transition-delay: 0.13s; }
-  .hero.entered .hero-text > *:nth-child(3) { transition-delay: 0.21s; }
-  .hero.entered .hero-text > *:nth-child(4) { transition-delay: 0.29s; }
-  .hero.entered .hero-text > *:nth-child(5) { transition-delay: 0.37s; }
-  .hero-art-card {
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
-  }
-  .hero.entered .hero-art-card {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-  /* poster 图（现在静态图）始终 opacity 1，作为 LCP 元素；clip-path 是卡片遮罩，
-     静态图在卡片里一同淡入。
-     2026-08-17 晚：视频已移除，poster-first 双层结构改为单图结构
-     （hero-art-base 的 .entered 恢复规则在 base 定义内，见上） */
+  /* === 主页 hero 的入场编排：2026-09-28 第十八轮**整段删除**（墓碑，别再复活） ===
+     主人：「移除主页动画。设计新的登场动画，"时雨时猫"的登场动画和其他页面标题的
+     登场动画一致。」
+     删掉的是 `.entered` 触发的那一整套：文字错峰渐入（`.hero-text > *` opacity 0 +
+     translateY(14px)）、hero-cta 自带的那份同款初始态、立绘卡片斜切擦入（clip-path）、
+     底衬上浮 24px、底部提示淡入。它们让**同一个标题**在两处长得不一样：墙页
+     （关于/动态/项目/照片）的标题只有逐字弹出、其它一律首帧即终态，而主页的巨字却关在
+     一个 opacity 0 + translateY(14px) 的容器（`.hero-layer-1`）里 —— 于是「时雨时猫」
+     一边自己弹、一边整块往上飘，观感就是"整页在你眼前组装"（主人：「有点奇怪」）。
+     ⇒ 现在主页的登场 = 墙页的标题登场：**hero 首帧即终态，只有 `.hero-title-char`
+       逐字弹出**（`hero-char-pop`，delay 0.1/0.25/0.4/0.55s，与 `.about-title-char` 同款）。
+     ⚠️ `.entered` 这个类**还在**（script.js 照旧加，见那里的 heroEnter()）：它现在只管
+        交互选择器的作用域（`.hero.entered .hero-text > .hero-cta:hover` / `:active`，
+        以及矮视口媒体查询里同族那两条）—— **不再有任何"入场"语义**。别顺手删。
+        （第十八轮之前还有一条 `.nav-reload .hero:not(.entered)` 靠它定家具的入场起点，
+          那条随入场一起删了 —— 别再照旧名去恢复。）
+     ⚠️ 删完 hero 的"首帧 → 终态"差值为零，所以下面那批专门为入场准备的覆盖（`.nav-vt`
+        快照态、`.rm-navclick`、`.nav-reload` 的家俱段）一并撤了 —— 留着是死规则，
+        还会让下一个人改终态时踩坑。
+     ⚠️ 唯一留下的是 `.hero-art-img` 的 `opacity: 0 → .is-loaded`：那是"图片还没到"的
+        兜底（见它自己那条注释），不是登场。
+     🔴 想恢复先问主人：这不是"动画不好看"被删，是按他要求把主页与其它页统一。 */
+  /* poster 图（现在静态图）始终 opacity 1，作为 LCP 元素；图片本身走 .is-loaded 淡入。
+     2026-08-17 晚：视频已移除，poster-first 双层结构改为单图结构 */
 
   /* === Hero 底部滚动指示：SCROLL TO EXPLORE + 向下箭头 ===
      底部居中、纯展示不可点击（2026-08-17 取消点击功能）。
-     第一百二十八批（2026-08-21 主人"SCROLL TO EXPLORE 加入登场动画"）：
-     初始透明 + 下移 24px，.entered 时淡入上浮到位；
-     错峰 delay 0.45s（hero-text 五层 + CTA 之后，最后出现） */
+     第一百二十八批（2026-08-21 主人"SCROLL TO EXPLORE 加入登场动画"）加的那条
+     "初始透明 + 下移 24px、.entered 时淡入上浮"随 hero 入场一起撤销（第十八轮，
+     见上面那段墓碑）⇒ **首帧即终态**（opacity 1、不偏移）。
+     它剩下的唯一动作是"滚动离场"（上面的 hero-scroll-hint-exit）。 */
   .hero-scroll {
     position: absolute;
     /* 第五十八批：bottom 24→32px，让 SCROLL 跟 hero 底部距离更明确（"中心"位置）。
@@ -1661,7 +1651,7 @@
        hero 底部的独立视觉锚点 */
     bottom: 32px;
     left: 50%;
-    transform: translateX(-50%) translateY(24px);
+    transform: translateX(-50%) translateY(0);
     display: flex; align-items: center; gap: 10px;
     font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
     font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
@@ -1669,14 +1659,14 @@
     color: var(--color-muted);
     z-index: 1;
     cursor: default;
-    opacity: 0;
-    transition:
-      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-    transition-delay: 0.45s;
-  }
-  .hero.entered .hero-scroll {
     opacity: 1;
+  }
+  /* ⚠️ 这条**今天不再是入场**：值与上面基础态逐字相同（桌面端是 no-op）。它留着的
+     唯一作用是把下面 `@media (max-width: 768px)` 里那条 `.hero-scroll { transform: none }`
+     继续压住 —— 也就是"手机上提示条左移半个身位（390 宽实测 88.4px）"仍是**现状**的一部分
+     （见上面 hero-scroll-hint-exit 那段对 ≤768 的说明）。顺手删掉这条 = 顺手改了手机版，
+     那是另一件事，**先问主人**：要改就得连那条 keyframes 里的 translateX(-50%) 一起处理。 */
+  .hero.entered .hero-scroll {
     transform: translateX(-50%) translateY(0);
   }
   /* 箭头是装饰：不可选中复制（保留纯展示语义），让 "SCROLL TO EXPLORE" 文字可选。
@@ -4283,8 +4273,11 @@
       `:nth-child(n)` 只改 animation-delay，animation-name 已是 none，不影响。
    2) `.dy-item` / `.dy-day` 的 opacity:0 写在 **posts.html 的内联 <style>** 里
       （特指度 (0,1,0)），这里靠 (0,2,1) 压过，不依赖加载顺序。
-   3) hero 那几条是**照抄 .entered 的终态值**：`.hero-scroll` 要保留 translateX(-50%)
-      居中、`.hero-art-base` 要保留 rotate + --base-y 外露量 —— 改终态时一起改。
+   ⚠️ 第十八轮（2026-09-28）删掉了这里原来那批 hero 家俱钉子（`.hero-text > *` /
+   `.hero-cta` / `.hero-art-base` / `.hero-art-card` / `.hero-scroll`）：hero 的入场编排
+   整段撤销之后，它们的值就等于基础态本身，钉子成了死规则。**留下的是两样**：
+   ① 巨字 —— 它这一跳必须"空着"（见下面那条宽守卫）；② posts 的 `.dy-item` / `.dy-day`
+   —— 它们在页内仍在做渐入。
    --------------------------------------------------------------------------- */
 /* ⚠️ 巨字**不在这批钉子里**：它的"快照态"由文件末尾那条 `opacity: 0` 统一管
    （钉成可见会让 WebKit 在过渡起跑时露一下标题 —— 见那一段）。 */
@@ -4292,19 +4285,6 @@ html.nav-instant.nav-vt:not(.page-ready) .hero-title-char,
 html.nav-instant.nav-vt:not(.page-ready) .about-title-char { animation: none; }
 html.nav-instant.nav-vt:not(.page-ready) .dy-item,
 html.nav-instant.nav-vt:not(.page-ready) .dy-day { opacity: 1; transform: none; transition: none; }
-html.nav-instant.nav-vt:not(.page-ready) .hero .hero-text > *:not(.hero-cta),
-html.nav-instant.nav-vt:not(.page-ready) .hero .hero-text > .hero-cta { opacity: 1; transform: none; transition: none; }
-html.nav-instant.nav-vt:not(.page-ready) .hero .hero-art-base {
-  opacity: 1;
-  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
-  transition: none;
-}
-html.nav-instant.nav-vt:not(.page-ready) .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
-html.nav-instant.nav-vt:not(.page-ready) .hero .hero-scroll {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  transition: none;
-}
 
 /* 🔴 站内任何一跳（**点击与刷新都在内**）在 `page-ready` 之前，巨字**一个字都不许露面**。
    为什么点击也要算上（2026-09-27 第七轮后续 2，主人「切换页面/刷新页面时，四个字的登场动画
@@ -4314,7 +4294,8 @@ html.nav-instant.nav-vt:not(.page-ready) .hero .hero-scroll {
    Chromium 靠时序侥幸（它的 page-ready 落在首绘之前）；**WebKit 实测会露**：
    点击进首页时 +34ms 帧巨字 opacity=1（过渡层 new 才 0.05），+61ms 掉到 0 ⇒ 就是那一下闪。
    ⇒ 统一成"巨字在 page-ready 之前一律 opacity 0"：跨文档过渡拍到的快照里标题是空的，
-   过渡淡入的就是一页"标题待弹出"的版面（文字/立绘/CTA 的钉子照旧，白闪来源是它们）。
+   过渡淡入的就是一页"标题待弹出"的版面（第十八轮起 hero 其余部分首帧即终态，
+   所以这一跳唯一会变的就是标题本身）。
    ⚠️ 与那条 `animation: none` 的钉子**同特指度 (0,2,1)**，靠源码顺序（本块在文件末尾）压过它；
       而 `:not(.page-ready)` 与 `html.page-ready .hero-title-char` 互斥，不会打架。
    ⚠️ 卡住的兜底：万一 page-ready 一直不来，HTML 里 load+2s 那段会补上它（每页都有）。 */
@@ -4322,61 +4303,37 @@ html.nav-instant:not(.page-ready) .hero-title-char,
 html.nav-instant:not(.page-ready) .about-title-char { opacity: 0; }
 
 /* ---------------------------------------------------------------------------
-   站内**点击**跳转：不播入场编排（`html.rm-navclick`，由 loader.js 在开闸时加）
+   站内**点击**跳转：页面家当不淡入（`html.rm-navclick`，由 loader.js 在开闸时加）
 
-   为什么加这一条（2026-09-27 主人「切换页面时的闪屏」的第二半，也是主因）：
-   实测（`probe-domstate.js`，站内点击后 260ms 的 computed 值）——
-     hero 大图 opacity **0.15** · `.hero-art-base` **0.63** · `.hero-text > *` **0.63** ·
-     `.hero-title-char` **0.66**（scale 0.89）· `.hero-cta` / `.hero-scroll` **0**
-   也就是**整页正处在入场淡入的中途**。亮色下这就是主人看到的「整屏闪一下白」：
-   大片 hero 卡（#ebebeb 235）还在半透明，画布透上来。
-   ⇒ 根因是**幕布挡不住了**：跨文档 VT 期间"新文档 DOM 不参与合成"这条已经不成立
-     （见本文件上面那段 + `NAV-NOTES.md`「事实 B」），入场编排全程露在用户眼前。
-     入场本来就不该在**点击站内链接**时被看到（它设计上是压在幕布底下跑的），
-     所以这里把「页面家当」的淡入掐掉：页面直接到位，只保留 450ms 的那道 crossfade。
+   第十八轮（2026-09-28）之后这里**只剩一条规则**：它原来要掐的那批淡入（hero 文字 /
+   底板 / CTA / 底部提示 / 卡片擦入）已随 hero 入场整段撤销（见上面那段墓碑）。
+   经过：2026-09-27 主人「切换页面时的闪屏」，实测站内点击后 260ms 的 computed 值
+   （`probe-domstate.js`）—— hero 大图 opacity 0.15 · `.hero-art-base` 0.63 ·
+   `.hero-text > *` 0.63 · `.hero-title-char` 0.66（scale 0.89）· `.hero-cta` /
+   `.hero-scroll` 0 —— 整页正处在入场淡入的中途，亮色下就是「整屏闪一下白」。
+   根因是幕布挡不住：跨文档 VT 期间"新文档 DOM 不参与合成"这条不成立
+   （`NAV-NOTES.md`「事实 B」）。现在那批东西**本来就不再淡入**，问题从源头消失。
 
-   ⚠️ 三处判据，别改错：
-   1) **只掐"点击跳转"，不掐刷新/首次进入** —— `loader.js` 用
-      `performance.getEntriesByType('navigation').type !== 'reload'` 区分；
-      刷新时照旧播完整入场（主人 2026-09-15「登场动画怎么就没了」那条就是刷新的观感）。
-   2) **掐的是"淡入"，不是"动作"**：文字上浮、底板滑入照跑（只钉 opacity）；
-      **而巨字不在这批里** —— `.hero-title-char` / `.about-title-char` 的逐字弹出
-      点击与刷新同一套（见下面那条 🔴，2026-09-27 改坏过一次）。
-   3) 靠**特指度**压过 `.hero.entered …`（(0,3,0) 对 (0,3,1)）与
-      `html.page-ready .hero-title-char`（同为 (0,2,1)，靠源码顺序 —— 本块在文件末尾）⇒
-      **不要往中间插同级规则**，也不许改成 `!important`（那会连"减少动态效果"的降级一起吃掉）。
-   ⚠️ 卡片擦入（`.hero-art-card` 的 clip-path）**仍钉在终态**：部分擦入会漏出画布白；
-      图片（`.hero-art-img`）同理 —— 它原来靠 `.is-loaded` 做 0.4s 淡入，
-      在一片"还没有图"的大卡上那就是一片白，所以这里直接 opacity 1、不淡入。
+   唯一留下的是 `.hero-art-img`：它的 `opacity: 0 → .is-loaded` **不是入场**，是
+   "图片还没到"的兜底（0.5s 淡入）；而点击这一跳的新文档 DOM 参与合成 ⇒ 在一片
+   "还没有图"的大卡上就是一片白。所以这里直接钉成实心、不淡入。
+
+   ⚠️ 判据：**只掐"点击跳转"，不掐刷新与首次进入** —— `loader.js` 用
+      `performance.getEntriesByType('navigation').type !== 'reload'` 区分；刷新/冷加载
+      没有遮盖，宁可让图淡进去，也不能让卡片先空着。
+   ⚠️ **巨字的逐字弹出不在这批里**：`.hero-title-char` / `.about-title-char` 一律走
+      `html.page-ready … { animation: hero-char-pop }`（含淡入、含逐字延迟），
+      点击与刷新**同一套**。2026-09-27 晚些时候曾给它换过一条只走 scale 的同类曲线
+      （`rm-char-pop-scale`），被主人当场否掉：「每页4个大字的登场动画好奇怪。这不是
+      之前的设计」—— 巨字 80px，`hero-char-pop` 里那半段 opacity 才是"字出现"的读法，
+      只留 scale 就变成"四个小字各自胀大"。**要动它先问主人**。
    --------------------------------------------------------------------------- */
-/* ⚠️ **巨字的逐字弹出（`.hero-title-char` / `.about-title-char`）不在这批里** ——
-   2026-09-27 晚些时候改错过一次、被主人当场看出来「每页4个大字的登场动画好奇怪。
-   这不是之前的设计」：当时为了让标题也别淡入，给它换了条只走 scale 的同类曲线
-   （`rm-char-pop-scale`）。**那是错的** —— 巨字 80px，`hero-char-pop` 里那半段 opacity
-   才是"字出现"的读法；只留 scale 就变成"四个小字各自胀大"，逐字错开之后尤其怪。
-   ⇒ 巨字一律沿用 `html.page-ready …{ animation: hero-char-pop }`（含淡入、含逐字延迟），
-     点击与刷新**同一套**。要动它先问主人。
-   钉住的只是**页面家当**的淡入：动态页条目（`.dy-item`/`.dy-day`）、hero 文字与底板、
-   卡片擦入、hero 大图、底部提示 —— 它们才是"整屏发白"的来源。 */
 /* ⚠️ 这里原有 `html.rm-navclick .dy-item, .dy-day { opacity: 1 }` 一条，2026-09-27
    第四轮删掉：新机制里**打开那一刻在视口里的内容本来就是实心的**（属性类只由脚本给，
    且首帧只给"折线以下"的），所以"点击跳转看到半透明条目"这一路已经不可能发生。
    留着反而是个陷阱 —— 它 (0,2,0) 会把 `.rm-fade.rm-out` 的 opacity:0 压回去
    （同为 (0,2,0)，只靠源码顺序，谁挪一下都会静默坏掉）。 */
-html.rm-navclick .hero .hero-art-base {
-  opacity: 1;
-  /* ⚠️ 位移也一起钉（同一天同一处"奇怪移动"）：`.hero.entered .hero-art-base` 会让这块大板
-     再上浮 24px，而它此刻是全实心的（上一行钉着 opacity）⇒ 那 24px 是这批里最大的一处。
-     终态值必须与 `.hero.entered .hero-art-base`（第 1466 行）**逐字相同**，改那边要一起改。 */
-  transform: rotate(-2deg) translate(-3.3%, var(--base-y));
-}
-html.rm-navclick .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
 html.rm-navclick .hero .hero-art-img { opacity: 1; transition: none; }
-/* 底部提示只淡不滑的观感无所谓（16px 高），这里连居中一起钉死，免得它先掉半帧再归位 */
-html.rm-navclick .hero .hero-scroll {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
 
 /* 「← 全部相簿」回到墙那一次（`.album-back-instant`，由 photos.js 二号段加类）：
    **不播开场动画** —— 2026-09-22 主人「点击相册，然后放回所有相册页，不触发页面开场动画」。
@@ -4394,12 +4351,12 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
-   刷新（`.nav-reload`）：**整块版面无空洞地"轻落入位"**（家具 8px + 巨字逐字 10px）
+   刷新（`.nav-reload`）：**只有巨字"逐字上浮"**，其余一切首帧即终态
 
    刷新没有跨文档过渡 ⇒ 新页首帧只能是页面自己的第一帧。所以只要入场起点"看不见"，
    从正在看的完整页切过去就必然读到"内容先消失、再长回来"（`c44114a` 那版整屏发白）。
    ⇒ 铁律：**`.nav-reload` 下任何东西的首帧都不许比终态暗一档**（不许 opacity 从 0 起、
-      不许被守卫藏住）。入场只能用**位移**表达。
+      不许被守卫藏住）；真要有动作，只能用**位移**表达。
 
    🔴 巨字这条是 2026-09-28 第十七轮定下的，前面已经退过三种写法，别再回头：
      · 停在终态（`f8cadedb`）：四字一动不动 ⇒ 主人「你怎么又把首页的开场动画给移除了」；
@@ -4409,36 +4366,21 @@ html.album-back-instant.page-ready .hero-title-char { animation: none; }
        （CDP 屏幕流实测：标题区墨量 0→138ms 恒为 0.0%，154ms 才 1.4%，到 ~600ms 才满）。
        它在"到达"那一跳好看是因为有 450ms 交叉淡化盖着，刷新没有那层遮盖 ⇒
        主人「首页的登场动画有点奇怪」。
-     · 本轮：**四字始终可见（opacity 全程 1）、只做逐字上浮**（`hero-char-lift`，起点低
-       `--reload-lift`=10px，与家具那 8px 叠加成 18px；错峰仍走下面 `:nth-child(n)` 的
-       animation-delay）。实测刷新全程墨量最低 28.2%（改前 0.0%）、无低谷、无缩放呼吸。
+     · 第十七轮：**四字始终可见（opacity 全程 1）、只做逐字上浮**（`hero-char-lift`，起点低
+       `--reload-lift`=10px；错峰仍走下面 `:nth-child(n)` 的 animation-delay）。实测刷新全程
+       墨量最低 28.2%（改前 0.0%）、无低谷、无缩放呼吸。
        ⚠️ 嫌不够明显就调 `--reload-lift`，别去动 opacity / scale（那两条都退过）。
 
-   家具那几层仍从"已经看得见的位置"轻落：整块 hero 文字上浮 8px（`--reload-settle`），
-   节奏是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。
+   第十八轮（2026-09-28）：**家具那套"轻落入位 8px"（`--reload-settle`）整条撤销** ——
+   hero 的入场编排已经删干净（见上面那段墓碑），墙页刷新时也没有"整块版面上浮"这回事，
+   主页照做才算「和其他页面一致」。⇒ 刷新这一跳全站都只剩"巨字逐字上浮"一个动作。
    ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。 */
-html.nav-reload { --reload-settle: 8px; --reload-lift: 10px; }
-/* ⚠️ 这三条的作用域是 `.hero:not(.entered)`（不是 `:not(.page-ready)`），两个都是必需的：
-   · 不带任何作用域 ⇒ 特指度 (0,3,1) 压过 `.hero.entered …` 的 `transform: none` (0,3,0)，
-     家具永远停在"偏高 8px"、归位根本不发生（实测踩过）；
-   · 只写 `:not(.page-ready)` ⇒ 开闸那一帧它先失效、而 `.entered` 还没到 ⇒ 家具先**弹到基础态
-     的 14px**（提示弹到 24px）再过渡回来 —— 实测就是"先抖一下再归位"；
-   · 改用 `.hero:not(.entered)` ⇒ 一直按住到 script.js 加上 `.entered` 那一刻，交接无跳变。
-   立绘那几条**不能**跟着加：它们的 pinned 值就是终态，加了反而会在开闸瞬间掉回基础态（照片会消失）。 */
-html.nav-reload .hero:not(.entered) .hero-text > *:not(.hero-cta),
-html.nav-reload .hero:not(.entered) .hero-text > .hero-cta { opacity: 1; transform: translateY(var(--reload-settle)); }
-/* 立绘三层与底部提示的终态各自带位移/角度，必须逐字给回来（与 .rm-navclick 那批同值）。
-   它们**不参与**归位（照片原地不动最稳），只有底部提示跟家具一起"偏高"。
-   🔴 卡片那条不能漏（c0dc28a1 补过）：漏了 ⇒ 每次刷新立绘丢掉 -2° 微歪、整张还小一圈、hover 也失效
-   （上面那条共用的 `transform: none` 会把 `rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale))` 归零）。
-   ⚠️ 与它同特指度 (0,3,1)，靠源码顺序赢，**不许挪到前面**，也不许改 `!important`。 */
-html.nav-reload .hero .hero-art-base { opacity: 1; transform: rotate(-2deg) translate(-3.3%, var(--base-y)); }
-html.nav-reload .hero .hero-art-card {
-  transform: rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-}
+html.nav-reload { --reload-lift: 10px; }
+/* ⚠️ 这里单独留下的只有 `.hero-art-img`：它不是入场，是"图片还没到"的兜底
+   （`opacity: 0` → `.is-loaded` 才 1，0.5s 淡入）。刷新这一跳没有遮盖 ⇒ 宁可让图直接
+   实心，也不能让卡片先空着（已缓存图其实会在 script.js 跑起来那一刻立刻加 `.is-loaded`，
+   但那已经晚于首帧了，实测能看见淡入）。 */
 html.nav-reload .hero .hero-art-img { opacity: 1; }
-html.nav-reload .hero:not(.entered) .hero-scroll { opacity: 1; transform: translateX(-50%) translateY(var(--reload-settle)); }
 /* 巨字：刷新时**逐字上浮进位置**（opacity 全程 1 ⇒ 不出现"洞"；不缩放 ⇒ 不抽动）。
    ⚠️ 这里不与"到达"共用 `hero-char-pop` —— 那一套的 0% 帧是 scale 0.4 + opacity 0，压在
       **静态页**上只看到四个字先整块消失、再从小长大（就是本轮要治的"奇怪"）。
@@ -4469,10 +4411,13 @@ html.nav-reload.page-ready .about-main .about-title-char {
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
 
-   为什么需要：上面那批覆盖一失效，`.hero-text > *` 会从覆盖给的 opacity:1
-   **平滑过渡**回基础规则的 opacity:0（0.7s）；而 script.js 的 `.entered` 要等下一帧
-   rAF 才加 —— 等它加回来时元素已经从 1 淡到 0.98 了，整套"上浮 + 渐入"只剩几个
-   百分点（动画被自己吃掉）。所以先冻结过渡、强制 reflow 把初始态钉住，再解冻。
+   为什么需要（这条的原始理由已随第十八轮删除 hero 入场而消失，但它**仍然要留着**）：
+   加 `.page-ready` 的那一帧，巨字的两条规则同时换挡（宽守卫的 `opacity: 0` 失效、
+   `hero-char-pop` 生效）—— 这里先冻结过渡/动画、强制一次 reflow 让新样式落地，再解冻，
+   弹出才能从真正的 0% 帧起步（否则会被"已经生效的样式"吃掉开头几帧）。历史理由：
+   原先 `.hero-text > *` 会从覆盖给的 opacity:1 平滑过渡回基础规则的 opacity:0（0.7s），
+   而 script.js 的 `.entered` 要等下一帧 rAF —— 等它加回来时元素已经从 1 淡到 0.98，
+   整套"上浮 + 渐入"只剩几个百分点。
 
    通配符 + !important 看着粗暴，但三条保证它安全：
      · 只在同一个任务里加→删，不存在用户交互窗口；
