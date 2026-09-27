@@ -4413,9 +4413,25 @@ html.nav-reload .hero .hero-art-card,
 html.nav-reload .hero .hero-art-img,
 html.nav-reload .hero .hero-scroll { opacity: 1; transform: none; }
 /* 上面那条把 transform 归零只对了 `.hero-text > *`（它终态就是 none）；
-   立绘底座与底部提示的终态各自带位移，必须逐字给回来（与 .rm-navclick 那批同值）。 */
+   立绘底座、**立绘卡片**、底部提示的终态各自带位移/角度，必须逐字给回来（与 .rm-navclick 那批同值）。
+
+   🔴 卡片那一条是 2026-09-27 补的 —— 原版漏了 `.hero-art-card`，于是**每次刷新立绘都丢掉 -2° 的微歪**
+   （衬底那层还歪着）。实测线上刷新后 card 的 computed transform 是 `none`：
+     1440×900  包围盒 608.01×493.84（冷加载）→ 591.84×473.47（刷新）
+     390×844   312.49×253.81 → 304.19×243.34
+     375×667   159.23×129.33 → 155×124
+   照片变成「正着贴在一张歪掉的衬纸上」：左右/下缘那圈纸边成了楔形（左缘上宽下窄）、
+   整张图还小了一圈 ⇒ 主人「手机版 hero 图片怪怪的」。宽窄与主题无关，桌面一样中招。
+   终态值必须与 `.hero-art-card` 基础规则里那条
+   `rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale))` **逐字相同** ——
+   改那边要一起改；三个变量照读，所以 hover 的「上浮 6px + 放大 1.02」也才能继续生效。
+   ⚠️ 与上面那条共用的 `transform: none` 同特指度 (0,3,1)，靠源码顺序（本行在后面）赢，
+      所以**不许把这条挪到那条前面**，也不许改成 `!important`。 */
 html.nav-reload .hero .hero-art-base { transform: rotate(-2deg) translate(-3.3%, var(--base-y)); }
-html.nav-reload .hero .hero-art-card { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+html.nav-reload .hero .hero-art-card {
+  transform: rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
 html.nav-reload .hero .hero-scroll { transform: translateX(-50%) translateY(0); }
 /* 巨字也要首帧就可见：上面 `.nav-instant:not(.page-ready)` 那道宽守卫（第 8 轮）会把
    字先藏到 page-ready（实测 +24ms 藏、+53ms 才露 = 一两帧）—— 刷新时那四个字本来
