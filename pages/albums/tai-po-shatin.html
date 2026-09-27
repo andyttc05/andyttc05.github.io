@@ -67,6 +67,18 @@
       if (sessionStorage.getItem('rm-visited') === '1') internal = true;
       else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
     } catch (e) {}
+    /* ②b 存储兜底（2026-09-27）：上面 ② 在 Safari 会整段失效（sessionStorage 在本页 head 里
+       偶发抛错，本仓实测 12 次里 2 次），而 ① 对"地址栏重新回车 / 无 referrer 的自站再进"
+       也拿不到 —— 两条一起失效时，站内的一跳会被判成"外来首次访问"：加载页上来、入场重播
+       （主人「刷新时任何情况都强制有个白色底的加载动画 / 还在闪」）。
+       会话 Cookie 不跟着抛，且 Safari 封的是第三方 Cookie、第一方照常读写。
+       不设 Max-Age ⇒ 会话级，语义与 ② 一致（加载页只留给"会话的第一次进入"做品牌落地）。
+       ⚠️ 它比 sessionStorage 宽一档（同浏览器会话的**新标签页**也算"已看过"）—— 这是刻意的：
+       加载页是"会话的第一次进入"的语汇，不是"每个标签页的第一次"。 */
+    try {
+      if (/(?:^|;\s*)rm-visited=1/.test(document.cookie)) internal = true;
+      else if (!document.prerendering) document.cookie = 'rm-visited=1; path=/; SameSite=Lax';
+    } catch (e) {}
     /* ③ 跨文档过渡会「拍快照」的那一跳才需要把入场载体钉在终态（快照得拍到完整页）。
        刷新**没有**过渡 ⇒ 钉了只会让首屏先画一帧完整页、下一帧又回退到入场初始态重播
        —— 主人 2026-09-27「主页刷新时闪了一下 / 好奇怪」。所以钉子改由 `.nav-vt` 控制，刷新不给。
@@ -144,8 +156,8 @@
 <link rel="icon" type="image/svg+xml" href="../../assets/icons/favicon.svg">
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
-<link rel="stylesheet" href="../../assets/css/loader.css?v=8fdbbd6a8b">
-<link rel="stylesheet" href="../../assets/css/style.css?v=5e6b4f6595">
+<link rel="stylesheet" href="../../assets/css/loader.css?v=5ce8d862e9">
+<link rel="stylesheet" href="../../assets/css/style.css?v=18d989feb7">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
@@ -712,8 +724,8 @@
        DOM 自己就带着灯箱要的那份清单）。 -->
   <script src="../../assets/js/photos.js?v=c8990d046f" defer></script>
 
-  <script src="../../assets/js/loader.js?v=8da9a4885b" defer></script>
-  <script src="../../assets/js/script.js?v=acee9738f9" defer></script>
+  <script src="../../assets/js/loader.js?v=e21ce9cd02" defer></script>
+  <script src="../../assets/js/script.js?v=b6a6e7d36e" defer></script>
   <!-- Skills logo loop 双向引擎（第十批）：rAF 平滑 + hover 减速 + 动态复制份数 -->
   <!-- ⚠️ 为什么这段「兜底」住在 body 末尾（2026-09-25）：它是解析路径上**第一个
        排在样式表之后的内联脚本**，而内联经典脚本会等所有 pending 样式表加载完

@@ -48,29 +48,10 @@
    避免用户"滚了但页面没动"的错位感；就绪后移除（loader.js） */
 html.page-loading { overflow: hidden; }
 
-/* 站内导航不播加载页（2026-09-13）。<head> 内联脚本给 <html> 加了 .nav-instant ——
-   本文件是阻塞渲染的，所以 .nav-instant 与这条规则同时生效，
+/* 站内导航不播加载页（2026-09-13）。<head> 内联脚本按会话标记 rm-visited 给 <html> 加
+   .nav-instant —— 本文件是阻塞渲染的，所以 .nav-instant 与这条规则同时生效，
    加载页连第一帧都画不出来（不是"画了再赶紧淡出"）。 */
 html.nav-instant #pageLoader { display: none; }
-
-/* 刷新**例外**（2026-09-27 主人"修复不了吗 / 主页刷新登场动画会被吞"）：
-   刷新的 `.nav-instant.nav-reload` 不要这条路 —— 反过来，它必须让加载页**从首帧就画出来**。
-
-   为什么：刷新没有跨文档过渡（`@view-transition` 对 reload 不生效），所以新文档画出来的
-   第一帧就是"入场初始态"（家具全透明、巨字被守卫压到 0、打字机元素本来就是空的）——
-   **没有东西盖住它**。以前靠"就绪慢到 150ms 才放出加载页"来撞这一层遮盖，快网就绪早
-   ⇒ 加载页一次都没画过 ⇒ 空页直接暴露（主人说的"刷新闪了一下"）；
-   而它真被放出来时已经晚了，入场开头正好藏在它后面 ⇒（主人说的"登场动画会被吞"）。
-   现在这层遮盖是**确定的**：首帧就是加载页，入场在它后面组装，它淡出时把入场露出来。
-
-   ⚠️ 两条必须分开写，别合成一条：
-     · `display` 那条**不能带 `:not(.is-done)`** —— 淡出那一刻 `.is-done` 一加，`display:none`
-       （上面 `.nav-instant` 那条）就会回来接住，加载页是**硬消失**、没有淡出（实测：
-       page-ready 那一帧 display 直接变 none），入场等于被一刀切开。
-     · `opacity: 1` 那条**必须带 `:not(.is-done)`** —— 否则它比 `#pageLoader.is-done{opacity:0}`
-       特指度高，会把淡出按死、加载页永远揭不开。 */
-html.nav-reload #pageLoader { display: grid; }
-html.nav-reload #pageLoader:not(.is-done) { opacity: 1; }
 
 /* three-body loader（taozhiyy 同款，三体轨道动画）
    结构：外层容器整体匀速旋转（orbit），三个 .page-loader-dot 各占 30% 宽、
