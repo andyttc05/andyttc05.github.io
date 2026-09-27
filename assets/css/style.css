@@ -4369,9 +4369,18 @@ html.nav-anim-reset *::after {
   /* ---------------------------------------------------------------- ② 相簿墙 */
   .album-wall {
     display: grid;
-    /* 252px 下限：1200 容器下正好 4 列（跟参考站同节奏），窄屏自动降列 */
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 252px), 1fr));
-    gap: clamp(26px, 3vw, 38px) clamp(14px, 1.8vw, 22px);
+    /* 2026-09-27 主人「照片页电脑版现在一横有四张相簿，我想要一横有三张相簿」——
+       桌面固定三列。原来那条 `auto-fill minmax(min(100%,252px),1fr)` 在 1200 容器下
+       正好落 4 列；现在三列 ⇒ 封面 275.5 → 370（1440×900）。同批按新尺度把间距、
+       字号、竖向节奏、圆角重标（见下面各条，值都由 scratch/photos-wall-3col-2026-09-27/
+       的对照图选出来）。
+       ⚠️ 窄屏一个字节没动：本文件下方 @media (max-width:860px) 里的 148px auto-fill
+          与它后面三条字号覆写写在**后面**、同特异度靠源序获胜 ⇒ ≤860 保持原样。
+       ⚠️ 三列后 19 本 = 3×6 + 1：末行只坐 1 本、右侧空 798px。这是"三列"的算术结果
+          （1024/900 视口下本来就是同一形态，末行同样只坐 1 本），别去填那个洞 ——
+          `.album-tile--wide` 与墙尾收口块都被主人退过，见下面那条墓碑注释。 */
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(30px, 3vw, 44px) clamp(16px, 2vw, 30px);
   }
   .album-tile {
     display: block;
@@ -4391,7 +4400,9 @@ html.nav-anim-reset *::after {
   .album-tile-cover {
     position: relative;
     aspect-ratio: 4 / 3;
-    border-radius: 14px;
+    /* 圆角随封面尺度走：275px 封面上的 14px ≈ 370px 封面上的 18px。
+       下限仍是 14px ⇒ 窄屏逐像素不变。 */
+    border-radius: clamp(14px, 1.25vw, 18px);
     overflow: hidden;
     /* 空图片底板（2026-09-21）：--color-alt 兜底 + 极淡渐变 + 内圈细描边，
        三枚 token 在 :root 的 --plate-* 里（改底板只改那一处）。 */
@@ -4445,25 +4456,29 @@ html.nav-anim-reset *::after {
     backdrop-filter: blur(6px);
     color: #ffffff;
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    /* 下限 11.5px = 原值 ⇒ 窄屏逐像素不变（内边距与 10px 内缩刻意不动：那两样
+       和角标字号不成比例，跟着放大只会让角标显得胖） */
+    font-size: clamp(11.5px, 0.87vw, 12.5px);
     line-height: 1.35;
     letter-spacing: 0.03em;
     font-variant-numeric: tabular-nums;
   }
   .album-tile-name {
-    margin-top: 15px;
+    /* 封面变大 ⇒ 文字的"承距"和字号一起放大，否则 370px 的图下面挂 21px 的字
+       像是图与字不成比例（填充率从 53% 掉到 39%，见 scratch 里的对照图）。 */
+    margin-top: clamp(15px, 1.3vw, 20px);
     font-family: var(--font-head);
     font-weight: 700;
-    font-size: clamp(18px, 1.85vw, 21px);
+    font-size: clamp(19px, 1.75vw, 24px);
     line-height: 1.35;
     letter-spacing: 0.02em;
     color: var(--color-ink);
     transition: color 0.25s ease;
   }
   .album-tile-note {
-    margin-top: 7px;
+    margin-top: clamp(7px, 0.62vw, 10px);
     font-family: var(--font-body);
-    font-size: clamp(13.5px, 1.4vw, 14.5px);
+    font-size: clamp(14px, 1.35vw, 16px);
     line-height: 1.72;
     color: var(--color-muted);
   }
