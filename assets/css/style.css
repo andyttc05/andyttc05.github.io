@@ -4394,33 +4394,30 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
-   刷新（`.nav-reload`）：**家具从"已经看得见的位置"轻落；巨字照常从不可见逐字弹出**
+   刷新（`.nav-reload`）：**整块版面无空洞地"轻落入位"**（家具 8px + 巨字逐字 10px）
 
-   主人在同一句里要两件事：「你怎么又把首页的开场动画给移除了」+「屏闪问题仍在」。
-   而刷新没有跨文档过渡 ⇒ 新页首帧只能是"入场初始态"（全透明）⇒ 从正在看的完整页切过去
-   就是"内容先消失再长回来"（就是要治的闪）；"拿加载页盖住"又被读成"强制有个加载动画"。
-   ⇒ 两全的写法只有一个：**让家具的起点仍然可见**（家具全程不消失 ⇒ 不可能整屏发白）。
+   刷新没有跨文档过渡 ⇒ 新页首帧只能是页面自己的第一帧。所以只要入场起点"看不见"，
+   从正在看的完整页切过去就必然读到"内容先消失、再长回来"（`c44114a` 那版整屏发白）。
+   ⇒ 铁律：**`.nav-reload` 下任何东西的首帧都不许比终态暗一档**（不许 opacity 从 0 起、
+      不许被守卫藏住）。入场只能用**位移**表达。
 
-   🔴 巨字例外（2026-09-28 主人「在首页刷新页面，首页的登场动画有问题；在其他页面切换到首页
-      就正常」）：巨字**必须和"到达"（点击 / 冷加载）一样、从不可见逐字弹出**
-      （`hero-char-pop`：scale 0.4 + opacity 0 → 1.15 → 1），否则四字一动不动、整段开场
-      就只剩家具那 8px ⇒ 主人读作"登场动画没播 / 有问题"。这里已经把"可见起点"的两种写法
-      都退过一遍：
-        · 停在终态（`f8cadedb`）：四字不动 ⇒ 「登场动画有问题」（就是本轮）；
-        · 已经可见再缩放（`c8696e7e` 的 `hero-char-pop-soft` scale 0.88→1.06→1）：实测单字
-          绘制宽 78.9 → 96.6 → 89.6px（放大 22%），字本来就在眼前、没有"进场"解释缩放 ⇒
-          主人读作「字在抽动/呼吸」（2026-09-28 第十五轮）。
-      而"从不可见弹出来"天生有"到达"的解释，且巨字在"到达"那一跳此前也一直是不可见的
-      （宽守卫 `html.nav-instant:not(.page-ready) .hero-title-char{opacity:0}` —— 跨文档快照里
-      标题就是空的、点进来才逐字弹出），所以刷新照抄这一套，观感与点击完全一致。
-      ⚠️ 因此下面**不再有巨字的 pinned 规则**：它由宽守卫（page-ready 前 opacity 0）+ 
-         `html.page-ready .hero-title-char{animation:hero-char-pop…}`（含淡入 + 逐字延迟）接管。
-         这也回到本文件上面 rm-navclick 那段写的约定：「巨字…点击与刷新**同一套**」。
+   🔴 巨字这条是 2026-09-28 第十七轮定下的，前面已经退过三种写法，别再回头：
+     · 停在终态（`f8cadedb`）：四字一动不动 ⇒ 主人「你怎么又把首页的开场动画给移除了」；
+     · 已经可见再缩放（`c8696e7e` 的 scale 0.88→1.06→1）：实测单字绘制宽呼吸 22%，
+       字本来就在眼前、没有"进场"能解释缩放 ⇒ 主人「像在抽动/呼吸」；
+     · 从不可见逐字弹出（`bd9dda2`，即上一版）：刷新时**巨字整块消失、再一字一字长回来**
+       （CDP 屏幕流实测：标题区墨量 0→138ms 恒为 0.0%，154ms 才 1.4%，到 ~600ms 才满）。
+       它在"到达"那一跳好看是因为有 450ms 交叉淡化盖着，刷新没有那层遮盖 ⇒
+       主人「首页的登场动画有点奇怪」。
+     · 本轮：**四字始终可见（opacity 全程 1）、只做逐字上浮**（`hero-char-lift`，起点低
+       `--reload-lift`=10px，与家具那 8px 叠加成 18px；错峰仍走下面 `:nth-child(n)` 的
+       animation-delay）。实测刷新全程墨量最低 28.2%（改前 0.0%）、无低谷、无缩放呼吸。
+       ⚠️ 嫌不够明显就调 `--reload-lift`，别去动 opacity / scale（那两条都退过）。
 
-   家具那几层仍从"已经看得见的位置"起步：**整块 hero 文字轻轻上浮 8px**（`--reload-settle`），
-   节奏仍是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。嫌不够明显 ⇒ 调大 `--reload-settle`。
+   家具那几层仍从"已经看得见的位置"轻落：整块 hero 文字上浮 8px（`--reload-settle`），
+   节奏是 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay。
    ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。 */
-html.nav-reload { --reload-settle: 8px; }
+html.nav-reload { --reload-settle: 8px; --reload-lift: 10px; }
 /* ⚠️ 这三条的作用域是 `.hero:not(.entered)`（不是 `:not(.page-ready)`），两个都是必需的：
    · 不带任何作用域 ⇒ 特指度 (0,3,1) 压过 `.hero.entered …` 的 `transform: none` (0,3,0)，
      家具永远停在"偏高 8px"、归位根本不发生（实测踩过）；
@@ -4442,12 +4439,33 @@ html.nav-reload .hero .hero-art-card {
 }
 html.nav-reload .hero .hero-art-img { opacity: 1; }
 html.nav-reload .hero:not(.entered) .hero-scroll { opacity: 1; transform: translateX(-50%) translateY(var(--reload-settle)); }
-/* 🗑️ 巨字这里原有三条 pinned 规则（`html.nav-reload … .hero-title-char / .about-title-char
-   { opacity: 1; animation: none; transform: scale(1) }`，`f8cadedb` 那版）—— 2026-09-28 已删。
-   它把刷新时的四字钉死在终态 ⇒ 主人「在首页刷新页面，首页的登场动画有问题」。
-   刷新现在和"到达"共用 `html.page-ready .hero-title-char{animation:hero-char-pop}`，
-   由宽守卫保证 page-ready 之前不可见。别再把它钉回来。 */
-
+/* 巨字：刷新时**逐字上浮进位置**（opacity 全程 1 ⇒ 不出现"洞"；不缩放 ⇒ 不抽动）。
+   ⚠️ 这里不与"到达"共用 `hero-char-pop` —— 那一套的 0% 帧是 scale 0.4 + opacity 0，压在
+      **静态页**上只看到四个字先整块消失、再从小长大（就是本轮要治的"奇怪"）。
+   ⚠️ 钉子的作用域是 `:not(.page-ready)`（不是 `.nav-reload` 全时段）：开闸后由
+      `animation-fill-mode: both` 接住 0% 帧（延迟期间也吃 backwards fill），两者逐字同值
+      （`translateY(var(--reload-lift))`）⇒ 开闸那一帧不跳。写成全时段也能跑，但万一将来
+      有谁再给巨字加一条 `animation: none`（如 `.album-back-instant`），全时段钉子会把标题
+      **永久压在低 10px 处**；`:not(.page-ready)` 的失败方向是"停在正确位置"，安全。
+   ⚠️ page-ready 那条**只写长写名**（animation-name/duration/…），绝不写 `animation:` 简写 ——
+      简写会把 animation-delay 重置成 0s 并压过下面 `:nth-child(n)` 的错峰延迟（(0,6,1) > (0,3,1)）。 */
+@keyframes hero-char-lift {
+  0%   { transform: translateY(var(--reload-lift)); }
+  100% { transform: translateY(0); }
+}
+html.nav-reload:not(.page-ready) .hero .hero-text .hero-title-char,
+html.nav-reload:not(.page-ready) .about-main .about-title-char {
+  opacity: 1;
+  animation-name: none;
+  transform: translateY(var(--reload-lift));
+}
+html.nav-reload.page-ready .hero .hero-text .hero-title-char,
+html.nav-reload.page-ready .about-main .about-title-char {
+  animation-name: hero-char-lift;
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: both;
+}
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）
 

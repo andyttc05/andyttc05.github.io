@@ -85,7 +85,8 @@
     if (internal) {
       de.classList.add('nav-instant');
       if (navType !== 'reload') de.classList.add('nav-vt');
-      /* 刷新：不重播入场（家具 + 巨字首帧即终态，见 style.css 的 .nav-reload 那段）。
+      /* 刷新：不重播「到达」那套入场，只让整块版面“轻落入位”（见 style.css 的 .nav-reload 段）——
+         家具首帧即终态（只偏高 8px）、巨字首帧**可见**（只偏低 10px）逐字上浮。
          刷新没有跨文档过渡，新页首帧若从入场初始态起步，就是从「你正在看的完整页」
          切成一张空页再长回来 —— 主人 2026-09-27「页面刷新还是有闪烁」，实测空页
          100~170ms + 重建 ~600ms。入场是「到达」的语汇（冷加载 / 站内点击），刷新是
@@ -146,7 +147,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=d2a27cdd8b" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=ebd6415cf7" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 
