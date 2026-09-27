@@ -48,6 +48,8 @@
   /* 导航类型：navigate / reload / back_forward（bfcache 恢复会被 pageshow 单独处理） */
   var navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
   var navType = navEntry ? navEntry.type : 'navigate';
+  /* 刷新：走"到达"那条路（见下面 RELOAD_FLOOR_MS 与 loader.css 的 `html.nav-reload` 那段） */
+  var isReload = navType === 'reload';
   /* 网络档位：2g/slow-2g = 慢网 */
   var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   var effType = conn && conn.effectiveType ? conn.effectiveType : '4g';
@@ -64,6 +66,11 @@
   var MIN_VISIBLE_MS = 400;          /* 放出来之后至少要停留这么久（**从放出来那刻起算**，防一闪） */
   var MIN_SHOW_MS = seen ? 450 : 900; /* 品牌落地停留：首访 900 / 回访 450（仅在已经放出来时生效） */
   var MAX_WAIT_MS = slowNet ? 12000 : 6000; /* 兜底上限：快网 6s / 慢网 12s */
+  /* 刷新：加载页**从首帧就在画**（loader.css 强制），这里只要保证它别一闪而过 ——
+     它从首帧起算的最小停留。刻意远小于冷加载的 450/900：刷新是"同一页再看一次"，
+     遮盖只需要长到"看得出这是一层，不是闪了一下"，随后 450ms 淡出交给入场（与站内
+     点击的交叉淡化同长，两边的入场观感对齐）。⛔ 别拿它去改 MIN_SHOW_MS。 */
+  var RELOAD_FLOOR_MS = 300;
 
   /* 站内导航：加载页不播（loader.css 的 `html.nav-instant #pageLoader{display:none}`，
      连第一帧都画不出），但 **.page-ready 不能立刻加**。
@@ -76,8 +83,12 @@
      （实测它只比 pagereveal 晚 2ms —— 事件处理器在拍摄前跑、ready 在拍摄后 resolve）。
      而且过渡期间新文档的 DOM 不参与合成（实测：把 nav 涂红，过渡全程红色占比 0.00%），
      所以在这里把 DOM 倒回入场初始态，用户完全看不见。
-     时序与首访对齐：加载页淡出 450ms = 幕布 450ms，两种进入方式观感一致（见 style.css）。 */
-  if (html.classList.contains('nav-instant')) { navGate(); return; }
+     时序与首访对齐：加载页淡出 450ms = 幕布 450ms，两种进入方式观感一致（见 style.css）。
+
+     ⚠️ 刷新（`isReload`）**不进这里**：它要的不是"连第一帧都不画"，而是反过来 ——
+     加载页必须从首帧就画出来盖住组装过程，入场照播（2026-09-27 主人"登场动画会被吞"）。
+     所以这一条要排掉刷新，让它往下走正常的加载页流程。 */
+  if (html.classList.contains('nav-instant') && !isReload) { navGate(); return; }
 
   function navGate() {
     var opened = false;
@@ -136,7 +147,9 @@
     setTimeout(open, 350);
   }
 
-  html.classList.add('page-loading'); /* 锁滚动（style.css: html.page-loading overflow hidden） */
+  /* 锁滚动：刷新不锁 —— 它在浏览器还原滚动位置的那一瞬本来就锁着，容易把落点带歪；
+     而且加载页是不透明的，盖着的时候用户也看不见背后。⛔ 别顺手让它跟别的路径一致。 */
+  if (!isReload) html.classList.add('page-loading'); /* style.css: html.page-loading overflow hidden */
 
   /* 加载页的"出现"由这里决定（loader.css 里 #pageLoader:not(.is-shown){opacity:0}）——
      2026-09-15 主人"刷新页面时会闪"。原来加载页一进 DOM 就可见，于是两条快路径
@@ -150,12 +163,16 @@
         第一帧，"就绪快就直接摘掉"那条路根本走不到。**决定用户看不看得见的是放出来的时机。**
      顺带把闸门失效也兜住了：就算 loader.css 被缓存成没有 `html.nav-instant` 那条规则的旧版，
      站内导航页也永远走不到这行（上面的 navGate 提前 return），加载页照样画不出来。 */
-  var shown = false;
-  var revealTimer = setTimeout(function () {
-    if (done) return;
-    shown = true;
-    loader.classList.add('is-shown');
-  }, REVEAL_AFTER_MS);
+  var shown = isReload; /* 刷新：加载页由 loader.css 从首帧就画出来 ⇒ 这里直接按"已经放出来"算，
+                           否则会走 `!shown` 的"硬移除"那条路（把还在画着的加载页一帧摘掉）。 */
+  var revealTimer = 0;
+  if (!isReload) {
+    revealTimer = setTimeout(function () {
+      if (done) return;
+      shown = true;
+      loader.classList.add('is-shown');
+    }, REVEAL_AFTER_MS);
+  }
 
   function release(skipFade) {
     if (done) return;
@@ -204,8 +221,10 @@
        `load` 又永远晚于第一帧，所以那条快路径在实践中从没走到过（详见下面那段注释）。 */
     if (!shown) { release(true); return; }
     /* 已经放出来了：既要够"品牌落地"的停留，也至少要 MIN_VISIBLE_MS
-       —— 后者从**放出来那刻**起算，否则「到点刚放出来、下一步就绪」会得到一闪即走。 */
-    var floor = Math.max(MIN_SHOW_MS, REVEAL_AFTER_MS + MIN_VISIBLE_MS);
+       —— 后者从**放出来那刻**起算，否则「到点刚放出来、下一步就绪」会得到一闪即走。
+       刷新那条路走 RELOAD_FLOOR_MS：它从首帧就在画，只要别一闪而过，随后立刻淡出
+       （淡出的那 450ms 正好是入场在播放 —— 与站内点击的交叉淡化同一套时序）。 */
+    var floor = isReload ? RELOAD_FLOOR_MS : Math.max(MIN_SHOW_MS, REVEAL_AFTER_MS + MIN_VISIBLE_MS);
     var rest = Math.max(0, floor - elapsed);
     setTimeout(function () { release(false); }, rest);
   }).catch(function () {

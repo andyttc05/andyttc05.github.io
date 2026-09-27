@@ -851,14 +851,10 @@
         var PAUSE_BEFORE = 800;  // 删完到下一句停顿
         var li = 0, ci = 0, deleting = false;
 
-        /* 刷新（`.nav-reload`）：首帧就把第一句整句画出来 ——
-           否则那句会先在你眼前清空、再逐字长回来，也是一下闪（2026-09-27）。
-           状态接成"刚打完"：下一次 tick 把 ci 推到 len 后进 PAUSE_AFTER 停顿，
-           之后照常删 → 下一句。循环本身一个字没动。 */
-        if (document.documentElement.classList.contains('nav-reload')) {
-          typeEl.textContent = LINES[0];
-          ci = LINES[0].length - 1;
-        }
+        /* ⚠️ 这里原先有一条"刷新（.nav-reload）时首帧就把第一句整句画出来"——
+           那是上一版"刷新不重播入场"的配套，2026-09-27 已撤：刷新现在照播入场
+           （打字机就该从空开始逐字长出来），空页那一段由加载页盖住（assets/css/loader.css
+           的 `html.nav-reload #pageLoader`）。⛔ 别再加回来。 */
 
         function tick() {
           var line = LINES[li];
