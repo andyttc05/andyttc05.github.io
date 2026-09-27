@@ -4278,6 +4278,8 @@
    3) hero 那几条是**照抄 .entered 的终态值**：`.hero-scroll` 要保留 translateX(-50%)
       居中、`.hero-art-base` 要保留 rotate + --base-y 外露量 —— 改终态时一起改。
    --------------------------------------------------------------------------- */
+/* ⚠️ 巨字**不在这批钉子里**：它的"快照态"由文件末尾那条 `opacity: 0` 统一管
+   （钉成可见会让 WebKit 在过渡起跑时露一下标题 —— 见那一段）。 */
 html.nav-instant.nav-vt:not(.page-ready) .hero-title-char,
 html.nav-instant.nav-vt:not(.page-ready) .about-title-char { animation: none; }
 html.nav-instant.nav-vt:not(.page-ready) .dy-item,
@@ -4296,15 +4298,20 @@ html.nav-instant.nav-vt:not(.page-ready) .hero .hero-scroll {
   transition: none;
 }
 
-/* 刷新那一跳（`.nav-instant` 但**没有** `.nav-vt`）：没有快照可拍 ⇒ 一个钉子都不留，
-   首屏必须直接画成**入场初始态**。少这一条时首屏会先画一帧"完整页"
-   （巨字的基础态是静态可见，见第 1195 行 `animation: none`），下一帧再回退重播
-   ⇒ 主人 2026-09-27「主页刷新时闪了一下」。
-   ⚠️ 只需要补**巨字**这一条：文字层 / 立绘 / CTA / 底部提示的基础态本来就是不可见，
-   只有巨字为了「关脚本全显」把基础态写成"静态可见"。
+/* 🔴 站内任何一跳（**点击与刷新都在内**）在 `page-ready` 之前，巨字**一个字都不许露面**。
+   为什么点击也要算上（2026-09-27 第七轮后续 2，主人「切换页面/刷新页面时，四个字的登场动画
+   出现闪烁」）：快照态那批钉子会把巨字钉在**终态（可见）**，为的是让跨文档过渡拍到完整页；
+   但巨字是**唯一基础态就可见**的入场载体（第 1195 行 `animation: none`，为「关脚本全显」），
+   于是「钉住可见 → page-ready 一到掉到 0 再逐字弹出」中间那段就成了"先露一下、再消失重播"。
+   Chromium 靠时序侥幸（它的 page-ready 落在首绘之前）；**WebKit 实测会露**：
+   点击进首页时 +34ms 帧巨字 opacity=1（过渡层 new 才 0.05），+61ms 掉到 0 ⇒ 就是那一下闪。
+   ⇒ 统一成"巨字在 page-ready 之前一律 opacity 0"：跨文档过渡拍到的快照里标题是空的，
+   过渡淡入的就是一页"标题待弹出"的版面（文字/立绘/CTA 的钉子照旧，白闪来源是它们）。
+   ⚠️ 与那条 `animation: none` 的钉子**同特指度 (0,2,1)**，靠源码顺序（本块在文件末尾）压过它；
+      而 `:not(.page-ready)` 与 `html.page-ready .hero-title-char` 互斥，不会打架。
    ⚠️ 卡住的兜底：万一 page-ready 一直不来，HTML 里 load+2s 那段会补上它（每页都有）。 */
-html.nav-instant:not(.nav-vt):not(.page-ready) .hero-title-char,
-html.nav-instant:not(.nav-vt):not(.page-ready) .about-title-char { opacity: 0; }
+html.nav-instant:not(.page-ready) .hero-title-char,
+html.nav-instant:not(.page-ready) .about-title-char { opacity: 0; }
 
 /* ---------------------------------------------------------------------------
    站内**点击**跳转：不播入场编排（`html.rm-navclick`，由 loader.js 在开闸时加）
