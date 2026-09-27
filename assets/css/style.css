@@ -1674,6 +1674,31 @@
     .hero-scroll { bottom: 20px; }
   }
 
+  /* === 矮视口「紧凑档」（2026-09-27 主人：「修复一下，我看不到 SCROLL TO EXPLORE↓ 动画」）===
+     症状不是动画坏了，是**提示条根本不在首屏里**：它钉在 `.hero` 底部（bottom 24/32px），
+     而 `.hero` 的高度是**内容撑的** —— 窗口矮了 hero 不会缩，提示条就落到折线以下。
+     实测（74 档矩阵，scratch/hero-scroll-exit-2026-09-27/grid.js）：1440 宽要 ≥676 才看得到、
+     390 宽要 ≥845、500~768 宽要 ≥900。窗口只要矮一点，它就整条在画面外 —— 主人看到的正是这个。
+
+     ⇒ 这一档把**文字那一摞**按视口高收一遍（用 svh 而不是 px：矮的窗口收得多、高的收得少），
+       把整屏塞回一屏内。`.hero` 的 min-height 仍是 100svh − 导航，所以**收多了也不会露馅**：
+       内容顶部对齐、多出来的空间自然堆在提示条上方（高窗口本来就是这个观感 —— 1440×900 下
+       文字底部离提示条就有 200px 空气）。
+
+     ⚠️ 三条边界：
+     1) 窗口**高**于本档（≥701）**一个像素都不改** —— 900/844 这些"本来就正常"的尺寸逐项不变（见提交里的 A/B）。
+     2) 收的是**间距与字号**，不动 hero 的 min-height、不动提示条自己的 bottom（那是上一档在管的）。
+     3) 手机档另写一条（下面的 max-width 768px 块）—— 单列布局的撑破点是"立绘"，不是标题。 */
+  @media (min-width: 769px) and (max-height: 700px) {
+    .hero { padding-top: 4.4svh; padding-bottom: 3.6svh; }
+    .hero-title-text { font-size: min(clamp(44px, 7vw, 96px), 10.2svh); }
+    .hero-layer-2 { margin-top: 4.4svh; }
+    .hero-cta { margin-top: 3svh; }
+    .hero-layer-3 { margin-top: 4svh; }
+    /* 立绘跟着收：矮窗里文字收下去之后，72vh 的画会反过来变成撑破首屏的那一列 */
+    .hero-art-card { max-height: 44svh; }
+  }
+
   /* === 移动端（≤768px）：单列，文字上 / 立绘下 === */
   @media (max-width: 768px) {
     /* 单列布局下"底部对齐"会让 meta 跑到图片之前——重置为默认 start 流式布局。
@@ -1684,9 +1709,12 @@
        立绘在文字下方，滚动 12vh（~100px）时立绘还全屏可见就开始淡出上滑，
        观感=动画"盖住"还在屏幕上的内容。移动端改为 30vh 80vh：
        淡出跟随 hero 实际离屏节奏（文字先出、立绘离屏时才淡出），
-       与桌面"出场随 hero 离开视口"的观感一致，且消除长段半透明"幽灵"画面 */
+       与桌面"出场随 hero 离开视口"的观感一致，且消除长段半透明"幽灵"画面。
+       2026-09-27：`.hero-scroll` 补进来 —— 它也在这套出场编排里（见上面 hero-scroll-hint-exit），
+       漏掉的话手机上提示条按桌面档 12vh 55vh 淡出，比同屏的立绘、文字**早得多**。 */
     .hero-text,
-    .hero-art {
+    .hero-art,
+    .hero-scroll {
       animation-range: 30vh 80vh;
     }
     /* 移动端 hero-text 非 stretch，层间距改显式 margin 阶梯：gap(2→3) > gap(1→2) 在移动端也成立。
@@ -1748,6 +1776,23 @@
       width: max-content;
       margin: 40px auto 0;      /* 之前 28px：与图片更近，移动端 40px 留呼吸 */
     }
+  }
+
+  /* === 矮视口「紧凑档」· 手机（2026-09-27）===
+     见上面宽屏那条的说明。单列布局里的撑破点是**立绘**（78vw 封顶 380 时高 304）＋那一摞字：
+     390 宽下 hero 恒为 795，而提示条在 804..820 ⇒ 窗口得 ≥ 820 才看得到
+     （iPhone SE 667 ✗ / 13 mini 812 ✗ / 12-14 的 844 ✓，所以"主流机型没问题"是错觉）。
+     ⚠️ 上界 840 是**算出来的**：844（iPhone 12/13/14 全屏）刚好在界外 ⇒ 桌面窗口那一档逐项不变。真机上 scroll 0 时工具栏还占着高度、CSS 视口只有 ~770，本来就落在档内，所以这条界只对"桌面里摆一个 844 高的窗口"有意义；
+        812/820 在界内、正好是需要救的两档。
+     ⚠️ `min(78vw, 380px)` 是原有的定宽，这里只在它**上面**再压一个 svh 上限（矮窗值小 ⇒ 生效）。
+     ⚠️ 立绘缩的是 `width`（卡片 aspect-ratio 5/4 跟着走），不是把卡片压扁。 */
+  @media (max-width: 768px) and (max-height: 840px) {
+    .hero { padding-top: 3svh; padding-bottom: 3svh; gap: 3svh; }
+    .hero-layer-2 { margin-top: 3svh; }
+    .hero-layer-3 { margin-top: 3.4svh; }
+    .hero-cta { margin-top: 3svh; }
+    .hero-art { width: min(78vw, 30svh); }
+    .hero-scroll { margin-top: 2.7svh; }
   }
   /* 触摸/无悬停设备：去掉 :hover 引起的"上浮 -6px + 放大 1.02"。
      移动端 tap 后 :hover 会粘住，导致卡片卡在放大态不回去——"图片动画异常"的根因（2026-08-17 修） */
