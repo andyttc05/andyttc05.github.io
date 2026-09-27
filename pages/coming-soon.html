@@ -4,12 +4,13 @@
      写 data-scroll="native" 只是让七页的 <html> 保持一致，免得以后有人问"这页为什么不一样"。 -->
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>建设中 — rain.meow</title>
 <!-- 防白闪底色（2026-09-15）：与其余四页统一 —— 外部 CSS 到达前 <html> 已是 paper 色。
      本页没有深色主题，所以只写 light 一条（其余四页还有 html.theme-dark 那条）。 -->
 <style>
-  html { background: #f5f5f7; }
+  html { background: #f5f5f7; color-scheme: light; }
 </style>
 <style id="early-vt">
 /* early-vt: 跨文档过渡的动画定义提前到 head（改这 7 行要连 style.css 一起看）*/

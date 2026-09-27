@@ -8,6 +8,7 @@
      接管，指针在排上时页面不跟着滚 —— 与整页用哪套滚动无关。 -->
 <head data-page-node-id="cJ7TS2e0bwSoncrknSeYP9">
 <meta charset="UTF-8" data-page-node-id="28SqVd7EaCAhIS1nzHozrO">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="HjJ5OZMSzpguY6V6G0EBpk">
 <meta name="description" content="本猫的项目，敲过的代码和做过的东西" data-page-node-id="Av4AWEO69stM1jQbS0NZBX">
 <meta name="theme-color" content="#ffffff" data-page-node-id="Eh7YvcSGpDQlcVGqMBc1lW">
@@ -23,8 +24,11 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f5f5f7; }
-  html.theme-dark { background: #131a26; }
+  /* color-scheme 写在这里（与 style.css 那两条同值）：它决定**浏览器自己**画的那层底色 ——
+     刷新时 style.css 还没到货的那一帧、以及滚动越界的区域都吃它。style.css 里那两条要等
+     CSS 到货才生效，刷新时来不及 ⇒ 深色用户在浅色系统下会先闪一下白。 */
+  html { background: #f5f5f7; color-scheme: light; }
+  html.theme-dark { background: #131a26; color-scheme: dark; }
 </style>
 <style id="early-vt">
 /* early-vt: 跨文档过渡的动画定义提前到 head（改这 7 行要连 style.css 一起看）*/
@@ -142,7 +146,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="D18zFcgFLkyPVDgR6rBavv">
-<link rel="stylesheet" href="../assets/css/style.css?v=18d989feb7" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
+<link rel="stylesheet" href="../assets/css/style.css?v=dd77e5a088" data-page-node-id="KJGksWAVykwlrTDYBgeYSx">
 </head>
 <body data-page-node-id="ycG8fErt1RHufoYjiqnaFM">
 

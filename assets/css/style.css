@@ -4394,52 +4394,56 @@ html.album-back-instant.page-ready .about-title-char,
 html.album-back-instant.page-ready .hero-title-char { animation: none; }
 
 /* ---------------------------------------------------------------------------
-   刷新（`.nav-reload`，由 head 在 navType==='reload' 时加）：**不重播入场**
+   刷新（`.nav-reload`）：**开场动画照播，但从"已经看得见的位置"起步**
 
-   主人 2026-09-27「safari 上页面刷新还是有闪烁」。根因：刷新没有跨文档过渡，
-   而新页首帧是"入场初始态"（家具全透明、巨字 animation 的前置帧压到 0），
-   于是从「你正在看的完整页」直切到「一张空页」，再花 ~600ms 长回来。
-   实测（线上·WebKit·30fps 录像）：内容消失 100~170ms → 重建 ~570ms，亮暗两档都一样。
-
-   入场的第 0 帧必然清空内容 ⇒「刷新不闪」与「刷新重播入场」不可兼得。
-   这里选前者：**刷新 = 页面本来就是这个样子**（入场留给"到达"：冷加载 / 站内点击）。
-   代价：刷新时巨字不再逐字弹出、家具不再淡入（都改成首帧即终态）。
+   主人在同一句里要两件事：「你怎么又把首页的开场动画给移除了」+「屏闪问题仍在」。
+   而刷新没有跨文档过渡 ⇒ 新页首帧只能是"入场初始态"（全透明）⇒ 从正在看的完整页切过去
+   就是"内容先消失再长回来"（就是要治的闪）；"拿加载页盖住"又被读成"强制有个加载动画"。
+   ⇒ 两全的写法只有一个：**让入场的起点仍然可见**。
+     · 家具只"偏高 8px"、巨字只"小一号（0.88）" —— 全程没有任何东西消失，所以不可能闪；
+     · 归位走的是**原版的节奏**：家具仍走 `.entered` 那条 0.7s 过渡 + 同一套错峰 delay，
+       巨字用 `hero-char-pop-soft`（同一条弹性曲线 cubic-bezier(.34,1.56,.64,1)、同一套 delay）
+       ⇒ 四个字照样逐个弹出、整块文字照样上浮，只是起点不透明。
+   代价：起点的位移/缩放幅度 = "切换那一帧跳多少"。想跳得更小 ⇒ 把 `--reload-settle` 调小、
+   把下面 `scale(0.88)` 往 1 靠；想更接近原版 ⇒ 往反方向调，**但永远别到 0**（那就是闪）。
    ⚠️ 只碰 `.nav-reload` 这一个类；`.nav-vt`（拍快照那一跳）与冷加载路径零改动。
-   ⚠️ 巨字那两条必须**留在文件末尾**（与 `html.page-ready .hero-title-char` 同特指度，
-      靠源码顺序赢），别往中间挪。 */
-html.nav-reload .hero .hero-text > *,
-html.nav-reload .hero .hero-art-base,
-html.nav-reload .hero .hero-art-card,
-html.nav-reload .hero .hero-art-img,
-html.nav-reload .hero .hero-scroll { opacity: 1; transform: none; }
-/* 上面那条把 transform 归零只对了 `.hero-text > *`（它终态就是 none）；
-   立绘底座、**立绘卡片**、底部提示的终态各自带位移/角度，必须逐字给回来（与 .rm-navclick 那批同值）。
-
-   🔴 卡片那一条是 2026-09-27 补的 —— 原版漏了 `.hero-art-card`，于是**每次刷新立绘都丢掉 -2° 的微歪**
-   （衬底那层还歪着）。实测线上刷新后 card 的 computed transform 是 `none`：
-     1440×900  包围盒 608.01×493.84（冷加载）→ 591.84×473.47（刷新）
-     390×844   312.49×253.81 → 304.19×243.34
-     375×667   159.23×129.33 → 155×124
-   照片变成「正着贴在一张歪掉的衬纸上」：左右/下缘那圈纸边成了楔形（左缘上宽下窄）、
-   整张图还小了一圈 ⇒ 主人「手机版 hero 图片怪怪的」。宽窄与主题无关，桌面一样中招。
-   终态值必须与 `.hero-art-card` 基础规则里那条
-   `rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale))` **逐字相同** ——
-   改那边要一起改；三个变量照读，所以 hover 的「上浮 6px + 放大 1.02」也才能继续生效。
-   ⚠️ 与上面那条共用的 `transform: none` 同特指度 (0,3,1)，靠源码顺序（本行在后面）赢，
-      所以**不许把这条挪到那条前面**，也不许改成 `!important`。 */
-html.nav-reload .hero .hero-art-base { transform: rotate(-2deg) translate(-3.3%, var(--base-y)); }
+   ⚠️ 巨字那两条必须**留在文件末尾**（与宽守卫 `html.nav-instant:not(.page-ready)` 同特指度
+      (0,3,1)，靠源码顺序赢），别往中间挪。 */
+html.nav-reload { --reload-settle: 8px; }
+/* ⚠️ 这三条的作用域是 `.hero:not(.entered)`（不是 `:not(.page-ready)`），两个都是必需的：
+   · 不带任何作用域 ⇒ 特指度 (0,3,1) 压过 `.hero.entered …` 的 `transform: none` (0,3,0)，
+     家具永远停在"偏高 8px"、归位根本不发生（实测踩过）；
+   · 只写 `:not(.page-ready)` ⇒ 开闸那一帧它先失效、而 `.entered` 还没到 ⇒ 家具先**弹到基础态
+     的 14px**（提示弹到 24px）再过渡回来 —— 实测就是"先抖一下再归位"；
+   · 改用 `.hero:not(.entered)` ⇒ 一直按住到 script.js 加上 `.entered` 那一刻，交接无跳变。
+   立绘那几条**不能**跟着加：它们的 pinned 值就是终态，加了反而会在开闸瞬间掉回基础态（照片会消失）。 */
+html.nav-reload .hero:not(.entered) .hero-text > *:not(.hero-cta),
+html.nav-reload .hero:not(.entered) .hero-text > .hero-cta { opacity: 1; transform: translateY(var(--reload-settle)); }
+/* 立绘三层与底部提示的终态各自带位移/角度，必须逐字给回来（与 .rm-navclick 那批同值）。
+   它们**不参与**归位（照片原地不动最稳），只有底部提示跟家具一起"偏高"。
+   🔴 卡片那条不能漏（c0dc28a1 补过）：漏了 ⇒ 每次刷新立绘丢掉 -2° 微歪、整张还小一圈、hover 也失效
+   （上面那条共用的 `transform: none` 会把 `rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale))` 归零）。
+   ⚠️ 与它同特指度 (0,3,1)，靠源码顺序赢，**不许挪到前面**，也不许改 `!important`。 */
+html.nav-reload .hero .hero-art-base { opacity: 1; transform: rotate(-2deg) translate(-3.3%, var(--base-y)); }
 html.nav-reload .hero .hero-art-card {
   transform: rotate(var(--tilt)) translateY(var(--lift)) scale(var(--scale));
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
 }
-html.nav-reload .hero .hero-scroll { transform: translateX(-50%) translateY(0); }
-/* 巨字也要首帧就可见：上面 `.nav-instant:not(.page-ready)` 那道宽守卫（第 8 轮）会把
-   字先藏到 page-ready（实测 +24ms 藏、+53ms 才露 = 一两帧）—— 刷新时那四个字本来
-   就在你眼前，藏一两帧就是"闪一下"。所以这里连 opacity 一起给回来，并且特指度写到
-   和守卫同级（(0,3,1)）靠源码顺序赢：`.hero .hero-text` 这一层是必需的，别省。 */
-html.nav-reload .hero .hero-text .hero-title-char,
-html.nav-reload .hero .hero-text .about-title-char,
-html.nav-reload .about-main .about-title-char { opacity: 1; animation: none; }
+html.nav-reload .hero .hero-art-img { opacity: 1; }
+html.nav-reload .hero:not(.entered) .hero-scroll { opacity: 1; transform: translateX(-50%) translateY(var(--reload-settle)); }
+/* 巨字：首帧就可见（**别让宽守卫把它压到 0** —— 藏一两帧就是"闪一下"），只是小一号；
+   page-ready 后按原节奏弹回原位（动画名换掉，delay 仍由 `html.page-ready ...:nth-child(n)` 那一批给）。 */
+html.nav-reload:not(.page-ready) .hero .hero-text .hero-title-char,
+html.nav-reload:not(.page-ready) .hero .hero-text .about-title-char,
+html.nav-reload:not(.page-ready) .about-main .about-title-char { opacity: 1; animation: none; transform: scale(0.88); }
+@keyframes hero-char-pop-soft {
+  0%   { transform: scale(0.88); opacity: 1; }
+  55%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+html.nav-reload.page-ready .hero .hero-text .hero-title-char,
+html.nav-reload.page-ready .hero .hero-text .about-title-char,
+html.nav-reload.page-ready .about-main .about-title-char { animation-name: hero-char-pop-soft; }
 
 /* ---------------------------------------------------------------------------
    开闸那一帧的冻结窗（loader.js 加 .page-ready 时同步加→删，只存在一个任务）

@@ -6,6 +6,7 @@
      09-21 再统一收回原生；该属性始终是引擎的逃生开关（写了它引擎直接 return）。 -->
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- === 本页是「单册页模板」（2026-09-25 方案 B 静态化）===
      19 个单册页由 tools/photos-data.py 从**本文件**派生（同一份骨架 ⇒ 启动片段天然逐字节相同，
@@ -35,8 +36,11 @@
      ③ speculationrules：悬停站内链接即预取下一页，点击时文档已在 HTTP 缓存里。
      三者都是渐进增强 —— 不支持的浏览器原样走老行为。 -->
 <style>
-  html { background: #f5f5f7; }
-  html.theme-dark { background: #131a26; }
+  /* color-scheme 写在这里（与 style.css 那两条同值）：它决定**浏览器自己**画的那层底色 ——
+     刷新时 style.css 还没到货的那一帧、以及滚动越界的区域都吃它。style.css 里那两条要等
+     CSS 到货才生效，刷新时来不及 ⇒ 深色用户在浅色系统下会先闪一下白。 */
+  html { background: #f5f5f7; color-scheme: light; }
+  html.theme-dark { background: #131a26; color-scheme: dark; }
 </style>
 <style id="early-vt">
 /* early-vt: 跨文档过渡的动画定义提前到 head（改这 7 行要连 style.css 一起看）*/
@@ -170,7 +174,7 @@
 <!-- 全屏加载页样式（第一百四十六批 2026-08-22 主人"加载界面简洁一点"）：
      独立于 style.css（coming-soon 页不引 style.css 也要用），三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9">
-<link rel="stylesheet" href="../assets/css/style.css?v=18d989feb7">
+<link rel="stylesheet" href="../assets/css/style.css?v=dd77e5a088">
 <!-- 灯箱引擎（全站唯一一套）：2026-09-21 主人「相册页点击浏览图片的引擎和动态页
      点击浏览图片的引擎使用同一套」—— 与 pages/posts.html 引的是同一对文件。
      本页原来那套简化灯箱（.lb：淡入淡出 + 左右箭头）已整体删除，
