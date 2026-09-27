@@ -57,6 +57,18 @@
       else if (!document.prerendering) sessionStorage.setItem('rm-visited', '1');
     } catch (e) {}
     if (internal) de.classList.add('nav-instant');
+    /* ③ 跨文档过渡的「快照已拍」信号 —— **必须挂在 main 的 head 里**，不能留给 loader.js。
+       loader.js 是 `defer`，而 pagereveal 有时比 defer 脚本还早到（2026-09-27 实测新文档
+       +4~23ms 都有），事件先到就永远收不到 ⇒ 只好退回 setTimeout(open, 350) 兜底；那 350ms 里
+       页面停在快照态（入场载体全被压在终态，看着「已经完工」），随后整体回退重播入场
+       —— 观感就是主人说的「切换页面时开场动画会有点卡顿」。实测 HEAD 站内点击 20 跳里
+       5 跳（25%）中招，且目标页越轻越容易中。所以由本块（在样式表之前、全站逐字节相同）
+       先接住，loader.js 的 navGate 优先读 window.__rmNavVT。
+       ⚠️ 值与 `open()` 的判据同源：null = 本次没起过渡（刷新/被跳过）⇒ 立即开闸。
+       ⚠️ 本块受 tools/stamp.mjs 的 SNIPPET 检查（各页必须逐字节一致），改一处就要全站改。 */
+    window.addEventListener('pagereveal', function (e) {
+      window.__rmNavVT = (e && e.viewTransition) || null;
+    });
   })();
 </script>
 <script type="speculationrules">
@@ -351,7 +363,7 @@
 <!-- 全屏加载页控制器（第一百五十五批 2026-08-23）：渐进式加载 —— 不再等图片，
      就绪信号 = window load + 字体就绪；本页无大图，秒开；基于时间/场景/用户感知的决策系统，
      就绪后派发 pageReady -->
-<script src="../assets/js/loader.js?v=f33e23d040" defer></script>
+<script src="../assets/js/loader.js?v=113d4143dc" defer></script>
 <!-- 全屏背景动效（与主页同款）：几何粒子网络 + 动态几何飘带，单色 accent 版 -->
 <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
 <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=7ab9498a51"></script>

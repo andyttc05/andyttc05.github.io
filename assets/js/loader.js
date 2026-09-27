@@ -99,13 +99,35 @@
       void html.offsetHeight;     /* 强制 reflow：确认入场初始态已应用 */
       html.classList.remove('nav-anim-reset');
     }
-    window.addEventListener('pagereveal', function (e) {
-      var vt = e && e.viewTransition;
-      if (!vt || !vt.ready) { open(); return; }   /* 本次没起过渡（被跳过等）→ 直接开 */
+
+    /* 拿到本次导航的 ViewTransition 就开闸。没有（被跳过 / 刷新）就立即开 ——
+       绝不能让页面一直停在「快照态」。 */
+    function useVT(vt) {
+      if (!vt || !vt.ready) { open(); return; }
       vt.ready.then(open).catch(open);
+    }
+
+    /* 🔴 ① 先问「页内早挂的钩子」——**这一条是主路径，别删**。
+       本文件是 `defer`，而 `pagereveal` 有时比 defer 脚本还早到（2026-09-27 实测：
+       新文档 +4~23ms 都有，取决于目标页多重、缓存多暖）。事件先到就**永远收不到**，
+       于是只好退回下面的 `setTimeout(open, 350)` 兜底 —— 那 350ms 里页面停在**快照态**
+       （入场载体全被 `html.nav-instant:not(.page-ready)` 压在终态，看起来「已经完工」），
+       然后整体回退到入场初始态重播 ⇒ 主人说的「切换页面时开场动画会有点卡顿」。
+       实测 HEAD（2026-09-27）：站内点击 20 跳里 **5 跳（25%）** 中招，且**目标页越轻越容易**
+       （posts 那几跳占多数）—— 也就是切得越快、越容易看见这一下卡。
+       钩子写在每页 <head> 的「nav-instant 判定」内联块里（全站逐字节相同、在样式表之前），
+       document 一开头就挂好了，所以这里必然读得到。
+       量具：`~/.workbuddy/scratch/open-anim-jank-2026-09-27/race.js`（反复点击数兜底率）。 */
+    if (window.__rmNavVT !== undefined) { useVT(window.__rmNavVT); return; }
+
+    /* ② 还没到：自己挂（本文件先于 pagereveal 执行的那些引擎走这条） */
+    window.addEventListener('pagereveal', function (e) {
+      useVT(e && e.viewTransition);
     });
-    /* 兜底：不支持跨文档 VT 的浏览器不派发 pagereveal。绝不能一直不开闸 ——
-       那页面会永远停在「快照态」（内容可见但没有入场动画）。 */
+
+    /* ③ 兜底：不支持跨文档 VT 的浏览器不派发 pagereveal。绝不能一直不开闸 ——
+       那页面会永远停在「快照态」（内容可见但没有入场动画）。
+       ⚠️ 走到这里说明 ① ② 都没接住，属于异常路径；正常路径在 ①/② 就 return 了。 */
     if (typeof document.startViewTransition !== 'function') { open(); return; }
     setTimeout(open, 350);
   }
