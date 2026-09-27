@@ -1084,6 +1084,35 @@
     0%   { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-56px); }
   }
+  /* 2026-09-27（主人「首页滑动离开 hero 页时，SCROLL TO EXPLORE↓ 怎么没有离场动画」）：
+     上面那条只圈了 `.hero-text` / `.hero-art`，底部这枚提示从来不在名单里 —— 实测量到的
+     就是"没有"：滚动 0→1400px 逐档取计算值，它 opacity 恒 1、ty 恒 0，而同一段里
+     文字与立绘 1→0、0→−56px 走完（探针 scratch/hero-scroll-exit-2026-09-27/sweep.js）。
+     ⇒ 补上：同一条 scroll(root) 时间轴、同一个 range（12vh 55vh）、同一个位移量（−56px）。
+     单独一条 keyframes 而不是复用 `hero-scroll-exit`：它的 transform 里带着自己的居中补偿
+     `translateX(-50%)`（left:50% 的绝对定位），被 replace 成纯 translateY 会当场左移半个身位。
+
+     ⚠️ fill 只能 `forwards`，**不许改成 `both`**：`.hero-scroll` 的入场写在它自己身上
+     （opacity 0 + 下移 24px → `.entered` 淡入上浮、0.45s 错峰）。`both` 会让动画在 range
+     之前就套上 0% 关键帧（opacity 1 / ty 0）⇒ 入场那 0.7s 整段被吃掉，它一开页就杵在那儿。
+     `forwards` 只在滚过 range 之后保留终态、range 之前不写值，入场照旧（实测：从 .page-ready
+     起每 40ms 采一次 op，改前/改后同档 —— 两边都是 0.45s 前恒 0，之后 12 档爬到 1）。
+
+     ⚠️ 这条 keyframes 里的 `translateX(-50%)` 是**照抄移动端的现状**，不是"设计如此"：
+     ≤768px 时它本来就够不着自己的 `transform: none` —— `.hero.entered .hero-scroll`
+     (0,3,0) 压过了媒体查询里那条 (0,1,0)，实测 390px 下左移 88.4px（盒中心 107 / 视口中线
+     195）。**要修移动端居中就要连这条 keyframes 里的 translateX 一起删**（本次未动，
+     见收尾说明）。 */
+  .hero-scroll {
+    animation: hero-scroll-hint-exit linear forwards;
+    animation-timeline: scroll(root);
+    animation-range: 12vh 55vh;
+    animation-composition: replace;
+  }
+  @keyframes hero-scroll-hint-exit {
+    0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-56px); }
+  }
   .hero-art  { align-self: center; }
 
   /* === 左：内容 === */
