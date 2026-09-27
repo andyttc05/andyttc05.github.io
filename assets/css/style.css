@@ -1237,7 +1237,14 @@
   .hero-title-char {
     display: inline-block;
     background: linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent), #ffffff 45%) 100%);
+    /* WebKit 前缀 = 兼容兜底：老 WebKit 不认不带前缀的 background-clip:text，
+       会退化成"整块渐变方块"或动画期间逐帧重绘出亮块（主人看到的巨字闪）。
+       现代浏览器里带不带结果相同；删掉只会在老 WebKit 上退回上面那种表现。 */
+    -webkit-background-clip: text;
     background-clip: text;
+    /* ⚠️ -webkit-text-fill-color 会盖过 color，而且**会被 ::selection 继承** ——
+       下面 ::selection 那条必须同步给回 paper，否则选中巨字只见蓝块、字是透明的。 */
+    -webkit-text-fill-color: transparent;
     color: transparent;
     /* 第九十四批：恢复 hero-char-pop —— 主人澄清只移大卡 hover 浮动，所有其他动画保留。
        第一百四十五批（2026-08-22 加载页）：默认 animation:none（静态可见），
@@ -1262,6 +1269,7 @@
   .hero-title-char::selection {
     background: var(--color-accent);
     color: var(--color-paper);
+    -webkit-text-fill-color: var(--color-paper);   /* 对应上面那条：选中时字要可见 */
   }
   .hero-sub {
     /* 2026-09-17 主人「这些字有点小」：18 → 19（打字机同时 17 → 18，层级仍让副标在上） */
