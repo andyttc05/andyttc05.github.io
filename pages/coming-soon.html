@@ -122,21 +122,76 @@
   }
 
   .back-link {
-    margin-top: 56px;
-    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
-    font-size: 12px;
-    letter-spacing: 1.5px;
+    margin-top: 45px;
   }
+  /* 「← 返回主页」：2026-09-27 主人「coming-soon 按钮也是用照片页按钮的设计吧」
+     ⇒ 与 style.css 里那条共享按钮规格**逐项相同**（无框、15px mono、min-height 44、
+     padding-inline 12、字下方一条悬停/按住才扫入的 accent 线；静止墨色、悬停与按住转蓝）。
+     为什么是抄一份而不是引 style.css：本页按设计**自包含**（见 stamp 的 PRESENCE 条目：
+     style.css / script.js 故意不出现在本页），所以连同 token 一起在这一页留一份。
+     ⚠️ 改 style.css 那条规格时**要连这里一起改**，两份要能逐项对上。
+     ⚠️ 原来那套是"常驻 hairline 下划线 + 悬停变色"，与共享规格的"无框 + 扫入线"是两回事，
+        别把 `border-bottom` 加回来（两条线会叠在一起）。
+     ⚠️ `margin-inline: auto` 不能省：父级 .wrapper 是 text-align:center，
+        而这条规格用的是 `display: flex`（不是 inline-flex），flex 盒子不吃 text-align。 */
   .back-link a {
-    color: var(--color-muted);
-    text-decoration: none;
-    border-bottom: 1px solid var(--color-rule);
-    padding-bottom: 2px;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    margin-inline: auto;
+    white-space: nowrap;
+    min-height: 44px;
+    padding-inline: 12px;
+    font-family: 'IBM Plex Mono', 'Plex Mono FB', monospace;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: var(--color-ink);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    text-decoration-line: none;
+    position: relative;              /* 扫入线的定位参照（绝对值相对 padding 盒） */
+    transition: color 0.2s ease;
   }
-  .back-link a:hover {
-    color: var(--color-accent);
-    border-color: var(--color-accent);
+  .back-link a::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 8.6px;
+    height: 2px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: 100% 100%;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .back-link a:hover,
+  .back-link a:focus-visible,
+  .back-link a:active { color: var(--color-accent); }
+  .back-link a:hover::after,
+  .back-link a:focus-visible::after,
+  .back-link a:active::after {
+    transform: scaleX(1);
+    transform-origin: 0 100%;
+  }
+  /* 触屏档：与其余页同一套（那边住 script.js + style.css 的「触屏档」，本页自带一份）。
+     触摸端 `:hover` 抬手后粘住、`<a>` 又拿不到 `:active` ⇒ 按下反馈改由 `.is-press` 给，
+     线**瞬时到位**（tap 只有 ~80ms，扫不了 0.3s），抬手 0.16s 收回。
+     `.is-press` 由页面末尾那段小脚本挂/撤（逻辑与 script.js 的「触屏按压反馈」一致）。 */
+  @media (hover: none) {
+    .back-link a { transition: none; }
+    .back-link a:not(.is-press) { color: var(--color-ink); }
+    .back-link a:not(.is-press)::after {
+      transform: scaleX(0);
+      transform-origin: 100% 100%;
+      transition: transform 0.16s ease-out;
+    }
+    .back-link a.is-press { color: var(--color-accent); }
+    .back-link a.is-press::after {
+      transform: scaleX(1);
+      transform-origin: 0 100%;
+      transition: none;
+    }
   }
 </style>
 </head>
@@ -179,6 +234,39 @@
   <p class="typewriter"><span id="typewriter-text"></span><span class="cursor"></span></p>
   <p class="back-link"><a href="../index.html">&larr; 返回主页</a></p>
 </div>
+<script>
+/* 触屏按压反馈（2026-09-27）：本页按设计不引 script.js，所以自带一份 —— 与 script.js
+   的「触屏按压反馈」段**逻辑一致**（那边注释里有完整的实测依据：触摸端 `:hover` 抬手后
+   粘住、`<a>` 拿不到 `:active`，所以按下反馈只能靠 `.is-press`；抬手后留 180ms
+   最小可见时长，跨文档过渡拍旧页快照正好在这段里）。改这里要连那边一起改。
+   名单只有「← 返回主页」这一颗 —— 本页没有别的可点元素。 */
+(function () {
+  if (!window.matchMedia('(hover: none)').matches) return;
+  var el = document.querySelector('.back-link a');
+  if (!el) return;
+  var MIN_MS = 180, SLOP = 8;
+  var down = false, t0 = 0, timer = 0, sx = 0, sy = 0;
+  function drop() { clearTimeout(timer); el.classList.remove('is-press'); down = false; }
+  function release() {
+    if (!down) return;
+    down = false;
+    var wait = Math.max(0, MIN_MS - (performance.now() - t0));
+    clearTimeout(timer);
+    timer = setTimeout(function () { el.classList.remove('is-press'); }, wait);
+  }
+  el.addEventListener('pointerdown', function (e) {
+    clearTimeout(timer);
+    down = true; t0 = performance.now(); sx = e.clientX; sy = e.clientY;
+    el.classList.add('is-press');
+  }, { passive: true });
+  el.addEventListener('pointermove', function (e) {
+    if (down && (Math.abs(e.clientX - sx) > SLOP || Math.abs(e.clientY - sy) > SLOP)) drop();
+  }, { passive: true });
+  el.addEventListener('pointerup', release, { passive: true });
+  el.addEventListener('pointercancel', drop, { passive: true });
+  window.addEventListener('blur', drop);
+})();
+</script>
 <script>
 (function() {
   var el = document.getElementById('typewriter-text');

@@ -4527,7 +4527,13 @@ html.nav-anim-reset *::after {
      父级 `.about-hero` 是 `text-align: center`，inline 级的盒子会被它居中回去。
      ⚠️ `white-space: nowrap` 是给 320 视口的：盒子不许把「← 全部相簿」折成两行。 */
   .album-back,
-  .album-nav-link {
+  .album-nav-link,
+  /* 🆕 2026-09-27 主人：「动态展开关闭的按钮和 coming-soon 按钮也是用照片页按钮的设计吧」
+     ⇒ 这三颗（相簿页两枚导航 + 动态页「展开全文／收起」）**共用这一条规格**，
+       改尺寸/字面/线只改这一处。布局上的差异各写在各处（见下面 `.album-back` / `.dy-expand`
+       两条小规则）—— 规格里那条 `padding-inline: 12px` 是"按钮的呼吸"，不是排版缩进，
+       落在正文流里的那颗要靠负外边距把它拉回正文左边缘。 */
+  .dy-expand {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -4565,6 +4571,17 @@ html.nav-anim-reset *::after {
   .album-back {
     text-align: left;
     margin: 0 auto clamp(12px, 1.6vw, 18px) 0;
+  }
+  /* 动态页「展开全文 / 收起」：同一套规格，但它是**插在正文流里**的一颗按钮 ——
+     两条差异，都是量出来的（`scratch/touch-press-2026-09-27/box.js`）：
+       ① `margin-inline: -12px` —— 规格里的 `padding-inline: 12px` 是按钮自身的呼吸，
+          不减掉它，按钮里的字会比上面那段的左边多缩进 12px，一眼看得出没对齐；
+       ② `margin-top: -4px` —— 44px 高 + 15px 字居中 ⇒ 字墨上方还有 ~15px，
+          不减掉就会在正文末尾凭空多出一道 15px 的空档（原来那颗只有 6px 的 margin，
+          字紧贴上一行）。−4 之后**字墨间距与改前逐像素一致**（量法同上脚本）。
+     ⚠️ `margin-block` 别写成 `margin`：写了会把 `margin-inline` 一起冲掉。 */
+  .dy-expand {
+    margin: -4px -12px 0;
   }
   /* 相簿名长短差四倍半（「大澳」2 字 ↔「炮台山・金督驰马径」9 字，2026-09-25 改名后
      最长就是它；旧注释举的「深圳｜南山・罗湖・龙华・龙岗」同日已收敛成「深圳・市区」），
@@ -5004,7 +5021,10 @@ html.nav-anim-reset *::after {
   .album-back:active,
   .album-nav-link:hover,
   .album-nav-link:focus-visible,
-  .album-nav-link:active {
+  .album-nav-link:active,
+  .dy-expand:hover,
+  .dy-expand:focus-visible,
+  .dy-expand:active {
     color: var(--color-accent);
   }
 
@@ -5015,7 +5035,8 @@ html.nav-anim-reset *::after {
         线（[8.6, 10.6]px）与字墨（[15.13, 28.88]px）在纵向完全错开；将来若把 `bottom` 调大
         到压住字，就得给线补 `z-index: -1`（那时它会被父级背景挡住 —— 父级底是透明的，没事）。 */
   .album-back::after,
-  .album-nav-link::after {
+  .album-nav-link::after,
+  .dy-expand::after {
     content: "";
     position: absolute;
     left: 12px;
@@ -5035,12 +5056,16 @@ html.nav-anim-reset *::after {
   .album-back:active::after,
   .album-nav-link:hover::after,
   .album-nav-link:focus-visible::after,
-  .album-nav-link:active::after {
+  .album-nav-link:active::after,
+  .dy-expand:hover::after,
+  .dy-expand:focus-visible::after,
+  .dy-expand:active::after {
     transform: scaleX(1);
     transform-origin: 0 100%;
   }
   .album-back:focus-visible,
-  .album-nav-link:focus-visible {
+  .album-nav-link:focus-visible,
+  .dy-expand:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
@@ -5067,25 +5092,120 @@ html.nav-anim-reset *::after {
      ⚠️ 别顺手把 `border` / `background` / `border-radius` 写进来 —— "不画框"那条红线照旧。 */
   @media (hover: none) {
     .album-back,
-    .album-nav-link { transition: none; }
+    .album-nav-link,
+    .dy-expand { transition: none; }
     .album-back:not(.is-press),
-    .album-nav-link:not(.is-press) { color: var(--color-ink); }
+    .album-nav-link:not(.is-press),
+    .dy-expand:not(.is-press) { color: var(--color-ink); }
     /* 收起态：只有"抬手之后"用得着 —— 那一刻 transition 取的是这条（0.16s 收回），
        而按下去的那一刻取的是下面 `.is-press` 那条（`none` = 瞬时到位）。 */
     .album-back:not(.is-press)::after,
-    .album-nav-link:not(.is-press)::after {
+    .album-nav-link:not(.is-press)::after,
+    .dy-expand:not(.is-press)::after {
       transform: scaleX(0);
       transform-origin: 100% 100%;
       transition: transform 0.16s ease-out;
     }
     .album-back.is-press,
-    .album-nav-link.is-press { color: var(--color-accent); }
+    .album-nav-link.is-press,
+    .dy-expand.is-press { color: var(--color-accent); }
     .album-back.is-press::after,
-    .album-nav-link.is-press::after {
+    .album-nav-link.is-press::after,
+    .dy-expand.is-press::after {
       transform: scaleX(1);
       transform-origin: 0 100%;
       transition: none;
     }
+  }
+
+  /* ═══════════ 触屏档（二）：其余可点元素的「按下反馈」（2026-09-27）═══════════
+     主人：「还有检查一下其他按键/功能对于手机版的适配性」→「按键的体检一起优化」。
+     390×844 触摸按住 90ms 逐项比对计算值（`scratch/touch-press-2026-09-27/feedback.js`）
+     量出来的两件事，全站只有相簿那三颗按钮是好的：
+       ① **按下去毫无变化**：`.hero-cta` / `.nav-brand` / `.nav-icon` / `.hamburger` /
+          `.album-tile` / `.pj-scene.has-link` —— 它们要么只有 `:active`（iOS Safari 对
+          `<a>` 不给激活态，见上一段）、要么压根没写；
+       ② **抬手后粘住**：`:hover` 在触摸端抬手后仍挂着 —— `.hero-cta` 最明显
+          （悬停那条会把标签翻到背面并放大 1.06，粘住就一直是那个状态）、
+          `.hamburger`（三条杠变蓝不回来）、`.nav-brand` / `.nav-icon`（字/图标保持 accent）、
+          `.about-card`（阴影一直扩散着）。
+     ⇒ 这一块就是这两件事的解，**逐条对齐各家族已经在用的那套反馈**（不发明新语汇）：
+        · 按压态一律叫 `.is-press`（script.js 同一段挂/撤，只在 `(hover: none)` 跑）；
+        · 按压值**照抄同族的 `:active`**（hero-cta 的 scale(0.97) + 更深一档底色、
+          hamburger 的 scale(0.92)……），所以按下去的手感和桌面按住鼠标是同一个；
+        · 本来没有 `:active` 的那两个大目标（`.album-tile` / `.pj-scene.has-link`）
+          用全站按压缩放的那一档 `scale(0.98)`（与 `.contact-card:active` 同款）。
+     ⚠️ 整个块只在 `(hover: none)` 里，且 script.js 在 `(hover: hover)` 上直接早退
+        ⇒ 桌面**一条都不匹配**（`.is-press` 永远不会被挂上）。别把这里的选择器抄进基础规则。
+     ⚠️ `.album-tile` 的按压落在 **`.album-tile-cover`** 上，不是 `.album-tile` 自己：
+        后者在折线以下时正被 `scroll-fade-*` 动画写着 `transform`（动画压过普通声明），
+        写在外层等于按了没反应。
+     ⚠️ `.pj-scene` 的按压落在 **`.pj-scene__card`** 上，同理：`.pj-scene` 自己的
+        `transform`（translateX）与 `opacity` 由 projects-carousel.js **逐帧写内联**，
+        样式表压不过内联 —— 写在外层一样按了没反应。
+     ⚠️ `.hero-cta` 的复位要连**翻面那一对**一起写（front / back / arrow）：只压底色，
+        标签会永远停在"翻过来的那一面 + 放大 1.06"上。 */
+  @media (hover: none) {
+    /* --- ① 导航栏：复位粘住的悬停（图标/字变蓝、三条杠变蓝），按压走 accent --- */
+    .nav-brand:not(.is-press) { color: var(--color-ink); }
+    .nav-icon:not(.is-press) { color: var(--color-ink); }
+    .hamburger:not(.is-press) span { background: var(--color-ink); }
+    .nav-brand.is-press,
+    .nav-icon.is-press,
+    .hamburger.is-press { color: var(--color-accent); }
+    .hamburger.is-press span { background: var(--color-accent); }
+    .hamburger.is-press { transform: scale(0.92); }
+    .hamburger { transition: transform 0.15s ease, background 0.2s ease; }
+
+    /* --- ② 首页主按钮：复位粘住的悬停（含翻面），按住走同族 :active 那一套 --- */
+    .hero.entered .hero-text > .hero-cta:hover:not(.is-press) {
+      background: var(--color-accent);
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 24%, transparent);
+    }
+    .hero-cta:hover:not(.is-press) .hero-cta-front { transform: translateY(0) skewY(0deg); }
+    .hero-cta:hover:not(.is-press) .hero-cta-back  { transform: translateY(164%) skewY(12deg); }
+    .hero-cta:hover:not(.is-press) .hero-cta-arrow { transform: none; }
+    .hero.entered .hero-text > .hero-cta.is-press {
+      transform: translateY(0) scale(0.97);
+      background: #0038bf;
+      box-shadow: 0 1px 4px color-mix(in srgb, var(--color-accent) 24%, transparent);
+      transition-delay: 0s;
+    }
+    .hero-cta.is-press .hero-cta-back { transform: translateY(0) skewY(0deg) scale(0.94); }
+    .hero-cta.is-press .hero-cta-arrow { transform: translateX(6px); }
+
+    /* --- ③ 卡片族：本来就没写 `:active` 的三个大目标 --- */
+    .album-tile-cover { transition: transform 0.18s ease; }
+    .album-tile.is-press .album-tile-cover { transform: scale(0.98); }
+    /* 单册照片墙那张按钮：点开就是灯箱（本身即反馈），给它同一档微缩把手感对齐。
+       ⚠️ `transition` 必须把基础规则那两条一起带上（`var(--img-fade)` + `transform`）——
+       整条替换，只写 transform 会把"照片到位时从底板淡入"踢掉。 */
+    .album-shot img { transition: var(--img-fade), transform 0.18s ease; }
+    .album-shot.is-press img { transform: scale(0.98); }
+    .pj-scene__card { transition: transform 0.18s ease; }
+    .pj-scene.has-link.is-press .pj-scene__card { transform: scale(0.985); }
+
+    /* --- ④ 抽屉：三样会变色的都补上（`.nav-menu-links li` 那层底色用 :has 跟过来） --- */
+    .nav-menu-close.is-press { color: var(--color-accent); }
+    .nav-menu-action.is-press .nav-menu-action-hit { color: var(--color-accent); }
+    .nav-menu-links a.is-press { color: var(--color-accent); }
+    .nav-menu-links a.is-press .arrow {
+      opacity: 1; transform: translateX(4px); color: var(--color-accent);
+    }
+    .nav-menu-links li:has(a.is-press) { background: rgba(var(--color-accent-rgb), 0.16); }
+    /* 抽屉里的粘滞复位：不压回去，打开抽屉（或关掉再开）时那几行会一直亮着。
+       ⚠️ `li` 那条要用 `:hover:not(:has(a.is-press))` —— `li:hover` 的底色是加在行上的，
+          只复位 `a` 压不掉它。 */
+    .nav-menu-close:not(.is-press) { color: var(--color-ink); }
+    .nav-menu-action-hit:not(.is-press) { color: var(--color-ink); }
+    .nav-menu-links a:not(.is-press) { color: var(--color-ink); }
+    .nav-menu-links a:not(.is-press) .arrow { opacity: 0.30; transform: none; color: var(--color-ink); }
+    .nav-menu-links li:hover:not(:has(a.is-press)) { background: none; }
+
+    /* --- ⑤ 只复位、不给按压：`.about-card` 不是可点元素，它只有悬停阴影 --- */
+    .about-card.about-card-intro:hover,
+    .about-card.about-card-poem:hover,
+    .about-card.about-card-skills:hover { box-shadow: none; }
   }
 
   /* ------------------------------------------------- 灯箱（已搬去共享引擎） */

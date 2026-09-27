@@ -83,7 +83,7 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=b5a8284fd4" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=55f5abe7c7" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
@@ -325,11 +325,17 @@
   display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.dy-expand {
-  margin-top: 6px; background: none; border: none; padding: 0;
-  font: 14px var(--font-body); color: var(--color-accent); cursor: pointer;
-}
-.dy-expand:hover { text-decoration: underline; }
+/* 「展开全文 / 收起」：2026-09-27 主人「动态展开关闭的按钮…用照片页按钮的设计吧」
+   ⇒ 规格整体搬到 assets/css/style.css 里那条共享按钮规则（与相簿页「← 全部相簿」
+     「上一册」「下一册」逐项相同：无框、15px mono、min-height 44、字下方一条
+     悬停/按住才扫入的 accent 线；静止是墨色、悬停与按住转蓝）。
+   本页只留两件**本页才有**的事，别的量都别在这里覆写：
+     · cursor —— 那三颗是 <a>，这颗是 <button>，UA 默认不给手型；
+     · margin —— 它插在正文流里，要靠负外边距把标签拉回正文左边缘（见 style.css 里
+       `.dy-expand` 那条的算式）。
+   ⚠️ 别再把 `color` / `font` / `text-decoration` 写回这里：写了就是第二个真相源，
+      共享规格一改两边就分叉（这正是本轮把旧那两行删掉的原因）。 */
+.dy-expand { cursor: pointer; }
 
 /* 引文：不特殊打扮，仅衬线稍大，保持可读 */
 .dy-item.is-quote .dy-text {
@@ -728,7 +734,7 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=7ab9498a51"></script>
   <script src="../assets/js/loader.js?v=f33e23d040" defer></script>
-  <script src="../assets/js/script.js?v=65617dfcd5" defer></script>
+  <script src="../assets/js/script.js?v=2c54c3971e" defer></script>
   <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
        所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
   <script src="../assets/js/lightbox.js?v=2ee15a0ba0" defer></script>

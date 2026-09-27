@@ -502,15 +502,29 @@
 
        ⚠️ 只在 `(hover: none)` 设备上跑。桌面（hover: hover）别加：那边 `:hover` 本来就是
           对的，多挂一个类反而会带出"抬手后还亮着"的多余状态。
-       ⚠️ 选择器只有这三颗按钮。它们是 `<a>`，在手机上既没有 `:hover` 也没有 `:active`；
-          导航栏 / hamburger / 抽屉那几颗是 `<button>`，不在此列（要扩先量一遍再动）。
-       ⚠️ 别写进 7 份 HTML 内联（同「跨文档补 hover」那条：7 个副本会漂移）。 */
+       ⚠️ 名单见下面 PRESS_SEL（2026-09-27 第二批扩到全站，来源是一份量出来的普查、
+          不是照 hover 规则猜的）；样式一律住在 style.css 的「触屏档（一）/（二）」两块里。
+       ⚠️ 别写进 7 份 HTML 内联（同「跨文档补 hover」那条：7 个副本会漂移）。
+          pages/coming-soon.html 例外 —— 它按设计不引 script.js，那一页自带一份同样的
+          按压逻辑（见该页内联 <style> 上面那段注释，改这里要连它一起改）。 */
     (function () {
-      var PRESS_SEL = '.album-back, .album-nav-link';
+      /* 2026-09-27 第二批（主人「按键的体检一起优化」）：从"只有相簿那三颗"扩到全站
+         所有**在触摸端按下去毫无变化**的可点元素。名单来源 = 390 触摸下按住 90ms 逐项
+         比对计算值的那份普查（`scratch/touch-press-2026-09-27/feedback.js`），
+         不是照 hover 规则猜的。样式逐条对齐各家族已经在用的 `:active`，见 style.css
+         的「触屏档（二）」。
+         ⚠️ `.contact-card` / `.skills-chip` **不在名单里**：前者本来就有 `:active` 的
+            按压微缩（触摸端量得出 transform 变化），后者是拖拽排序的抓手、已有
+            `@media (hover: none)` 的复位，多挂一个按压反而跟拖拽打架。 */
+      var PRESS_SEL = '.album-back, .album-nav-link, .dy-expand, ' +
+        '.hero-cta, .nav-brand, .nav-icon, .hamburger, ' +
+        '.album-tile, .album-shot, .pj-scene.has-link, ' +
+        '.nav-menu-close, .nav-menu-action, .nav-menu-links a';
       var MIN_MS = 180;   /* 最小可见时长：既盖住"click → 快照"那一帧，也够眼睛看见 */
+      var SLOP = 8;       /* 位移阈值（px）：超过它就是"在滑/在拖"，不是"在按" —— 撤掉按压 */
       if (!window.matchMedia('(hover: none)').matches) return;
 
-      var held = null, t0 = 0, timer = 0;
+      var held = null, t0 = 0, timer = 0, sx = 0, sy = 0;
       function drop(el) { if (el) el.classList.remove('is-press'); }
       /* 抬手：留够最小可见时长再撤（快 tap 也不会一闪而过） */
       function release() {
@@ -521,7 +535,7 @@
         clearTimeout(timer);
         timer = setTimeout(function () { drop(el); }, wait);
       }
-      /* 中途取消（手指滑走变成滚动 / 切后台）：用户没在点它 ⇒ 立刻收，不留亮 */
+      /* 中途取消（手指滑走变成滚动 / 拖卡 / 切后台）：用户没在点它 ⇒ 立刻收，不留亮 */
       function cancelNow() {
         clearTimeout(timer);
         if (held) { drop(held); held = null; }
@@ -534,10 +548,17 @@
         el.classList.add('is-press');
       }
       document.addEventListener('pointerdown', function (e) {
+        sx = e.clientX; sy = e.clientY;
         var n = e.target;
         var el = n && n.closest ? n.closest(PRESS_SEL) : null;
         if (el) press(el);
         else if (held) release();     /* 按在别处：把上一颗撤掉（走最小可见时长那条） */
+      }, { passive: true, capture: true });
+      /* 走了就撤。触摸端**滚动**会让浏览器补 `pointercancel`（见下），但项目页轮播的
+         横向拖拽不补 —— 那边只能靠这个阈值把"拖"从"按"里摘出去。 */
+      document.addEventListener('pointermove', function (e) {
+        if (!held) return;
+        if (Math.abs(e.clientX - sx) > SLOP || Math.abs(e.clientY - sy) > SLOP) cancelNow();
       }, { passive: true, capture: true });
       document.addEventListener('pointerup', release, { passive: true, capture: true });
       document.addEventListener('pointercancel', cancelNow, { passive: true, capture: true });
