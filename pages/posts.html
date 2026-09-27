@@ -83,7 +83,7 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" data-page-node-id="tzXZ28pG07DSSTTGXGel3i">
 <!-- 全屏加载页样式（第一百四十六批）：三个页面共用 -->
 <link rel="stylesheet" href="../assets/css/loader.css?v=5ce8d862e9" data-page-node-id="KT6M7Ib9CRYz5zRtCxjeSH">
-<link rel="stylesheet" href="../assets/css/style.css?v=ca72e98cbe" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
+<link rel="stylesheet" href="../assets/css/style.css?v=345e5ffdaa" data-page-node-id="HHtZAH2mOfUB4mDg1WL2dK">
 <!-- 灯箱引擎（全站唯一一套）：与相册页引同一对文件。它原来是内联在本页的，
      2026-09-21 主人「相册页点图浏览的引擎和动态页用同一套」时抽了出去 ——
      引擎本体见 assets/css/lightbox.css + assets/js/lightbox.js。 -->
@@ -734,7 +734,7 @@
   <script id="canvas_nest" defer="defer" opacity="0.6" zIndex="-1" count="99" mobile="true" src="../assets/js/canvas-nest.js?v=b43ad40710"></script>
   <script id="fluttering_ribbon" defer="defer" src="../assets/js/canvas-ribbons.js?v=7ab9498a51"></script>
   <script src="../assets/js/loader.js?v=f33e23d040" defer></script>
-  <script src="../assets/js/script.js?v=2c54c3971e" defer></script>
+  <script src="../assets/js/script.js?v=7fbb02056f" defer></script>
   <!-- 灯箱引擎本体（与相册页同一份）。defer ⇒ 在 DOMContentLoaded 之前跑完，
        所以本页尾部的"点图开灯箱"挂在 DOMContentLoaded 上是安全的。 -->
   <script src="../assets/js/lightbox.js?v=2ee15a0ba0" defer></script>
@@ -1271,10 +1271,9 @@
       if (arriveTimer) { clearTimeout(arriveTimer); arriveTimer = null; }
       arriveNodes.forEach(function (n) {
         n.style.animationDelay = '';
-        /* 先钉住终态，再摘动画 —— 否则摘的那一帧可能闪回可见性 0。
-           2026-09-27 第四轮：原来钉的是 `.is-visible`（那套已删），现在钉
-           `script.js` 的 `.rm-in`（清单见它那段 `RM_FADE_SEL`）。 */
-        n.classList.remove('rm-out'); n.classList.add('rm-in');
+        /* 2026-09-27 第五轮：淡现在由 `script.js` 每帧按**位置**写 inline opacity，
+           落地那一刻的元素本来就判定为「到位」（它的坡只有自身高那么窄，日期头 20px）
+           ⇒ 这里不需要再钉任何终态，把 delay 与 `dy-arrive` 清掉就够。 */
         n.classList.remove('dy-arrive');
       });
       arriveNodes = [];

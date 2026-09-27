@@ -2406,76 +2406,118 @@
       }
     })();
 
-    /* === 滚动进场 / 出场：**纯淡化**（2026-09-27 第四轮，全站除首页）===
-       主人：「取消现在以一个区域进入/进出的形式，还有取消内容移动。
-              就直接简单的把内容淡化进入/进出就行。」
-       ⇒ 撤掉 `view()` 时间轴（"按视口里的一段映射进度"）、撤掉位移与缩放，
-         只留 opacity；"什么时候淡"由本段判定，"淡多久"由 style.css 的 `.rm-fade` 走。
+    /* === 滚动进场 / 出场：**贴着边的渐进淡化**（2026-09-27 第五轮，全站除首页）===
+       主人原话：「不是直接消失，而是在滑动时渐渐淡尽，越靠近边边就越淡，还有底部进场
+                 怎么看不到动画。……区块底部/顶部还没滑动进界面外就会消失，这个滑动时
+                 顶部/底部区域会多出了一部分没有内容的空白部分，滑动体验不是很好。」
 
-       为什么不再用 `view()`：它的进度是**连续**的 —— 元素停在折线上就永远停在中间值，
-       那正是主人前面两张截图（整行不可见 = 版面留一条空白 / 半透明 = 照片发灰）。
-       现在"进 / 出"由可见性决定、"淡"由时间走完：任何滚动速度都一定到位。
+       一句话：**淡的多少是位置的函数**，而且两条坡都钉在视口的两条边上。
+         · 元素**停在视口中间**：永远 opacity 1（不进不退就不淡）；
+         · 靠近**上沿**：越近越淡，淡到 0 的那一刻正好是它整个钻到导航栏后面；
+         · 从**下沿**进来：越往上越实，由淡到实。
+       跟手、可逆（往上滚回去会重新变实）—— 这就是"滑动时渐渐淡尽"。
 
-       🔴 判据只看**元素顶边**（`getBoundingClientRect().top`）：
-         进 —— `top < 视口高`：顶边一越过视口下沿就开始淡入（元素此时只有一丝入画，
-               淡的过程基本发生在它"从下往上冒"的那一段 —— 这就是"由淡到实"）；
-         出 —— `top > -min(自身高, 视口高) × EXIT`：露出自己四分之一高度才淡出。
-       `EXIT` 用比例而不是固定 px，是为了让高元素（动态页条目最大可到视口高）
-       不会一碰顶边就整条淡掉。
+       🔴 三个式子（`pass()` 里就这三行）：
+         pIn  = (视口高 − t) / (视口高 − tAnchor)        t = 元素顶边
+         pOut = (b − 导航栏底) / (bAnchor − 导航栏底)     b = 元素底边
+         opacity = min(pIn, pOut)
+       **坡长（分母）= `min(max(元素自身高, 下限), 视口高的 16~18%)`**，下限 in 72 / out 80：
+        高元素按自身高封顶（照片/大卡 200~300px，坡不会长到"半屏都在半透明"）；
+        矮元素垫到 72/80px —— 20px 的日期头若只给 20px 的坡，滚快一点就跟"啪"地出现没区别，
+        这正是主人第五轮②"底部进场怎么看不到动画"里最典型的一格（`verify5.js` ⑤ 量到的）。
+       ⚠️ **`pIn` 随 t 递减、`pOut` 随 t 递增** ⇒ 整条曲线是个"∩"（0 → 1 → 0），
+         **不是单调函数**。所以验收只能按"进场段由淡到实 / 退场段渐渐淡尽"分段判
+        （第一版把整条曲线按单调比，凭空报了 21 条失败）。
 
-       🔴 **进来那一侧没有"提前量"**（第一版写了 `top < 视口高 + 80`，被帧测抓出来撤掉）：
-       提前量会把"刚好落在视口下沿以下 80px 内"的元素在**打开那一刻**就判成已到位 ——
-       它们随后滚进画面时是全实心、一点淡都看不到（`shots4.js` 实测 album 页 opacity=1）。
-       去掉之后两件事同时成立：打开时不亮（那段元素还在屏幕外）、进来时一定有淡。
-
-       🔴 四条纪律，改之前先读：
-       ① **打开那一刻在视口里的元素一个类都不挂**（基础态就是 opacity 1）——
-          第二轮立下的判据（"打开时不留空白 / 不发灰"），也顺带避开与巨字逐字弹出
-          （`hero-char-pop` 自带淡入）叠加。所以首帧只给"整个在折线以下"的挂 `.rm-out`。
-       ② **只写 class、不写 inline style**：`.rm-out` / `.rm-in` 只有本段会给
-          ⇒ 关脚本、老引擎里内容天然全显（`style.css` 那一段的选择器就是 `.rm-fade`）。
-       ③ **先读后写**：一趟先把所有元素的 rect 读完（只触发一次布局），再统一改 class，
-          滚动用 rAF 合并 ⇒ 不做强制同步布局。开销 ≈ 元素个数次 rect 读（本站最多 45 个）。
-       ④ ⚠️ **清单在 `style.css` 那一段的注释里有对应说明**；`verify3.js` 会比对本清单
-          与页面里实际受动的类，改这里要连它一起看。
-       ⚠️ 首页（index.html）一个匹配都没有（`hero-title-char` / `.vslide-*` 不在清单里）——
+       🔴 五条纪律，改之前先读：
+       ① **上沿的零点取导航栏底边**，不是视口顶：淡尽 = 正好被导航栏盖住，
+          否则导航栏挡住的那 56~64px 里会白淡一段（看起来就是"顶部有一片空的"）。
+       ② **上沿那一侧要 `b < b0` 才生效**（比打开那一刻更低 = 确实在往上走）。
+          这样打开时就在视口里的元素一个都不会淡（第二轮立下的判据），
+          而它继续往上走时又自然接上，不会在接上的那一帧跳。
+       ③ **下沿的锚点 `tAnchor`**：打开时就在视口里的元素锚在**它自己**的位置
+          （⇒ 打开即全实心，不会"刚露头的半透明"），折线以下的锚在 `vh − 坡长`。
+       ④ **锚点只在打开那一趟取**（`seed()`，init 与 `pageReady` 各一次；resize 也重取 ——
+          那等于换了张画布）。之后位置一变就按坡算，所以它跟手、可逆。
+       ⑤ 元素清单里 `.dy-item` / `.dy-day` 是 posts 页**运行期渲染**出来的，
+          所以 `seed()` 会重新 query 一遍；`window.RMFade` 暴露给探针用（`verify5.js`）。
+       ⚠️ 首页一个匹配都没有（`hero-title-char` / `.vslide-*` 不在清单里）——
          首页的 hero 出场与 5 屏滚动编排**不动**（主人 2026-09-26「先不动首页」）。 */
-    var RM_FADE_EXIT = 0.25;   /* 出场：露出自身四分之一高度才开始淡 */
     var RM_FADE_SEL = [
       '.about-title', '.about-hero-desc', '.about-sub', '.about-sub-section',
       '.about-card', '.contact-card', '.game-logo',
       '.dy-item', '.dy-day',
       '.album-hero > *', '.album-tile', '.album-shot', '.album-nav'
     ].join(', ');
+    var RM_IN_RATE = 0.16, RM_IN_MIN = 110, RM_IN_MAX = 180, RM_IN_FLOOR = 72;   /* 下沿：坡长 = min(max(自身高,72), 视口高×16%) */
+    var RM_OUT_RATE = 0.18, RM_OUT_MIN = 120, RM_OUT_MAX = 200, RM_OUT_FLOOR = 80; /* 上沿：18%（略长一点，退场更缓） */
     (function () {
-      var nodes = document.querySelectorAll(RM_FADE_SEL);
-      if (!nodes.length) return;
-      var els = Array.prototype.slice.call(nodes);
-      var vh = window.innerHeight, queued = false, i;
-      for (i = 0; i < els.length; i++) els[i].classList.add('rm-fade');
+      var els = [], t0 = [], b0 = [], tA = [], bA = [], last = [];
+      var navH = 64, queued = false, i;
+
+      function navBottom() {
+        var n = document.querySelector('.nav-inner');
+        var h = n ? Math.round(n.getBoundingClientRect().height) : 0;
+        return h > 20 ? h + 1 : 64;   /* +1 = .nav-inner 自己的 border-bottom */
+      }
+      function span(rate, lo, hi, vh) { return Math.max(lo, Math.min(hi, vh * rate)); }
+
+      function seed() {
+        var nodes = document.querySelectorAll(RM_FADE_SEL);
+        els = []; t0 = []; b0 = []; tA = []; bA = []; last = [];
+        if (!nodes.length) return;
+        var vh = window.innerHeight, y = window.scrollY || 0;
+        var docH = document.documentElement.scrollHeight;
+        navH = navBottom();
+        var inMax = span(RM_IN_RATE, RM_IN_MIN, RM_IN_MAX, vh);
+        var outMax = span(RM_OUT_RATE, RM_OUT_MIN, RM_OUT_MAX, vh);
+        for (var k = 0; k < nodes.length; k++) {
+          var el = nodes[k], r = el.getBoundingClientRect();
+          var h = r.height, docTop = r.top + y;
+          /* 坡长：自身高先垫一个下限（72/80），再被 inMax 封顶；下沿还被
+             "文档末尾还剩多少可升程"封一次（否则最后一格永远走不完）。 */
+          var inSpan = Math.max(8, Math.min(Math.max(h, RM_IN_FLOOR), inMax, Math.max(docH - docTop, 24)));
+          var outSpan = Math.max(8, Math.min(Math.max(h, RM_OUT_FLOOR), outMax));
+          els.push(el); t0.push(r.top); b0.push(r.bottom);
+          tA.push(r.top < vh ? Math.max(r.top, vh - inSpan) : vh - inSpan);
+          bA.push(Math.min(r.bottom, navH + outSpan));
+          last.push(-1);
+          el.classList.add('rm-fade');   /* 标记类：只给探针点名用，不带任何样式 */
+        }
+      }
 
       function pass() {
         queued = false;
-        vh = window.innerHeight;
-        var n = els.length, top = new Array(n), hgt = new Array(n), r;
-        for (i = 0; i < n; i++) { r = els[i].getBoundingClientRect(); top[i] = r.top; hgt[i] = r.height; }
+        var n = els.length;
+        if (!n) return;
+        var vh = window.innerHeight;
+        var tops = new Array(n), bots = new Array(n), r;
+        for (i = 0; i < n; i++) { r = els[i].getBoundingClientRect(); tops[i] = r.top; bots[i] = r.bottom; }
         for (i = 0; i < n; i++) {
-          var el = els[i];
-          var show = top[i] < vh && top[i] > -Math.min(hgt[i], vh) * RM_FADE_EXIT;
-          if (show) {
-            if (el.classList.contains('rm-out')) { el.classList.remove('rm-out'); el.classList.add('rm-in'); }
-          } else if (!el.classList.contains('rm-out')) {
-            el.classList.remove('rm-in'); el.classList.add('rm-out');
+          var t = tops[i], b = bots[i];
+          var pIn = (vh - t) / Math.max(vh - tA[i], 8);
+          if (pIn > 1) pIn = 1; else if (pIn < 0) pIn = 0;
+          var pOut = 1;
+          if (b < b0[i]) {
+            pOut = (b - navH) / Math.max(bA[i] - navH, 8);
+            if (pOut > 1) pOut = 1; else if (pOut < 0) pOut = 0;
           }
+          var v = pIn < pOut ? pIn : pOut;
+          v = Math.round(v * 1000) / 1000;
+          if (v === last[i]) continue;
+          last[i] = v;
+          if (v >= 1) els[i].style.removeProperty('opacity');
+          else els[i].style.opacity = String(v);
         }
       }
       function queue() { if (queued) return; queued = true; requestAnimationFrame(pass); }
 
-      pass();                                   /* 首帧：只把折线以下的收起来 */
+      seed();
+      pass();
       window.addEventListener('scroll', queue, { passive: true });
-      window.addEventListener('resize', queue, { passive: true });
-      window.addEventListener('load', queue, { passive: true });
-      document.addEventListener('pageReady', queue, { once: true });
-      /* 相簿页「回到上次看的那一段」、动态页点目录跳转都是程序化滚动 ——
-         一样会派发 scroll，交给上面那个监听即可，不另开钩子。 */
+      window.addEventListener('resize', function () { seed(); queue(); }, { passive: true });
+      document.addEventListener('pageReady', function () { seed(); pass(); }, { once: true });
+      window.addEventListener('load', function () { if ((window.scrollY || 0) < 2) { seed(); } queue(); }, { passive: true });
+      /* 探针入口：`.rm-fade` 是标记类，真正受动的清单在这里 */
+      window.RMFade = { sel: RM_FADE_SEL, seed: seed, pass: pass };
     })();

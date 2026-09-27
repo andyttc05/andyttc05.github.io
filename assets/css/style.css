@@ -2590,10 +2590,7 @@
      hover 仅阴影扩散，边框颜色保持中性描边不变（不上浮——尊重第九十四批） */
   .about-card.about-card-intro,
   .about-card.about-card-poem {
-    /* ⚠️ 这条 `transition` 是**整条**覆盖用的：新加的 `opacity var(--rm-t)` 不能少 ——
-       文件末尾的 `.rm-fade` 与这里同为 (0,1,0)，靠源码顺序取胜，漏了它 hover 阴影
-       会连着淡入淡出一起失效（`--rm-t` 见文件末尾那一段）。 */
-    transition: box-shadow 0.3s ease, opacity var(--rm-t);
+    transition: box-shadow 0.3s ease;
   }
   .about-card.about-card-intro:hover,
   .about-card.about-card-poem:hover {
@@ -2876,7 +2873,7 @@
      第一百三十五批（2026-08-22 主人"大卡 hover 边框颜色保持不变"）：
      边框颜色保持中性描边不变，仅阴影扩散；卡内 chip 保留各自的上浮动效 */
   .about-card.about-card-skills {
-    transition: box-shadow 0.3s ease, opacity var(--rm-t);
+    transition: box-shadow 0.3s ease;
   }
   .about-card.about-card-skills:hover {
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
@@ -3281,7 +3278,7 @@
      几乎全透明（露出深色页面背景）。新方案保持实色背景不变，反馈改用：
      轻微上浮 + 阴影扩散（:active 按压微缩；第一百三十五批：边框颜色保持中性描边不变；2026-09-26 起改为 --color-card-edge），
      配合已有的箭头位移 / icon 微浮 / handle 变 accent。 */
-  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, opacity var(--rm-t); }
+  .contact-card { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
   .contact-card:hover {
     box-shadow: 0 12px 24px rgba(var(--color-accent-rgb), 0.12);
     transform: translateY(-4px);
@@ -4928,48 +4925,20 @@ html.nav-anim-reset *::after {
     outline-offset: 2px;
   }
 
-  /* === 滚动进场 / 出场：**纯淡化**（2026-09-27 第四轮，全站除首页）===
-     主人：「取消现在以一个区域进入/进出的形式，还有取消内容移动。
-            就直接简单的把内容淡化进入/进出就行。」
+  /* === 滚动进场 / 出场：**贴着边的渐进淡化**（2026-09-27 第五轮）===
+     主人第四轮要"取消区域化、取消移动，只要淡化"，落地成了"到点（`top < 视口高`）用
+     0.26s/0.44s 翻一次 opacity"。第五轮他指出的三条正是那种做法的必然结果：
+       「不是直接消失，而是在滑动时渐渐淡尽，越靠近边边就越淡」（时间淡 → 到点才动，不跟手）
+       「底部进场怎么看不到动画」（440ms 在窄视口里走完得比眼睛还快）
+       「区块底部/顶部还没滑动进界面外就会消失，会多出一部分没有内容的空白」
+         （判据挂在"顶边"上 → 露出自身 1/4 高度就整条灭了，那是**提前消失**）
+     ⇒ 现在淡的多少是**位置的函数**（贴着两条边各一段坡），由 `script.js` 每帧写
+       inline opacity —— **style.css 里没有对应规则**（`.rm-fade` 只是给探针的标记类，不带样式）。
+       坡长与零点、为什么用"自身高"封顶、为什么锚点只在打开那一趟取，全部记在
+       `script.js` 那段 `RM_FADE` 的注释里（改之前先读那一段）。
+     ⚠️ 因此这里**不再需要** `--rm-t` / `transition`：下面四条自带 `transition` 的规则
+        也不用再挂 `opacity var(--rm-t)` 了（已还原成它们本来的样子）。 */
 
-     换掉了什么：此前这一族（关于页大卡/副标题、动态页条目、相簿墙封面/单册照片/页眉/
-     底栏、游戏 logo、联系卡）走 `animation-timeline: view()` —— **按元素在视口里的位置**
-     映射动画进度（`entry 0% cover 100%`），并且带 `translateY(48px) + scale(0.96)`
-     （联系卡另有 ±24px 横向位移，巨字标题有 -24px 上浮）。现在：没有 `view()`、
-     没有位移、没有缩放，**只有 opacity**。
-
-     为什么换：`view()` 的进度是**连续**的 —— 元素停在折线上就永远停在中间值，
-     那正是主人前两轮两张截图里的「整行不可见（版面留一条空白）」与「照片发灰」；
-     而且它按定义**会倒放**（往上滚回去时内容又淡掉，读回头路时很别扭）。
-     现在「进 / 出」由**可见性**决定、「淡」由**时间**走完（CSS transition）：
-     任何滚动速度都一定到位，不再有"卡在半路"这一说。
-
-     🔴 三条口径，改之前先读：
-     ① **判据只看元素顶边**，代码在 `script.js` 的 `pass()`：
-        进 —— `top < 视口高 + 80`（提前约一条导航栏就开始淡入）
-        出 —— `top > -min(自身高, 视口高) × 0.25`（露出自己四分之一高度才淡出，
-              高元素不会一碰到顶边就整条淡掉）
-     ② **打开那一刻与视口相交的元素一个状态类都不挂**（基础态就是 opacity 1）——
-        这是 2026-09-27 第二轮立下的判据（"打开时不留空白 / 不发灰"），也顺带避开与
-        巨字逐字弹出（`hero-char-pop` 自带淡入）叠加：父级再淡一次就糊了。
-     ③ **状态类只有脚本会加，所以关脚本 / 老引擎里内容天然全显** ——
-        既不需要 `html.js` 类、也不需要 `@media (scripting: enabled)`，
-        26 页的 head 内联因此一个字都不用动（`stamp.mjs` 的 SNIPPET 检查也照旧）。
-
-     ⚠️ `.about-card-intro` / `-poem` / `-skills` 与 `.contact-card` 自己带 `transition`
-        （hover 的阴影 / 上浮）—— 那四条规则里必须**带上 `opacity var(--rm-t)`**：
-        本块与它们同为 (0,1,0)，靠源码顺序取胜，不带上就会把 hover 过渡整条压掉。
-     ⚠️ `--rm-t` 是"这一次淡"的时长与曲线：出场快一档、进场慢一档。用变量而不是写两条
-        `transition` 声明，是为了让上面那四个元素也能在**同一条** `transition` 里跟着换挡。 */
-  .rm-fade {
-    --rm-t: 260ms cubic-bezier(0.4, 0, 0.66, 1);
-    transition: opacity var(--rm-t);
-  }
-  .rm-fade.rm-in {
-    --rm-t: 440ms cubic-bezier(0.22, 1, 0.36, 1);   /* 站内既有曲线（easeOutQuint） */
-    opacity: 1;
-  }
-  .rm-fade.rm-out { opacity: 0; }
 
   /* 末行"全部相簿 →"文字格 2026-09-21 撤掉（主人原话「也撤掉」）——
      代价认下：18 本里 6 本末行只剩 1 张照片，右侧空 819px。别再加回来。 */
