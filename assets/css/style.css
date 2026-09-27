@@ -3457,8 +3457,31 @@
        卡宽 399 / 舞台 1168 只剩 2.44 张可见。收到 **27vh**（下限 146→140、上限 308→276）：
        1440×900 下卡宽 399 → **365.4**，可见张数 2.44 → **2.59**。
        挑 27vh 而不是更狠：视觉评论界把 300–380px 叫"标准卡"，365 落在带内偏高的一端，
-       截图内容还读得清；再小下去项目截图就没意义了。 */
-    --pj-photo-h: clamp(140px, 27vh, 276px);
+       截图内容还读得清；再小下去项目截图就没意义了。
+
+       === 第三百三十一批 2026-09-27：把"想要多大"与"装得下多少"拆成两个 token ===
+       一屏页的硬要求（见 .projects-main 那一段）：卡片尺寸必须**按真正剩下的高度反推上限**，
+       否则矮视口下 clamp 之和撑破容器、页面照样能滚。
+         · `--pj-photo-want` = 上面那个 27vh 的值 —— **设计上想要的**大小；
+         · `--pj-fit`        = 容器（.projects-bento，size container）里**真正能用**的高度换成
+                               的照片高。`100cqh` 量的就是它的内容盒，所以式子里只剩
+                               "卡片以外的东西"：上下两截 scenes 内边距 + 吊具留空(--pj-drop)
+                               + 卡内上下内边距 + 标签栏(--pj-band) + 24px（舞台底那 20px +
+                               --pj-card-h 里那 4px 边线余量）。
+         · `--pj-photo-h`    = 两者的**小**，但垫一个硬下限。
+       ⚠️ 移动端那条 `@media (max-width: 768px)` 只许覆盖 `--pj-photo-want`，
+          **绝不能再直接写 `--pj-photo-h`** —— 写了就把上限整套丢掉，等于这一批白做。
+       ⚠️ 式子里的每个 token 都要与 --pj-card-h / .pj-stage 的真实构成逐项对齐
+          （`--pj-card-h = photo-h + 2×pad + band + 4px`、`stage = card-h + drop + 20px`）；
+          改其中任何一项都要回来改这里，否则"装得下"是假的。
+       ⚠️ 硬下限 96px：再矮就真的排不出一张能看的卡了（照片 96 + 标签栏 + 纸边 ≈ 高 187、
+          宽 165 —— 已经是"邮票"的量级）。视口矮到 96 都装不下时（实测 ≲555px 高，
+          连同下面 `max-height: 640px` 那一档一起算）**页面允许出现滚动条**：
+          那种窗口（可用高度不足 555px）本来就不是这一页的目标，为它把卡片压成一条
+          反而两头不讨好。`max()` 在外、`min()` 在内：下限永远无法被上限压掉。 */
+    --pj-photo-want: clamp(140px, 27vh, 276px);
+    --pj-photo-min: 96px;
+    --pj-photo-h: max(var(--pj-photo-min), min(var(--pj-photo-want), var(--pj-fit)));
     --pj-photo-w: calc(var(--pj-photo-h) * 4 / 3);
     --pj-pad: clamp(12px, 1.3vw, 20px);
     --pj-band: clamp(54px, 6.8vh, 78px);
@@ -3486,6 +3509,10 @@
        现在那条公式连同 --pj-cord-h 一起删了。取值的下限是"看得出高低错落"：
        太短就看不出吊着，太长则吃掉垂直预算（整页要压在一屏内）。 */
     --pj-drop: clamp(34px, 7.5vh, 92px);
+    /* 一屏上限（第三百三十一批）：说明与逐项对账见上面 `--pj-photo-h` 那一段。
+       `--pj-scenes-pad` 由 `.projects-bento .pj-scenes` 提供，这里给兜底值 —— 没有尺寸容器
+       （不在 .projects-bento 里）时 `cqh` 按规范退回"小视口"单位，式子本身不会失效。 */
+    --pj-fit: calc(100cqh - var(--pj-scenes-pad, 10px) * 2 - var(--pj-drop) - var(--pj-band) - var(--pj-pad) * 2 - 24px);
     position: relative;
     width: calc(100% + 32px);
     max-width: 1472px;
@@ -3875,38 +3902,98 @@
      x=16、立牌排还额外全出血到 1440 宽，跟导航（内容左边届 x=136）明显错开；
      改回 1200 之后内容自然落在 136，与导航严丝合缝，立牌排的裁切边也从"视口边"变成"容器边"。
      注：max-width 走 .about-main 的 1200 也够，但这里显式写一遍 —— 覆盖值贴在旁边，
-     下次改的人不用去翻 .about-main 的注释。 */
+     下次改的人不用去翻 .about-main 的注释。
+
+     === 第三百三十一批 2026-09-27：一屏**真正**成立（主人"项目页应该只有一页，不可以往下滑动"）===
+     第一百八十六批只是把尺寸调小到"1280×800 恰好装下"，**不是**保证 —— 它是一串各管各的
+     clamp 相加，加起来多少没人算过。实测（scratch/pj-onescreen-2026-09-27/sweep2.js，
+     5 宽 × 11 高）：**视口高 ≤870 全部溢出**，1440×800 多 36px、1920×780 多 49px ——
+     1440×900 的 MacBook 开个窗口就命中，主人看到的就是这一截。
+     溢出的**那一截就是页尾留白** `main.about-main > :last-child` 那条 `--tail`
+     （= clamp(36px, 4vw, 56px)，1440 下正是 56px；1280 下 51.2px，而那里的溢出正好 27px），
+     一屏页按定义不该有页尾留白 —— 它是给"页面止于最后一个区块"的滚动页留的呼吸。
+     ⇒ 两件事一起做，缺一条都不成立：
+       ① 高度**交给视口**而不是交给 clamp 之和：.projects-main 撑成 100svh − 导航高，
+          列方向 flex，卡片区吃剩下的全部（第一百八十六批的"一屏"从此是**结构**上的）；
+       ② 卡片尺寸**按"真正剩下的高度"反推上限**（--pj-fit，见 .pj-scenes 里那一段）：
+          视口矮到 clamp 之和装不下时，缩的是卡片而不是页面。
+     ⚠️ 二者必须同时存在：只做 ① 而卡片尺寸仍由 clamp 之和定，矮视口下内容照样撑破
+        固定高的容器 ⇒ 文档照样能滚（只是换成"内容溢出容器"而已）。 */
   .projects-main {
     max-width: 1200px;
+    /* 导航高照抄 .nav-inner 的 clamp（写死 57 会让 769-900 段差 1~3px ⇒ 伪纵向滚动条），
+       +1px 是那条 border-bottom。 */
+    --projects-nav-h: calc(clamp(56px, 3.125vw + 32px, 64px) + 1px);
+    height: calc(100svh - var(--projects-nav-h));
+    display: flex;
+    flex-direction: column;
   }
+  /* 标题区**不参与收缩**：flex 列容器里内容超高时默认会把每一个 item 都压一点，
+     压标题就等于"矮视口下标题被切"，那是错的 —— 高度的事全部交给卡片区。 */
+  .projects-main > .about-hero { flex: none; }
+  /* 一屏页没有页尾留白 —— 就是这条把页面顶出视口的（上面那段）。特定度 (0,2,1) 与
+     `main.about-main > :last-child` 打平，靠"写在后面"取胜。 */
+  main.projects-main > :last-child { padding-bottom: 0; }
   .projects-bento {
     padding-block: clamp(10px, 1.4vh, 20px) clamp(18px, 2.6vh, 30px);
+    /* 卡片区 = 唯一可伸缩的那一格；同时**当尺寸容器**（size container）——
+       .pj-scenes 里的 `100cqh` 量到的就是这里的**内容盒**高度，
+       正是"立牌排真正能用的高度"（容器查询量的就是内容盒，所以不用再减自己的内边距）。 */
+    flex: 1 1 auto;
+    container-type: size;
   }
   .projects-bento .pj-scenes {
-    padding-block: clamp(4px, 0.9vh, 12px);
+    --pj-scenes-pad: clamp(4px, 0.9vh, 12px);
+    padding-block: var(--pj-scenes-pad);
   }
 
   /* === 项目页 · 手机版排版（第二百七十七批 2026-09-13，第二百七十八批随新设计调整）===
      量出来的是"标题贴顶 + 立牌挤在上半屏 + 底下 300px 空白"。改法：主区域撑满
      视口剩余高度，标题留在顶部，立牌排吃满剩下的空间并垂直居中。
      min-height 用 svh（地址栏收放时 100vh 会跳）；导航高照抄 .nav-inner 的 clamp，
-     写死 57 会让 769-900 段多出 1~3px 伪滚动条。断点 900（834 竖屏平板同样命中）。 */
+     写死 57 会让 769-900 段多出 1~3px 伪滚动条。断点 900（834 竖屏平板同样命中）。
+     ⚠️ 第三百三十一批 2026-09-27：`--projects-nav-h` / 撑满视口 / 列方向 flex 三条
+     **已经上移到 .projects-main 本体**（一屏页对桌面同样成立）—— 这里只剩"手机 / 平板竖屏"
+     真正独有的两条：标题区收紧、卡片区把立牌排**垂直居中**（手机竖屏纵向富余，
+     居中比贴顶好看；桌面刻意不居中，见 .projects-main 里的注释）。 */
   @media (max-width: 900px) {
-    .projects-main {
-      --projects-nav-h: calc(clamp(56px, 3.125vw + 32px, 64px) + 1px);
-      min-height: calc(100svh - var(--projects-nav-h));
-      display: flex;
-      flex-direction: column;
-    }
-    .projects-main .about-hero {
+    /* 标题区内边距：**三个墙页共用一档**（第三百三十一批后半，主人「修改后动态页/照片页的
+       标题区域也要跟进，确保一致」）—— 这条原来只挂在 `.projects-main` 上：
+       项目页在手机上要"标题 + 立牌排"挤进一屏，所以它比通用手机档紧
+       （4.5vh/20 vs 通用手机档 6vh/28）。代价是三个墙页在 ≤900 的标题区高度**对不上** ——
+       实测（scratch/pj-onescreen-2026-09-27/herogap.js）：
+         390×844 项目 269.25 / 动态 287.34 / 照片 287.28（差 18.09）
+         768×1024 325.7 / 355.14 / 355.14（差 29.44）
+         834×1112 228.78 / 257.94 / 257.81（差 29.16）
+         900×900  240.22 / 270.22 / 270.22（差 30）
+       而 ≥901 三项逐像素相同（桌面档在第 328 批统一过：`.about-hero.wall-hero` 的左对齐 +
+       `.wall-hero-grid` 的底对齐）。
+       现在挂到 `.wall-hero`（三个墙页共有的类，见 `.about-hero.wall-hero` 那段），
+       取值**照抄项目页那一档** —— 它是最紧的一档，来源是"手机上立牌排要挤进一屏"这条硬约束；
+       统一到它，项目页的卡片尺寸一像素不动，动的是动态页 / 照片页的标题区（收紧 ~30px）。
+       ⚠️ 为什么不反过来（把项目页放宽到通用档）：项目页 ≤900 是**一屏页**，
+          标题区高 30px 就等于卡片矮 30px（手机档照片高只有 152px，再矮就没得看了）。
+       ⚠️ 特定度 (0,2,0) 必须压过 ≤768 那条通用手机档 `.about-hero{padding-block:...}`（0,1,0），
+          否则窄屏下三个墙页又会分家。 */
+    .about-hero.wall-hero {
       padding-block: clamp(24px, 4.5vh, 40px) 20px;
     }
     .projects-main .projects-bento {
-      flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: center;
       padding-block: 0;
+    }
+  }
+  /* 矮桌面视口（≤640px 高）再收一档（第三百三十一批）：一屏是硬要求，所以先省**空白**
+     而不是省**内容** —— `--pj-drop`（卡片顶上那段"吊着"的留空）与 `--pj-scenes-pad`
+     都是纯空白，两处加起来约 25px。这一档把"保证不滚动"的视口高度下限从 ~585px
+     压到 ~555px，同时那几个高度上卡片反而更大（省下来的空白都还给了卡）。
+     阈值 640 的理由：640 以上 clamp 之和本来就装得下，收这一档反而白丢留白。 */
+  @media (min-width: 769px) and (max-height: 640px) {
+    .projects-main .pj-scenes {
+      --pj-scenes-pad: 3px;
+      --pj-drop: clamp(16px, 4.5vh, 40px);
     }
   }
   /* 手机：照片高按宽度而不是高度定（窄屏竖图才不会被压扁），标签栏收窄。
@@ -3918,7 +4005,9 @@
      帽 216 → 208；同样只动高，邻卡露头反而多 ~5px。 */
   @media (max-width: 768px) {
     .pj-scenes {
-      --pj-photo-h: clamp(152px, 29.8vw, 208px);
+      /* ⚠️ 只覆盖 `--pj-photo-want`（想要的），**不要**直接写 `--pj-photo-h` ——
+         写了就把一屏上限（--pj-fit）整套丢掉（第三百三十一批）。 */
+      --pj-photo-want: clamp(152px, 29.8vw, 208px);
       --pj-pad: 12px;
       --pj-band: clamp(54px, 15vw, 70px);
       --pj-rail-w: 22px;
