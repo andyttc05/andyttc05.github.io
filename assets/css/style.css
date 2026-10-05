@@ -11,7 +11,7 @@
     
     /* 画布兜底（2026-09-26）：亮色 #f5f5f7 = 苹果 grouped background。
        真正生效的定义在下面 @supports 块里，这里只是老浏览器 / 解析失败时的保险。 */
-    --color-canvas: #f5f5f7;
+    --color-canvas: #eef3fb;
     /* RGBA 调用的整数三元组（canvas/JS 读）—— 兜底用 hex,
        现代浏览器在 @supports 块内被 OKLCH 替换为精确值
        🔴 2026-09-26：--color-paper-rgb 亮色 255,255,255 → **245,245,247**。
@@ -19,15 +19,15 @@
        **画布**同色（合成后与画布逐位相等），画布改成 #f5f5f7 之后这里不跟着改，
        顶部就会多出一条 +7 的浅带（实测 252 vs 245；改前两边都 255、差 0）。
        ⚠️ 它不是"白色"的意思，是"画布色"的意思 —— 跟 --color-canvas 永远同步。 */
-    --color-paper-rgb: 245, 245, 247;
+    --color-paper-rgb: 238, 243, 251;
     --color-accent-rgb: 0, 102, 204;
-    --color-shadow: rgba(0, 0, 0, 0.08);
+    --color-shadow: rgba(18, 40, 80, 0.10);
     --color-glass-edge: rgba(255, 255, 255, 0.55);
     /* nav 与画布之间那条缝的线色（2026-09-27 第三百七十二批）。
        它**不等于**全站 hairline（--color-rule）：nav 是**横贯全宽的一整条**，
        同一枚线落在这里的观感比压在卡片描边上重得多，两枚该分开调。
        亮值两枚逐位相同（都是 #d2d2d7）⇒ 亮色逐像素零变化；暗值另给（见 :root.theme-dark）。 */
-    --color-nav-line: #d2d2d7;
+    --color-nav-line: #ccd8ea;
     /* 悬停微放大（2026-09-21 统一，2026-09-27 第三百三十五批重定曲线）：
        两处共用（`.album-tile-cover` 相簿封面 / `.album-shot` 单册照片墙），
        改一处即全站一致。scale 1.05 = 专业级"微放档"（1.1 是明显档，在静与活之间取微）。
@@ -79,8 +79,8 @@
        三个色标与改前保持**逐级相同的落差**（画布 −20 / −11 / −5 ⇒ 225 / 234 / 240）。
        ⚠️ 改画布色就要重跑这条：`~/.workbuddy/scratch/about-canvas-r4-2026-09-26/snap.js`，
           看 albums.shot / album.tile 那两个探针的「面-布」是否仍为负。 */
-    --plate-grad: linear-gradient(152deg, #E1E1E3 0%, #EAEAEC 56%, #F0F0F2 100%);
-    --plate-ring: rgba(29, 29, 31, 0.075);
+    --plate-grad: linear-gradient(152deg, #DAE1EB 0%, #E3E9F3 56%, #E9EFF7 100%);
+    --plate-ring: rgba(24, 36, 50, 0.08);
     /* 软阴影沿用原来那条 0 1px 2px，只往后追加描边 —— 别把原阴影写丢 */
     --plate-edge: 0 1px 2px var(--color-shadow), inset 0 0 0 1px var(--plate-ring);
     /* 照片到位那一下的淡入（2026-09-21）：底板 → 照片是 0.4s 淡入，不是硬切。
@@ -129,6 +129,11 @@
     /* 字体 token hex 兜底（第六十二批起演进，第六十六批回归 Plex） */
     --font-head: 'IBM Plex Serif', 'Plex Serif FB', serif;
     --font-body: 'IBM Plex Sans', 'Plex Sans FB', sans-serif; 'IBM Plex Sans', 'Plex Sans FB', sans-serif;
+    /* 🔴 全站等宽 token（2026-10-05 补）：此前 --font-mono **从未定义**，而全仓有 11 处
+       `font-family: var(--font-mono)` —— token 未定义 ⇒ 声明失效 ⇒ 那批"小标 / 导航控件 /
+       单册页小标 / 游戏账号 / 灯箱计数"一直退回继承面（Plex Sans），不是等宽。
+       IBM Plex Mono 本就自托管（assets/fonts/ibm-plex-mono-*.woff2，fonts.css 已 @font-face）。 */
+    --font-mono: 'IBM Plex Mono', 'Plex Mono FB', monospace;
   }
   /* 巨字那一层的字面（2026-09-25 第三百一十六批）——
      参考图（UNIFIED GALLERY / 桃之夭夭 / GALLERY）的巨型中文是 **Black 级**重量，
@@ -226,17 +231,17 @@
             颜色一个都不搬；下面这六行与改动前逐字节相同。
          ⚠️ 别再把 paper/ink/rule/alt 换暖：那样与五个壳页头部的
             `html { background: #f8fafc }` 防白闪底色不一致，首帧会闪一下。 */
-      --color-ink:     #1d1d1f;   /* 苹果墨色 */
+      --color-ink:     #1b2432;   /* 苹果墨色 */
       --color-paper:   #ffffff;   /* 苹果纸色：纯白 */
       --color-accent:  #0066cc;   /* 苹果链接蓝 */
-      --color-muted:   #6e6e73;   /* 苹果次级文字 */
-      --color-rule:    #d2d2d7;   /* 苹果 hairline */
+      --color-muted:   #5d6c86;   /* 苹果次级文字 */
+      --color-rule:    #ccd8ea;   /* 苹果 hairline */
       /* 🆕 分隔符「·」的字色（2026-09-26）。**它跟 hairline 不是一回事**：
          线是 1px 的面，点是 11px 的字 —— 同一个 alpha 在黑底上，点的观感会先塌掉。
          暗色把 hairline 压到 .11 之后实测「点」的峰值从 44 掉到 20（≈1.14:1，
          比亮色同款点的 1.36:1 明显更暗）⇒ 拆出一枚专给字的 token，两枚独立调。
          亮值**与 --color-rule 逐位相同**（#d2d2d7）⇒ 亮色零变化。 */
-      --color-sep:     #d2d2d7;
+      --color-sep:     #ccd8ea;
       /* 🆕 画布（2026-09-26 主人「按你推荐的改」）—— 页面底 = 苹果 grouped background。
          🔴 这一条把「纸 / 卡面」从**同一个白**拆成两级：
              改前  纸 #ffffff ／ 卡面 #ffffff ⇒ 面-布差 **0**
@@ -253,7 +258,7 @@
             ② `--color-alt` → #ebebed（它是"画布下一档"的凹陷面，不跟着降就与画布同色）
             ③ `--plate-grad` 亮色整体下移 10（空图片底板要保持"压在画布下一档"）
          ⚠️ 暗色画布仍是 #000（与 --color-paper 同值）⇒ **暗色这一轮一个字没动**。 */
-      --color-canvas:  #f5f5f7;   /* 苹果 grouped background（页面底） */
+      --color-canvas:  #eef3fb;   /* 苹果 grouped background（页面底） */
       /* 🆕 卡片描边（2026-09-26）：把卡片那一族的 hairline 从 accent 换成中性。
          改前五处都是 `rgba(accent, .14)` —— 淡是对的，**错的是色相**：
          「Never match the outline to the project's accent or ink color.
@@ -261,8 +266,8 @@
          对照组 shadcn / Tailwind v4 的 `--border`：亮 oklch(.922 0 0) ≈ #e4e4e7（1.27:1）、
          暗 rgba(255,255,255,.10) —— 本 token 就取这两个值，宽度/权重与改前逐位相同。
          ⚠️ 别拿"太淡"当理由加粗：改前 1.23:1、改后 1.27:1，本来就是对的量级。 */
-      --color-card-edge: #e4e4e7;
-      --color-alt:     #ebebed;   /* 苹果浅灰面（画布**下一档**的凹陷面；随 --color-canvas 同步） */
+      --color-card-edge: #dbe3f1;
+      --color-alt:     #e2eaf6;   /* 苹果浅灰面（画布**下一档**的凹陷面；随 --color-canvas 同步） */
       /* 展示蓝（巨字专用，**不是交互色**）：参考图巨字第二行是浅色那一支，
          本站没有第二支色 —— 就地把 accent 兑白 20% 得到它，仍是同一支蓝。
          纸上 3.47:1：过 WCAG 大字号（≥24px）的 3:1 线，**过不了正文的 4.5:1**
@@ -4956,6 +4961,7 @@ html.nav-anim-reset *::after {
   .album-eyebrow {
     font-family: var(--font-mono);
     font-size: 12px;
+    font-weight: 500;
     /* 2026-09-25 苹果口径：0.32em → **0.08em**。苹果的小标（12px）实测字距 -0.01em~0，
        没有宽字距这一说；0.32em 是照参考站抄的（它给大写拉丁用 0.45em）。 */
     letter-spacing: 0.08em;
@@ -5000,7 +5006,8 @@ html.nav-anim-reset *::after {
   .hero-kicker {
     font-family: var(--font-mono);
     font-size: 12px;
-    letter-spacing: 0.1em;   /* 苹果小标不宽字距 */
+    font-weight: 500;
+    letter-spacing: 0.14em;   /* mono 小标：比 0.1em 略开，读起来更像"标签" */
     color: var(--color-accent);
   }
   .wall-hero-grid {

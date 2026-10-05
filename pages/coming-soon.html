@@ -10,12 +10,12 @@
 <!-- 防白闪底色（2026-09-15）：与其余四页统一 —— 外部 CSS 到达前 <html> 已是 paper 色。
      本页没有深色主题，所以只写 light 一条（其余四页还有 html.theme-dark 那条）。 -->
 <style>
-  html { background: #f5f5f7; color-scheme: light; }
+  html { background: #eef3fb; color-scheme: light; }
 </style>
 <style id="early-vt">
 /* early-vt: 跨文档过渡的动画定义提前到 head（改这 7 行要连 style.css 一起看）*/
 @view-transition { navigation: auto; }
-::view-transition-group(root) { background: var(--color-canvas, #f5f5f7); }
+::view-transition-group(root) { background: var(--color-canvas, #eef3fb); }
 ::view-transition-old(root) { animation: nav-vt-out 450ms ease both; }
 ::view-transition-new(root) { animation: nav-vt-in  450ms ease both; mix-blend-mode: plus-lighter; }
 @keyframes nav-vt-out { from { opacity: 1; } to { opacity: 0; } }
@@ -123,19 +123,19 @@
           （画布从 #ffffff 变 #f5f5f7 的那一轮，见 style.css 的 :root）。 */
     --color-ink: #1d1d1f;
     --color-paper: #ffffff;
-    --color-canvas: #f5f5f7;
+    --color-canvas: #eef3fb;
     --color-accent: #0066cc;
     --color-accent-rgb: 0, 102, 204;
-    --color-rule: #d2d2d7;
-    --color-muted: #6e6e73;
-    --color-alt: #ebebed;
+    --color-rule: #ccd8ea;
+    --color-muted: #5d6c86;
+    --color-alt: #e2eaf6;
   }
   /* 加载页关键定位（第一百四十五批）：首帧即全屏覆盖（loader.css 的完整视觉就位前兜底） */
   #pageLoader {
     position: fixed; inset: 0; z-index: 9999;
     display: grid; place-items: center;
-    background: var(--color-canvas, #f5f5f7);
-    color: var(--color-ink, #1d1d1f);
+    background: var(--color-canvas, #eef3fb);
+    color: var(--color-ink, #1b2432);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   /* 背景色只放 html（画布层），body 透明——否则不透明 body 背景会盖住全屏背景 canvas */
